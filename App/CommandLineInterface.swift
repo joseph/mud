@@ -13,6 +13,7 @@ enum CommandLineInterface {
     private static let cliFlags: Set<String> = [
         "--html-up", "-u",
         "--html-down", "-d",
+        "--browser", "-b",
         "--help", "-h",
         "--version", "-v",
     ]
@@ -65,6 +66,7 @@ enum CommandLineInterface {
         var mode: OutputMode?
         var theme = "earthy"
         var htmlClasses: [String] = []
+        var browser = false
         var i = 0
 
         while i < args.count {
@@ -80,6 +82,8 @@ enum CommandLineInterface {
                 mode = .up
             case "--html-down", "-d":
                 mode = .down
+            case "--browser", "-b":
+                browser = true
             case "--line-numbers":
                 htmlClasses.append("has-line-numbers")
             case "--word-wrap":
@@ -129,13 +133,24 @@ enum CommandLineInterface {
                 printError("failed to read from stdin")
                 return 2
             }
-            printToStdout(render(text, title: "", baseURL: nil,
-                                 mode: mode, theme: theme,
-                                 htmlClasses: htmlClasses))
+            let html = render(text, title: "", baseURL: nil,
+                              mode: mode, theme: theme,
+                              htmlClasses: htmlClasses,
+                              forBrowser: browser)
+            if browser {
+                guard let url = writeTempFile(html: html, name: "stdin") else {
+                    printError("failed to write temp file")
+                    return 2
+                }
+                openInBrowser([url])
+            } else {
+                printToStdout(html)
+            }
             return 0
         }
 
         // Render each file
+        var tempURLs: [URL] = []
         for path in files {
             let url = URL(fileURLWithPath: path)
             guard FileManager.default.fileExists(atPath: url.path) else {
@@ -146,10 +161,24 @@ enum CommandLineInterface {
                 printError("cannot read file: \(path)")
                 return 2
             }
-            printToStdout(render(text, title: url.lastPathComponent,
-                                 baseURL: url, mode: mode, theme: theme,
-                                 htmlClasses: htmlClasses))
+            let html = render(text, title: url.lastPathComponent,
+                              baseURL: url, mode: mode, theme: theme,
+                              htmlClasses: htmlClasses,
+                              forBrowser: browser)
+            if browser {
+                let baseName = url.deletingPathExtension().lastPathComponent
+                guard let tempURL = writeTempFile(html: html,
+                                                  name: baseName) else {
+                    printError("failed to write temp file for \(path)")
+                    return 2
+                }
+                tempURLs.append(tempURL)
+            } else {
+                printToStdout(html)
+            }
         }
+
+        if browser { openInBrowser(tempURLs) }
 
         return 0
     }
@@ -209,14 +238,25 @@ enum CommandLineInterface {
         baseURL: URL?,
         mode: OutputMode,
         theme: String,
-        htmlClasses: [String]
+        htmlClasses: [String],
+        forBrowser: Bool = false
     ) -> String {
         var html: String
         switch mode {
         case .up:
-            html = MudCore.renderUpModeDocument(
-                markdown, title: title, baseURL: baseURL, theme: theme
-            )
+            if forBrowser {
+                html = MudCore.renderUpModeDocument(
+                    markdown, title: title, baseURL: baseURL, theme: theme,
+                    includeBaseTag: false,
+                    resolveImageSource: { source, base in
+                        ImageDataURI.encode(source: source, baseURL: base)
+                    }
+                )
+            } else {
+                html = MudCore.renderUpModeDocument(
+                    markdown, title: title, baseURL: baseURL, theme: theme
+                )
+            }
         case .down:
             html = MudCore.renderDownModeDocument(
                 markdown, title: title, theme: theme
@@ -229,6 +269,30 @@ enum CommandLineInterface {
             )
         }
         return html
+    }
+
+    // MARK: - Browser helpers
+
+    private static func writeTempFile(html: String, name: String) -> URL? {
+        let tempDir = NSTemporaryDirectory()
+        let url = URL(fileURLWithPath: tempDir)
+            .appendingPathComponent("mud-\(name)")
+            .appendingPathExtension("html")
+        guard let data = html.data(using: .utf8) else { return nil }
+        do {
+            try data.write(to: url)
+            return url
+        } catch {
+            return nil
+        }
+    }
+
+    private static func openInBrowser(_ urls: [URL]) {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        process.arguments = urls.map(\.path)
+        try? process.run()
+        process.waitUntilExit()
     }
 
     // MARK: - Output helpers
@@ -266,6 +330,7 @@ enum CommandLineInterface {
           -d, --html-down    Full HTML document (syntax-highlighted source)
 
         Options:
+          -b, --browser      Open in default browser instead of stdout
           --line-numbers     Show line numbers (with -d)
           --word-wrap        Enable word wrapping (with -d)
           --readable-column  Limit content width (with -d or -u)
@@ -274,7 +339,8 @@ enum CommandLineInterface {
           -h, --help         Print this help and exit
 
         Without -u or -d, files open in the GUI. With -u or -d, HTML is
-        written to stdout; if no file is given, reads from stdin.
+        written to stdout; if no file is given, reads from stdin. Add -b
+        to open the result in your default browser instead.
         """)
     }
 }

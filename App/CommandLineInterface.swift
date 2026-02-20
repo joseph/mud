@@ -14,6 +14,7 @@ enum CommandLineInterface {
         "--html-up", "-u",
         "--html-down", "-d",
         "--browser", "-b",
+        "--fragment", "-f",
         "--help", "-h",
         "--version", "-v",
     ]
@@ -67,6 +68,7 @@ enum CommandLineInterface {
         var theme = "earthy"
         var htmlClasses: [String] = []
         var browser = false
+        var fragment = false
         var i = 0
 
         while i < args.count {
@@ -84,6 +86,8 @@ enum CommandLineInterface {
                 mode = .down
             case "--browser", "-b":
                 browser = true
+            case "--fragment", "-f":
+                fragment = true
             case "--line-numbers":
                 htmlClasses.append("has-line-numbers")
             case "--word-wrap":
@@ -121,6 +125,21 @@ enum CommandLineInterface {
             return 1
         }
 
+        if fragment {
+            if theme != "earthy" {
+                printError("--theme ignored with --fragment")
+            }
+            if htmlClasses.contains("has-line-numbers") {
+                printError("--line-numbers ignored with --fragment")
+            }
+            if htmlClasses.contains("has-word-wrap") {
+                printError("--word-wrap ignored with --fragment")
+            }
+            if htmlClasses.contains("is-readable-column") {
+                printError("--readable-column ignored with --fragment")
+            }
+        }
+
         guard let mode else {
             printError("specify --html-up (-u) or --html-down (-d)")
             return 1
@@ -136,7 +155,8 @@ enum CommandLineInterface {
             let html = render(text, title: "", baseURL: nil,
                               mode: mode, theme: theme,
                               htmlClasses: htmlClasses,
-                              forBrowser: browser)
+                              forBrowser: browser,
+                              forFragment: fragment)
             if browser {
                 guard let url = writeTempFile(html: html, name: "stdin") else {
                     printError("failed to write temp file")
@@ -164,7 +184,8 @@ enum CommandLineInterface {
             let html = render(text, title: url.lastPathComponent,
                               baseURL: url, mode: mode, theme: theme,
                               htmlClasses: htmlClasses,
-                              forBrowser: browser)
+                              forBrowser: browser,
+                              forFragment: fragment)
             if browser {
                 let baseName = url.deletingPathExtension().lastPathComponent
                 guard let tempURL = writeTempFile(html: html,
@@ -239,8 +260,17 @@ enum CommandLineInterface {
         mode: OutputMode,
         theme: String,
         htmlClasses: [String],
-        forBrowser: Bool = false
+        forBrowser: Bool = false,
+        forFragment: Bool = false
     ) -> String {
+        if forFragment {
+            switch mode {
+            case .up:
+                return MudCore.renderToHTML(markdown)
+            case .down:
+                return MudCore.renderDownToHTML(markdown)
+            }
+        }
         var html: String
         switch mode {
         case .up:
@@ -326,10 +356,11 @@ enum CommandLineInterface {
           command | mud -u [options]    Render stdin to HTML
 
         Modes:
-          -u, --html-up      Full HTML document (rendered Markdown)
-          -d, --html-down    Full HTML document (syntax-highlighted source)
+          -u, --html-up      HTML document (rendered Markdown)
+          -d, --html-down    HTML document (syntax-highlighted source)
 
         Options:
+          -f, --fragment     Output HTML body only, no document wrapper
           -b, --browser      Open in default browser instead of stdout
           --line-numbers     Show line numbers (with -d)
           --word-wrap        Enable word wrapping (with -d)
@@ -338,9 +369,10 @@ enum CommandLineInterface {
           -v, --version      Print version and exit
           -h, --help         Print this help and exit
 
-        Without -u or -d, files open in the GUI. With -u or -d, HTML is
-        written to stdout; if no file is given, reads from stdin. Add -b
-        to open the result in your default browser instead.
+        Without -u or -d, files open in the GUI. With -u or -d, a full
+        HTML document is written to stdout; add -f for just the HTML body.
+        If no file is given, reads from stdin. Add -b to open the result
+        in your default browser instead.
         """)
     }
 }

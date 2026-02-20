@@ -52,6 +52,11 @@ public enum MudCore {
         return extractor.headings
     }
 
+    /// Renders Markdown text to an HTML table for Down mode (body only).
+    public static func renderDownToHTML(_ text: String) -> String {
+        downVisitor.highlightAsTable(text)
+    }
+
     /// Renders Markdown text to a complete HTML document for Down mode.
     public static func renderDownModeDocument(
         _ text: String,

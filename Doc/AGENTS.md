@@ -32,8 +32,8 @@ See `Doc/Plans/2026-02-md-app.md` for the full plan. See
 - Remote images allowed
 - Link handling: anchors, local .md, external URLs
 - Quit on last window close
-- CLI tool: `mud -u` / `-d` for HTML output, stdin support, theme and
-  view-option flags
+- CLI tool: `mud -u` / `-d` for HTML output, `-f` for fragment output, stdin
+  support, theme and view-option flags
 
 
 ## Targets
@@ -69,8 +69,8 @@ See `Doc/Plans/2026-02-md-app.md` for the full plan. See
 
 **Core/ key files:**
 
-- `MudCore.swift` — Public API: renderToHTML, renderUpModeDocument,
-  renderDownModeDocument, extractHeadings
+- `MudCore.swift` — Public API: renderToHTML, renderDownToHTML,
+  renderUpModeDocument, renderDownModeDocument, extractHeadings
 - `Rendering/UpHTMLVisitor.swift` — AST → rendered HTML
 - `Rendering/DownHTMLVisitor.swift` — AST → syntax-highlighted raw HTML
 - `Rendering/HTMLTemplate.swift` — Document wrapping and resource loading
@@ -113,8 +113,9 @@ Markdown string (down mode)
 Both modes render into the same WKWebView; toggling mode swaps the HTML
 document.
 
-MudCore exposes: `renderToHTML(_:)`, `renderUpModeDocument(_:)`,
-`renderDownModeDocument(_:)`, `extractHeadings(_:)`.
+MudCore exposes: `renderToHTML(_:)`, `renderDownToHTML(_:)`,
+`renderUpModeDocument(_:)`, `renderDownModeDocument(_:)`,
+`extractHeadings(_:)`.
 
 
 ## State management

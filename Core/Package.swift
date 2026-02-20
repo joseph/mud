@@ -3,7 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "Core",
-    platforms: [.macOS(.v15)],
+    platforms: [.macOS(.v14)],
     products: [
         .library(name: "MudCore", targets: ["MudCore"]),
     ],

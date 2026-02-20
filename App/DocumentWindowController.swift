@@ -33,20 +33,22 @@ class DocumentWindowController: NSWindowController {
         window.toolbarStyle = .unified
         window.minSize = NSSize(width: 500, height: 400)
 
-        // Restore saved window frame if available
-        if let frameString = UserDefaults.standard.string(forKey: Self.frameKey) {
-            window.setFrame(NSRectFromString(frameString), display: false)
-        } else {
-            window.center()
-        }
-
         super.init(window: window)
+        shouldCascadeWindows = false
 
         // Apply lighting BEFORE content setup to prevent flash
         applyLighting(AppState.shared.lighting)
         setupContent()
         setupToolbar()
         observeState()
+
+        // Restore saved window frame AFTER content and toolbar setup,
+        // so that layout changes don't override the saved frame.
+        if let frameString = UserDefaults.standard.string(forKey: Self.frameKey) {
+            window.setFrame(NSRectFromString(frameString), display: false)
+        } else {
+            window.center()
+        }
 
         window.delegate = self
     }

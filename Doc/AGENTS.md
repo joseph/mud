@@ -3,14 +3,13 @@ AGENTS guide to Mud
 
 ## Project overview
 
-Mud (Mark Up & Down) is a macOS Markdown preview app targeting macOS Sequoia
-(15.0+). Built with SwiftUI and AppKit. Opens .md files and offers two views:
+Mud (Mark Up & Down) is a macOS Markdown preview app targeting macOS Sonoma
+(14.0+). Built with SwiftUI and AppKit. Opens .md files and offers two views:
 "Mark Up" (rendered GFM with syntax highlighting) and "Mark Down"
 (syntax-highlighted raw source with line numbers). Auto-reloads on file change.
 Includes a CLI tool for HTML output.
 
-See `Doc/Plans/2026-02-md-app.md` for the full plan. See
-`Doc/Plans/2026-02-todo-list.md` for outstanding items.
+See `Doc/Plans/2026-02-mud-app.md` for the original MVP plan.
 
 
 ## Features

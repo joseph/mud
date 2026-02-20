@@ -266,7 +266,7 @@ enum CommandLineInterface {
         if forFragment {
             switch mode {
             case .up:
-                return MudCore.renderToHTML(markdown)
+                return MudCore.renderUpToHTML(markdown)
             case .down:
                 return MudCore.renderDownToHTML(markdown)
             }

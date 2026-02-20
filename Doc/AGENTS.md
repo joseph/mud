@@ -69,7 +69,7 @@ See `Doc/Plans/2026-02-md-app.md` for the full plan. See
 
 **Core/ key files:**
 
-- `MudCore.swift` — Public API: renderToHTML, renderDownToHTML,
+- `MudCore.swift` — Public API: renderUpToHTML, renderDownToHTML,
   renderUpModeDocument, renderDownModeDocument, extractHeadings
 - `Rendering/UpHTMLVisitor.swift` — AST → rendered HTML
 - `Rendering/DownHTMLVisitor.swift` — AST → syntax-highlighted raw HTML
@@ -113,7 +113,7 @@ Markdown string (down mode)
 Both modes render into the same WKWebView; toggling mode swaps the HTML
 document.
 
-MudCore exposes: `renderToHTML(_:)`, `renderDownToHTML(_:)`,
+MudCore exposes: `renderUpToHTML(_:)`, `renderDownToHTML(_:)`,
 `renderUpModeDocument(_:)`, `renderDownModeDocument(_:)`,
 `extractHeadings(_:)`.
 

@@ -63,7 +63,7 @@ struct HeadingExtractorTests {
     @Test func slugMatchesUpVisitor() {
         let md = "## Hello World\n"
         let headings = MudCore.extractHeadings(md)
-        let html = MudCore.renderToHTML(md)
+        let html = MudCore.renderUpToHTML(md)
         #expect(html.contains("id=\"\(headings[0].id)\""))
     }
 }

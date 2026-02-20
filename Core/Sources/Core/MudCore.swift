@@ -9,7 +9,7 @@ public enum MudCore {
     private static let downVisitor = DownHTMLVisitor()
 
     /// Renders Markdown text to HTML body content.
-    public static func renderToHTML(
+    public static func renderUpToHTML(
         _ markdown: String,
         baseURL: URL? = nil,
         resolveImageSource: ((_ source: String, _ baseURL: URL) -> String?)? = nil
@@ -37,7 +37,7 @@ public enum MudCore {
         includeBaseTag: Bool = true,
         resolveImageSource: ((_ source: String, _ baseURL: URL) -> String?)? = nil
     ) -> String {
-        let body = renderToHTML(markdown, baseURL: baseURL,
+        let body = renderUpToHTML(markdown, baseURL: baseURL,
                                 resolveImageSource: resolveImageSource)
         let templateBase = includeBaseTag ? baseURL : nil
         return HTMLTemplate.wrapUp(body: body, title: title, baseURL: templateBase,

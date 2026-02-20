@@ -1,0 +1,48 @@
+/* Mud - Riot theme */
+
+:root {
+    --text-color: #2B2B2B;
+    --bg-color: #FFF;
+    --body-bg: #FDFCFB;
+    --link-color: #D6336C;
+    --border-color: #DDD8E0;
+    --code-fg: #C65D07;
+    --code-bg: #E877000F;
+    --heading-color: #6741D9;
+    --blockquote-color: #7C6F8A;
+    --blockquote-border: #DDD8E0;
+
+    --syntax-comment: #9A8C7A;
+    --syntax-string: #2F9E44;
+    --syntax-number: #E8590C;
+    --syntax-function: #1971C2;
+    --syntax-type: #0C8599;
+    --syntax-constant: #E67700;
+    --syntax-keyword: var(--heading-color);
+    --syntax-variable: var(--text-color);
+    --syntax-operator: var(--text-color);
+    --syntax-punctuation: var(--text-color);
+}
+
+@media (prefers-color-scheme: dark) {
+:root {
+    --text-color: #E8E4E0;
+    --bg-color: #1E1C22;
+    --body-bg: #14131A;
+    --link-color: #F06595;
+    --border-color: #38343E;
+    --code-fg: #FFA94D;
+    --code-bg: #FF922B18;
+    --heading-color: #9775FA;
+    --blockquote-color: #9A90A8;
+    --blockquote-border: #38343E;
+
+    --syntax-comment: #7A7068;
+    --syntax-string: #51CF66;
+    --syntax-number: #FF922B;
+    --syntax-function: #4DABF7;
+    --syntax-type: #66D9E8;
+    --syntax-constant: #FFC078;
+    --syntax-keyword: var(--heading-color);
+}
+}

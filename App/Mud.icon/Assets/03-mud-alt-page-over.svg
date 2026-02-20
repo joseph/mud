@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024px" height="1024px" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>mud-alt-page-over</title>
+    <defs>
+        <linearGradient x1="50%" y1="0%" x2="50%" y2="98.0168269%" id="linearGradient-1">
+            <stop stop-color="#825008" stop-opacity="0.5" offset="0%"></stop>
+            <stop stop-color="#703A00" stop-opacity="0.7" offset="100%"></stop>
+        </linearGradient>
+    </defs>
+    <g id="mud-alt-page-over" stroke="none" fill="none" fill-opacity="0.92" fill-rule="evenodd" stroke-width="22.6026977">
+        <rect id="Rectangle-2" stroke="#FFFFFF" fill="#FFFFFF" x="233.487182" y="161.041392" width="556.026363" height="697.054048" rx="85.8902512"></rect>
+    </g>
+</svg>

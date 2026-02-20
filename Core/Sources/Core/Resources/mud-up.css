@@ -1,0 +1,173 @@
+/* Mud - Up Mode styles */
+
+.up-mode-output {
+    margin: 0 auto;
+    padding: 2em;
+    box-sizing: content-box;
+    background: var(--bg-color);
+}
+
+.is-readable-column .up-mode-output {
+    max-width: 800px;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--heading-color);
+}
+
+h1 { font-size: 2em; margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
+h2 { font-size: 1.5em; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
+h3 { font-size: 1.25em; }
+h4 { font-size: 1em; }
+h5 { font-size: 0.875em; }
+h6 { font-size: 0.85em; }
+
+p {
+    margin-top: 0;
+    margin-bottom: 1em;
+}
+
+/* Links */
+a {
+    color: var(--link-color);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Lists */
+ul, ol {
+    margin-top: 0;
+    margin-bottom: 1em;
+    padding-left: 2em;
+}
+
+li {
+    margin-bottom: 0.25em;
+}
+
+li > ul, li > ol {
+    margin-bottom: 0;
+}
+
+/* Task lists — selectors match cmark-gfm's classless output.
+   Simplify to e.g. .task-list-item if we switch to our own tokenizer. */
+li:has(> input[type="checkbox"]) {
+    list-style: none;
+    margin-left: -1.5em;
+}
+
+li:has(> input[type="checkbox"]) > input[type="checkbox"] {
+    display: none;
+}
+
+li:has(> input[type="checkbox"])::before {
+    content: "";
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    border: 1.5px solid var(--border-color);
+    border-radius: 3px;
+    margin: 0.15em 0.5em 0 0;
+    float: left;
+    clear: left;
+}
+
+li:has(> input[type="checkbox"]:checked)::before {
+    background-color: var(--link-color);
+    border-color: var(--link-color);
+    content: "✓";
+    color: var(--bg-color);
+    font-weight: 700;
+    text-align: center;
+    line-height: 1em;
+}
+
+/* Code */
+code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.875em;
+    padding: 0.2em 0.4em;
+    color: var(--code-fg);
+    background-color: var(--code-bg);
+    border-radius: 4px;
+}
+
+pre {
+    margin-top: 0;
+    margin-bottom: 1em;
+    padding: 1em;
+    overflow-x: auto;
+    font-size: 0.875em;
+    line-height: 1.45;
+    background-color: var(--code-bg);
+    border-radius: 6px;
+}
+
+pre code {
+    padding: 0;
+    background-color: transparent;
+    border-radius: 0;
+    font-size: inherit;
+}
+
+/* Blockquotes */
+blockquote {
+    margin: 0 0 1em 0;
+    padding: 0 1em;
+    color: var(--blockquote-color);
+    border-left: 4px solid var(--blockquote-border);
+}
+
+blockquote > :first-child {
+    margin-top: 0;
+}
+
+blockquote > :last-child {
+    margin-bottom: 0;
+}
+
+/* Horizontal rules */
+hr {
+    height: 2px;
+    margin: 1.5em 0;
+    padding: 0;
+    background-color: var(--border-color);
+    border: 0;
+}
+
+/* Tables */
+table {
+    width: 100%;
+    margin-bottom: 1em;
+    border-collapse: collapse;
+    border-spacing: 0;
+}
+
+th, td {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    text-align: left;
+}
+
+th {
+    font-weight: 600;
+    background-color: var(--code-bg);
+}
+
+tr:nth-child(even) {
+    background-color: var(--code-bg);
+}
+
+/* Images */
+img {
+    max-width: 100%;
+    height: auto;
+}

@@ -1,0 +1,47 @@
+/* Mud - Austere theme */
+
+:root {
+    --text-color: #000;
+    --bg-color: #FFF;
+    --body-bg: #FAFAFA;
+    --link-color: #0969DA;
+    --border-color: #D1D5DB;
+    --code-fg: #265D1F;
+    --code-bg: #4D7A3E09;
+    --heading-color: #000;
+    --blockquote-color: #6B7280;
+    --blockquote-border: #D1D5DB;
+
+    --syntax-comment: #8B949E;
+    --syntax-string: #263D1F;
+    --syntax-number: #6B7280;
+    --syntax-function: #000;
+    --syntax-type: #000;
+    --syntax-constant: #6B7280;
+    --syntax-keyword: var(--heading-color);
+    --syntax-variable: var(--text-color);
+    --syntax-operator: var(--text-color);
+    --syntax-punctuation: var(--text-color);
+}
+
+@media (prefers-color-scheme: dark) {
+:root {
+    --text-color: #E6E6E6;
+    --bg-color: #191919;
+    --body-bg: #111;
+    --link-color: #58A6FF;
+    --border-color: #333;
+    --code-fg: #B1C3A2;
+    --code-bg: #7BAE5E0A;
+    --heading-color: #E6E6E6;
+    --blockquote-color: #999;
+    --blockquote-border: #333;
+
+    --syntax-comment: #777;
+    --syntax-string: #B1CAA2;
+    --syntax-number: #999;
+    --syntax-function: #E6E6E6;
+    --syntax-type: #E6E6E6;
+    --syntax-constant: #999;
+}
+}

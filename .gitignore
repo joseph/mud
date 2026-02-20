@@ -1,0 +1,9 @@
+**/xcuserdata
+
+Core/.build/
+Core/Package.resolved
+
+.claude/tmp
+.claude/settings.local.json
+
+Doc/TODO.md

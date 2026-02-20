@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="1024px" height="1024px" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink">
+    <title>mud-alt-page-under</title>
+    <defs>
+        <linearGradient x1="50%" y1="0%" x2="50%" y2="98.0168269%" id="linearGradient-1">
+            <stop stop-color="#825008" stop-opacity="0.5" offset="0%"></stop>
+            <stop stop-color="#703A00" stop-opacity="0.7" offset="100%"></stop>
+        </linearGradient>
+    </defs>
+    <g id="mud-alt-page-under" stroke="none" fill="none" fill-opacity="0.92" fill-rule="evenodd" stroke-width="22.6026977">
+        <path d="M756.373014,164.944851 C776.970171,164.941818 795.618625,173.28772 809.118549,186.783669 C822.618472,200.279618 830.969865,218.925614 830.972898,239.518399 L830.8416,787.508177 C830.838567,808.101044 822.49052,826.744007 808.995015,840.239511 C795.49951,853.735015 776.856547,862.083061 756.262274,862.086093 L349.446133,862.196581 C328.848977,862.199614 310.200522,853.853712 296.700598,840.357763 C283.200675,826.861814 274.849282,808.215818 274.846249,787.623033 L274.977548,239.633255 C274.980581,219.040388 283.328627,200.397425 296.824132,186.901921 C310.319637,173.406417 328.9626,165.058371 349.556873,165.055339 Z" id="Rectangle-2" stroke="#FFFFFF" fill="#FFFFFF" transform="translate(552.9096, 513.5707) rotate(8) translate(-552.9096, -513.5707)"></path>
+    </g>
+</svg>

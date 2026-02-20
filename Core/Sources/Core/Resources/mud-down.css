@@ -1,0 +1,97 @@
+/* Mud - Down Mode styles */
+
+.down-mode-output {
+    margin: 0 auto;
+    box-sizing: content-box;
+    background: var(--bg-color);
+    overflow-x: auto;
+    overscroll-behavior-x: none;
+}
+
+.is-readable-column .down-mode-output {
+    max-width: calc(800px + 4em);
+}
+
+
+/* Table-based line display */
+
+.down-lines {
+    border-collapse: collapse;
+    table-layout: fixed;
+    width: 100%;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.875em;
+    line-height: 1.6;
+}
+
+.ln {
+    position: sticky;
+    left: 0;
+    width: 4em;
+    padding-right: 1em;
+    text-align: right;
+    font-size: 0.85em;
+    font-weight: 300;
+    user-select: none;
+    -webkit-user-select: none;
+    vertical-align: top;
+    white-space: nowrap;
+    background: color-mix(in srgb, var(--code-bg), var(--bg-color));
+    color: color-mix(in srgb, var(--blockquote-color), var(--bg-color));
+    line-height: 1.7;
+}
+
+.lc {
+    width: 100%;
+    white-space: pre;
+    vertical-align: top;
+    padding: 0 1em;
+}
+
+.has-word-wrap .lc {
+    white-space: pre-wrap;
+    overflow-wrap: break-word;
+}
+
+tr:first-child > * {
+    padding-top: 2rem;
+}
+
+tr:last-child > * {
+    padding-bottom: 2rem;
+}
+
+td.lc:has(.md-code-fence) {
+    background: var(--code-bg);
+    opacity: 0.5;
+}
+
+td.lc:has(.md-code-block) {
+    background: var(--code-bg);
+}
+
+/* tr:has(.md-code-block) + tr td.lc:not(:has(.md-code-block)), */
+/* tr:not(:has(.md-code-block)) + tr td.lc:has(.md-code-block) { */
+/*   border-top: 1px solid #0001; */
+/* } */
+
+html:not(.has-line-numbers) .ln {
+    visibility: hidden;
+    width: 0;
+    padding: 0;
+}
+
+/* AST-based syntax highlighting */
+
+.md-heading     { color: var(--heading-color); }
+.md-code-block  { color: var(--code-fg); }
+.md-code-fence  { color: var(--syntax-comment); }
+.md-code-info   { color: var(--syntax-constant); }
+.md-code        { color: var(--code-fg); }
+.md-emphasis    { font-style: italic; }
+.md-strong      { font-weight: bold; }
+.md-link        { color: var(--link-color); }
+.md-image       { color: var(--syntax-constant); }
+.md-blockquote  { color: var(--syntax-comment); font-style: italic; }
+.md-hr          { color: var(--syntax-comment); }
+.md-html        { color: var(--syntax-keyword); }

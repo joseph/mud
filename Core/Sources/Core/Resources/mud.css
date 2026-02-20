@@ -1,0 +1,113 @@
+/* Mud - structural styles (theme-agnostic) */
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior-x: none;
+}
+
+body {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
+        Helvetica, Arial, sans-serif;
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--text-color);
+    background-color: var(--body-bg);
+}
+
+body *:first-child {
+    min-height: 100%;
+}
+
+/* Syntax highlighting */
+.hljs {
+    color: var(--text-color);
+    background: var(--code-bg);
+}
+
+.hljs-comment,
+.hljs-quote {
+    color: var(--syntax-comment);
+    font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag {
+    color: var(--syntax-keyword);
+}
+
+.hljs-string,
+.hljs-doctag,
+.hljs-regexp {
+    color: var(--syntax-string);
+}
+
+.hljs-number,
+.hljs-literal,
+.hljs-boolean {
+    color: var(--syntax-number);
+}
+
+.hljs-function,
+.hljs-title,
+.hljs-section {
+    color: var(--syntax-function);
+}
+
+.hljs-variable,
+.hljs-template-variable,
+.hljs-attr {
+    color: var(--syntax-variable);
+}
+
+.hljs-type,
+.hljs-class .hljs-title,
+.hljs-built_in {
+    color: var(--syntax-type);
+}
+
+.hljs-symbol,
+.hljs-bullet,
+.hljs-link {
+    color: var(--syntax-constant);
+}
+
+.hljs-code {
+    color: var(--syntax-string);
+    background-color: var(--code-bg);
+    border-radius: 3px;
+    padding: 0.1em 0.3em;
+}
+
+.hljs-meta,
+.hljs-selector-id,
+.hljs-selector-class {
+    color: var(--syntax-function);
+}
+
+.hljs-emphasis {
+    font-style: italic;
+}
+
+.hljs-strong {
+    font-weight: bold;
+}
+
+.hljs-addition {
+    color: var(--syntax-string);
+    background-color: rgba(0, 165, 0, 0.1);
+}
+
+.hljs-deletion {
+    color: #f85149;
+    background-color: rgba(248, 81, 73, 0.1);
+}

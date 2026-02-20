@@ -1,0 +1,48 @@
+/* Mud - Blues theme */
+
+:root {
+    --text-color: #0D1030;
+    --bg-color: #FFF;
+    --body-bg: #F8F9FE;
+    --link-color: #2563EB;
+    --border-color: #C8D2E8;
+    --code-fg: #0D1030;
+    --code-bg: #EDF1FA;
+    --heading-color: #1B3560;
+    --blockquote-color: #6878A0;
+    --blockquote-border: #C8D2E8;
+
+    --syntax-comment: #8892AB;
+    --syntax-string: #1A5276;
+    --syntax-number: #5B6AAE;
+    --syntax-function: #2E4A78;
+    --syntax-type: #1B3560;
+    --syntax-constant: #5B6AAE;
+    --syntax-keyword: var(--heading-color);
+    --syntax-variable: var(--text-color);
+    --syntax-operator: var(--text-color);
+    --syntax-punctuation: var(--text-color);
+}
+
+@media (prefers-color-scheme: dark) {
+:root {
+    --text-color: #E2E6F4;
+    --bg-color: #141628;
+    --body-bg: #0E1020;
+    --link-color: #6EA8FE;
+    --border-color: #2A3252;
+    --code-fg: #E2E6F4;
+    --code-bg: #1A1D32;
+    --heading-color: #A0B8E0;
+    --blockquote-color: #8090B8;
+    --blockquote-border: #2A3252;
+
+    --syntax-comment: #606E90;
+    --syntax-string: #7AACCC;
+    --syntax-number: #9AA0CC;
+    --syntax-function: #8AAAD0;
+    --syntax-type: #A0B8E0;
+    --syntax-constant: #9AA0CC;
+    --syntax-keyword: var(--heading-color);
+}
+}

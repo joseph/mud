@@ -14,7 +14,8 @@ That's what Mud is for. It renders Markdown beautifully, bright or dark. It
 automatically reloads the document when you save it — or when Claude Code
 writes to it, or Codex, or whatever you use.
 
-![The Mud app, showing Mark Up and Mark Down modes](Site/mud-ss-01.png)
+![The Mud app, showing Mark Up and Mark Down
+modes](https://apps.josephpearson.org/mud/mud-ss-01.png)
 
 Mud can show you both sides of the document:
 

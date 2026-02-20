@@ -264,12 +264,17 @@ enum CommandLineInterface {
         forFragment: Bool = false
     ) -> String {
         if forFragment {
+            var body: String
             switch mode {
             case .up:
-                return MudCore.renderUpToHTML(markdown)
+                body = MudCore.renderUpToHTML(markdown)
             case .down:
-                return MudCore.renderDownToHTML(markdown)
+                body = MudCore.renderDownToHTML(markdown)
             }
+            if forBrowser {
+                body = "<meta charset=\"utf-8\">\n" + body
+            }
+            return body
         }
         var html: String
         switch mode {

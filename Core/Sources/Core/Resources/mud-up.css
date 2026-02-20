@@ -168,6 +168,6 @@ tr:nth-child(even) {
 
 /* Images */
 img {
-    max-width: 100%;
+    max-width: min(800px, 100%);
     height: auto;
 }

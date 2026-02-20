@@ -1,6 +1,9 @@
 Plan: --browser flag for CLI
 ===============================================================================
 
+_STATUS: COMPLETE_
+
+
 ## Summary
 
 Add a `--browser` (`-b`) flag to the `mud` CLI that renders the HTML output to
@@ -20,7 +23,7 @@ cat README.md | mud -u -b
 
 ### 1. Mode requirement
 
-`--browser` requires a mode flag (`-u` or `--d`). If neither is given, error
+`--browser` requires a mode flag (`-u` or `-d`). If neither is given, error
 out with the existing message. Rationale: the current CLI already requires a
 mode, and `--browser` is a delivery mechanism, not a mode.
 

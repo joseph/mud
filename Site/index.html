@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html class="is-readable-column">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mud: Mark Up or Down</title>
+    <style id="mud-theme">
+
+:root {
+    --text-color: #333;
+    --bg-color: #FFF;
+    --body-bg: #FCFCFA;
+    --link-color: #8E4740;
+    --border-color: #E0DBD4;
+    --code-bg: #F5F3EE;
+    --code-fg: #5D662E;
+    --heading-color: #7A4A2A;
+    --blockquote-color: #8A7B68;
+    --blockquote-border: #DCD6CE;
+
+    --syntax-comment: #9A7A4A;
+    --syntax-number: #705D73;
+    --syntax-function: #9A5435;
+    --syntax-type: #7A4A2A;
+    --syntax-constant: #705D73;
+    --syntax-keyword: var(--heading-color);
+    --syntax-string: var(--code-fg);
+    --syntax-variable: var(--text-color);
+    --syntax-operator: var(--text-color);
+    --syntax-punctuation: var(--text-color);
+}
+
+@media (prefers-color-scheme: dark) {
+:root {
+    --text-color: #CFC9C0;
+    --bg-color: #100E0D;
+    --body-bg: #0E0C0B;
+    --link-color: #C67467;
+    --border-color: #38332D;
+    --code-bg: #1A1816;
+    --code-fg: #A8B36B;
+    --heading-color: #D9B87C;
+    --blockquote-color: #9A8C7C;
+    --blockquote-border: #3D3731;
+
+    --syntax-comment: #B8A06A;
+    --syntax-number: #947E96;
+    --syntax-function: #C98A60;
+    --syntax-type: #D4A06A;
+    --syntax-constant: #947E96;
+    --syntax-keyword: #D4A06A;
+}
+}
+</style>
+    <style>/* Mud - structural styles (theme-agnostic) */
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior-x: none;
+}
+
+body {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
+        Helvetica, Arial, sans-serif;
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--text-color);
+    background-color: var(--body-bg);
+}
+
+body *:first-child {
+    min-height: 100%;
+}
+
+/* Syntax highlighting */
+.hljs {
+    color: var(--text-color);
+    background: var(--code-bg);
+}
+
+.hljs-comment,
+.hljs-quote {
+    color: var(--syntax-comment);
+    font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag {
+    color: var(--syntax-keyword);
+}
+
+.hljs-string,
+.hljs-doctag,
+.hljs-regexp {
+    color: var(--syntax-string);
+}
+
+.hljs-number,
+.hljs-literal,
+.hljs-boolean {
+    color: var(--syntax-number);
+}
+
+.hljs-function,
+.hljs-title,
+.hljs-section {
+    color: var(--syntax-function);
+}
+
+.hljs-variable,
+.hljs-template-variable,
+.hljs-attr {
+    color: var(--syntax-variable);
+}
+
+.hljs-type,
+.hljs-class .hljs-title,
+.hljs-built_in {
+    color: var(--syntax-type);
+}
+
+.hljs-symbol,
+.hljs-bullet,
+.hljs-link {
+    color: var(--syntax-constant);
+}
+
+.hljs-code {
+    color: var(--syntax-string);
+    background-color: var(--code-bg);
+    border-radius: 3px;
+    padding: 0.1em 0.3em;
+}
+
+.hljs-meta,
+.hljs-selector-id,
+.hljs-selector-class {
+    color: var(--syntax-function);
+}
+
+.hljs-emphasis {
+    font-style: italic;
+}
+
+.hljs-strong {
+    font-weight: bold;
+}
+
+.hljs-addition {
+    color: var(--syntax-string);
+    background-color: rgba(0, 165, 0, 0.1);
+}
+
+.hljs-deletion {
+    color: #f85149;
+    background-color: rgba(248, 81, 73, 0.1);
+}
+/* Mud - Up Mode styles */
+
+.up-mode-output {
+    margin: 0 auto;
+    padding: 2em;
+    box-sizing: content-box;
+    background: var(--bg-color);
+}
+
+.is-readable-column .up-mode-output {
+    max-width: 800px;
+}
+
+.mud-screenshot {
+  display: block;
+  border-radius: 12px;
+  box-shadow: 5px 5px 0 0 #401A0033;
+  margin: 1em 0 3em;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--heading-color);
+}
+
+h1 { font-size: 2em; margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
+h2 { font-size: 1.5em; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
+h3 { font-size: 1.25em; }
+h4 { font-size: 1em; }
+h5 { font-size: 0.875em; }
+h6 { font-size: 0.85em; }
+
+p {
+    margin-top: 0;
+    margin-bottom: 1em;
+}
+
+/* Links */
+a {
+    color: var(--link-color);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Lists */
+ul, ol {
+    margin-top: 0;
+    margin-bottom: 1em;
+    padding-left: 2em;
+}
+
+li {
+    margin-bottom: 0.25em;
+}
+
+li > ul, li > ol {
+    margin-bottom: 0;
+}
+
+/* Task lists — selectors match cmark-gfm's classless output.
+   Simplify to e.g. .task-list-item if we switch to our own tokenizer. */
+li:has(> input[type="checkbox"]) {
+    list-style: none;
+    margin-left: -1.5em;
+}
+
+li:has(> input[type="checkbox"]) > input[type="checkbox"] {
+    display: none;
+}
+
+li:has(> input[type="checkbox"])::before {
+    content: "";
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    border: 1.5px solid var(--border-color);
+    border-radius: 3px;
+    margin: 0.15em 0.5em 0 0;
+    float: left;
+    clear: left;
+}
+
+li:has(> input[type="checkbox"]:checked)::before {
+    background-color: var(--link-color);
+    border-color: var(--link-color);
+    content: "✓";
+    color: var(--bg-color);
+    font-weight: 700;
+    text-align: center;
+    line-height: 1em;
+}
+
+/* Code */
+code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.875em;
+    padding: 0.2em 0.4em;
+    color: var(--code-fg);
+    background-color: var(--code-bg);
+    border-radius: 4px;
+}
+
+pre {
+    margin-top: 0;
+    margin-bottom: 1em;
+    padding: 1em;
+    overflow-x: auto;
+    font-size: 0.875em;
+    line-height: 1.45;
+    background-color: var(--code-bg);
+    border-radius: 6px;
+}
+
+pre code {
+    padding: 0;
+    background-color: transparent;
+    border-radius: 0;
+    font-size: inherit;
+}
+
+/* Blockquotes */
+blockquote {
+    margin: 0 0 1em 0;
+    padding: 0 1em;
+    color: var(--blockquote-color);
+    border-left: 4px solid var(--blockquote-border);
+}
+
+blockquote > :first-child {
+    margin-top: 0;
+}
+
+blockquote > :last-child {
+    margin-bottom: 0;
+}
+
+/* Horizontal rules */
+hr {
+    height: 2px;
+    margin: 1.5em 0;
+    padding: 0;
+    background-color: var(--border-color);
+    border: 0;
+}
+
+/* Tables */
+table {
+    width: 100%;
+    margin-bottom: 1em;
+    border-collapse: collapse;
+    border-spacing: 0;
+}
+
+th, td {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    text-align: left;
+}
+
+th {
+    font-weight: 600;
+    background-color: var(--code-bg);
+}
+
+tr:nth-child(even) {
+    background-color: var(--code-bg);
+}
+
+/* Images */
+img {
+    max-width: 100%;
+    height: auto;
+}
+</style>
+</head>
+<body>
+    <article class="up-mode-output">
+      <h1 id="mud-mark-up-or-down">Mud: Mark Up or Down</h1>
+
+      <p>
+        Markdown is suddenly everywhere. It's how we speak to machines now.
+        It's how they speak to us.
+      </p>
+
+      <p>
+        <em>We should make it nice!</em>
+      </p>
+
+      <p>
+        But you already have a favorite text editor.
+        You don't want a special tool for writing Markdown.
+        You just need a way to preview the Markdown you're writing, marked up.
+      </p>
+
+      <p>
+        That's what Mud is for. It renders Markdown beautifully, bright or dark.
+        It automatically reloads the document when you save it —
+        or when Claude Code writes to it, or Codex, or whatever you use.
+      </p>
+
+      <p>
+        <img
+          src="mud-ss-01.png"
+          class="mud-screenshot"
+          alt="The Mud app, showing Mark Up and Mark Down modes"
+        />
+      </p>
+
+      <p>
+        Mud can show you both sides of the document:
+        <ul>
+          <li>
+            <strong>Mark Up</strong> renders your Markdown as styled HTML —
+            GitHub-flavored, with syntax-highlighted code.
+          </li>
+          <li>
+            <strong>Mark Down</strong> shows the raw source with line numbers.
+          </li>
+        </ul>
+        Hit Space to flip between them. Your scroll position carries over.
+      <p>
+
+      <p>
+        Mud is a Mac-assed Mac app with excellent command-line tooling.
+      </p>
+
+      <p>
+        It's free and it's open source.
+      </p>
+
+      <p>
+        It does one thing — it marks up Markdown! — and it does it really,
+        really well.
+      </p>
+
+      <h2 id="documents">Gimme</h2>
+      <p>
+        <a href="https://github.com/joseph/mud">Get Mud.app</a> at GitHub.
+      </p>
+      <h2 id="highlights">Highlights</h2>
+      <ul>
+      <li><input type="checkbox" disabled="" checked="" /> GitHub-flavored Markdown with syntax-highlighted code blocks
+      </li>
+      <li><input type="checkbox" disabled="" checked="" /> Raw source view with its own syntax highlighting and line numbers
+      </li>
+      <li><input type="checkbox" disabled="" checked="" /> Space bar flips between views; scroll position preserved
+      </li>
+      <li><input type="checkbox" disabled="" checked="" /> Four color themes — Austere, Blues, <strong>Earthy</strong> (default), Riot
+      </li>
+      <li><input type="checkbox" disabled="" checked="" /> Auto / Bright / Dark lighting
+      </li>
+      <li><input type="checkbox" disabled="" checked="" /> Table of contents sidebar
+      </li>
+      <li><input type="checkbox" disabled="" checked="" /> Auto-reload on file change
+      </li>
+      <li><input type="checkbox" disabled="" checked="" /> Find (Cmd+F)
+      </li>
+      <li><input type="checkbox" disabled="" checked="" /> Print and Open in Browser
+      </li>
+      <li><input type="checkbox" disabled="" checked="" /> Zoom, readable column, word wrap, and line number toggles
+      </li>
+      </ul>
+      <h2 id="command-line-tool">Command line tool</h2>
+      <p>Install from <strong>Mud &gt; Install Command Line Tool…</strong> to get a <code>mud</code> command.</p>
+<pre><code class="language-bash">mud file.md                    <span class="hljs-comment"># Open a file in the app</span>
+mud -u file.md                 <span class="hljs-comment"># Render to HTML (mark-up view)</span>
+mud -d file.md                 <span class="hljs-comment"># Render to HTML (mark-down view)</span>
+<span class="hljs-built_in">echo</span> <span class="hljs-string">"# Hi"</span> | mud -u           <span class="hljs-comment"># Pipe stdin to HTML</span>
+mud -u --theme riot file.md    <span class="hljs-comment"># Pick a theme</span>
+</code></pre>
+      <h2 id="license">License</h2>
+      <p>
+        MIT with Commons Clause.
+        See <a href="https://github.com/joseph/mud/blob/main/Doc/LICENSE.md">Doc/LICENSE.md</a>.
+      </p>
+    </article>
+</body>
+</html>

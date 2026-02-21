@@ -17,11 +17,13 @@ struct OutlineSidebarView: View {
     var body: some View {
         Group {
             if state.outlineHeadings.isEmpty {
-                ContentUnavailableView(
-                    "No Headings",
-                    systemImage: "list.bullet.indent",
-                    description: Text("This document has no headings.")
-                )
+                Color.clear.overlay {
+                    ContentUnavailableView(
+                        "No Headings",
+                        systemImage: "list.bullet.indent",
+                        description: Text("This document has no headings.")
+                    )
+                }
             } else {
                 List(selection: $selection) {
                     ForEach(tree) { node in

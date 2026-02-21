@@ -59,7 +59,7 @@
 }
 
 html {
-    font-size: 16px;
+    font-size: 20px;
     -webkit-text-size-adjust: 100%;
     overscroll-behavior-x: none;
 }
@@ -180,9 +180,9 @@ body *:first-child {
 
 .mud-screenshot {
   display: block;
-  border-radius: 12px;
-  box-shadow: 5px 5px 0 0 #401A0033;
-  margin: 1em 0 3em;
+  border-radius: 0.15em;
+  box-shadow: 0 0 0 1px #401A0099;
+  margin: 1em 0;
 }
 
 /* Typography */
@@ -345,71 +345,62 @@ img {
     max-width: 100%;
     height: auto;
 }
+
+/* Footer */
+footer {
+    padding: 3rem 0;
+    text-align: center;
+    font-size: 0.75em;
+    color: var(--blockquote-color);
+}
+
+/* Mobile */
+@media (max-width: 600px) {
+    html {
+        font-size: 17px;
+    }
+    .up-mode-output {
+        padding: 1.25em;
+    }
+}
 </style>
 </head>
 <body>
     <article class="up-mode-output">
       <h1 id="mud-mark-up-or-down">Mud: Mark Up or Down</h1>
 
-      <p>
-        Markdown is suddenly everywhere. It's how we speak to machines now.
-        It's how they speak to us.
-      </p>
+      <p>Markdown is suddenly everywhere.</p>
+      <p>It’s how we speak to machines now. It’s how they speak to us.</p>
+      <p><em>We should make it nice!</em></p>
 
-      <p>
-        <em>We should make it nice!</em>
-      </p>
-
-      <p>
-        But you already have a favorite text editor.
-        You don't want a special tool for writing Markdown.
-        You just need a way to preview the Markdown you're writing, marked up.
-      </p>
-
-      <p>
-        That's what Mud is for. It renders Markdown beautifully, bright or dark.
-        It automatically reloads the document when you save it —
-        or when Claude Code writes to it, or Codex, or whatever you use.
-      </p>
-
-      <p>
-        <img
-          src="mud-ss-01.png"
-          class="mud-screenshot"
-          alt="The Mud app, showing Mark Up and Mark Down modes"
-        />
-      </p>
-
-      <p>
-        Mud can show you both sides of the document:
-        <ul>
-          <li>
-            <strong>Mark Up</strong> renders your Markdown as styled HTML —
-            GitHub-flavored, with syntax-highlighted code.
-          </li>
-          <li>
-            <strong>Mark Down</strong> shows the raw source with line numbers.
-          </li>
-        </ul>
-        Hit Space to flip between them. Your scroll position carries over.
-      <p>
-
-      <p>
-        Mud is a Mac-assed Mac app with excellent command-line tooling.
-      </p>
-
-      <p>
-        It's free and it's open source.
-      </p>
-
-      <p>
-        It does one thing — it marks up Markdown! — and it does it really,
-        really well.
-      </p>
+      <p>But you already have a favorite text editor. You don’t need a special
+      tool for writing Markdown. You just need a way to preview the Markdown
+      you’re writing, marked up.</p>
+      <p>That’s what <strong>Mud</strong> is for. It renders Markdown
+      beautifully, bright or dark. It automatically reloads the document when
+      you save it — or when Claude Code writes to it, or Codex,
+      or whatever you use.</p>
+      <p><img
+        src="mud-ss-01.png"
+        class="mud-screenshot"
+        alt="The Mud app, showing Mark Up and Mark Down modes"
+      /></p>
+      <p>Mud shows you both sides of every document:</p>
+      <ul>
+      <li><strong>Mark Up</strong> renders your Markdown as styled HTML — GitHub-flavored, with
+      syntax-highlighted code.
+      </li>
+      <li><strong>Mark Down</strong> shows the raw source with line numbers.
+      </li>
+      </ul>
+      <p>Hit Space to flip between them. Your scroll position carries over.</p>
+      <p>Mud is a Mac-assed Mac app with excellent command-line tooling.
+      It’s free and it’s open source.</p>
+      <p>It does one thing — it marks up Markdown! — and it does it really well.</p>
 
       <h2 id="documents">Gimme</h2>
       <p>
-        <a href="https://github.com/joseph/mud">Get Mud.app</a> at GitHub.
+        <a href="https://github.com/joseph/mud">Download Mud.app</a> at GitHub.
       </p>
       <h2 id="highlights">Highlights</h2>
       <ul>
@@ -448,5 +439,6 @@ mud -u --theme riot file.md    <span class="hljs-comment"># Pick a theme</span>
         See <a href="https://github.com/joseph/mud/blob/main/Doc/LICENSE.md">Doc/LICENSE.md</a>.
       </p>
     </article>
+    <footer>© 2026 <a href="https://josephpearson.org">Joseph Pearson</a></footer>
 </body>
 </html>

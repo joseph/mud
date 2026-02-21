@@ -1,8 +1,9 @@
 Mud: Mark Up or Down
 ===============================================================================
 
-Markdown is suddenly everywhere. It's how we speak to machines now. It's how
-they speak to us.
+Markdown is suddenly everywhere.
+
+It's how we speak to machines now. It's how they speak to us.
 
 *We should make it nice!*
 
@@ -10,14 +11,14 @@ But you already have a favorite text editor. You don't want a special tool for
 writing Markdown. You just need a way to preview the Markdown you're writing,
 marked up.
 
-That's what Mud is for. It renders Markdown beautifully, bright or dark. It
-automatically reloads the document when you save it — or when Claude Code
+That's what **Mud** is for. It renders Markdown beautifully, bright or dark.
+It automatically reloads the document when you save it — or when Claude Code
 writes to it, or Codex, or whatever you use.
 
 ![The Mud app, showing Mark Up and Mark Down
 modes](https://apps.josephpearson.org/mud/mud-ss-01.png)
 
-Mud can show you both sides of the document:
+Mud shows you both sides of every document:
 
 - **Mark Up** renders your Markdown as styled HTML — GitHub-flavored, with
   syntax-highlighted code.
@@ -26,10 +27,9 @@ Mud can show you both sides of the document:
 Hit Space to flip between them. Your scroll position carries over.
 
 Mud is a Mac-assed Mac app with excellent command-line tooling.
-
 It's free and it's open source.
 
-It does one thing — it marks up Markdown! — and it does it really, really well.
+It does one thing — it marks up Markdown! — and it does it really well.
 
 
 ## Highlights

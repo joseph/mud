@@ -87,13 +87,17 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         return true
     }
 
+    // String matching on system menu titles is English-only.
+    // TODO: revisit when adding localization support.
     @objc private func menuDidAddItem(_ notification: Notification) {
         guard let menu = notification.object as? NSMenu,
-              menu == NSApp.mainMenu?.item(withTitle: "Edit")?.submenu else { return }
+              let title = menu.supermenu?.items.first(where: { $0.submenu == menu })?.title,
+              title == "Edit" || title == "View" else { return }
         // Hide rather than remove — SwiftUI tracks item indices internally
         // and removing items causes index-out-of-bounds crashes on update.
         for item in menu.items {
-            if item.title.localizedCaseInsensitiveContains("autofill") {
+            if item.title.localizedCaseInsensitiveContains("autofill") ||
+               item.title.localizedCaseInsensitiveContains("full screen") {
                 item.isHidden = true
             }
         }

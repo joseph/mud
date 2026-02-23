@@ -23,7 +23,9 @@ class DocumentController: NSDocumentController {
         }
         windowControllers.append(windowController)
         windowController.showWindow(nil)
-        noteNewRecentDocumentURL(url)
+        if !url.isBundleResource {
+            noteNewRecentDocumentURL(url)
+        }
         completionHandler(nil, false, nil)
     }
 
@@ -33,6 +35,15 @@ class DocumentController: NSDocumentController {
 
     private func findWindow(for url: URL) -> NSWindow? {
         NSApp.windows.first { ($0.windowController as? DocumentWindowController)?.fileURL == url }
+    }
+
+    /// Opens a markdown file bundled in the app's resources
+    static func openBundledDocument(_ name: String) {
+        guard let url = Bundle.main.url(forResource: name, withExtension: "md") else { return }
+        NSDocumentController.shared.openDocument(
+            withContentsOf: url,
+            display: true
+        ) { _, _, _ in }
     }
 
     /// Shows the standard open panel and opens selected documents

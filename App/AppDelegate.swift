@@ -58,10 +58,15 @@ class AppDelegate: NSObject, NSApplicationDelegate {
             object: nil
         )
 
-        // If no documents were opened, show file picker
+        // If no documents were opened, show the bundled README on first
+        // launch, or the file picker on subsequent launches.
         DispatchQueue.main.async {
             if NSApp.windows.filter({ $0.isVisible }).isEmpty {
-                self.openOrQuit()
+                if Self.isFirstLaunch() {
+                    self.openBundledReadme()
+                } else {
+                    self.openOrQuit()
+                }
             }
         }
     }
@@ -101,6 +106,20 @@ class AppDelegate: NSObject, NSApplicationDelegate {
                 item.isHidden = true
             }
         }
+    }
+
+    private static let hasLaunchedKey = "Mud-HasLaunched"
+
+    private static func isFirstLaunch() -> Bool {
+        let defaults = UserDefaults.standard
+        if defaults.bool(forKey: hasLaunchedKey) { return false }
+        defaults.set(true, forKey: hasLaunchedKey)
+        return true
+    }
+
+    private func openBundledReadme() {
+        hasOpenedDocument = true
+        DocumentController.openBundledDocument("README")
     }
 
     private func openOrQuit() {

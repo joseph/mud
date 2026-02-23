@@ -174,6 +174,12 @@ struct MudApp: App {
                 }
                 .keyboardShortcut("g", modifiers: [.command, .shift])
             }
+
+            CommandGroup(replacing: .help) {
+                Button("README.md") {
+                    DocumentController.openBundledDocument("README")
+                }
+            }
         }
     }
 }
@@ -283,6 +289,14 @@ class AppState: ObservableObject {
 // MARK: - Sandbox
 
 let isSandboxed = ProcessInfo.processInfo.environment["APP_SANDBOX_CONTAINER_ID"] != nil
+
+// MARK: - Bundle Resources
+
+extension URL {
+    var isBundleResource: Bool {
+        path.hasPrefix(Bundle.main.bundlePath)
+    }
+}
 
 // MARK: - UTType
 

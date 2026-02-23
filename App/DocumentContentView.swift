@@ -120,6 +120,7 @@ struct DocumentContentView: View {
     }
 
     private func setupFileWatcher() {
+        guard !fileURL.isBundleResource else { return }
         fileWatcher = FileWatcher(url: fileURL) { loadFromDisk() }
     }
 

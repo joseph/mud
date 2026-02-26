@@ -2,57 +2,31 @@ import AppKit
 
 /// Manages installation of the `mud` command-line symlink.
 enum CommandLineInstaller {
-    private static let installedKey = "Mud-CLIInstalled"
-    private static let symlinkPathKey = "Mud-CLISymlinkPath"
+    static let installedKey = "Mud-CLIInstalled"
+    static let symlinkPathKey = "Mud-CLISymlinkPath"
 
-    // MARK: - Install dialog
+    /// Standard locations offered in the picker.
+    static let defaultLocations = ["/usr/local/bin", "~/.local/bin", "~/bin"]
 
-    /// Presents an alert letting the user choose where to install the `mud`
-    /// symlink.  Called from the menu item and from first-launch.
-    static func showInstallDialog() {
-        let alert = NSAlert()
-        alert.messageText = "Install Command Line Tool"
-        alert.informativeText =
-            "Create a \"mud\" symlink so you can render Markdown "
-            + "from the terminal.\n\nChoose a directory on your PATH:"
+    // MARK: - Status
 
-        let popup = NSPopUpButton(frame: NSRect(x: 0, y: 0, width: 280, height: 26))
-        let locations = ["/usr/local/bin", "~/.local/bin", "~/bin"]
-        popup.addItems(withTitles: locations)
-        popup.addItem(withTitle: "Other…")
+    /// Whether the CLI symlink has been installed (per UserDefaults).
+    static var isInstalled: Bool {
+        UserDefaults.standard.bool(forKey: installedKey)
+    }
 
-        // Pre-select previously installed location
-        if let previous = UserDefaults.standard.string(forKey: symlinkPathKey) {
-            let previousDir = (previous as NSString).deletingLastPathComponent
-            let abbreviated = abbreviate(previousDir)
-            if let index = locations.firstIndex(of: abbreviated) {
-                popup.selectItem(at: index)
-            }
-        }
-
-        alert.accessoryView = popup
-        alert.addButton(withTitle: "Install")
-        alert.addButton(withTitle: "Cancel")
-
-        guard alert.runModal() == .alertFirstButtonReturn else { return }
-
-        let selectedTitle = popup.titleOfSelectedItem ?? locations[0]
-        let directory: String
-
-        if selectedTitle == "Other…" {
-            guard let chosen = chooseDirectory() else { return }
-            directory = chosen
-        } else {
-            directory = (selectedTitle as NSString)
-                .expandingTildeInPath
-        }
-
-        install(to: directory)
+    /// The abbreviated path to the current symlink, if recorded.
+    static var installedPath: String? {
+        guard let path = UserDefaults.standard.string(forKey: symlinkPathKey)
+        else { return nil }
+        return abbreviate(path)
     }
 
     // MARK: - Directory picker
 
-    private static func chooseDirectory() -> String? {
+    /// Opens an NSOpenPanel for choosing a custom directory.
+    /// Returns the selected path, or nil if cancelled.
+    static func chooseDirectory() -> String? {
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
@@ -64,20 +38,43 @@ enum CommandLineInstaller {
         return url.path
     }
 
-    // MARK: - Symlink creation
+    // MARK: - Install
 
-    private static func install(to directory: String) {
+    enum InstallError: LocalizedError {
+        case noExecutablePath
+        case createDirectoryFailed(String)
+        case removeExistingFailed(String)
+        case symlinkFailed(String)
+
+        var errorDescription: String? {
+            switch self {
+            case .noExecutablePath:
+                return "Could not determine the application executable path."
+            case .createDirectoryFailed(let detail):
+                return "Could not create directory.\n\n\(detail)"
+            case .removeExistingFailed(let detail):
+                return "Could not remove existing file.\n\n\(detail)"
+            case .symlinkFailed(let detail):
+                return "Could not create symlink.\n\n\(detail)"
+            }
+        }
+    }
+
+    /// Installs the `mud` symlink into `directory`.
+    /// Returns the abbreviated symlink path on success.
+    @discardableResult
+    static func install(to directory: String) throws -> String {
         let symlinkPath = (directory as NSString)
             .appendingPathComponent("mud")
         let executablePath = Bundle.main.executablePath ?? ""
 
         guard !executablePath.isEmpty else {
-            showError("Could not determine the application executable path.")
-            return
+            throw InstallError.noExecutablePath
         }
 
-        // Ensure target directory exists
         let fm = FileManager.default
+
+        // Ensure target directory exists
         if !fm.fileExists(atPath: directory) {
             do {
                 try fm.createDirectory(
@@ -85,12 +82,10 @@ enum CommandLineInstaller {
                     withIntermediateDirectories: true
                 )
             } catch {
-                // Try elevated
                 if !elevatedCreateDirectory(directory) {
-                    showError(
-                        "Could not create directory: \(directory)\n\n\(error.localizedDescription)"
+                    throw InstallError.createDirectoryFailed(
+                        error.localizedDescription
                     )
-                    return
                 }
             }
         }
@@ -103,14 +98,13 @@ enum CommandLineInstaller {
                 if !elevatedRemoveAndLink(
                     symlinkPath: symlinkPath, target: executablePath
                 ) {
-                    showError(
-                        "Could not remove existing file at \(symlinkPath)\n\n\(error.localizedDescription)"
+                    throw InstallError.removeExistingFailed(
+                        error.localizedDescription
                     )
-                    return
                 }
                 // Elevated path handled both remove and link
-                recordSuccess(symlinkPath)
-                return
+                recordInstall(symlinkPath)
+                return abbreviate(symlinkPath)
             }
         }
 
@@ -124,27 +118,17 @@ enum CommandLineInstaller {
             if !elevatedRemoveAndLink(
                 symlinkPath: symlinkPath, target: executablePath
             ) {
-                showError(
-                    "Could not create symlink at \(symlinkPath)\n\n\(error.localizedDescription)"
-                )
-                return
+                throw InstallError.symlinkFailed(error.localizedDescription)
             }
         }
 
-        recordSuccess(symlinkPath)
+        recordInstall(symlinkPath)
+        return abbreviate(symlinkPath)
     }
 
-    private static func recordSuccess(_ symlinkPath: String) {
+    private static func recordInstall(_ symlinkPath: String) {
         UserDefaults.standard.set(true, forKey: installedKey)
         UserDefaults.standard.set(symlinkPath, forKey: symlinkPathKey)
-
-        let alert = NSAlert()
-        alert.messageText = "Command Line Tool Installed"
-        alert.informativeText =
-            "Symlink created at \(abbreviate(symlinkPath)).\n\n"
-            + "You can now use \"mud\" from the terminal."
-        alert.alertStyle = .informational
-        alert.runModal()
     }
 
     // MARK: - Elevated permissions
@@ -185,19 +169,11 @@ enum CommandLineInstaller {
 
     // MARK: - Helpers
 
-    private static func abbreviate(_ path: String) -> String {
+    static func abbreviate(_ path: String) -> String {
         let home = NSHomeDirectory()
         if path.hasPrefix(home) {
             return "~" + path.dropFirst(home.count)
         }
         return path
-    }
-
-    private static func showError(_ message: String) {
-        let alert = NSAlert()
-        alert.messageText = "Installation Failed"
-        alert.informativeText = message
-        alert.alertStyle = .critical
-        alert.runModal()
     }
 }

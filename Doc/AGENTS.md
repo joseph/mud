@@ -48,30 +48,58 @@ MVP plan.
 **App/ key files:**
 
 - `MudApp.swift` — @main, menu commands, AppState
+
 - `AppDelegate.swift` — Lifecycle, CLI mode detection, document handling
+
 - `DocumentController.swift` — NSDocumentController subclass
+
 - `DocumentWindowController.swift` — Per-window state, toolbar, zoom, lighting
+
 - `DocumentState.swift` — Per-window observable state
+
 - `DocumentContentView.swift` — Main SwiftUI view for a document
+
 - `WebView.swift` — WKWebView wrapper, JS bridge
+
 - `OutlineSidebarView.swift` — Table of contents sidebar
+
 - `OutlineNode.swift` — Sidebar data model
+
 - `FindFeature.swift` — Search state and UI
+
 - `FileWatcher.swift` — DispatchSource file monitoring
+
 - `CommandLineInterface.swift` — CLI rendering and execution
+
 - `CommandLineInstaller.swift` — CLI symlink creation with elevation support
+
 - `LocalFileSchemeHandler.swift` — `mud-asset:` URL scheme for local images
+
 - `DeferMutation.swift` — Run-loop deferred state mutation helper
+
 - `Lighting.swift` — auto/bright/dark enum
+
 - `Mode.swift` — up/down enum
+
 - `Theme.swift` — austere/blues/earthy/riot enum
+
 - `ViewToggle.swift` — readableColumn/lineNumbers/wordWrap toggles
+
+**App/Settings/ key files:**
+
 - `SettingsView.swift` — Settings window root with NavigationSplitView sidebar
+
 - `GeneralSettingsView.swift` — General settings pane
+
 - `ThemeSettingsView.swift` — Theme selection pane with preview cards
+
 - `ThemePreviewCard.swift` — Theme color constants and preview card view
+
 - `UpModeSettingsView.swift` — Up Mode settings pane (placeholder)
+
 - `DownModeSettingsView.swift` — Down Mode settings pane
+
+- `CommandLineSettingsView.swift` — Command Line settings pane
 
 **Core/ key files:**
 
@@ -181,18 +209,18 @@ multi-window conflicts). Toolbar actions use the responder chain reaching
 
 The app detects sandboxing at runtime via `isSandboxed` (checks
 `APP_SANDBOX_CONTAINER_ID`). When sandboxed (Mac App Store build), certain
-features are hidden entirely:
+features are hidden or adapted:
 
-- **CLI installer** — MAS apps cannot install executables outside their
-  container.
-- **Open in Browser** — The app writes a temp HTML file and hands it to the
-  default browser. In the sandbox, temp files live inside the app's container
-  directory, which other apps (Safari, Chrome) cannot read. The system `/tmp`
-  is readable by other apps but not writable by sandboxed apps. No workaround
-  exists, so the feature is hidden.
+- **CLI installer** — The Command Line settings pane shows manual `ln -s`
+  instructions instead of the automatic Install button.
+- **Open in Browser** — Hidden entirely. The app writes a temp HTML file and
+  hands it to the default browser. In the sandbox, temp files live inside the
+  app's container directory, which other apps (Safari, Chrome) cannot read. The
+  system `/tmp` is readable by other apps but not writable by sandboxed apps.
+  No workaround exists, so the feature is hidden.
 
 These features use `if !isSandboxed` guards in menus, context menus, and
-settings. No build-time flags are needed — a single binary supports both
+settings views. No build-time flags are needed — a single binary supports both
 distribution channels.
 
 

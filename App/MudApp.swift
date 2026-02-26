@@ -13,14 +13,6 @@ struct MudApp: App {
             SettingsView()
         }
         .commands {
-            CommandGroup(after: .appInfo) {
-                if !isSandboxed {
-                    Button("Install Command Line Tool…") {
-                        CommandLineInstaller.showInstallDialog()
-                    }
-                }
-            }
-
             CommandGroup(replacing: .newItem) {
                 Button("Open...") {
                     DocumentController.showOpenPanel()

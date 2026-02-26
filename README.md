@@ -47,7 +47,7 @@ It does one thing — it marks up Markdown! — and it does it really well.
 
 ## Command line tool
 
-Install from **Mud > Install Command Line Tool...** to get a `mud` command.
+Install from **Settings > Command Line** to get a `mud` command.
 
 ```bash
 mud file.md                    # Open a file in the app

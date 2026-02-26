@@ -22,7 +22,7 @@ struct ThemeSettingsView: View {
             }
         }
         .padding(.horizontal, 32)
-        .padding(.top, 32)
+        .padding(.top, 24)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     }
 }

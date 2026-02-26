@@ -58,7 +58,8 @@ jobs:
             -archivePath "$RUNNER_TEMP/Mud.xcarchive" \
             CODE_SIGN_STYLE=Manual \
             "CODE_SIGN_IDENTITY=Developer ID Application" \
-            DEVELOPMENT_TEAM=XVL2AFNXH5
+            DEVELOPMENT_TEAM=XVL2AFNXH5 \
+            ENABLE_APP_SANDBOX=NO
 
       - name: Export
         run: |

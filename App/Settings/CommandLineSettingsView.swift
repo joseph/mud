@@ -1,6 +1,40 @@
 import SwiftUI
 
 struct CommandLineSettingsView: View {
+    var body: some View {
+        if isSandboxed {
+            manualInstallView
+        } else {
+            automaticInstallView
+        }
+    }
+
+    // MARK: - Manual install (sandboxed)
+
+    private var executablePath: String {
+        Bundle.main.executablePath ?? "/Applications/Mud.app/Contents/MacOS/Mud"
+    }
+
+    private var manualInstallView: some View {
+        Form {
+            Section {
+                Text("Create a \"mud\" symlink so you can easily open Markdown documents from the command line.")
+                    .foregroundStyle(.secondary)
+
+                Text("ln -s \"\(executablePath)\" /usr/local/bin/mud")
+                    .font(.system(.callout, design: .monospaced))
+                    .textSelection(.enabled)
+
+                Text("Common locations: /usr/local/bin, ~/.local/bin, ~/bin")
+                    .foregroundStyle(.secondary)
+                    .font(.callout)
+            }
+        }
+        .formStyle(.grouped)
+    }
+
+    // MARK: - Automatic install (non-sandboxed)
+
     @State private var selectedLocation = 0
     @State private var customDirectory: String?
     @State private var statusMessage: String?
@@ -8,10 +42,10 @@ struct CommandLineSettingsView: View {
 
     private let locations = CommandLineInstaller.defaultLocations
 
-    var body: some View {
+    private var automaticInstallView: some View {
         Form {
             Section {
-                Text("Create a \"mud\" symlink so you can easily open Markdown documents from the terminal.")
+                Text("Create a \"mud\" symlink so you can easily open Markdown documents from the command line.")
                     .foregroundStyle(.secondary)
 
                 Picker("Location", selection: $selectedLocation) {

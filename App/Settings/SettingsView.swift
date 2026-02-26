@@ -30,15 +30,7 @@ enum SettingsCategory: String, CaseIterable, Identifiable {
     }
 
     /// Categories visible in the current environment.
-    /// Filters out sandbox-incompatible items in App Store builds.
-    static var visible: [SettingsCategory] {
-        allCases.filter { category in
-            switch category {
-            case .commandLine: return !isSandboxed
-            default: return true
-            }
-        }
-    }
+    static var visible: [SettingsCategory] { allCases }
 }
 
 struct SettingsView: View {

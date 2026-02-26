@@ -10,17 +10,7 @@ struct MudApp: App {
     var body: some Scene {
         // No windows managed by SwiftUI — DocumentController handles them
         Settings {
-            Form {
-                Toggle("Quit when last window closes", isOn: Binding(
-                    get: { appState.quitOnClose },
-                    set: { newValue in
-                        appState.quitOnClose = newValue
-                        appState.saveQuitOnClose()
-                    }
-                ))
-            }
-            .formStyle(.grouped)
-            .frame(width: 320)
+            SettingsView()
         }
         .commands {
             CommandGroup(after: .appInfo) {

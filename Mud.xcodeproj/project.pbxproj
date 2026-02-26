@@ -12,6 +12,12 @@
 		7C0A00062F5B0002001C3BB7 /* OutlineSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C0A00052F5B0002001C3BB7 /* OutlineSidebarView.swift */; };
 		7C1FD9812F44FAC200BB4076 /* LocalFileSchemeHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C1FD9802F44FAC200BB4076 /* LocalFileSchemeHandler.swift */; };
 		7C2665942F3D6216004C8D74 /* DocumentState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C2665932F3D6216004C8D74 /* DocumentState.swift */; };
+		7C282AD82F4F542E00611919 /* ThemePreviewCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C282AD52F4F542E00611919 /* ThemePreviewCard.swift */; };
+		7C282AD92F4F542E00611919 /* UpModeSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C282AD72F4F542E00611919 /* UpModeSettingsView.swift */; };
+		7C282ADA2F4F542E00611919 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C282AD42F4F542E00611919 /* SettingsView.swift */; };
+		7C282ADB2F4F542E00611919 /* ThemeSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C282AD62F4F542E00611919 /* ThemeSettingsView.swift */; };
+		7C282ADC2F4F542E00611919 /* GeneralSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C282AD32F4F542E00611919 /* GeneralSettingsView.swift */; };
+		7C282ADD2F4F542E00611919 /* DownModeSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C282AD22F4F542E00611919 /* DownModeSettingsView.swift */; };
 		7C442A622F3450190046E0CD /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C442A612F3450190046E0CD /* AppDelegate.swift */; };
 		7C442A652F3457C20046E0CD /* DocumentController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C442A642F3457C20046E0CD /* DocumentController.swift */; };
 		7C442A682F34BB7E0046E0CD /* DocumentWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C442A672F34BB7E0046E0CD /* DocumentWindowController.swift */; };
@@ -38,6 +44,12 @@
 		7C0A00052F5B0002001C3BB7 /* OutlineSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutlineSidebarView.swift; sourceTree = "<group>"; };
 		7C1FD9802F44FAC200BB4076 /* LocalFileSchemeHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalFileSchemeHandler.swift; sourceTree = "<group>"; };
 		7C2665932F3D6216004C8D74 /* DocumentState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentState.swift; sourceTree = "<group>"; };
+		7C282AD22F4F542E00611919 /* DownModeSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownModeSettingsView.swift; sourceTree = "<group>"; };
+		7C282AD32F4F542E00611919 /* GeneralSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsView.swift; sourceTree = "<group>"; };
+		7C282AD42F4F542E00611919 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		7C282AD52F4F542E00611919 /* ThemePreviewCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemePreviewCard.swift; sourceTree = "<group>"; };
+		7C282AD62F4F542E00611919 /* ThemeSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeSettingsView.swift; sourceTree = "<group>"; };
+		7C282AD72F4F542E00611919 /* UpModeSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpModeSettingsView.swift; sourceTree = "<group>"; };
 		7C442A612F3450190046E0CD /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		7C442A642F3457C20046E0CD /* DocumentController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentController.swift; sourceTree = "<group>"; };
 		7C442A662F34BB7E0046E0CD /* DocumentContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentContentView.swift; sourceTree = "<group>"; };
@@ -72,6 +84,19 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		7C282AD12F4F541400611919 /* Settings */ = {
+			isa = PBXGroup;
+			children = (
+				7C282AD22F4F542E00611919 /* DownModeSettingsView.swift */,
+				7C282AD32F4F542E00611919 /* GeneralSettingsView.swift */,
+				7C282AD42F4F542E00611919 /* SettingsView.swift */,
+				7C282AD52F4F542E00611919 /* ThemePreviewCard.swift */,
+				7C282AD62F4F542E00611919 /* ThemeSettingsView.swift */,
+				7C282AD72F4F542E00611919 /* UpModeSettingsView.swift */,
+			);
+			path = Settings;
+			sourceTree = "<group>";
+		};
 		7CC975182F3401F4001C3BB7 = {
 			isa = PBXGroup;
 			children = (
@@ -104,6 +129,7 @@
 				7C442A642F3457C20046E0CD /* DocumentController.swift */,
 				7C442A672F34BB7E0046E0CD /* DocumentWindowController.swift */,
 				7C442A662F34BB7E0046E0CD /* DocumentContentView.swift */,
+				7C282AD12F4F541400611919 /* Settings */,
 				7C1FD9802F44FAC200BB4076 /* LocalFileSchemeHandler.swift */,
 				7CC975652F340904001C3BB7 /* WebView.swift */,
 				7CA119802F3CC50F0098484A /* Mode.swift */,
@@ -227,6 +253,12 @@
 				7CC975672F340904001C3BB7 /* WebView.swift in Sources */,
 				7CC975862F340FD2001C3BB7 /* FileWatcher.swift in Sources */,
 				7C1FD9812F44FAC200BB4076 /* LocalFileSchemeHandler.swift in Sources */,
+				7C282AD82F4F542E00611919 /* ThemePreviewCard.swift in Sources */,
+				7C282AD92F4F542E00611919 /* UpModeSettingsView.swift in Sources */,
+				7C282ADA2F4F542E00611919 /* SettingsView.swift in Sources */,
+				7C282ADB2F4F542E00611919 /* ThemeSettingsView.swift in Sources */,
+				7C282ADC2F4F542E00611919 /* GeneralSettingsView.swift in Sources */,
+				7C282ADD2F4F542E00611919 /* DownModeSettingsView.swift in Sources */,
 				7C442A622F3450190046E0CD /* AppDelegate.swift in Sources */,
 				7CA1197F2F3CC4D00098484A /* ViewToggle.swift in Sources */,
 				7C2665942F3D6216004C8D74 /* DocumentState.swift in Sources */,

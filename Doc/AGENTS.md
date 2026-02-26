@@ -66,6 +66,12 @@ MVP plan.
 - `Mode.swift` — up/down enum
 - `Theme.swift` — austere/blues/earthy/riot enum
 - `ViewToggle.swift` — readableColumn/lineNumbers/wordWrap toggles
+- `SettingsView.swift` — Settings window root with NavigationSplitView sidebar
+- `GeneralSettingsView.swift` — General settings pane
+- `ThemeSettingsView.swift` — Theme selection pane with preview cards
+- `ThemePreviewCard.swift` — Theme color constants and preview card view
+- `UpModeSettingsView.swift` — Up Mode settings pane (placeholder)
+- `DownModeSettingsView.swift` — Down Mode settings pane
 
 **Core/ key files:**
 
@@ -196,8 +202,10 @@ SwiftUI event handlers (`onKeyPress`, `onChange`, `updateNSView`, Combine sinks
 triggered during view updates, etc.) run inside the view-update pipeline.
 Setting an `@Published` property there causes:
 
-    Publishing changes from within view updates is not allowed,
-    this will cause undefined behavior.
+```
+Publishing changes from within view updates is not allowed,
+this will cause undefined behavior.
+```
 
 Use `deferMutation` (defined in `App/DeferMutation.swift`) to push the mutation
 to the next run-loop iteration. Applies to any code path that mutates

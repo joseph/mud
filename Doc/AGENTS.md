@@ -57,8 +57,8 @@ See `Doc/Plans/2026-02-mud-app.md` for the original MVP plan.
 - `OutlineNode.swift` — Sidebar data model
 - `FindFeature.swift` — Search state and UI
 - `FileWatcher.swift` — DispatchSource file monitoring
-- `CLIMode.swift` — CLI rendering and execution
-- `CLIInstaller.swift` — CLI tool installation UI
+- `CommandLineInterface.swift` — CLI rendering and execution
+- `CommandLineInstaller.swift` — CLI symlink creation with elevation support
 - `LocalFileSchemeHandler.swift` — `mud-asset:` URL scheme for local images
 - `DeferMutation.swift` — Run-loop deferred state mutation helper
 - `Lighting.swift` — auto/bright/dark enum
@@ -184,9 +184,9 @@ features are hidden entirely:
   is readable by other apps but not writable by sandboxed apps. No workaround
   exists, so the feature is hidden.
 
-These features use `if !isSandboxed` guards in menus and context menus. No
-build-time flags are needed — a single binary supports both distribution
-channels.
+These features use `if !isSandboxed` guards in menus, context menus, and
+settings. No build-time flags are needed — a single binary supports both
+distribution channels.
 
 
 ### Deferred mutations in SwiftUI

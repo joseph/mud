@@ -10,6 +10,7 @@ struct ThemeColors {
     let link: Color
     let codeBg: Color
     let codeFg: Color
+    let border: Color
 
     struct Pair {
         let light: ThemeColors
@@ -73,7 +74,8 @@ private extension ThemeColors {
             heading: Color(cssHex: properties["heading-color"]),
             link: Color(cssHex: properties["link-color"]),
             codeBg: Color(cssHex: properties["code-bg"]),
-            codeFg: Color(cssHex: properties["code-fg"])
+            codeFg: Color(cssHex: properties["code-fg"]),
+            border: Color(cssHex: properties["border-color"])
         )
     }
 }
@@ -97,6 +99,13 @@ struct ThemePreviewCard: View {
                     Text(theme.rawValue.capitalized)
                         .font(.system(size: 13, weight: .bold))
                         .foregroundStyle(colors.heading)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.bottom, 8)
+                        .overlay(alignment: .bottom) {
+                            Rectangle()
+                                .fill(colors.border)
+                                .frame(height: 1)
+                        }
 
                     (Text("Paragraph text, containing ")
                         .foregroundStyle(colors.text)
@@ -114,7 +123,7 @@ struct ThemePreviewCard: View {
                     .font(.system(size: 10, design: .monospaced))
                     .foregroundStyle(colors.codeFg)
                     .padding(.horizontal, 6)
-                    .padding(.vertical, 4)
+                    .padding(.vertical, 6)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .background(
                         RoundedRectangle(cornerRadius: 3)

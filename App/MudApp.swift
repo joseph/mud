@@ -211,6 +211,7 @@ class AppState: ObservableObject {
     @Published var sidebarVisible: Bool
     @Published var quitOnClose: Bool
     @Published var allowRemoteContent: Bool
+    var openSettingsAction: (() -> Void)?
 
     private static let lightingKey = "Mud-Lighting"
     private static let themeKey = "Mud-Theme"

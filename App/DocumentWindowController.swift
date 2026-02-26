@@ -226,6 +226,10 @@ class DocumentWindowController: NSWindowController {
         resetZoom()
     }
 
+    @objc func openSettings(_ sender: Any?) {
+        AppState.shared.openSettingsAction?()
+    }
+
     private func adjustZoom(by delta: Double) {
         let app = AppState.shared
         if state.mode == .down {
@@ -323,7 +327,7 @@ extension DocumentWindowController: NSToolbarDelegate {
 
     func toolbarAllowedItemIdentifiers(_ toolbar: NSToolbar) -> [NSToolbarItem.Identifier] {
         [.toggleSidebar, .sidebarTrackingSeparator, .flexibleSpace, .space, .toggleLighting, .toggleMode,
-         .toggleReadableColumn, /* .toggleLineNumbers, .toggleWordWrap, */ .zoom]
+         .toggleReadableColumn, /* .toggleLineNumbers, .toggleWordWrap, */ .zoom, .settings]
     }
 
     func toolbar(_ toolbar: NSToolbar, itemForItemIdentifier itemIdentifier: NSToolbarItem.Identifier, willBeInsertedIntoToolbar flag: Bool) -> NSToolbarItem? {
@@ -386,6 +390,12 @@ extension DocumentWindowController: NSToolbarDelegate {
             item.label = "Zoom"
             return item
 
+        case .settings:
+            let button = makeToolbarButton(symbolName: "gearshape", action: #selector(openSettings(_:)))
+            item.view = button
+            item.label = "Settings"
+            return item
+
         default:
             return nil
         }
@@ -399,4 +409,5 @@ extension NSToolbarItem.Identifier {
     static let toggleLineNumbers = NSToolbarItem.Identifier("toggleLineNumbers")
     static let toggleWordWrap = NSToolbarItem.Identifier("toggleWordWrap")
     static let zoom = NSToolbarItem.Identifier("zoom")
+    static let settings = NSToolbarItem.Identifier("settings")
 }

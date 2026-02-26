@@ -37,6 +37,17 @@ struct HTMLTemplateTests {
         #expect(doc.contains("Content-Security-Policy"))
     }
 
+    @Test func cspAllowsRemoteImagesByDefault() {
+        let doc = HTMLTemplate.wrapUp(body: "")
+        #expect(doc.contains("img-src mud-asset: data: https:"))
+    }
+
+    @Test func cspBlocksRemoteImagesWhenRequested() {
+        let doc = HTMLTemplate.wrapUp(body: "", blockRemoteContent: true)
+        #expect(doc.contains("img-src mud-asset: data:"))
+        #expect(!doc.contains("https:"))
+    }
+
     @Test func themeCSS() {
         let doc = HTMLTemplate.wrapUp(body: "", theme: "earthy")
         #expect(doc.contains("id=\"mud-theme\""))

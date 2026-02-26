@@ -24,6 +24,7 @@ struct DocumentContentView: View {
         return MudCore.renderUpModeDocument(displayText,
             baseURL: fileURL,
             theme: themeName,
+            blockRemoteContent: !appState.allowRemoteContent,
             resolveImageSource: Self.mudAssetResolver)
     }
 
@@ -56,7 +57,7 @@ struct DocumentContentView: View {
         WebView(
             html: modeHTML,
             baseURL: fileURL,
-            contentID: displayText,
+            contentID: "\(displayText)\(appState.allowRemoteContent)",
             mode: state.mode,
             theme: appState.theme,
             bodyClasses: Set(appState.viewToggles.map(\.className)),

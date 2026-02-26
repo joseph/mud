@@ -1,9 +1,22 @@
 import SwiftUI
 
 struct UpModeSettingsView: View {
+    @ObservedObject private var appState = AppState.shared
+
     var body: some View {
-        Text("No settings available yet.")
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+        Form {
+            Section {
+                Toggle("Allow Remote Content", isOn: Binding(
+                    get: { appState.allowRemoteContent },
+                    set: { newValue in
+                        appState.allowRemoteContent = newValue
+                        appState.saveAllowRemoteContent()
+                    }
+                ))
+                Text("Load remote images and other external resources referenced in Markdown documents.")
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .formStyle(.grouped)
     }
 }

@@ -210,6 +210,7 @@ class AppState: ObservableObject {
     @Published var downModeZoomLevel: Double
     @Published var sidebarVisible: Bool
     @Published var quitOnClose: Bool
+    @Published var allowRemoteContent: Bool
 
     private static let lightingKey = "Mud-Lighting"
     private static let themeKey = "Mud-Theme"
@@ -217,6 +218,7 @@ class AppState: ObservableObject {
     private static let downModeZoomKey = "Mud-DownModeZoomLevel"
     private static let sidebarVisibleKey = "Mud-SidebarVisible"
     private static let quitOnCloseKey = "Mud-QuitOnClose"
+    private static let allowRemoteContentKey = "Mud-AllowRemoteContent"
 
     private init() {
         let raw = UserDefaults.standard.string(forKey: Self.lightingKey) ?? ""
@@ -229,6 +231,7 @@ class AppState: ObservableObject {
         self.downModeZoomLevel = defaults.object(forKey: Self.downModeZoomKey) as? Double ?? 1.0
         self.sidebarVisible = defaults.bool(forKey: Self.sidebarVisibleKey)
         self.quitOnClose = defaults.object(forKey: Self.quitOnCloseKey) as? Bool ?? true
+        self.allowRemoteContent = defaults.object(forKey: Self.allowRemoteContentKey) as? Bool ?? true
     }
 
     func saveLighting(_ lighting: Lighting) {
@@ -250,6 +253,10 @@ class AppState: ObservableObject {
 
     func saveQuitOnClose() {
         UserDefaults.standard.set(quitOnClose, forKey: Self.quitOnCloseKey)
+    }
+
+    func saveAllowRemoteContent() {
+        UserDefaults.standard.set(allowRemoteContent, forKey: Self.allowRemoteContentKey)
     }
 
     func toggle(_ option: ViewToggle) {

@@ -35,13 +35,15 @@ public enum MudCore {
         baseURL: URL? = nil,
         theme: String = "earthy",
         includeBaseTag: Bool = true,
+        blockRemoteContent: Bool = false,
         resolveImageSource: ((_ source: String, _ baseURL: URL) -> String?)? = nil
     ) -> String {
         let body = renderUpToHTML(markdown, baseURL: baseURL,
                                 resolveImageSource: resolveImageSource)
         let templateBase = includeBaseTag ? baseURL : nil
         return HTMLTemplate.wrapUp(body: body, title: title, baseURL: templateBase,
-                                theme: theme)
+                                theme: theme,
+                                blockRemoteContent: blockRemoteContent)
     }
 
     /// Extracts headings from a Markdown string for the outline sidebar.

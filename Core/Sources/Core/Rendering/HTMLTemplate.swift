@@ -4,8 +4,10 @@ import Foundation
 public enum HTMLTemplate {
     /// Wraps body HTML in an Up-mode document.
     static func wrapUp(body: String, title: String = "", baseURL: URL? = nil,
-                     theme: String = "earthy") -> String {
+                     theme: String = "earthy",
+                     blockRemoteContent: Bool = false) -> String {
         let baseTag = baseURL.map { "<base href=\"\($0.absoluteString)\">" } ?? ""
+        let imgSrc = blockRemoteContent ? "mud-asset: data:" : "mud-asset: data: https:"
 
         return """
         <!DOCTYPE html>
@@ -13,7 +15,7 @@ public enum HTMLTemplate {
         <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
-            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src mud-asset: data: https:; style-src 'unsafe-inline'; script-src 'none'">
+            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src \(imgSrc); style-src 'unsafe-inline'; script-src 'none'">
             \(baseTag)
             <title>\(escapeHTML(title))</title>
             <style id="mud-theme">\(themeCSS(for: theme))</style>

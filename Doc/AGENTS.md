@@ -9,7 +9,8 @@ Mud (Mark Up & Down) is a macOS Markdown preview app targeting macOS Sonoma
 (syntax-highlighted raw source with line numbers). Auto-reloads on file change.
 Includes a CLI tool for HTML output.
 
-See `Doc/Plans/2026-02-mud-app.md` for the original MVP plan.
+See [Doc/Plans/2026-02-mud-app.md](./Plans/2026-02-mud-app.md) for the original
+MVP plan.
 
 
 ## Features

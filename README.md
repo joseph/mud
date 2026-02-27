@@ -5,18 +5,17 @@ Markdown is suddenly everywhere.
 
 It's how we speak to machines now. It's how they speak to us.
 
-*We should make it nice!*
+_We should make it nice!_
 
 But you already have a favorite text editor. You don't want a special tool for
 writing Markdown. You just need a way to preview the Markdown you're writing,
 marked up.
 
-That's what **Mud** is for. It renders Markdown beautifully, bright or dark.
-It automatically reloads the document when you save it — or when Claude Code
+That's what **Mud** is for. It renders Markdown beautifully, bright or dark. It
+automatically reloads the document when you save it — or when Claude Code
 writes to it, or Codex, or whatever you use.
 
-![The Mud app, showing Mark Up and Mark Down
-modes](https://apps.josephpearson.org/mud/mud-ss-01.png)
+![The Mud app, showing Mark Up and Mark Down modes](https://apps.josephpearson.org/mud/mud-ss-01.png)
 
 Mud shows you both sides of every document:
 
@@ -26,8 +25,8 @@ Mud shows you both sides of every document:
 
 Hit Space to flip between them. Your scroll position carries over.
 
-Mud is a Mac-assed Mac app with excellent command-line tooling.
-It's free and it's open source.
+Mud is a Mac-assed Mac app with excellent command-line tooling. It's free and
+it's open source.
 
 It does one thing — it marks up Markdown! — and it does it really well.
 
@@ -37,8 +36,8 @@ It does one thing — it marks up Markdown! — and it does it really well.
 - [x] GitHub-flavored Markdown with syntax-highlighted code blocks
 - [x] Raw source view with its own syntax highlighting and line numbers
 - [x] Space bar flips between views; scroll position preserved
-- [x] Four color themes — Austere, Blues, **Earthy** (default), Riot
-- [x] Auto / Bright / Dark lighting
+- [x] Four color themes — Austere, Blues, Earthy, Riot
+- [x] Bright / Dark / System lighting
 - [x] Table of contents sidebar
 - [x] Auto-reload on file change
 - [x] Find (Cmd+F)
@@ -61,8 +60,12 @@ mud -u --theme riot file.md    # Pick a theme
 
 ## Build
 
-Open `Mud.xcodeproj` in Xcode and build.
-Requires at least macOS Sonoma (14.0+).
+Open `Mud.xcodeproj` in Xcode and build. Requires at least macOS Sonoma
+(14.0+).
+
+------------------------------------------------------------------------------
+
+![Mud.app icon](Mud.png)
 
 
 ## License

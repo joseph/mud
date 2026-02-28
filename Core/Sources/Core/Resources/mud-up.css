@@ -134,6 +134,61 @@ blockquote > :last-child {
     margin-bottom: 0;
 }
 
+/* Alerts (GFM alerts and DocC asides).
+   Colors are defined as custom properties so themes can override them. */
+.alert {
+    --alert-note-border: #0969da;
+    --alert-note-title: #0969da;
+    --alert-tip-border: #1a7f37;
+    --alert-tip-title: #1a7f37;
+    --alert-important-border: #8250df;
+    --alert-important-title: #8250df;
+    --alert-warning-border: #9a6700;
+    --alert-warning-title: #9a6700;
+    --alert-caution-border: #d1242f;
+    --alert-caution-title: #d1242f;
+
+    color: var(--text-color);
+}
+
+@media (prefers-color-scheme: dark) {
+.alert {
+    --alert-note-border: #4493f8;
+    --alert-note-title: #4493f8;
+    --alert-tip-border: #3fb950;
+    --alert-tip-title: #3fb950;
+    --alert-important-border: #ab7df8;
+    --alert-important-title: #ab7df8;
+    --alert-warning-border: #d29922;
+    --alert-warning-title: #d29922;
+    --alert-caution-border: #f85149;
+    --alert-caution-title: #f85149;
+}
+}
+
+.alert-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    font-weight: 600;
+}
+
+.alert-title svg {
+    flex-shrink: 0;
+}
+
+.alert-note  { border-left-color: var(--alert-note-border); }
+.alert-tip   { border-left-color: var(--alert-tip-border); }
+.alert-important { border-left-color: var(--alert-important-border); }
+.alert-warning   { border-left-color: var(--alert-warning-border); }
+.alert-caution   { border-left-color: var(--alert-caution-border); }
+
+.alert-note  .alert-title { color: var(--alert-note-title); }
+.alert-tip   .alert-title { color: var(--alert-tip-title); }
+.alert-important .alert-title { color: var(--alert-important-title); }
+.alert-warning   .alert-title { color: var(--alert-warning-title); }
+.alert-caution   .alert-title { color: var(--alert-caution-title); }
+
 /* Horizontal rules */
 hr {
     height: 2px;

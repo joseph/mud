@@ -31,9 +31,23 @@ struct UpHTMLVisitor: MarkupWalker {
     // MARK: - Block containers
 
     mutating func visitBlockQuote(_ blockQuote: BlockQuote) {
-        result += "<blockquote>\n"
-        descendInto(blockQuote)
-        result += "</blockquote>\n"
+        if let (category, title) = Self.detectGFMAlert(blockQuote) {
+            emitAlertOpen(category)
+            emitAlertTitle(category, title)
+            emitGFMAlertContent(blockQuote, category: category)
+            result += "</blockquote>\n"
+        } else if let (category, title, content) = Self.detectDocCAlert(blockQuote) {
+            emitAlertOpen(category)
+            emitAlertTitle(category, title)
+            for block in content {
+                visit(block)
+            }
+            result += "</blockquote>\n"
+        } else {
+            result += "<blockquote>\n"
+            descendInto(blockQuote)
+            result += "</blockquote>\n"
+        }
     }
 
     mutating func visitOrderedList(_ orderedList: OrderedList) {
@@ -245,7 +259,156 @@ struct UpHTMLVisitor: MarkupWalker {
         result += "\n"
     }
 
-    // MARK: - Helpers
+    // MARK: - Alerts
+
+    /// Visual category for GFM alerts and DocC asides.
+    private enum AlertCategory: String, CaseIterable {
+        case note, tip, important, warning, caution
+
+        var cssClass: String { "alert-\(rawValue)" }
+
+        var title: String { rawValue.capitalized }
+
+        /// Inline SVG icon (GitHub Octicons, MIT licensed).
+        var icon: String { Self.icons[self]! }
+
+        private static let icons: [AlertCategory: String] = {
+            var map: [AlertCategory: String] = [:]
+            for category in allCases {
+                let name = "alert-\(category.rawValue)"
+                guard let url = Bundle.module.url(
+                    forResource: name, withExtension: "svg"
+                ), let svg = try? String(
+                    contentsOf: url, encoding: .utf8
+                ) else { continue }
+                map[category] = svg
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            return map
+        }()
+    }
+
+    /// Maps a DocC `Aside.Kind` raw value to a visual alert category.
+    /// Predefined kinds not listed explicitly default to `.note`.
+    private static let doccCategoryMap: [String: AlertCategory] = {
+        let explicit: [AlertCategory: [Aside.Kind]] = [
+            .note: [.note, .remark],
+            .tip: [.tip, .experiment],
+            .important: [.important, .attention],
+            .warning: [.warning, .precondition, .postcondition,
+                       .requires, .invariant],
+            .caution: [.bug, .throws],
+        ]
+        var map: [String: AlertCategory] = [:]
+        for (category, kinds) in explicit {
+            for kind in kinds { map[kind.rawValue] = category }
+        }
+        for kind in Aside.Kind.allCases where map[kind.rawValue] == nil {
+            map[kind.rawValue] = .note
+        }
+        return map
+    }()
+
+    // GFM tag strings and their categories.
+    private static let gfmAlertTags: [(String, AlertCategory)] = [
+        ("[!NOTE]", .note), ("[!TIP]", .tip),
+        ("[!IMPORTANT]", .important),
+        ("[!WARNING]", .warning), ("[!CAUTION]", .caution),
+    ]
+
+    /// Detects a GFM alert tag in the first paragraph of a blockquote.
+    private static func detectGFMAlert(
+        _ blockQuote: BlockQuote
+    ) -> (AlertCategory, String)? {
+        // MarkupChildren.first resolves to first(where:), not the
+        // Sequence property, so we materialise to Array for indexing.
+        let children = Array(blockQuote.children)
+        guard let paragraph = children.first as? Paragraph else {
+            return nil
+        }
+        let text = paragraph.plainText
+        guard text.hasPrefix("[!") else { return nil }
+        for (tag, category) in gfmAlertTags where text.hasPrefix(tag) {
+            return (category, category.title)
+        }
+        return nil
+    }
+
+    /// Emits the content of a GFM alert, stripping the `[!TYPE]` tag
+    /// from the first paragraph. Walks the first paragraph's inline
+    /// children directly: skips the tag Text node (emitting any
+    /// trailing content on the same line), skips a following SoftBreak,
+    /// then visits remaining inlines and subsequent block children.
+    private mutating func emitGFMAlertContent(
+        _ blockQuote: BlockQuote, category: AlertCategory
+    ) {
+        let tag = "[!\(category.rawValue.uppercased())]"
+        let children = Array(blockQuote.children)
+        guard let firstPara = children.first as? Paragraph else {
+            return
+        }
+
+        let inlines = Array(firstPara.children)
+        var index = 0
+        var opened = false
+
+        // Strip the [!TYPE] tag from the first Text node.
+        if let tagNode = inlines.first as? Text {
+            index = 1
+            let after = String(
+                tagNode.string.dropFirst(tag.count)
+                    .drop(while: { $0 == " " })
+            )
+            if !after.isEmpty {
+                opened = true
+                result += "<p>"
+                result += HTMLEscaping.escape(after)
+            }
+            // Skip SoftBreak that separates the tag line from content.
+            if index < inlines.count && inlines[index] is SoftBreak {
+                index += 1
+            }
+        }
+
+        // Visit remaining inlines from the first paragraph.
+        if index < inlines.count {
+            if !opened { result += "<p>"; opened = true }
+            for i in index..<inlines.count { visit(inlines[i]) }
+        }
+        if opened { result += "</p>\n" }
+
+        // Visit remaining block children after the first paragraph.
+        for child in children.dropFirst() { visit(child) }
+    }
+
+    /// Detects a DocC aside tag in a blockquote. Returns the alert
+    /// category, display title, and tag-stripped content blocks.
+    private static func detectDocCAlert(
+        _ blockQuote: BlockQuote
+    ) -> (AlertCategory, String, [BlockMarkup])? {
+        guard let aside = Aside(
+            blockQuote, tagRequirement: .requireAnyLengthTag
+        ) else { return nil }
+        guard let category = doccCategoryMap[aside.kind.rawValue] else {
+            return nil
+        }
+        return (category, aside.kind.displayName, aside.content)
+    }
+
+    /// Emits the opening `<blockquote>` tag with alert CSS classes.
+    private mutating func emitAlertOpen(_ category: AlertCategory) {
+        result += "<blockquote class=\"alert \(category.cssClass)\">\n"
+    }
+
+    /// Emits the alert title paragraph with icon and text.
+    private mutating func emitAlertTitle(
+        _ category: AlertCategory, _ title: String
+    ) {
+        result += "<p class=\"alert-title\">"
+        result += category.icon
+        result += HTMLEscaping.escape(title)
+        result += "</p>\n"
+    }
 
     /// A list is loose if any blank lines appear between consecutive
     /// list items or between block children within a list item.

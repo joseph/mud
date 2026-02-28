@@ -123,6 +123,7 @@ MVP plan.
 - `mud.js` — Shared JS: find, scroll, lighting, zoom
 - `mud-up.js` — Up-mode JS
 - `mud-down.js` — Down-mode JS
+- `alert-*.svg` — Octicon alert icons (note, tip, important, warning, caution)
 - `theme-*.css` — Four theme files (austere, blues, earthy, riot)
 
 **Important** — Make sure to update this section of `Doc/AGENTS.md` if you add

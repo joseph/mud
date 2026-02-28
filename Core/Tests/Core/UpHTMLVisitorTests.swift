@@ -158,6 +158,25 @@ struct UpHTMLVisitorTests {
         #expect(html.contains("<blockquote>"))
     }
 
+    @Test func gfmAlertNote() {
+        let html = MudCore.renderUpToHTML("> [!NOTE]\n> Content here\n")
+        #expect(html.contains("class=\"alert alert-note\""))
+        #expect(html.contains("class=\"alert-title\""))
+        #expect(html.contains("Content here"))
+    }
+
+    @Test func gfmAlertInlineContent() {
+        let html = MudCore.renderUpToHTML("> [!TIP] Inline content\n")
+        #expect(html.contains("class=\"alert alert-tip\""))
+        #expect(html.contains("Inline content"))
+    }
+
+    @Test func plainBlockquoteUnchanged() {
+        let html = MudCore.renderUpToHTML("> Just a quote\n")
+        #expect(html.contains("<blockquote>"))
+        #expect(!html.contains("class=\"alert"))
+    }
+
     // MARK: - Tables
 
     @Test func table() {

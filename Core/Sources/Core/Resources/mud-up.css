@@ -232,6 +232,17 @@ tr:nth-child(even) {
     background-color: var(--code-bg);
 }
 
+/* Mermaid diagrams */
+.mermaid {
+    text-align: center;
+    margin-bottom: 1em;
+}
+
+.mermaid svg {
+    max-width: 100%;
+    height: auto;
+}
+
 /* Images */
 img {
     max-width: min(800px, 100%);

@@ -1,6 +1,9 @@
 Settings dialog
 ===============================================================================
 
+> Status: Complete
+
+
 ## Context
 
 The app's Settings scene currently contains a single toggle ("Quit when last

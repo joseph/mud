@@ -1,7 +1,7 @@
 Mermaid diagrams
 ===============================================================================
 
-> Status: Planning
+> Status: Complete
 
 
 ## Context
@@ -21,7 +21,10 @@ falling back to HTML-escaped text). This HTML is good fallback for CLI output
 and print/PDF.
 
 A bundled mermaid.js library and a small init script are injected via
-`WKUserScript`, which bypasses the CSP `script-src 'none'` restriction.
+`evaluateJavaScript` after page load, only when the rendered HTML contains
+`language-mermaid` code blocks. This bypasses the CSP `script-src 'none'`
+restriction and avoids loading the ~2.8 MB library for documents without
+mermaid diagrams.
 
 
 ## Files to create
@@ -50,9 +53,9 @@ properties following the `mudJS`/ `mudUpJS`/ `mudDownJS` pattern:
 - `mermaidJS` — loads `mermaid.min.js` from the bundle.
 - `mermaidInitJS` — loads `mermaid-init.js` from the bundle.
 
-**`App/WebView.swift`** — Add `HTMLTemplate.mermaidJS` and
-`HTMLTemplate.mermaidInitJS` to the WKUserScript injection array (after the
-existing scripts, mermaid.min.js before init).
+**`App/WebView.swift`** — In the Coordinator, detect `language-mermaid` in the
+HTML during `updateNSView` and inject mermaid.min.js + mermaid-init.js via
+`evaluateJavaScript` in `didFinish` when needed.
 
 **`Core/Sources/Core/Resources/mud-up.css`** — Add `.mermaid` container styles
 (centering, `max-width: 100%` on SVGs, bottom margin).

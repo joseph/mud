@@ -179,7 +179,7 @@ struct UpHTMLVisitorTests {
 
     @Test func statusAsideSingleLine() {
         let html = MudCore.renderUpToHTML("> Status: Planning\n")
-        #expect(html.contains("class=\"alert alert-important\""))
+        #expect(html.contains("class=\"alert alert-status\""))
         #expect(html.contains("class=\"alert-title\""))
         #expect(html.contains("Status: <strong>Planning</strong>"))
     }

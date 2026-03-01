@@ -112,6 +112,7 @@ MVP plan.
 - `Rendering/SlugGenerator.swift` — Heading ID generation
 - `Rendering/HeadingExtractor.swift` — Heading extraction for sidebar
 - `Rendering/CodeHighlighter.swift` — Syntax highlighting via highlight.js
+- `Rendering/EmojiShortcodes.swift` — `:shortcode:` → emoji replacement
 - `Rendering/ImageDataURI.swift` — Image encoding for browser export
 - `OutlineHeading.swift` — Heading model shared between Core and App
 
@@ -123,7 +124,9 @@ MVP plan.
 - `mud.js` — Shared JS: find, scroll, lighting, zoom
 - `mud-up.js` — Up-mode JS
 - `mud-down.js` — Down-mode JS
-- `alert-*.svg` — Octicon alert icons (note, tip, important, warning, caution, status)
+- `emoji.json` — GitHub gemoji shortcode database
+- `alert-*.svg` — Octicon alert icons (note, tip, important, warning, caution,
+  status)
 - `theme-*.css` — Four theme files (austere, blues, earthy, riot)
 
 **Important** — Make sure to update this section of `Doc/AGENTS.md` if you add

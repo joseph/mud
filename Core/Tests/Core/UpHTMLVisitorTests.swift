@@ -177,6 +177,33 @@ struct UpHTMLVisitorTests {
         #expect(!html.contains("class=\"alert"))
     }
 
+    @Test func statusAsideSingleLine() {
+        let html = MudCore.renderUpToHTML("> Status: Planning\n")
+        #expect(html.contains("class=\"alert alert-important\""))
+        #expect(html.contains("class=\"alert-title\""))
+        #expect(html.contains("Status: <strong>Planning</strong>"))
+    }
+
+    @Test func statusAsideMultiLine() {
+        let md = "> Status: In Progress\n> Detail text here\n"
+        let html = MudCore.renderUpToHTML(md)
+        #expect(html.contains("Status: <strong>In Progress</strong>"))
+        #expect(html.contains("<p>Detail text here</p>"))
+    }
+
+    @Test func statusAsideMultiParagraph() {
+        let md = "> Status: Complete\n>\n> Everything is done.\n"
+        let html = MudCore.renderUpToHTML(md)
+        #expect(html.contains("Status: <strong>Complete</strong>"))
+        #expect(html.contains("<p>Everything is done.</p>"))
+    }
+
+    @Test func statusWithoutValueIsPlainBlockquote() {
+        let html = MudCore.renderUpToHTML("> Status:\n")
+        #expect(html.contains("<blockquote>"))
+        #expect(!html.contains("class=\"alert"))
+    }
+
     // MARK: - Tables
 
     @Test func table() {

@@ -1,6 +1,9 @@
 Block remote content setting for Up Mode
 ===============================================================================
 
+> Status: Complete
+
+
 ## Context
 
 The Up Mode settings pane is currently a placeholder with no options. Markdown

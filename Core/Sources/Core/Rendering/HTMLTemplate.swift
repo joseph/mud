@@ -93,6 +93,16 @@ public enum HTMLTemplate {
         loadResource("mud-down", type: "js") ?? ""
     }
 
+    /// Mermaid diagram library injected at runtime by WKWebView.
+    public static var mermaidJS: String {
+        loadResource("mermaid.min", type: "js") ?? ""
+    }
+
+    /// Mermaid init script injected at runtime by WKWebView.
+    public static var mermaidInitJS: String {
+        loadResource("mermaid-init", type: "js") ?? ""
+    }
+
     private static func loadResource(_ name: String, type: String) -> String? {
         guard let url = Bundle.module.url(forResource: name, withExtension: type),
               let contents = try? String(contentsOf: url, encoding: .utf8) else {

@@ -63,7 +63,8 @@ struct WebView: NSViewRepresentable {
         config.setURLSchemeHandler(LocalFileSchemeHandler(),
                                    forURLScheme: "mud-asset")
 
-        // Inject all three JS files; they auto-detect context via DOM.
+        // Inject JS files; they auto-detect context via DOM.
+        // Mermaid is injected on demand via evaluateJavaScript.
         let scripts = [
             HTMLTemplate.mudJS,
             HTMLTemplate.mudUpJS,
@@ -172,6 +173,7 @@ struct WebView: NSViewRepresentable {
         context.coordinator.saveScrollPosition(from: webView)
         context.coordinator.lastContentID = contentID
         context.coordinator.lastMode = mode
+        context.coordinator.needsMermaid = html.contains("language-mermaid")
         let statedHTML = Self.injectState(
             into: html,
             bodyClasses: bodyClasses,
@@ -222,6 +224,7 @@ struct WebView: NSViewRepresentable {
         var lastSearchID: UUID?
         var lastScrollTargetID: UUID?
         var lastPrintID: UUID?
+        var needsMermaid = false
         var onSearchResult: ((MatchInfo?) -> Void)?
         weak var webView: WKWebView?
         private var savedFraction: CGFloat?
@@ -270,8 +273,17 @@ struct WebView: NSViewRepresentable {
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             lastSearchID = nil
             restoreScrollPosition(to: webView)
+            if needsMermaid {
+                injectMermaid(into: webView)
+            }
             if webView.alphaValue == 0 {
                 webView.alphaValue = 1
+            }
+        }
+
+        private func injectMermaid(into webView: WKWebView) {
+            webView.evaluateJavaScript(HTMLTemplate.mermaidJS) { _, _ in
+                webView.evaluateJavaScript(HTMLTemplate.mermaidInitJS)
             }
         }
 

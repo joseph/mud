@@ -286,6 +286,20 @@ struct UpHTMLVisitorTests {
         #expect(html.contains("<strong>🚀</strong>"))
     }
 
+    // MARK: - Mermaid code block fallback
+
+    @Test func mermaidCodeBlockFallback() {
+        let md = """
+        ```mermaid
+        graph TD
+            A --> B
+        ```
+        """
+        let html = MudCore.renderUpToHTML(md)
+        #expect(html.contains("<pre><code class=\"language-mermaid\">"))
+        #expect(html.contains("graph TD"))
+    }
+
     // MARK: - Image source resolution
 
     @Test func imageSourceResolution() {

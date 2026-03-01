@@ -93,4 +93,12 @@ struct HTMLTemplateTests {
     @Test func mudDownJSNotEmpty() {
         #expect(!HTMLTemplate.mudDownJS.isEmpty)
     }
+
+    @Test func mermaidJSNotEmpty() {
+        #expect(!HTMLTemplate.mermaidJS.isEmpty)
+    }
+
+    @Test func mermaidInitJSNotEmpty() {
+        #expect(!HTMLTemplate.mermaidInitJS.isEmpty)
+    }
 }

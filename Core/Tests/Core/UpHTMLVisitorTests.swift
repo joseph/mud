@@ -248,6 +248,44 @@ struct UpHTMLVisitorTests {
         #expect(html.contains("<br />"))
     }
 
+    // MARK: - Emoji shortcodes
+
+    @Test func emojiShortcodeReplaced() {
+        let html = MudCore.renderUpToHTML(":rocket: launch\n")
+        #expect(html.contains("🚀 launch"))
+    }
+
+    @Test func unknownShortcodeLeftAsIs() {
+        let html = MudCore.renderUpToHTML(":not_real: text\n")
+        #expect(html.contains(":not_real: text"))
+    }
+
+    @Test func shortcodeNotReplacedInInlineCode() {
+        let html = MudCore.renderUpToHTML("`:smile:`\n")
+        #expect(html.contains("<code>:smile:</code>"))
+    }
+
+    @Test func shortcodeNotReplacedInCodeBlock() {
+        let md = """
+        ```
+        :rocket:
+        ```
+        """
+        let html = MudCore.renderUpToHTML(md)
+        #expect(html.contains(":rocket:"))
+        #expect(!html.contains("🚀"))
+    }
+
+    @Test func consecutiveShortcodes() {
+        let html = MudCore.renderUpToHTML(":smile::+1:\n")
+        #expect(html.contains("😄👍"))
+    }
+
+    @Test func shortcodeInsideStrong() {
+        let html = MudCore.renderUpToHTML("**:rocket:**\n")
+        #expect(html.contains("<strong>🚀</strong>"))
+    }
+
     // MARK: - Image source resolution
 
     @Test func imageSourceResolution() {

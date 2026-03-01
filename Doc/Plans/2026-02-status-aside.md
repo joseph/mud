@@ -1,17 +1,16 @@
 Status aside
 ===============================================================================
 
-> Status: Planning
+> Status: Complete
 
 
 ## Context
 
 Our plan documents use a `> Status: ...` blockquote at the top to show project
 state. Currently this renders as a plain blockquote. This change detects the
-`> Status:` pattern and renders it as a styled callout using the same visual
-treatment as the "Important" alert category (purple border, purple icon and
-title color), with one unique characteristic: the status value appears inline
-with the title, in bold.
+`> Status:` pattern and renders it as a styled callout with a deep orange
+border and title colour, a pulse icon, and a unique title format where the
+status value appears inline with "Status:", in bold.
 
 
 ## Detection
@@ -34,13 +33,13 @@ known `Aside.Kind`.
 
 ## Rendering
 
-Reuses `AlertCategory.important` for CSS class and icon. No new enum case, no
-new icon, no new CSS colour variables.
+New `AlertCategory.status` case with its own icon (`alert-status.svg`, the
+Octicon pulse icon) and deep orange colour (`#cf5400` light, `#ff6600` dark).
 
 Single-line (`> Status: Planning`):
 
 ```html
-<blockquote class="alert alert-important">
+<blockquote class="alert alert-status">
   <p class="alert-title"><svg …/>Status: <strong>Planning</strong></p>
 </blockquote>
 ```
@@ -48,110 +47,80 @@ Single-line (`> Status: Planning`):
 Multi-line (`> Status: In Progress\n> Detail text`):
 
 ```html
-<blockquote class="alert alert-important">
+<blockquote class="alert alert-status">
   <p class="alert-title"><svg …/>Status: <strong>In Progress</strong></p>
   <p>Detail text</p>
 </blockquote>
 ```
 
-The `<strong>` status value is bold (700) but not coloured — a small CSS
-addition resets it to `--text-color`. The "Status:" label keeps the purple
-colour and semibold weight (600) from `.alert-title`.
+The `<strong>` status value is bold (700) but not coloured — a CSS rule resets
+it to `--text-color`. The "Status:" label keeps the orange colour and semibold
+weight (600) from `.alert-title`.
 
 
 ## Files changed
 
 ### `Core/Sources/Core/Rendering/UpHTMLVisitor.swift`
 
-Four changes in the `// MARK: - Alerts` section:
+- **`AlertCategory`** — added `.status` case. Icon loaded from bundled
+  `alert-status.svg`.
+- **`visitBlockQuote`** — third branch using `.status` category.
+- **`detectStatusAside(_:)`** — static method returning `String?`. Checks the
+  first paragraph's first `Text` node for a `"Status:"` prefix.
+- **`emitStatusTitle(_:)`** — emits the title paragraph with the status icon,
+  `"Status: "`, and the value wrapped in `<strong>`.
+- **`emitStatusContent(_:)`** — strips the first `Text` node, skips a following
+  `SoftBreak`, visits remaining inlines and block children. Same pattern as
+  `emitGFMAlertContent`.
 
-1. **Update `visitBlockQuote`** — add a third branch between the DocC `else if`
-   and the plain blockquote `else`:
 
-   ```swift
-   } else if let statusValue = Self.detectStatusAside(blockQuote) {
-       emitAlertOpen(.important)
-       emitStatusTitle(statusValue)
-       emitStatusContent(blockQuote)
-       result += "</blockquote>\n"
-   } else {
-   ```
+### `Core/Sources/Core/Resources/alert-status.svg` (new)
 
-2. **Add `detectStatusAside(_:)`** — static method returning `String?`. Checks
-   the first paragraph's first `Text` node for a `"Status:"` prefix. Returns
-   the trimmed status value, or `nil` if no match or empty value.
-
-3. **Add `emitStatusTitle(_:)`** — emits the title paragraph with the important
-   icon, the literal `"Status: "`, and the status value wrapped in `<strong>`.
-
-4. **Add `emitStatusContent(_:)`** — strips the first `Text` node (which
-   contains `"Status: Value"`), skips a following `SoftBreak`, then visits
-   remaining inlines (as a `<p>`) and remaining block children. Follows the
-   same pattern as `emitGFMAlertContent`.
-
-   Three content scenarios:
-
-   - **Single-line** — no remaining inlines, no remaining blocks. Nothing
-     emitted.
-   - **Same-paragraph continuation** — SoftBreak skipped, remaining inlines
-     visited in a `<p>`.
-   - **Blank-line separated** — first paragraph consumed entirely,
-     `children.dropFirst()` handles subsequent paragraphs via `visit(child)`.
+Octicon pulse icon (MIT licensed). 16x16, `fill="currentColor"`.
 
 
 ### `Core/Sources/Core/Resources/mud-up.css`
 
-One rule added after line 190 (after the last `.alert-*` title colour rule):
-
-```css
-.alert-title strong {
-    font-weight: 700;
-    color: var(--text-color);
-}
-```
-
-Resets `<strong>` inside `.alert-title` to default text colour. Without this,
-the bold text would inherit the purple title colour. The explicit
-`font-weight: 700` distinguishes it from the `.alert-title`'s 600 (semibold).
-
-No other alert type currently emits `<strong>` inside `.alert-title`, so this
-rule only affects Status asides today.
+- `--alert-status-border` and `--alert-status-title` custom properties
+  (`#cf5400` light, `#ff6600` dark).
+- `.alert-status` border rule and `.alert-status .alert-title` colour rule.
+- `.alert-title strong` rule: resets `<strong>` inside titles to `--text-color`
+  at `font-weight: 700`.
 
 
 ### `Core/Tests/Core/UpHTMLVisitorTests.swift`
 
-Four new tests after the existing alert tests:
+Four new tests:
 
-- `statusAsideSingleLine` — `> Status: Planning` renders with
-  `alert alert-important` class and `Status: <strong>Planning</strong>` in the
-  title.
-- `statusAsideMultiLine` — continuation text appears in a separate `<p>`.
+- `statusAsideSingleLine` — correct CSS class and bold status value in title.
+- `statusAsideMultiLine` — continuation text in a separate `<p>`.
 - `statusAsideMultiParagraph` — blank-line-separated content handled correctly.
-- `statusWithoutValueIsPlainBlockquote` — bare `> Status:` falls through to
-  plain blockquote.
+- `statusWithoutValueIsPlainBlockquote` — bare `> Status:` falls through.
 
 
 ### `Doc/Examples/alerts.md`
 
-Add a "Status asides" section with three examples: single-line, multi-line
-(same paragraph), and multi-paragraph (blank-line separated).
+Status asides section with three examples: single-line, multi-line, and
+multi-paragraph.
+
+
+### `Doc/AGENTS.md`
+
+Updated `alert-*.svg` resource listing to include `status`.
 
 
 ## Files not modified
 
-- **`AlertCategory` enum** — no new case. Reuses `.important`.
-- **SVG icons** — no new icon. Reuses `alert-important.svg`.
-- **`mud-up.css` colour variables** — no new `--alert-status-*` variables.
 - **Theme CSS files** — `--text-color` is already defined by every theme.
+  Themes can optionally override `--alert-status-*` variables.
 - **`DownHTMLVisitor.swift`** — down mode shows raw source; no changes.
-- **`Doc/AGENTS.md`** — no new files added to the project.
 
 
 ## Verification
 
 1. Run unit tests — all four new tests and existing alert tests pass.
-2. Open `Doc/Examples/alerts.md` in Mud — verify the Status asides have purple
-   border, purple icon, purple "Status:" label, and bold default-colour value.
+2. Open `Doc/Examples/alerts.md` in Mud — verify the Status asides have orange
+   border, orange icon, orange "Status:" label, and bold default-colour value.
 3. Toggle lighting — verify colours adapt to light and dark modes.
 4. Toggle themes — verify `--text-color` renders correctly across all four.
 5. Check a bare `> Status:` renders as a plain blockquote.

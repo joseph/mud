@@ -94,6 +94,19 @@ blockquotes.
 > ToDo: Refactor this to use the new API.
 
 
+## Status asides
+
+> Status: Planning
+
+> Status: In Progress
+> X and Y have been implemented. Tests exist for Z, and implementation is
+> planned out. Blocked on A, B, and C.
+
+> Status: Complete
+>
+> All features shipped. No outstanding issues.
+
+
 ## Plain blockquotes (should NOT render as alerts)
 
 > This is a regular blockquote. It has no alert tag at all and should look like

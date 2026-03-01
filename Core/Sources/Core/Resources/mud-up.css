@@ -189,6 +189,11 @@ blockquote > :last-child {
 .alert-warning   .alert-title { color: var(--alert-warning-title); }
 .alert-caution   .alert-title { color: var(--alert-caution-title); }
 
+.alert-title strong {
+    font-weight: 700;
+    color: var(--text-color);
+}
+
 /* Horizontal rules */
 hr {
     height: 2px;

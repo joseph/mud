@@ -43,6 +43,11 @@ struct UpHTMLVisitor: MarkupWalker {
                 visit(block)
             }
             result += "</blockquote>\n"
+        } else if let statusValue = Self.detectStatusAside(blockQuote) {
+            emitAlertOpen(.important)
+            emitStatusTitle(statusValue)
+            emitStatusContent(blockQuote)
+            result += "</blockquote>\n"
         } else {
             result += "<blockquote>\n"
             descendInto(blockQuote)
@@ -408,6 +413,78 @@ struct UpHTMLVisitor: MarkupWalker {
         result += category.icon
         result += HTMLEscaping.escape(title)
         result += "</p>\n"
+    }
+
+    // MARK: - Status aside
+
+    /// Detects a `> Status:` prefix in the first paragraph of a blockquote.
+    /// Returns the status value (text after "Status: ") if found, nil
+    /// otherwise. Requires a non-empty status value.
+    private static func detectStatusAside(
+        _ blockQuote: BlockQuote
+    ) -> String? {
+        let children = Array(blockQuote.children)
+        guard let paragraph = children.first as? Paragraph else {
+            return nil
+        }
+        let inlines = Array(paragraph.children)
+        guard let firstText = inlines.first as? Text else {
+            return nil
+        }
+        guard firstText.string.hasPrefix("Status:") else {
+            return nil
+        }
+        let afterPrefix = String(
+            firstText.string.dropFirst("Status:".count)
+                .drop(while: { $0 == " " })
+        )
+        guard !afterPrefix.isEmpty else { return nil }
+        return afterPrefix
+    }
+
+    /// Emits the Status aside title: icon, "Status: ", and bold value.
+    private mutating func emitStatusTitle(_ statusValue: String) {
+        result += "<p class=\"alert-title\">"
+        result += AlertCategory.important.icon
+        result += "Status: <strong>"
+        result += HTMLEscaping.escape(statusValue)
+        result += "</strong></p>\n"
+    }
+
+    /// Emits the body content of a Status aside. Strips the first Text
+    /// node (which contains "Status: Value"), skips a following SoftBreak,
+    /// then visits remaining inlines and subsequent block children.
+    private mutating func emitStatusContent(
+        _ blockQuote: BlockQuote
+    ) {
+        let children = Array(blockQuote.children)
+        guard let firstPara = children.first as? Paragraph else {
+            return
+        }
+
+        let inlines = Array(firstPara.children)
+        var index = 0
+        var opened = false
+
+        // Skip the first Text node (contains "Status: Value").
+        if inlines.first is Text {
+            index = 1
+            // Skip SoftBreak separating the status line from content.
+            if index < inlines.count && inlines[index] is SoftBreak {
+                index += 1
+            }
+        }
+
+        // Visit remaining inlines from the first paragraph.
+        if index < inlines.count {
+            result += "<p>"
+            opened = true
+            for i in index..<inlines.count { visit(inlines[i]) }
+        }
+        if opened { result += "</p>\n" }
+
+        // Visit remaining block children after the first paragraph.
+        for child in children.dropFirst() { visit(child) }
     }
 
     /// A list is loose if any blank lines appear between consecutive

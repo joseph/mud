@@ -243,7 +243,9 @@ struct UpHTMLVisitor: MarkupWalker {
     // MARK: - Inline leaves
 
     mutating func visitText(_ text: Text) {
-        result += HTMLEscaping.escape(text.string)
+        result += HTMLEscaping.escape(
+            EmojiShortcodes.replaceShortcodes(in: text.string)
+        )
     }
 
     mutating func visitInlineCode(_ inlineCode: InlineCode) {

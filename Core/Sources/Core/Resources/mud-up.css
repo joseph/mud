@@ -147,6 +147,8 @@ blockquote > :last-child {
     --alert-warning-title: #9a6700;
     --alert-caution-border: #d1242f;
     --alert-caution-title: #d1242f;
+    --alert-status-border: #ff7700;
+    --alert-status-title: #ff7700;
 
     color: var(--text-color);
 }
@@ -163,6 +165,8 @@ blockquote > :last-child {
     --alert-warning-title: #d29922;
     --alert-caution-border: #f85149;
     --alert-caution-title: #f85149;
+    --alert-status-border: #ff6600;
+    --alert-status-title: #ff6600;
 }
 }
 
@@ -182,12 +186,14 @@ blockquote > :last-child {
 .alert-important { border-left-color: var(--alert-important-border); }
 .alert-warning   { border-left-color: var(--alert-warning-border); }
 .alert-caution   { border-left-color: var(--alert-caution-border); }
+.alert-status    { border-left-color: var(--alert-status-border); }
 
 .alert-note  .alert-title { color: var(--alert-note-title); }
 .alert-tip   .alert-title { color: var(--alert-tip-title); }
 .alert-important .alert-title { color: var(--alert-important-title); }
 .alert-warning   .alert-title { color: var(--alert-warning-title); }
 .alert-caution   .alert-title { color: var(--alert-caution-title); }
+.alert-status    .alert-title { color: var(--alert-status-title); }
 
 .alert-title strong {
     font-weight: 700;

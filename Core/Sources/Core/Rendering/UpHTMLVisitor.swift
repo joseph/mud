@@ -44,7 +44,7 @@ struct UpHTMLVisitor: MarkupWalker {
             }
             result += "</blockquote>\n"
         } else if let statusValue = Self.detectStatusAside(blockQuote) {
-            emitAlertOpen(.important)
+            emitAlertOpen(.status)
             emitStatusTitle(statusValue)
             emitStatusContent(blockQuote)
             result += "</blockquote>\n"
@@ -268,7 +268,7 @@ struct UpHTMLVisitor: MarkupWalker {
 
     /// Visual category for GFM alerts and DocC asides.
     private enum AlertCategory: String, CaseIterable {
-        case note, tip, important, warning, caution
+        case note, tip, important, warning, caution, status
 
         var cssClass: String { "alert-\(rawValue)" }
 
@@ -445,7 +445,7 @@ struct UpHTMLVisitor: MarkupWalker {
     /// Emits the Status aside title: icon, "Status: ", and bold value.
     private mutating func emitStatusTitle(_ statusValue: String) {
         result += "<p class=\"alert-title\">"
-        result += AlertCategory.important.icon
+        result += AlertCategory.status.icon
         result += "Status: <strong>"
         result += HTMLEscaping.escape(statusValue)
         result += "</strong></p>\n"

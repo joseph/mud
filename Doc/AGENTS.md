@@ -128,6 +128,8 @@ MVP plan.
 - `alert-*.svg` — Octicon alert icons (note, tip, important, warning, caution,
   status)
 - `theme-*.css` — Four theme files (austere, blues, earthy, riot)
+- `mermaid.min.js` — Mermaid diagram library (v11, UMD build)
+- `mermaid-init.js` — Mermaid init script for Up mode rendering
 
 **Important** — Make sure to update this section of `Doc/AGENTS.md` if you add
 or remove key files.

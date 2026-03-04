@@ -3,26 +3,51 @@ import MudCore
 
 // MARK: - Document Content View
 
+private enum DocumentContent {
+    case text(String)
+    case error(String)  // pre-rendered error page HTML
+}
+
 struct DocumentContentView: View {
     let fileURL: URL
     @ObservedObject var state: DocumentState
     @ObservedObject var findState: FindState
     @ObservedObject private var appState = AppState.shared
 
-    @State private var displayText = ""
+    @State private var content: DocumentContent = .text("")
     @State private var fileWatcher: FileWatcher?
     @FocusState private var contentFocused: Bool
     @Environment(\.colorScheme) private var environmentColorScheme
     @Environment(\.openSettings) private var openSettings
 
+    private var displayHTML: String {
+        switch content {
+        case .text:            return modeHTML
+        case .error(let html): return html
+        }
+    }
+
+    private var displayTheme: Theme {
+        if case .error = content { return .system }
+        return appState.theme
+    }
+
+    private var displayContentID: String {
+        switch content {
+        case .text(let text): return "\(text)\(appState.allowRemoteContent)"
+        case .error:          return "load-error"
+        }
+    }
+
     private var modeHTML: String {
+        guard case .text(let text) = content else { return "" }
         let themeName = appState.theme.rawValue
         if state.mode == .down {
-            return MudCore.renderDownModeDocument(displayText,
+            return MudCore.renderDownModeDocument(text,
                 title: fileURL.lastPathComponent,
                 theme: themeName)
         }
-        return MudCore.renderUpModeDocument(displayText,
+        return MudCore.renderUpModeDocument(text,
             baseURL: fileURL,
             theme: themeName,
             blockRemoteContent: !appState.allowRemoteContent,
@@ -56,11 +81,11 @@ struct DocumentContentView: View {
 
     var body: some View {
         WebView(
-            html: modeHTML,
+            html: displayHTML,
             baseURL: fileURL,
-            contentID: "\(displayText)\(appState.allowRemoteContent)",
+            contentID: displayContentID,
             mode: state.mode,
-            theme: appState.theme,
+            theme: displayTheme,
             bodyClasses: Set(appState.viewToggles.map(\.className)),
             zoomLevel: modeZoomLevel,
             searchQuery: findState.currentQuery,
@@ -125,13 +150,23 @@ struct DocumentContentView: View {
     }
 
     private func loadFromDisk() {
-        guard let data = try? Data(contentsOf: fileURL),
-              let text = String(data: data, encoding: .utf8) else { return }
-        displayText = text
-        state.outlineHeadings = MudCore.extractHeadings(text)
+        do {
+            let data = try Data(contentsOf: fileURL)
+            guard let text = String(data: data, encoding: .utf8) else {
+                content = .error(ErrorPage.fileEncodingError())
+                return
+            }
+            content = .text(text)
+            state.outlineHeadings = MudCore.extractHeadings(text)
+        } catch let cocoaError as CocoaError where cocoaError.code == .fileReadNoSuchFile {
+            content = .error(ErrorPage.fileNotFound(error: cocoaError))
+        } catch {
+            content = .error(ErrorPage.filePermissionDenied(path: fileURL.path, error: error))
+        }
     }
 
     private func openInBrowser() {
+        guard case .text(let text) = content else { return }
         let tempDir = NSTemporaryDirectory()
         let baseName = fileURL.deletingPathExtension().lastPathComponent
         let tempURL = URL(fileURLWithPath: tempDir)
@@ -140,11 +175,11 @@ struct DocumentContentView: View {
         let themeName = appState.theme.rawValue
         let exportDocument: String
         if state.mode == .down {
-            exportDocument = MudCore.renderDownModeDocument(displayText,
+            exportDocument = MudCore.renderDownModeDocument(text,
                 title: fileURL.lastPathComponent,
                 theme: themeName)
         } else {
-            exportDocument = MudCore.renderUpModeDocument(displayText,
+            exportDocument = MudCore.renderUpModeDocument(text,
                 baseURL: fileURL,
                 theme: themeName,
                 includeBaseTag: false,

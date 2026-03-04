@@ -29,7 +29,7 @@
 		7C56C3F32F55166800F922B5 /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C56C3F22F55166800F922B5 /* SettingsWindowController.swift */; };
 		7C5A00042F4800020046E0CD /* CommandLineInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C5A00032F4800020046E0CD /* CommandLineInstaller.swift */; };
 		7C6532B12F585CEE00B71730 /* MudCore in Frameworks */ = {isa = PBXBuildFile; productRef = 7C6532B02F585CEE00B71730 /* MudCore */; };
-		7C6532B32F585D6300B71730 /* Mud CLI in CopyFiles */ = {isa = PBXBuildFile; fileRef = 7C6532A82F585CA100B71730 /* Mud CLI */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		7C6532B32F585D6300B71730 /* mud in CopyFiles */ = {isa = PBXBuildFile; fileRef = 7C6532A82F585CA100B71730 /* mud */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		7C6B316E2F3A228000F6A4E8 /* DeferMutation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C6B316D2F3A228000F6A4E8 /* DeferMutation.swift */; };
 		7C8D10302F34CF0400F359C8 /* FindFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C8D102F2F34CF0400F359C8 /* FindFeature.swift */; };
 		7CA1197F2F3CC4D00098484A /* ViewToggle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CA1197E2F3CC4CC0098484A /* ViewToggle.swift */; };
@@ -41,6 +41,7 @@
 		7CC975672F340904001C3BB7 /* WebView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC975652F340904001C3BB7 /* WebView.swift */; };
 		7CC975862F340FD2001C3BB7 /* FileWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC975842F340FD2001C3BB7 /* FileWatcher.swift */; };
 		7CC975892F341A75001C3BB7 /* Lighting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC975872F341A75001C3BB7 /* Lighting.swift */; };
+		7CD093082F587185003E4037 /* ErrorPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CD093072F587185003E4037 /* ErrorPage.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -66,10 +67,10 @@
 		7C6532B22F585D3900B71730 /* CopyFiles */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
-			dstPath = "Contents/Helpers";
+			dstPath = Contents/Helpers;
 			dstSubfolderSpec = 1;
 			files = (
-				7C6532B32F585D6300B71730 /* Mud CLI in CopyFiles */,
+				7C6532B32F585D6300B71730 /* mud in CopyFiles */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -111,6 +112,7 @@
 		7CC975682F340B64001C3BB7 /* Mud.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Mud.entitlements; sourceTree = "<group>"; };
 		7CC975842F340FD2001C3BB7 /* FileWatcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FileWatcher.swift; sourceTree = "<group>"; };
 		7CC975872F341A75001C3BB7 /* Lighting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Lighting.swift; sourceTree = "<group>"; };
+		7CD093072F587185003E4037 /* ErrorPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorPage.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -191,7 +193,7 @@
 			isa = PBXGroup;
 			children = (
 				7CC975212F3401F4001C3BB7 /* Mud.app */,
-				7C6532A82F585CA100B71730 /* Mud CLI */,
+				7C6532A82F585CA100B71730 /* mud */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -224,6 +226,7 @@
 				7C0A00032F5B0001001C3BB7 /* OutlineNode.swift */,
 				7C0A00052F5B0002001C3BB7 /* OutlineSidebarView.swift */,
 				7C5A00032F4800020046E0CD /* CommandLineInstaller.swift */,
+				7CD093072F587185003E4037 /* ErrorPage.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -411,6 +414,7 @@
 				7C8D10302F34CF0400F359C8 /* FindFeature.swift in Sources */,
 				7CA119812F3CC5110098484A /* Mode.swift in Sources */,
 				7CC975672F340904001C3BB7 /* WebView.swift in Sources */,
+				7CD093082F587185003E4037 /* ErrorPage.swift in Sources */,
 				7CC975862F340FD2001C3BB7 /* FileWatcher.swift in Sources */,
 				7C1FD9812F44FAC200BB4076 /* LocalFileSchemeHandler.swift in Sources */,
 				7C282AD82F4F542E00611919 /* ThemePreviewCard.swift in Sources */,

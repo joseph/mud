@@ -1,0 +1,46 @@
+/* Mud - System theme (internal; not user-selectable) */
+
+:root {
+    --text-color: #3A3A3A;
+    --bg-color: #F3F4F5;
+    --body-bg: #EEE;
+    --link-color: #0066CC;
+    --border-color: #D8D8D8;
+    --code-bg: #EFEFEF;
+    --code-fg: #555;
+    --heading-color: #222;
+    --blockquote-color: #888;
+    --blockquote-border: #CCC;
+
+    --syntax-comment: #888;
+    --syntax-number: #666;
+    --syntax-function: #444;
+    --syntax-type: #444;
+    --syntax-constant: #666;
+    --syntax-keyword: var(--heading-color);
+    --syntax-string: var(--code-fg);
+    --syntax-variable: var(--text-color);
+    --syntax-operator: var(--text-color);
+    --syntax-punctuation: var(--text-color);
+}
+
+@media (prefers-color-scheme: dark) {
+:root {
+    --text-color: #C8C8C8;
+    --bg-color: #212325;
+    --body-bg: #191919;
+    --link-color: #5AC8FA;
+    --border-color: #3C3C3C;
+    --code-bg: #282828;
+    --code-fg: #A0A0A0;
+    --heading-color: #E0E0E0;
+    --blockquote-color: #888;
+    --blockquote-border: #444;
+
+    --syntax-comment: #888;
+    --syntax-number: #AAA;
+    --syntax-function: #CCC;
+    --syntax-type: #CCC;
+    --syntax-constant: #AAA;
+}
+}

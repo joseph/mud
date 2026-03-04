@@ -88,6 +88,8 @@ MVP plan.
 
 - `ViewToggle.swift` — readableColumn/lineNumbers/wordWrap toggles
 
+- `ErrorPage.swift` — Error-page HTML generator (renders Markdown via MudCore)
+
 **App/CLI/ key files:**
 
 - `main.swift` — `mud` CLI: argument parsing, rendering via MudCore, stdout and
@@ -141,7 +143,10 @@ MVP plan.
 - `emoji.json` — GitHub gemoji shortcode database
 - `alert-*.svg` — Octicon alert icons (note, tip, important, warning, caution,
   status)
-- `theme-*.css` — Four theme files (austere, blues, earthy, riot)
+- `theme-*.css` — Four user-selectable theme files (austere, blues, earthy,
+  riot)
+- `theme-system.css` — System theme (internal; not user-selectable; used for
+  error pages)
 - `mermaid.min.js` — Mermaid diagram library (v11, UMD build)
 - `mermaid-init.js` — Mermaid init script for Up mode rendering
 - `Doc/Guides/command-line.md` — Bundled guide: CLI usage for App Store and

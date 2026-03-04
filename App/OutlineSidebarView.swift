@@ -93,6 +93,7 @@ private struct OutlineNodeRow: View {
         styledText(from: node.heading.segments)
             .lineLimit(1)
             .truncationMode(.tail)
+            .padding(.leading, 4)
     }
 
     private func styledText(

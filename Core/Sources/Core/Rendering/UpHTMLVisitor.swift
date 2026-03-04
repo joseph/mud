@@ -304,7 +304,7 @@ struct UpHTMLVisitor: MarkupWalker {
             .important: [.important, .attention],
             .warning: [.warning, .precondition, .postcondition,
                        .requires, .invariant],
-            .caution: [.bug, .throws],
+            .caution: [.bug, .throws, Aside.Kind(rawValue: "Error")!],
         ]
         var map: [String: AlertCategory] = [:]
         for (category, kinds) in explicit {

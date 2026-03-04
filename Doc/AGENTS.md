@@ -7,7 +7,10 @@ Mud (Mark Up & Down) is a macOS Markdown preview app targeting macOS Sonoma
 (14.0+). Built with SwiftUI and AppKit. Opens .md files and offers two views:
 "Mark Up" (rendered GFM with syntax highlighting) and "Mark Down"
 (syntax-highlighted raw source with line numbers). Auto-reloads on file change.
-Includes a CLI tool for HTML output.
+Includes a CLI tool for HTML output. The user-facing `mud` command is a shell
+script (`mud.sh`) bundled in the app that dispatches to a standalone `muddy`
+Swift executable (also bundled) for rendering, or to `open -a Mud.app` for GUI
+use.
 
 See [Doc/Plans/2026-02-mud-app.md](./Plans/2026-02-mud-app.md) for the original
 MVP plan.
@@ -39,6 +42,8 @@ MVP plan.
 ## Targets
 
 - **Mud** (App/) -- macOS app, SwiftUI + AppKit hybrid
+- **Mud CLI** (App/CLI/) -- standalone Swift CLI tool (`mud`), bundled in
+  Mud.app
 - **MudCore** (Core/) -- Swift Package, platform-independent rendering and
   syntax highlighting
 
@@ -49,7 +54,7 @@ MVP plan.
 
 - `MudApp.swift` — @main, menu commands, AppState
 
-- `AppDelegate.swift` — Lifecycle, CLI mode detection, document handling
+- `AppDelegate.swift` — Lifecycle and document handling
 
 - `DocumentController.swift` — NSDocumentController subclass
 
@@ -69,8 +74,6 @@ MVP plan.
 
 - `FileWatcher.swift` — DispatchSource file monitoring
 
-- `CommandLineInterface.swift` — CLI rendering and execution
-
 - `CommandLineInstaller.swift` — CLI symlink creation with elevation support
 
 - `LocalFileSchemeHandler.swift` — `mud-asset:` URL scheme for local images
@@ -84,6 +87,17 @@ MVP plan.
 - `Theme.swift` — austere/blues/earthy/riot enum
 
 - `ViewToggle.swift` — readableColumn/lineNumbers/wordWrap toggles
+
+**App/CLI/ key files:**
+
+- `main.swift` — `mud` CLI: argument parsing, rendering via MudCore, stdout and
+  browser output. No AppKit or SwiftUI.
+
+- `mud.sh` — Shell dispatcher: routes to the bundled `mud` CLI when rendering
+  flags are present, otherwise opens files in the Mud GUI via `open -a`.
+  Bundled in `Contents/Resources/mud.sh`; the installed `mud` symlink points
+  here. The `mud` CLI binary lives at `Contents/Helpers/mud` (not `MacOS/`, to
+  avoid a case-insensitive filename collision with the `Mud` app executable).
 
 **App/Settings/ key files:**
 

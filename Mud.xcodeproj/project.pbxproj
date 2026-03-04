@@ -27,8 +27,9 @@
 		7C442A692F34BB7E0046E0CD /* DocumentContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C442A662F34BB7E0046E0CD /* DocumentContentView.swift */; };
 		7C4D0E592F47EF22008A472A /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 7C4D0E582F47EF22008A472A /* PrivacyInfo.xcprivacy */; };
 		7C56C3F32F55166800F922B5 /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C56C3F22F55166800F922B5 /* SettingsWindowController.swift */; };
-		7C5A00022F4800010046E0CD /* CommandLineInterface.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C5A00012F4800010046E0CD /* CommandLineInterface.swift */; };
 		7C5A00042F4800020046E0CD /* CommandLineInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C5A00032F4800020046E0CD /* CommandLineInstaller.swift */; };
+		7C6532B12F585CEE00B71730 /* MudCore in Frameworks */ = {isa = PBXBuildFile; productRef = 7C6532B02F585CEE00B71730 /* MudCore */; };
+		7C6532B32F585D6300B71730 /* Mud CLI in CopyFiles */ = {isa = PBXBuildFile; fileRef = 7C6532A82F585CA100B71730 /* Mud CLI */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		7C6B316E2F3A228000F6A4E8 /* DeferMutation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C6B316D2F3A228000F6A4E8 /* DeferMutation.swift */; };
 		7C8D10302F34CF0400F359C8 /* FindFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C8D102F2F34CF0400F359C8 /* FindFeature.swift */; };
 		7CA1197F2F3CC4D00098484A /* ViewToggle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CA1197E2F3CC4CC0098484A /* ViewToggle.swift */; };
@@ -41,6 +42,38 @@
 		7CC975862F340FD2001C3BB7 /* FileWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC975842F340FD2001C3BB7 /* FileWatcher.swift */; };
 		7CC975892F341A75001C3BB7 /* Lighting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC975872F341A75001C3BB7 /* Lighting.swift */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		7C6532B42F585D7400B71730 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7CC975192F3401F4001C3BB7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7C6532A72F585CA100B71730;
+			remoteInfo = "Mud CLI";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		7C6532A62F585CA100B71730 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+		7C6532B22F585D3900B71730 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "Contents/Helpers";
+			dstSubfolderSpec = 1;
+			files = (
+				7C6532B32F585D6300B71730 /* Mud CLI in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		7C0A00012F3E0001001C3BB7 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
@@ -63,8 +96,8 @@
 		7C442A672F34BB7E0046E0CD /* DocumentWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentWindowController.swift; sourceTree = "<group>"; };
 		7C4D0E582F47EF22008A472A /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		7C56C3F22F55166800F922B5 /* SettingsWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsWindowController.swift; sourceTree = "<group>"; };
-		7C5A00012F4800010046E0CD /* CommandLineInterface.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandLineInterface.swift; sourceTree = "<group>"; };
 		7C5A00032F4800020046E0CD /* CommandLineInstaller.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandLineInstaller.swift; sourceTree = "<group>"; };
+		7C6532A82F585CA100B71730 /* mud */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = mud; sourceTree = BUILT_PRODUCTS_DIR; };
 		7C6B316D2F3A228000F6A4E8 /* DeferMutation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeferMutation.swift; sourceTree = "<group>"; };
 		7C8D102F2F34CF0400F359C8 /* FindFeature.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FindFeature.swift; sourceTree = "<group>"; };
 		7CA1197E2F3CC4CC0098484A /* ViewToggle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewToggle.swift; sourceTree = "<group>"; };
@@ -80,7 +113,36 @@
 		7CC975872F341A75001C3BB7 /* Lighting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Lighting.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		7C6532B92F585DB200B71730 /* Exceptions for "CLI" folder in "Mud" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				mud.sh,
+			);
+			target = 7CC975202F3401F4001C3BB7 /* Mud */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		7C6532A92F585CA100B71730 /* CLI */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				7C6532B92F585DB200B71730 /* Exceptions for "CLI" folder in "Mud" target */,
+			);
+			path = CLI;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
 /* Begin PBXFrameworksBuildPhase section */
+		7C6532A52F585CA100B71730 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7C6532B12F585CEE00B71730 /* MudCore in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		7CC9751E2F3401F4001C3BB7 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -107,12 +169,20 @@
 			path = Settings;
 			sourceTree = "<group>";
 		};
+		7C6532AF2F585CEE00B71730 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
 		7CC975182F3401F4001C3BB7 = {
 			isa = PBXGroup;
 			children = (
 				7C0A00092F5B0005001C3BB7 /* README.md */,
 				7C0A000B2F5B0006001C3BB7 /* Doc */,
 				7CC975382F340286001C3BB7 /* App */,
+				7C6532AF2F585CEE00B71730 /* Frameworks */,
 				7CC975222F3401F4001C3BB7 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -121,6 +191,7 @@
 			isa = PBXGroup;
 			children = (
 				7CC975212F3401F4001C3BB7 /* Mud.app */,
+				7C6532A82F585CA100B71730 /* Mud CLI */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -133,6 +204,7 @@
 				7CC975352F340286001C3BB7 /* Info.plist */,
 				7CC975332F340286001C3BB7 /* Assets.xcassets */,
 				7C4D0E582F47EF22008A472A /* PrivacyInfo.xcprivacy */,
+				7C6532A92F585CA100B71730 /* CLI */,
 				7C282AD12F4F541400611919 /* Settings */,
 				7CC975362F340286001C3BB7 /* MudApp.swift */,
 				7C442A612F3450190046E0CD /* AppDelegate.swift */,
@@ -151,7 +223,6 @@
 				7C8D102F2F34CF0400F359C8 /* FindFeature.swift */,
 				7C0A00032F5B0001001C3BB7 /* OutlineNode.swift */,
 				7C0A00052F5B0002001C3BB7 /* OutlineSidebarView.swift */,
-				7C5A00012F4800010046E0CD /* CommandLineInterface.swift */,
 				7C5A00032F4800020046E0CD /* CommandLineInstaller.swift */,
 			);
 			path = App;
@@ -160,6 +231,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		7C6532A72F585CA100B71730 /* Mud CLI */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7C6532AE2F585CA100B71730 /* Build configuration list for PBXNativeTarget "Mud CLI" */;
+			buildPhases = (
+				7C6532A42F585CA100B71730 /* Sources */,
+				7C6532A52F585CA100B71730 /* Frameworks */,
+				7C6532A62F585CA100B71730 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				7C6532A92F585CA100B71730 /* CLI */,
+			);
+			name = "Mud CLI";
+			packageProductDependencies = (
+				7C6532B02F585CEE00B71730 /* MudCore */,
+			);
+			productName = mud;
+			productReference = 7C6532A82F585CA100B71730 /* mud */;
+			productType = "com.apple.product-type.tool";
+		};
 		7CC975202F3401F4001C3BB7 /* Mud */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 7CC9752E2F3401F4001C3BB7 /* Build configuration list for PBXNativeTarget "Mud" */;
@@ -168,10 +262,13 @@
 				7CC9751E2F3401F4001C3BB7 /* Frameworks */,
 				7CC9751F2F3401F4001C3BB7 /* Resources */,
 				7C0A00082F5B0003001C3BB7 /* Set Version */,
+				7C6532B22F585D3900B71730 /* CopyFiles */,
+				7C6532BA2F585DC100B71730 /* ShellScript */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				7C6532B52F585D7400B71730 /* PBXTargetDependency */,
 			);
 			name = Mud;
 			packageProductDependencies = (
@@ -191,6 +288,9 @@
 				LastSwiftUpdateCheck = 2620;
 				LastUpgradeCheck = 2620;
 				TargetAttributes = {
+					7C6532A72F585CA100B71730 = {
+						CreatedOnToolsVersion = 26.2;
+					};
 					7CC975202F3401F4001C3BB7 = {
 						CreatedOnToolsVersion = 26.2;
 					};
@@ -214,6 +314,7 @@
 			projectRoot = "";
 			targets = (
 				7CC975202F3401F4001C3BB7 /* Mud */,
+				7C6532A72F585CA100B71730 /* Mud CLI */,
 			);
 		};
 /* End PBXProject section */
@@ -253,9 +354,34 @@
 			shellPath = /bin/sh;
 			shellScript = "BUILD_NUMBER_FILE=\"$SRCROOT/Mud.xcodeproj/xcuserdata/BUILD_NUMBER\"\nBUILD=$(cat \"$BUILD_NUMBER_FILE\" 2>/dev/null || echo \"0\")\n\nif [ \"$ACTION\" = \"install\" ]; then\n  BUILD=$((BUILD + 1))\n  echo \"$BUILD\" > \"$BUILD_NUMBER_FILE\"\nfi\n\nVERSION=$(git describe --tags --abbrev=0 2>/dev/null || echo \"0.1.0\")\nVERSION=${VERSION#v}\n\nPLIST=\"$BUILT_PRODUCTS_DIR/$INFOPLIST_PATH\"\n/usr/libexec/PlistBuddy -c \"Set :CFBundleShortVersionString $VERSION\" \"$PLIST\"\n/usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $BUILD\" \"$PLIST\"\n";
 		};
+		7C6532BA2F585DC100B71730 /* ShellScript */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "chmod +x \"$BUILT_PRODUCTS_DIR/$CONTENTS_FOLDER_PATH/Resources/mud.sh\"\n";
+		};
 /* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		7C6532A42F585CA100B71730 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		7CC9751D2F3401F4001C3BB7 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -283,7 +409,6 @@
 				7C442A682F34BB7E0046E0CD /* DocumentWindowController.swift in Sources */,
 				7C6B316E2F3A228000F6A4E8 /* DeferMutation.swift in Sources */,
 				7C442A692F34BB7E0046E0CD /* DocumentContentView.swift in Sources */,
-				7C5A00022F4800010046E0CD /* CommandLineInterface.swift in Sources */,
 				7C5A00042F4800020046E0CD /* CommandLineInstaller.swift in Sources */,
 				7C0A00042F5B0001001C3BB7 /* OutlineNode.swift in Sources */,
 				7C0A00062F5B0002001C3BB7 /* OutlineSidebarView.swift in Sources */,
@@ -292,7 +417,45 @@
 		};
 /* End PBXSourcesBuildPhase section */
 
+/* Begin PBXTargetDependency section */
+		7C6532B52F585D7400B71730 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7C6532A72F585CA100B71730 /* Mud CLI */;
+			targetProxy = 7C6532B42F585D7400B71730 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
 /* Begin XCBuildConfiguration section */
+		7C6532AC2F585CA100B71730 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = XVL2AFNXH5;
+				ENABLE_HARDENED_RUNTIME = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_NAME = mud;
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		7C6532AD2F585CA100B71730 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = XVL2AFNXH5;
+				ENABLE_HARDENED_RUNTIME = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				PRODUCT_NAME = mud;
+				SKIP_INSTALL = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
 		7CC9752F2F3401F4001C3BB7 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -496,6 +659,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		7C6532AE2F585CA100B71730 /* Build configuration list for PBXNativeTarget "Mud CLI" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7C6532AC2F585CA100B71730 /* Debug */,
+				7C6532AD2F585CA100B71730 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		7CC9751C2F3401F4001C3BB7 /* Build configuration list for PBXProject "Mud" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
@@ -524,6 +696,11 @@
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		7C6532B02F585CEE00B71730 /* MudCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7CC975572F34038A001C3BB7 /* XCLocalSwiftPackageReference "Core" */;
+			productName = MudCore;
+		};
 		7CC975582F34038A001C3BB7 /* MudCore */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = MudCore;

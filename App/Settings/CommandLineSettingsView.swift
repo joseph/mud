@@ -12,7 +12,10 @@ struct CommandLineSettingsView: View {
     // MARK: - Manual install (sandboxed)
 
     private var executablePath: String {
-        Bundle.main.executablePath ?? "/Applications/Mud.app/Contents/MacOS/Mud"
+        Bundle.main.resourceURL?
+            .appendingPathComponent("mud.sh")
+            .path
+            ?? "/Applications/Mud.app/Contents/Resources/mud.sh"
     }
 
     private var manualInstallView: some View {

@@ -49,7 +49,7 @@ enum CommandLineInstaller {
         var errorDescription: String? {
             switch self {
             case .noExecutablePath:
-                return "Could not determine the application executable path."
+                return "Could not locate mud.sh in the application bundle."
             case .createDirectoryFailed(let detail):
                 return "Could not create directory.\n\n\(detail)"
             case .removeExistingFailed(let detail):
@@ -66,11 +66,11 @@ enum CommandLineInstaller {
     static func install(to directory: String) throws -> String {
         let symlinkPath = (directory as NSString)
             .appendingPathComponent("mud")
-        let executablePath = Bundle.main.executablePath ?? ""
 
-        guard !executablePath.isEmpty else {
+        guard let resourcesURL = Bundle.main.resourceURL else {
             throw InstallError.noExecutablePath
         }
+        let executablePath = resourcesURL.appendingPathComponent("mud.sh").path
 
         let fm = FileManager.default
 

@@ -5,30 +5,6 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     private var hasOpenedDocument = false
 
     func applicationWillFinishLaunching(_ notification: Notification) {
-        let args = Array(CommandLine.arguments.dropFirst())
-
-        // CLI: render to stdout and exit without launching the GUI
-        if CommandLineInterface.looksLikeCLI(args) {
-            NSApp.setActivationPolicy(.prohibited)
-            exit(CommandLineInterface.run(args))
-        }
-
-        // Invoked via symlink (CLI tool) without render flags: hand off
-        // to `open -a` so the real app instance handles it, then exit.
-        // This covers `mud file.md`, piped stdin, and bare `mud`.
-        if CommandLineInterface.launchedViaSymlink {
-            var urls = CommandLineInterface.fileArguments(args).map {
-                URL(fileURLWithPath: $0).standardizedFileURL
-            }
-            if urls.isEmpty, CommandLineInterface.hasStdin,
-               let tempURL = CommandLineInterface.stdinToTempFile() {
-                urls.append(tempURL)
-            }
-            NSApp.setActivationPolicy(.prohibited)
-            CommandLineInterface.openInApp(urls)
-            exit(0)
-        }
-
         // Suppress system Edit menu items irrelevant for a read-only app
         UserDefaults.standard.set(true, forKey: "NSDisabledDictationMenuItem")
         UserDefaults.standard.set(true, forKey: "NSDisabledCharacterPaletteMenuItem")

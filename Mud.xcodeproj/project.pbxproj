@@ -263,6 +263,7 @@
 				7CC9751F2F3401F4001C3BB7 /* Resources */,
 				7C0A00082F5B0003001C3BB7 /* Set Version */,
 				7C6532B22F585D3900B71730 /* CopyFiles */,
+				7C9B0C1D2F5E1000001C3BB7 /* Strip CLI assets (sandboxed) */,
 				7C6532BA2F585DC100B71730 /* ShellScript */,
 			);
 			buildRules = (
@@ -370,7 +371,26 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "chmod +x \"$BUILT_PRODUCTS_DIR/$CONTENTS_FOLDER_PATH/Resources/mud.sh\"\n";
+			shellScript = "[ \"${ENABLE_APP_SANDBOX}\" = \"YES\" ] && exit 0\nchmod +x \"$BUILT_PRODUCTS_DIR/$CONTENTS_FOLDER_PATH/Resources/mud.sh\"\n";
+		};
+		7C9B0C1D2F5E1000001C3BB7 /* Strip CLI assets (sandboxed) */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Strip CLI assets (sandboxed)";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "if [ \"${ENABLE_APP_SANDBOX}\" = \"YES\" ]; then\n  rm -rf \"$BUILT_PRODUCTS_DIR/$CONTENTS_FOLDER_PATH/Helpers\"\n  rm -f  \"$BUILT_PRODUCTS_DIR/$CONTENTS_FOLDER_PATH/Resources/mud.sh\"\nfi\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

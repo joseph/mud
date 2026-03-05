@@ -144,6 +144,8 @@ MVP plan.
 - `theme-*.css` — Four theme files (austere, blues, earthy, riot)
 - `mermaid.min.js` — Mermaid diagram library (v11, UMD build)
 - `mermaid-init.js` — Mermaid init script for Up mode rendering
+- `Doc/Guides/command-line.md` — Bundled guide: CLI usage for App Store and
+  direct distribution builds
 
 **Important** — Make sure to update this section of `Doc/AGENTS.md` if you add
 or remove key files.

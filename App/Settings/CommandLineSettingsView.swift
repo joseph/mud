@@ -3,34 +3,48 @@ import SwiftUI
 struct CommandLineSettingsView: View {
     var body: some View {
         if isSandboxed {
-            manualInstallView
+            appStoreView
         } else {
             automaticInstallView
         }
     }
 
-    // MARK: - Manual install (sandboxed)
+    // MARK: - App Store release (sandboxed)
 
-    private var executablePath: String {
-        Bundle.main.resourceURL?
-            .appendingPathComponent("mud.sh")
-            .path
-            ?? "/Applications/Mud.app/Contents/Resources/mud.sh"
+    private var aliasCommand: String {
+        let path = Bundle.main.bundlePath
+        return "alias mud='open -a \"\(path)\"'"
     }
 
-    private var manualInstallView: some View {
+    private var appStoreView: some View {
         Form {
             Section {
-                Text("Create a \"mud\" symlink so you can easily open Markdown documents from the command line.")
+                Text("Add a shell alias to open Markdown files in Mud from the terminal.")
                     .foregroundStyle(.secondary)
 
-                Text("ln -s \"\(executablePath)\" /usr/local/bin/mud")
+                Text(aliasCommand)
                     .font(.system(.callout, design: .monospaced))
                     .textSelection(.enabled)
 
-                Text("Common locations: /usr/local/bin, ~/.local/bin, ~/bin")
+                Text("Add this to your ~/.zshrc or ~/.bashrc.")
                     .foregroundStyle(.secondary)
                     .font(.callout)
+            }
+
+            Section {
+                HStack(spacing: 0) {
+                    Text("Learn more about ")
+                        .foregroundStyle(.secondary)
+                    Button("command-line usage") {
+                        SettingsWindowController.shared.window?.close()
+                        DocumentController.openBundledDocument("command-line", subdirectory: "Doc/Guides")
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.link)
+                    Text(" of Mud.")
+                        .foregroundStyle(.secondary)
+                }
+                .font(.callout)
             }
         }
         .formStyle(.grouped)

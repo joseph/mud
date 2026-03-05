@@ -38,8 +38,8 @@ class DocumentController: NSDocumentController {
     }
 
     /// Opens a markdown file bundled in the app's resources
-    static func openBundledDocument(_ name: String) {
-        guard let url = Bundle.main.url(forResource: name, withExtension: "md") else { return }
+    static func openBundledDocument(_ name: String, subdirectory: String? = nil) {
+        guard let url = Bundle.main.url(forResource: name, withExtension: "md", subdirectory: subdirectory) else { return }
         NSDocumentController.shared.openDocument(
             withContentsOf: url,
             display: true

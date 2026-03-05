@@ -1,7 +1,7 @@
 Plan: Sandbox vs CLI
 ===============================================================================
 
-> Status: Planning
+> Status: Complete
 
 
 ## Context
@@ -67,11 +67,14 @@ The existing "ShellScript" Run Script phase should begin with:
 
 Bundled automatically via the `Doc/` folder reference. Opened via
 `DocumentController.openBundledDocument("command-line", subdirectory: "Doc/Guides")`.
-Contains two sections:
+Contains three sections:
 
-- **App Store version** — alias setup, what it enables, its limitations
-- **Direct distribution** — full `mud` CLI, rendering flags, install
-  instructions
+- **App Store release** — alias setup using `Bundle.main.bundlePath`, what it
+  enables, its limitations; tip about removing the alias before switching to
+  the direct release
+- **Direct release** — full `mud` CLI, rendering flags, install instructions
+- **Browser output** — `-b` flag, data URI image embedding with `-u -b`,
+  multi-file tab behaviour
 
 
 ### 2.2 `DocumentController.swift`
@@ -89,8 +92,8 @@ Replace `manualInstallView` (and its `executablePath` property) with
 The new `appStoreView` shows:
 
 - A short explanation of the alias approach
-- The alias command as a copyable monospaced code line:
-  `alias mud='open -a "/Applications/Mud.app"'`
+- The alias command as a copyable monospaced code line, with the path derived
+  from `Bundle.main.bundlePath` so it reflects the actual install location
 - A brief note on what it enables and where to put it
 - An inline link sentence — e.g. "Learn more about **command-line usage** of
   Mud." — where the linked text closes the Settings window and opens the guide

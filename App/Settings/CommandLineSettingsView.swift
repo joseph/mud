@@ -9,6 +9,26 @@ struct CommandLineSettingsView: View {
         }
     }
 
+    // MARK: - Shared
+
+    private var learnMoreSection: some View {
+        Section {
+            HStack(spacing: 0) {
+                Text("Learn more about ")
+                    .foregroundStyle(.secondary)
+                Button("command-line usage") {
+                    SettingsWindowController.shared.window?.close()
+                    DocumentController.openBundledDocument("command-line", subdirectory: "Doc/Guides")
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.link)
+                Text(" of Mud.")
+                    .foregroundStyle(.secondary)
+            }
+            .font(.callout)
+        }
+    }
+
     // MARK: - App Store release (sandboxed)
 
     private var aliasCommand: String {
@@ -31,21 +51,7 @@ struct CommandLineSettingsView: View {
                     .font(.callout)
             }
 
-            Section {
-                HStack(spacing: 0) {
-                    Text("Learn more about ")
-                        .foregroundStyle(.secondary)
-                    Button("command-line usage") {
-                        SettingsWindowController.shared.window?.close()
-                        DocumentController.openBundledDocument("command-line", subdirectory: "Doc/Guides")
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.link)
-                    Text(" of Mud.")
-                        .foregroundStyle(.secondary)
-                }
-                .font(.callout)
-            }
+            learnMoreSection
         }
         .formStyle(.grouped)
         .padding(.top, -18) // XXX-03-2026-JP -- hack to align top-of-pane with top-of-sidebar
@@ -110,6 +116,8 @@ struct CommandLineSettingsView: View {
                     .foregroundStyle(isError ? .red : .secondary)
                 }
             }
+
+            learnMoreSection
         }
         .formStyle(.grouped)
         .padding(.top, -18) // XXX-03-2026-JP -- hack to align top-of-pane with top-of-sidebar

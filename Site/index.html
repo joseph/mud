@@ -181,7 +181,38 @@ body *:first-child {
 .mud-screenshot {
   display: block;
   border-radius: 0.75em;
-  margin: 1em 0;
+}
+
+.screenshot-toggle {
+  display: flex;
+  justify-content: center;
+  margin: 0.5em 0 1em;
+}
+
+.toggle-btn {
+  background: none;
+  border: 1px solid var(--border-color);
+  color: var(--blockquote-color);
+  padding: 0.2em 0.85em;
+  font-size: 0.8em;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s;
+}
+
+.toggle-btn:first-child {
+  border-radius: 0.3em 0 0 0.3em;
+  border-right: none;
+}
+
+.toggle-btn:last-child {
+  border-radius: 0 0.3em 0.3em 0;
+}
+
+.toggle-btn.active {
+  background: var(--heading-color);
+  border-color: var(--heading-color);
+  color: var(--bg-color);
 }
 
 /* Typography */
@@ -379,11 +410,14 @@ footer {
       beautifully, bright or dark. It automatically reloads the document when
       you save it — or when Claude Code writes to it, or Codex,
       or whatever you use.</p>
-      <p><img
-        src="mud-ss-01.png"
-        class="mud-screenshot"
-        alt="The Mud app, showing Mark Up and Mark Down modes"
-      /></p>
+
+      <img src="mud-ss-01.png" class="mud-screenshot shot" alt="Mud in Mark Up mode" />
+      <img src="mud-ss-02.png" class="mud-screenshot shot" alt="Mud in Mark Down mode" style="display:none" />
+      <div class="screenshot-toggle">
+        <button class="toggle-btn active" onclick="showShot(0, this)">Mark Up</button>
+        <button class="toggle-btn" onclick="showShot(1, this)">Mark Down</button>
+      </div>
+
       <p>Mud shows you both sides of every document:</p>
       <ul>
       <li><strong>Mark Up</strong> renders your Markdown as styled HTML — GitHub-flavored, with
@@ -451,5 +485,14 @@ mud -u --theme riot file.md    <span class="hljs-comment"># Pick a theme</span>
       </p>
     </article>
     <footer>© 2026 <a href="https://josephpearson.org">Joseph Pearson</a></footer>
+    <script>
+      function showShot(idx, btn) {
+        document.querySelectorAll('.shot').forEach((img, i) => {
+          img.style.display = i === idx ? 'block' : 'none';
+        });
+        document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+      }
+    </script>
 </body>
 </html>

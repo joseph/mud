@@ -5,6 +5,10 @@ This document exercises both GFM alert syntax (`[!TYPE]`) and DocC aside syntax
 (`Tag: content`), plus several blockquotes that should render as plain
 blockquotes.
 
+Six common alert categories exist: Note, Tip, Important, Status, Warning, and
+Caution. Each has a GFM form and a DocC form. DocC also has extended aliases
+that map to one of these six categories.
+
 
 ## GFM alerts
 
@@ -18,6 +22,9 @@ blockquotes.
 > [!IMPORTANT]
 > Crucial information necessary for users to succeed.
 
+> [!STATUS]
+> Indicates the current state of a document or task.
+
 > [!WARNING]
 > Critical content demanding immediate user attention due to
 > potential risks.
@@ -28,12 +35,14 @@ blockquotes.
 
 ## GFM alerts with rich content
 
-> [!NOTE] Alerts can contain **bold**, _italic_, `inline code`, and
+> [!NOTE]
+> Alerts can contain **bold**, _italic_, `inline code`, and
 > [links](https://example.com).
 >
 > They can also have multiple paragraphs.
 
-> [!TIP] Here is a code block inside an alert:
+> [!TIP]
+> Here is a code block inside an alert:
 >
 > ```swift
 > let x = 42
@@ -46,16 +55,31 @@ blockquotes.
 > - Third item
 
 
-## DocC asides
+## DocC asides — common forms
 
-> Note: Inline bolded message of up to 60 characters.
+DocC asides are written as a blockquote whose first line is `Tag: content`.
+Short same-line content (under 60 characters) is bolded inline; longer content
+falls to the paragraph below.
+
+> Note: Short same-line content is bolded.
 >
-> Longer lines, or subsequent lines, are presented as a paragraph below
-> the bolded blockquote title.
+> A second paragraph follows when a blank line separates it.
 
 > Tip: DocC tip with _formatted_ content.
 
 > Important: This is important information.
+
+> Status: Planning
+
+> Status: Underway
+>
+> X and Y have been implemented. Implementation of Z is underway.
+
+> Status: Complete. All features shipped.
+
+> Status: Complete
+>
+> All features shipped. No outstanding issues.
 
 > Warning: Careful with this operation. It may have side effects that are
 > difficult to reverse.
@@ -63,27 +87,16 @@ blockquotes.
 > Caution: Contents hot!
 
 
-### Extended DocC terms
+## DocC asides — extended forms
 
-By default, Mud will also recognize these blockquote prefixes as asides.
+By default, Mud also recognises these DocC alias blockquote prefixes. Extended
+aliases render as their mapped common category (same color and icon). They can
+be disabled in Up Mode settings.
+
+
+### Note
 
 > Remark: An observation worth calling out.
-
-> Experiment: Try changing the value to see what happens.
-
-> Attention: Pay close attention to this detail.
-
-> Precondition: The array must be sorted in ascending order.
-
-> Postcondition: The return value is always non-negative.
-
-> Requires: Swift 5.9 or later.
-
-> Invariant: The count property is always equal to the number of elements.
-
-> Bug: This method crashes when passed an empty array.
-
-> Throws: `InvalidArgumentError` if the input is nil.
 
 > Complexity: O(n log n) in the worst case.
 
@@ -101,22 +114,44 @@ By default, Mud will also recognize these blockquote prefixes as asides.
 
 > SeeAlso: `relatedMethod()` for an alternative approach.
 
+> MutatingVariant: Use `sort()` to sort in place.
+
+> NonMutatingVariant: Use `sorted()` to get a new sorted array.
+
+
+### Status
+
 > ToDo: Refactor this to use the new API.
 
 
-## Status asides
+### Tip
 
-> Status: Planning
+> Experiment: Try changing the value to see what happens.
 
-> Status: Underway
-> X and Y have been implemented. Tests exist for Z, and implementation is
-> planned out. Blocked on A, B, and C.
 
-> Status: Complete
->
-> All features shipped. No outstanding issues.
+### Important
 
-> Status: Complete. All features shipped.
+> Attention: Pay close attention to this detail.
+
+
+### Warning
+
+> Precondition: The array must be sorted in ascending order.
+
+> Postcondition: The return value is always non-negative.
+
+> Requires: Swift 5.9 or later.
+
+> Invariant: The count property is always equal to the number of elements.
+
+
+### Caution
+
+> Bug: This method crashes when passed an empty array.
+
+> Throws: `InvalidArgumentError` if the input is nil.
+
+> Error: An unrecoverable failure occurred.
 
 
 ## Plain blockquotes (should NOT render as alerts)

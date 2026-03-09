@@ -55,6 +55,7 @@ struct WebView: NSViewRepresentable {
     var zoomLevel: Double = 1.0
     var searchQuery: SearchQuery?
     var scrollTarget: ScrollTarget?
+    var reloadID: UUID?
     var printID: UUID?
     var onSearchResult: ((MatchInfo?) -> Void)?
 
@@ -157,11 +158,12 @@ struct WebView: NSViewRepresentable {
             }
         }
 
-        // Reload content if contentID or mode changed
+        // Reload content if contentID, mode, or reloadID changed
         let modeChanged = context.coordinator.lastMode != mode
         let contentChanged = context.coordinator.lastContentID != contentID
+        let reloadForced = reloadID != nil && context.coordinator.lastReloadID != reloadID
 
-        if !modeChanged && !contentChanged {
+        if !modeChanged && !contentChanged && !reloadForced {
             // Only theme/zoom/classes changed — apply without reload.
             context.coordinator.applyTheme(to: webView, theme: theme)
             context.coordinator.applyBodyClasses(to: webView, classes: bodyClasses)
@@ -173,6 +175,7 @@ struct WebView: NSViewRepresentable {
         context.coordinator.saveScrollPosition(from: webView)
         context.coordinator.lastContentID = contentID
         context.coordinator.lastMode = mode
+        context.coordinator.lastReloadID = reloadID
         context.coordinator.needsMermaid = html.contains("language-mermaid")
         let statedHTML = Self.injectState(
             into: html,
@@ -224,6 +227,7 @@ struct WebView: NSViewRepresentable {
         var lastSearchID: UUID?
         var lastScrollTargetID: UUID?
         var lastPrintID: UUID?
+        var lastReloadID: UUID?
         var needsMermaid = false
         var onSearchResult: ((MatchInfo?) -> Void)?
         weak var webView: WKWebView?

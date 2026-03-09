@@ -90,6 +90,7 @@ struct DocumentContentView: View {
             zoomLevel: modeZoomLevel,
             searchQuery: findState.currentQuery,
             scrollTarget: state.scrollTarget,
+            reloadID: state.reloadID,
             printID: state.printID,
             onSearchResult: { info in
                 findState.matchInfo = info

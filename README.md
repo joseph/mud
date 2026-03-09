@@ -50,6 +50,11 @@ It does one thing — it marks up Markdown! — and it does it really well.
 - [x] Zoom, readable column, word wrap, and line number toggles
 
 
+## How I use Mud
+
+I wrote an overview of my current Claude Code workflow, and how Mud is a great
+fit for it: <https://apps.josephpearson.org/mud/plan-workflows.html>.
+
 ## Command line tool
 
 Install from **Settings > Command Line** to get a `mud` command.

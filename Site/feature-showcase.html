@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html class="has-line-numbers is-readable-column">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src mud-asset: data: https:; style-src 'unsafe-inline'; script-src https://cdn.jsdelivr.net 'unsafe-inline'">
+    
+    <title></title>
+    <style id="mud-theme">/* Mud - Earthy theme */
+
+:root {
+    --text-color: #333;
+    --bg-color: #FFF;
+    --body-bg: #FCFCFA;
+    --link-color: #8E4740;
+    --border-color: #E0DBD4;
+    --code-bg: #F5F3EE;
+    --code-fg: #5D662E;
+    --heading-color: #7A4A2A;
+    --blockquote-color: #8A7B68;
+    --blockquote-border: #DCD6CE;
+
+    --syntax-comment: #9A7A4A;
+    --syntax-number: #705D73;
+    --syntax-function: #9A5435;
+    --syntax-type: #7A4A2A;
+    --syntax-constant: #705D73;
+    --syntax-keyword: var(--heading-color);
+    --syntax-string: var(--code-fg);
+    --syntax-variable: var(--text-color);
+    --syntax-operator: var(--text-color);
+    --syntax-punctuation: var(--text-color);
+}
+
+@media (prefers-color-scheme: dark) {
+:root {
+    --text-color: #CFC9C0;
+    --bg-color: #100E0D;
+    --body-bg: #0E0C0B;
+    --link-color: #C67467;
+    --border-color: #38332D;
+    --code-bg: #1A1816;
+    --code-fg: #A8B36B;
+    --heading-color: #D9B87C;
+    --blockquote-color: #9A8C7C;
+    --blockquote-border: #3D3731;
+
+    --syntax-comment: #B8A06A;
+    --syntax-number: #947E96;
+    --syntax-function: #C98A60;
+    --syntax-type: #D4A06A;
+    --syntax-constant: #947E96;
+    --syntax-keyword: #D4A06A;
+}
+}
+</style>
+    <style>/* Mud - structural styles (theme-agnostic) */
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    font-size: 16px;
+    -webkit-text-size-adjust: 100%;
+    overscroll-behavior-x: none;
+}
+
+body {
+    position: absolute;
+    width: 100%;
+    height: 100%;
+
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
+        Helvetica, Arial, sans-serif;
+    font-size: 1rem;
+    line-height: 1.6;
+    color: var(--text-color);
+    background-color: var(--body-bg);
+}
+
+body *:first-child {
+    min-height: 100%;
+}
+
+/* Syntax highlighting */
+.hljs {
+    color: var(--text-color);
+    background: var(--code-bg);
+}
+
+.hljs-comment,
+.hljs-quote {
+    color: var(--syntax-comment);
+    font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag {
+    color: var(--syntax-keyword);
+}
+
+.hljs-string,
+.hljs-doctag,
+.hljs-regexp {
+    color: var(--syntax-string);
+}
+
+.hljs-number,
+.hljs-literal,
+.hljs-boolean {
+    color: var(--syntax-number);
+}
+
+.hljs-function,
+.hljs-title,
+.hljs-section {
+    color: var(--syntax-function);
+}
+
+.hljs-variable,
+.hljs-template-variable,
+.hljs-attr {
+    color: var(--syntax-variable);
+}
+
+.hljs-type,
+.hljs-class .hljs-title,
+.hljs-built_in {
+    color: var(--syntax-type);
+}
+
+.hljs-symbol,
+.hljs-bullet,
+.hljs-link {
+    color: var(--syntax-constant);
+}
+
+.hljs-code {
+    color: var(--syntax-string);
+    background-color: var(--code-bg);
+    border-radius: 3px;
+    padding: 0.1em 0.3em;
+}
+
+.hljs-meta,
+.hljs-selector-id,
+.hljs-selector-class {
+    color: var(--syntax-function);
+}
+
+.hljs-emphasis {
+    font-style: italic;
+}
+
+.hljs-strong {
+    font-weight: bold;
+}
+
+.hljs-addition {
+    color: var(--syntax-string);
+    background-color: rgba(0, 165, 0, 0.1);
+}
+
+.hljs-deletion {
+    color: #f85149;
+    background-color: rgba(248, 81, 73, 0.1);
+}
+/* Mud - Up Mode styles */
+
+.up-mode-output {
+    margin: 0 auto;
+    padding: 2em;
+    box-sizing: content-box;
+    background: var(--bg-color);
+}
+
+.is-readable-column .up-mode-output {
+    max-width: 800px;
+}
+
+/* Typography */
+h1, h2, h3, h4, h5, h6 {
+    margin-top: 1.5em;
+    margin-bottom: 0.5em;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--heading-color);
+}
+
+h1 { font-size: 2em; margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
+h2 { font-size: 1.5em; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
+h3 { font-size: 1.25em; }
+h4 { font-size: 1em; }
+h5 { font-size: 0.875em; }
+h6 { font-size: 0.85em; }
+
+p {
+    margin-top: 0;
+    margin-bottom: 1em;
+}
+
+/* Links */
+a {
+    color: var(--link-color);
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
+}
+
+/* Lists */
+ul, ol {
+    margin-top: 0;
+    margin-bottom: 1em;
+    padding-left: 2em;
+}
+
+li {
+    margin-bottom: 0.25em;
+}
+
+li > ul, li > ol {
+    margin-bottom: 0;
+}
+
+/* Task lists — selectors match cmark-gfm's classless output.
+   Simplify to e.g. .task-list-item if we switch to our own tokenizer. */
+li:has(> input[type="checkbox"]) {
+    list-style: none;
+    margin-left: -1.5em;
+}
+
+li:has(> input[type="checkbox"]) > input[type="checkbox"] {
+    display: none;
+}
+
+li:has(> input[type="checkbox"])::before {
+    content: "";
+    display: inline-block;
+    width: 1em;
+    height: 1em;
+    border: 1.5px solid var(--border-color);
+    border-radius: 3px;
+    margin: 0.15em 0.5em 0 0;
+    float: left;
+    clear: left;
+}
+
+li:has(> input[type="checkbox"]:checked)::before {
+    background-color: var(--link-color);
+    border-color: var(--link-color);
+    content: "✓";
+    color: var(--bg-color);
+    font-weight: 700;
+    text-align: center;
+    line-height: 1em;
+}
+
+/* Code */
+code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.875em;
+    padding: 0.2em 0.4em;
+    color: var(--code-fg);
+    background-color: var(--code-bg);
+    border-radius: 4px;
+}
+
+pre {
+    margin-top: 0;
+    margin-bottom: 1em;
+    padding: 1em;
+    overflow-x: auto;
+    font-size: 0.875em;
+    line-height: 1.45;
+    background-color: var(--code-bg);
+    border-radius: 6px;
+}
+
+pre code {
+    padding: 0;
+    background-color: transparent;
+    border-radius: 0;
+    font-size: inherit;
+}
+
+/* Blockquotes */
+blockquote {
+    margin: 0 0 1em 0;
+    padding: 0 1em;
+    color: var(--blockquote-color);
+    border-left: 4px solid var(--blockquote-border);
+}
+
+blockquote > :first-child {
+    margin-top: 0;
+}
+
+blockquote > :last-child {
+    margin-bottom: 0;
+}
+
+/* Alerts (GFM alerts and DocC asides).
+   Colors are defined as custom properties so themes can override them. */
+.alert {
+    --alert-note-border: #0969da;
+    --alert-note-title: #0969da;
+    --alert-tip-border: #1a7f37;
+    --alert-tip-title: #1a7f37;
+    --alert-important-border: #8250df;
+    --alert-important-title: #8250df;
+    --alert-warning-border: #9a6700;
+    --alert-warning-title: #9a6700;
+    --alert-caution-border: #d1242f;
+    --alert-caution-title: #d1242f;
+    --alert-status-border: #ff7700;
+    --alert-status-title: #ff7700;
+
+    color: var(--text-color);
+}
+
+@media (prefers-color-scheme: dark) {
+.alert {
+    --alert-note-border: #4493f8;
+    --alert-note-title: #4493f8;
+    --alert-tip-border: #3fb950;
+    --alert-tip-title: #3fb950;
+    --alert-important-border: #ab7df8;
+    --alert-important-title: #ab7df8;
+    --alert-warning-border: #d29922;
+    --alert-warning-title: #d29922;
+    --alert-caution-border: #f85149;
+    --alert-caution-title: #f85149;
+    --alert-status-border: #ff6600;
+    --alert-status-title: #ff6600;
+}
+}
+
+.alert-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5em;
+    font-weight: 600;
+}
+
+.alert-title svg {
+    flex-shrink: 0;
+}
+
+.alert-note  { border-left-color: var(--alert-note-border); }
+.alert-tip   { border-left-color: var(--alert-tip-border); }
+.alert-important { border-left-color: var(--alert-important-border); }
+.alert-warning   { border-left-color: var(--alert-warning-border); }
+.alert-caution   { border-left-color: var(--alert-caution-border); }
+.alert-status    { border-left-color: var(--alert-status-border); }
+
+.alert-note  .alert-title { color: var(--alert-note-title); }
+.alert-tip   .alert-title { color: var(--alert-tip-title); }
+.alert-important .alert-title { color: var(--alert-important-title); }
+.alert-warning   .alert-title { color: var(--alert-warning-title); }
+.alert-caution   .alert-title { color: var(--alert-caution-title); }
+.alert-status    .alert-title { color: var(--alert-status-title); }
+
+.alert-title strong {
+    font-weight: 700;
+    color: var(--text-color);
+}
+
+/* Horizontal rules */
+hr {
+    height: 2px;
+    margin: 1.5em 0;
+    padding: 0;
+    background-color: var(--border-color);
+    border: 0;
+}
+
+/* Tables */
+table {
+    width: 100%;
+    margin-bottom: 1em;
+    border-collapse: collapse;
+    border-spacing: 0;
+}
+
+th, td {
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    text-align: left;
+}
+
+th {
+    font-weight: 600;
+    background-color: var(--code-bg);
+}
+
+tr:nth-child(even) {
+    background-color: var(--code-bg);
+}
+
+/* Mermaid diagrams */
+.mermaid {
+    text-align: center;
+    margin-bottom: 1em;
+}
+
+.mermaid svg {
+    max-width: 100%;
+    height: auto;
+}
+
+/* Images */
+img {
+    max-width: min(800px, 100%);
+    height: auto;
+}
+</style>
+</head>
+<body>
+    <article class="up-mode-output">
+<h1 id="feature-showcase">Feature showcase</h1>
+<p>Mud renders GitHub-Flavoured Markdown with a set of extended features beyond
+the CommonMark baseline. This document demonstrates all of them in one place.</p>
+<hr />
+<h2 id="alerts">Alerts</h2>
+<p>GFM alert syntax (<code>&gt; [!TYPE]</code>) produces colour-coded call-outs with Octicon
+icons.</p>
+<blockquote class="alert alert-note">
+<p class="alert-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.5 7.75A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>Note</p>
+<p>Highlights information that users should take into account, even when
+skimming.</p>
+</blockquote>
+<blockquote class="alert alert-tip">
+<p class="alert-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 1.5c-2.363 0-4 1.69-4 3.75 0 .984.424 1.625.984 2.304l.214.253c.223.264.47.556.673.848.284.411.537.896.621 1.49a.75.75 0 0 1-1.484.211c-.04-.282-.163-.547-.37-.847a8.456 8.456 0 0 0-.542-.68c-.084-.1-.173-.205-.268-.32C3.201 7.75 2.5 6.766 2.5 5.25 2.5 2.31 4.863 0 8 0s5.5 2.31 5.5 5.25c0 1.516-.701 2.5-1.328 3.259-.095.115-.184.22-.268.319-.207.245-.383.453-.541.681-.208.3-.33.565-.37.847a.751.751 0 0 1-1.485-.212c.084-.593.337-1.078.621-1.489.203-.292.45-.584.673-.848.075-.088.147-.173.213-.253.561-.679.985-1.32.985-2.304 0-2.06-1.637-3.75-4-3.75ZM5.75 12h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5ZM6 15.25a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 0 1.5h-2.5a.75.75 0 0 1-.75-.75Z"/></svg>Tip</p>
+<p>Optional information to help a user be more successful.</p>
+</blockquote>
+<blockquote class="alert alert-important">
+<p class="alert-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v9.5A1.75 1.75 0 0 1 14.25 13H8.06l-2.573 2.573A1.458 1.458 0 0 1 3 14.543V13H1.75A1.75 1.75 0 0 1 0 11.25Zm1.75-.25a.25.25 0 0 0-.25.25v9.5c0 .138.112.25.25.25h2a.75.75 0 0 1 .75.75v2.19l2.72-2.72a.749.749 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-9.5a.25.25 0 0 0-.25-.25Zm7 2.25v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 9a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"/></svg>Important</p>
+<p>Crucial information necessary for users to succeed.</p>
+</blockquote>
+<blockquote class="alert alert-warning">
+<p class="alert-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575Zm1.763.707a.25.25 0 0 0-.44 0L1.698 13.132a.25.25 0 0 0 .22.368h12.164a.25.25 0 0 0 .22-.368Zm.53 3.996v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"/></svg>Warning</p>
+<p>Critical content demanding immediate user attention due to
+potential risks.</p>
+</blockquote>
+<blockquote class="alert alert-caution">
+<p class="alert-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M4.47.22A.749.749 0 0 1 5 0h6c.199 0 .389.079.53.22l4.25 4.25c.141.14.22.331.22.53v6a.749.749 0 0 1-.22.53l-4.25 4.25A.749.749 0 0 1 11 16H5a.749.749 0 0 1-.53-.22L.22 11.53A.749.749 0 0 1 0 11V5c0-.199.079-.389.22-.53Zm.84 1.28L1.5 5.31v5.38l3.81 3.81h5.38l3.81-3.81V5.31L10.69 1.5ZM8 4a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 8 4Zm0 8a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>Caution</p>
+<p>Negative potential consequences of an action.</p>
+</blockquote>
+<p>Alerts can also contain rich content — code blocks, lists, inline formatting,
+and links:</p>
+<blockquote class="alert alert-tip">
+<p class="alert-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 1.5c-2.363 0-4 1.69-4 3.75 0 .984.424 1.625.984 2.304l.214.253c.223.264.47.556.673.848.284.411.537.896.621 1.49a.75.75 0 0 1-1.484.211c-.04-.282-.163-.547-.37-.847a8.456 8.456 0 0 0-.542-.68c-.084-.1-.173-.205-.268-.32C3.201 7.75 2.5 6.766 2.5 5.25 2.5 2.31 4.863 0 8 0s5.5 2.31 5.5 5.25c0 1.516-.701 2.5-1.328 3.259-.095.115-.184.22-.268.319-.207.245-.383.453-.541.681-.208.3-.33.565-.37.847a.751.751 0 0 1-1.485-.212c.084-.593.337-1.078.621-1.489.203-.292.45-.584.673-.848.075-.088.147-.173.213-.253.561-.679.985-1.32.985-2.304 0-2.06-1.637-3.75-4-3.75ZM5.75 12h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5ZM6 15.25a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 0 1.5h-2.5a.75.75 0 0 1-.75-.75Z"/></svg>Tip</p>
+<p>Press <strong>Space</strong> to toggle between Up mode (rendered) and Down mode
+(raw source) without losing your scroll position.</p>
+<p>Or use the toolbar button, or <strong>View → Toggle Mode</strong> in the menu bar.</p>
+</blockquote>
+<h2 id="diagrams">Diagrams</h2>
+<p>Fenced code blocks with <code>mermaid</code> as the language identifier are rendered as
+diagrams using the Mermaid library.</p>
+<h3 id="rendering-pipeline">Rendering pipeline</h3>
+<pre><code class="language-mermaid">graph LR
+    A[Markdown source] --&gt; B[cmark-gfm parser]
+    B --&gt; C[AST]
+    C --&gt; D[UpHTMLVisitor]
+    D --&gt; E{Code block?}
+    E --&gt;|mermaid| F[mermaid.run]
+    E --&gt;|other| G[highlight.js]
+    F --&gt; H[SVG diagram]
+    G --&gt; I[Highlighted HTML]
+</code></pre>
+<h3 id="request-lifecycle">Request lifecycle</h3>
+<pre><code class="language-mermaid">sequenceDiagram
+    participant User
+    participant App
+    participant Core
+    participant WebView
+
+    User-&gt;&gt;App: Open file
+    App-&gt;&gt;Core: renderUpModeDocument()
+    Core--&gt;&gt;App: HTML string
+    App-&gt;&gt;WebView: loadHTMLString()
+    WebView-&gt;&gt;User: Rendered page
+</code></pre>
+<h3 id="mode-states">Mode states</h3>
+<pre><code class="language-mermaid">stateDiagram-v2
+    [*] --&gt; Up
+    Up --&gt; Down: Space bar
+    Down --&gt; Up: Space bar
+    Up --&gt; Up: Cmd+R (reload)
+    Down --&gt; Down: Cmd+R (reload)
+</code></pre>
+<h2 id="syntax-highlighting">Syntax highlighting</h2>
+<p>Code blocks with a language tag are highlighted server-side by highlight.js via
+JavaScriptCore — no network requests, no external dependencies.</p>
+<pre><code class="language-swift"><span class="hljs-keyword">struct</span> <span class="hljs-title class_">Renderer</span> {
+    <span class="hljs-keyword">func</span> <span class="hljs-title function_">render</span>(<span class="hljs-keyword">_</span> <span class="hljs-params">markdown</span>: <span class="hljs-type">String</span>) -&gt; <span class="hljs-type">String</span> {
+        <span class="hljs-keyword">let</span> doc <span class="hljs-operator">=</span> <span class="hljs-type">MarkdownParser</span>.parse(markdown)
+        <span class="hljs-keyword">var</span> visitor <span class="hljs-operator">=</span> <span class="hljs-type">UpHTMLVisitor</span>()
+        visitor.visit(doc)
+        <span class="hljs-keyword">return</span> visitor.result
+    }
+}
+</code></pre>
+<pre><code class="language-python"><span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path
+
+<span class="hljs-keyword">def</span> <span class="hljs-title function_">render_file</span>(<span class="hljs-params">path: Path</span>) -&gt; <span class="hljs-built_in">str</span>:
+    text = path.read_text(encoding=<span class="hljs-string">&quot;utf-8&quot;</span>)
+    <span class="hljs-keyword">return</span> markdown.markdown(text, extensions=[<span class="hljs-string">&quot;tables&quot;</span>, <span class="hljs-string">&quot;fenced_code&quot;</span>])
+</code></pre>
+<pre><code class="language-sh">mud -u README.md &gt; output.html
+mud -u -b README.md        <span class="hljs-comment"># open in browser</span>
+mud -f README.md           <span class="hljs-comment"># fragment only, no &lt;html&gt; wrapper</span>
+</code></pre>
+<h2 id="tables">Tables</h2>
+<p>GFM tables support per-column text alignment using <code>:</code> in the separator row.</p>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th align="center">Syntax</th>
+<th align="right">Status</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Alerts</td>
+<td align="center"><code>&gt; [!NOTE]</code></td>
+<td align="right">✓</td>
+</tr>
+<tr>
+<td>Mermaid diagrams</td>
+<td align="center"><code>```mermaid</code></td>
+<td align="right">✓</td>
+</tr>
+<tr>
+<td>Syntax highlight</td>
+<td align="center"><code>```swift</code></td>
+<td align="right">✓</td>
+</tr>
+<tr>
+<td>Emoji shortcodes</td>
+<td align="center"><code>:shortcode:</code></td>
+<td align="right">✓</td>
+</tr>
+<tr>
+<td>Task lists</td>
+<td align="center"><code>- [ ]</code></td>
+<td align="right">✓</td>
+</tr>
+<tr>
+<td>Strikethrough</td>
+<td align="center"><code>~~text~~</code></td>
+<td align="right">✓</td>
+</tr>
+<tr>
+<td>DocC asides</td>
+<td align="center"><code>&gt; Note: …</code></td>
+<td align="right">✓</td>
+</tr>
+<tr>
+<td>Status asides</td>
+<td align="center"><code>&gt; Status: …</code></td>
+<td align="right">✓</td>
+</tr>
+</tbody>
+</table>
+<h2 id="task-lists">Task lists</h2>
+<ul>
+<li><input type="checkbox" disabled="" checked="" /> CommonMark baseline (headings, lists, links, images)
+</li>
+<li><input type="checkbox" disabled="" checked="" /> GFM tables
+</li>
+<li><input type="checkbox" disabled="" checked="" /> GFM task lists
+</li>
+<li><input type="checkbox" disabled="" checked="" /> GFM strikethrough
+</li>
+<li><input type="checkbox" disabled="" checked="" /> GFM alerts (note, tip, important, warning, caution)
+</li>
+<li><input type="checkbox" disabled="" checked="" /> DocC asides
+</li>
+<li><input type="checkbox" disabled="" checked="" /> Status asides
+</li>
+<li><input type="checkbox" disabled="" checked="" /> Mermaid diagrams
+</li>
+<li><input type="checkbox" disabled="" checked="" /> Syntax highlighting via highlight.js
+</li>
+<li><input type="checkbox" disabled="" checked="" /> Emoji shortcodes
+</li>
+<li><input type="checkbox" disabled="" /> Math rendering (not yet planned)
+</li>
+</ul>
+<h2 id="inline-formatting">Inline formatting</h2>
+<p>Standard inline markup: <strong>bold</strong>, <em>italic</em>, <em><strong>bold and italic</strong></em>,
+<del>strikethrough</del>, and <code>inline code</code>.</p>
+<p>Emoji shortcodes resolve to Unicode using GitHub’s gemoji database (~1,800
+aliases): 🚀 ✨ 🎉 ✅ ⚠️</p>
+<blockquote>
+<p>“Mud renders Markdown the way GitHub does, right on your Mac.”</p>
+</blockquote>
+<h2 id="docc-asides">DocC asides</h2>
+<p>DocC-style asides use a word-and-colon prefix instead of the GFM <code>[!TYPE]</code> tag.
+Both syntaxes produce the same icon and colour scheme.</p>
+<blockquote class="alert alert-note">
+<p class="alert-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.5 7.75A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>Note</p>
+<p>Use DocC style in documentation comments rendered by Xcode.</p>
+</blockquote>
+<blockquote class="alert alert-tip">
+<p class="alert-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 1.5c-2.363 0-4 1.69-4 3.75 0 .984.424 1.625.984 2.304l.214.253c.223.264.47.556.673.848.284.411.537.896.621 1.49a.75.75 0 0 1-1.484.211c-.04-.282-.163-.547-.37-.847a8.456 8.456 0 0 0-.542-.68c-.084-.1-.173-.205-.268-.32C3.201 7.75 2.5 6.766 2.5 5.25 2.5 2.31 4.863 0 8 0s5.5 2.31 5.5 5.25c0 1.516-.701 2.5-1.328 3.259-.095.115-.184.22-.268.319-.207.245-.383.453-.541.681-.208.3-.33.565-.37.847a.751.751 0 0 1-1.485-.212c.084-.593.337-1.078.621-1.489.203-.292.45-.584.673-.848.075-.088.147-.173.213-.253.561-.679.985-1.32.985-2.304 0-2.06-1.637-3.75-4-3.75ZM5.75 12h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5ZM6 15.25a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 0 1.5h-2.5a.75.75 0 0 1-.75-.75Z"/></svg>Tip</p>
+<p>The TOC sidebar (View → Show Sidebar) lists all headings. Click any
+entry to jump to that section.</p>
+</blockquote>
+<blockquote class="alert alert-warning">
+<p class="alert-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575Zm1.763.707a.25.25 0 0 0-.44 0L1.698 13.132a.25.25 0 0 0 .22.368h12.164a.25.25 0 0 0 .22-.368Zm.53 3.996v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"/></svg>Warning</p>
+<p>Modifying the file outside Mud while it is open may cause the file
+watcher to miss the final change event on some filesystems.</p>
+</blockquote>
+<h2 id="status-asides">Status asides</h2>
+<p>A blockquote starting with <code>Status:</code> renders as a special call-out — used in
+plan documents to track progress.</p>
+<blockquote class="alert alert-status">
+<p class="alert-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M6 2c.306 0 .582.187.696.471L10 10.731l1.304-3.26A.751.751 0 0 1 12 7h3.25a.75.75 0 0 1 0 1.5h-2.742l-1.812 4.528a.751.751 0 0 1-1.392 0L6 4.77 4.696 8.03A.75.75 0 0 1 4 8.5H.75a.75.75 0 0 1 0-1.5h2.742l1.812-4.529A.751.751 0 0 1 6 2Z"/></svg>Status: <strong>Complete</strong></p>
+<p>All features in this document are implemented and shipping.</p>
+</blockquote>
+
+    </article>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11.12.3/dist/mermaid.min.js"></script>
+    <script>// Mermaid diagram renderer for Up mode.
+// Injected as a WKUserScript after mermaid.min.js.
+
+(function () {
+  if (!document.querySelector(".up-mode-output")) return;
+
+  var theme = window.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "default";
+
+  mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: "strict",
+    theme: theme,
+  });
+
+  var nodes = [];
+  document.querySelectorAll("code.language-mermaid").forEach(function (code) {
+    var pre = code.parentElement;
+    if (!pre || pre.tagName !== "PRE") return;
+
+    var container = document.createElement("div");
+    container.className = "mermaid";
+    container.textContent = code.textContent;
+    pre.parentNode.replaceChild(container, pre);
+    nodes.push(container);
+  });
+
+  if (nodes.length > 0) {
+    mermaid.run({ nodes: nodes });
+  }
+})();
+</script>
+</body>
+</html>

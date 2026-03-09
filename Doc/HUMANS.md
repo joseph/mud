@@ -18,7 +18,7 @@ Mud does just one thing — it marks up Markdown! — and it does it really well
 
 ### Guides
 
-- [Plan-based workflows with Claude Code](Guide/plan-workflows.md)
+- [Plan-based workflows with Claude Code](Guides/plan-workflows.md)
 - [Command-line usage](Guides/command-line.md)
 - [Sandbox limitations](Guides/sandbox-limitations.md)
 

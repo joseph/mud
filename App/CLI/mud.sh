@@ -1,7 +1,7 @@
 #!/bin/sh
 # mud — Mud.app CLI dispatcher
 #
-# With rendering flags (-u, -d, etc.): delegates to the bundled `muddy` tool.
+# With rendering flags (-u, -d, etc.): delegates to the bundled `mud` tool.
 # Without rendering flags: opens files in the Mud GUI via `open`.
 
 set -eu
@@ -27,7 +27,7 @@ if [ ! -x "$MUD_CLI" ]; then
   exit 1
 fi
 
-# If any rendering or meta flag is present, delegate entirely to muddy.
+# If any rendering or meta flag is present, delegate to the bundled mud tool.
 for arg in "$@"; do
   case "$arg" in
     -u|--html-up|-d|--html-down|-b|--browser|-f|--fragment|\

@@ -21,48 +21,10 @@ struct ThemeColors {
 extension Theme {
     var colorPair: ThemeColors.Pair {
         let css = HTMLTemplate.themeCSS(for: rawValue)
-        let light = Self.parseProperties(from: css, dark: false)
-        let dark = Self.parseProperties(from: css, dark: true)
         return ThemeColors.Pair(
-            light: ThemeColors(properties: light),
-            dark: ThemeColors(properties: dark)
+            light: ThemeColors(properties: Color.cssProperties(from: css, dark: false)),
+            dark: ThemeColors(properties: Color.cssProperties(from: css, dark: true))
         )
-    }
-
-    /// Extracts CSS custom properties as name→hex-value pairs from a theme
-    /// stylesheet.  When `dark` is true, parses the
-    /// `@media (prefers-color-scheme: dark)` block; otherwise parses the
-    /// top-level `:root` block.
-    private static func parseProperties(
-        from css: String, dark: Bool
-    ) -> [String: String] {
-        let section: String
-        if dark {
-            guard let range = css.range(
-                of: "prefers-color-scheme:\\s*dark",
-                options: .regularExpression
-            ) else { return [:] }
-            section = String(css[range.lowerBound...])
-        } else {
-            section = css.components(separatedBy: "@media").first ?? css
-        }
-
-        var result: [String: String] = [:]
-        let pattern = #"--([a-z-]+):\s*(#[0-9A-Fa-f]+)"#
-        guard let regex = try? NSRegularExpression(pattern: pattern) else {
-            return result
-        }
-        let nsSection = section as NSString
-        let matches = regex.matches(
-            in: section,
-            range: NSRange(location: 0, length: nsSection.length)
-        )
-        for match in matches {
-            let name = nsSection.substring(with: match.range(at: 1))
-            let value = nsSection.substring(with: match.range(at: 2))
-            result[name] = value
-        }
-        return result
     }
 }
 
@@ -152,49 +114,3 @@ struct ThemePreviewCard: View {
     }
 }
 
-// MARK: - Color from CSS hex string
-
-private extension Color {
-    /// Creates a Color from a CSS hex string (`#RGB`, `#RRGGBB`, or
-    /// `#RRGGBBAA`).  Returns `.clear` for nil or malformed input.
-    init(cssHex hex: String?) {
-        guard let hex = hex?.trimmingCharacters(in: ["#"]),
-              !hex.isEmpty else {
-            self = .clear
-            return
-        }
-
-        let expanded: String
-        switch hex.count {
-        case 3:
-            expanded = hex.map { "\($0)\($0)" }.joined()
-        case 4:
-            expanded = hex.map { "\($0)\($0)" }.joined()
-        case 6, 8:
-            expanded = hex
-        default:
-            self = .clear
-            return
-        }
-
-        guard let value = UInt64(expanded, radix: 16) else {
-            self = .clear
-            return
-        }
-
-        if expanded.count == 8 {
-            self.init(
-                red: Double((value >> 24) & 0xFF) / 255.0,
-                green: Double((value >> 16) & 0xFF) / 255.0,
-                blue: Double((value >> 8) & 0xFF) / 255.0,
-                opacity: Double(value & 0xFF) / 255.0
-            )
-        } else {
-            self.init(
-                red: Double((value >> 16) & 0xFF) / 255.0,
-                green: Double((value >> 8) & 0xFF) / 255.0,
-                blue: Double(value & 0xFF) / 255.0
-            )
-        }
-    }
-}

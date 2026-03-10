@@ -12,6 +12,7 @@
 		7C0A00062F5B0002001C3BB7 /* OutlineSidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C0A00052F5B0002001C3BB7 /* OutlineSidebarView.swift */; };
 		7C0A000A2F5B0005001C3BB7 /* README.md in Resources */ = {isa = PBXBuildFile; fileRef = 7C0A00092F5B0005001C3BB7 /* README.md */; };
 		7C0A000C2F5B0006001C3BB7 /* Doc in Resources */ = {isa = PBXBuildFile; fileRef = 7C0A000B2F5B0006001C3BB7 /* Doc */; };
+		7C1238782F5FB22900F384B2 /* CSSColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C1238772F5FB22900F384B2 /* CSSColors.swift */; };
 		7C1FD9812F44FAC200BB4076 /* LocalFileSchemeHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C1FD9802F44FAC200BB4076 /* LocalFileSchemeHandler.swift */; };
 		7C2665942F3D6216004C8D74 /* DocumentState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C2665932F3D6216004C8D74 /* DocumentState.swift */; };
 		7C282AD82F4F542E00611919 /* ThemePreviewCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C282AD52F4F542E00611919 /* ThemePreviewCard.swift */; };
@@ -83,6 +84,7 @@
 		7C0A00052F5B0002001C3BB7 /* OutlineSidebarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OutlineSidebarView.swift; sourceTree = "<group>"; };
 		7C0A00092F5B0005001C3BB7 /* README.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = README.md; sourceTree = "<group>"; };
 		7C0A000B2F5B0006001C3BB7 /* Doc */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Doc; sourceTree = "<group>"; };
+		7C1238772F5FB22900F384B2 /* CSSColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CSSColors.swift; sourceTree = "<group>"; };
 		7C1FD9802F44FAC200BB4076 /* LocalFileSchemeHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalFileSchemeHandler.swift; sourceTree = "<group>"; };
 		7C2665932F3D6216004C8D74 /* DocumentState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentState.swift; sourceTree = "<group>"; };
 		7C282AD22F4F542E00611919 /* DownModeSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownModeSettingsView.swift; sourceTree = "<group>"; };
@@ -161,15 +163,16 @@
 		7C282AD12F4F541400611919 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
-				7CD0930B2F58F9B7003E4037 /* LightingPreviewCard.swift */,
 				7C56C3F22F55166800F922B5 /* SettingsWindowController.swift */,
 				7C282AD42F4F542E00611919 /* SettingsView.swift */,
 				7C282AD32F4F542E00611919 /* GeneralSettingsView.swift */,
 				7C282AD62F4F542E00611919 /* ThemeSettingsView.swift */,
-				7C282AD52F4F542E00611919 /* ThemePreviewCard.swift */,
 				7C282AD72F4F542E00611919 /* UpModeSettingsView.swift */,
 				7C282AD22F4F542E00611919 /* DownModeSettingsView.swift */,
 				7C282ADE2F50063900611919 /* CommandLineSettingsView.swift */,
+				7CD0930B2F58F9B7003E4037 /* LightingPreviewCard.swift */,
+				7C282AD52F4F542E00611919 /* ThemePreviewCard.swift */,
+				7C1238772F5FB22900F384B2 /* CSSColors.swift */,
 			);
 			path = Settings;
 			sourceTree = "<group>";
@@ -437,6 +440,7 @@
 				7CD0930C2F58F9B7003E4037 /* LightingPreviewCard.swift in Sources */,
 				7C6B316E2F3A228000F6A4E8 /* DeferMutation.swift in Sources */,
 				7C442A692F34BB7E0046E0CD /* DocumentContentView.swift in Sources */,
+				7C1238782F5FB22900F384B2 /* CSSColors.swift in Sources */,
 				7C5A00042F4800020046E0CD /* CommandLineInstaller.swift in Sources */,
 				7C0A00042F5B0001001C3BB7 /* OutlineNode.swift in Sources */,
 				7C0A00062F5B0002001C3BB7 /* OutlineSidebarView.swift in Sources */,

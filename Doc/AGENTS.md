@@ -111,7 +111,7 @@ MVP plan.
 
 - `ThemePreviewCard.swift` — Theme color constants and preview card view
 
-- `UpModeSettingsView.swift` — Up Mode settings pane (placeholder)
+- `UpModeSettingsView.swift` — Up Mode settings pane with alert reference table
 
 - `DownModeSettingsView.swift` — Down Mode settings pane
 

@@ -2,14 +2,19 @@ import Foundation
 import Markdown
 
 /// Visual category for GFM alerts and DocC asides.
-enum AlertCategory: String, CaseIterable {
+public enum AlertCategory: String, CaseIterable, Sendable {
     case note, tip, important, warning, caution, status
 
     var cssClass: String { "alert-\(rawValue)" }
 
-    var title: String { rawValue.capitalized }
+    public var title: String { rawValue.capitalized }
 
-    /// Inline SVG icon (GitHub Octicons, MIT licensed).
+    /// URL of the icon SVG resource (GitHub Octicons, MIT licensed).
+    public var iconURL: URL? {
+        Bundle.module.url(forResource: "alert-\(rawValue)", withExtension: "svg")
+    }
+
+    /// Inline SVG icon string (GitHub Octicons, MIT licensed).
     var icon: String { Self.icons[self]! }
 
     private static let icons: [AlertCategory: String] = {

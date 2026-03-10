@@ -58,7 +58,9 @@ public enum HTMLTemplate {
 
     // MARK: - Embedded resources
 
-    private static var sharedCSS: String {
+    /// The shared CSS stylesheet (`mud.css`), containing alert color variables
+    /// and other shared properties.
+    public static var sharedCSS: String {
         loadResource("mud", type: "css") ?? ""
     }
 

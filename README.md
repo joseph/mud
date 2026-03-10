@@ -74,6 +74,12 @@ Open `Mud.xcodeproj` in Xcode and build. Requires at least macOS Sonoma
 (14.0+).
 
 
+## Contributing
+
+Issues welcome! I have not enabled Pull Requests. Feel free to attach a
+Markdown plan document to an issue for any proposed fix or improvement.
+
+
 ## License
 
 MIT with Commons Clause. See [Doc/LICENSE.md](Doc/LICENSE.md).

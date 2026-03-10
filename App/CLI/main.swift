@@ -137,33 +137,41 @@ exit(0)
 // MARK: - Rendering
 
 func render(_ markdown: String, title: String, baseURL: URL?) -> String {
+    var options = RenderOptions()
+    options.title = title
+    options.baseURL = baseURL
+    options.theme = theme
+
     if fragment {
         var body: String
         switch mode {
-        case .up:  body = MudCore.renderUpToHTML(markdown)
-        case .down: body = MudCore.renderDownToHTML(markdown)
+        case .up:  body = MudCore.renderUpToHTML(markdown, options: options)
+        case .down: body = MudCore.renderDownToHTML(markdown, options: options)
         }
         if browser { body = "<meta charset=\"utf-8\">\n" + body }
         return body
     }
+
+    if browser {
+        options.includeBaseTag = false
+        options.embedMermaid = true
+    }
+
     var html: String
     switch mode {
     case .up:
         if browser {
             html = MudCore.renderUpModeDocument(
-                markdown, title: title, baseURL: baseURL, theme: theme,
-                includeBaseTag: false,
+                markdown, options: options,
                 resolveImageSource: { source, base in
                     ImageDataURI.encode(source: source, baseURL: base)
                 }
             )
         } else {
-            html = MudCore.renderUpModeDocument(
-                markdown, title: title, baseURL: baseURL, theme: theme
-            )
+            html = MudCore.renderUpModeDocument(markdown, options: options)
         }
     case .down:
-        html = MudCore.renderDownModeDocument(markdown, title: title, theme: theme)
+        html = MudCore.renderDownModeDocument(markdown, options: options)
     }
     if !htmlClasses.isEmpty {
         let attr = "class=\"\(htmlClasses.joined(separator: " "))\""

@@ -298,26 +298,34 @@ struct UpHTMLVisitorTests {
 
     @Test func coreAliasRendersWhenModeCommon() {
         // Core DocC kinds always render as styled alerts in .common mode.
-        let html = MudCore.renderUpToHTML("> Note: Core note\n", doccAlertMode: .common)
+        var opts = RenderOptions()
+        opts.doccAlertMode = .common
+        let html = MudCore.renderUpToHTML("> Note: Core note\n", options: opts)
         #expect(html.contains("class=\"alert alert-note\""))
     }
 
     @Test func extendedAliasPlainWhenModeCommon() {
         // Extended aliases fall back to plain blockquotes in .common mode.
-        let html = MudCore.renderUpToHTML("> Remark: An observation\n", doccAlertMode: .common)
+        var opts = RenderOptions()
+        opts.doccAlertMode = .common
+        let html = MudCore.renderUpToHTML("> Remark: An observation\n", options: opts)
         #expect(html.contains("<blockquote>"))
         #expect(!html.contains("class=\"alert"))
     }
 
     @Test func coreAliasPlainWhenModeOff() {
         // No DocC asides are processed in .off mode.
-        let html = MudCore.renderUpToHTML("> Note: Core note\n", doccAlertMode: .off)
+        var opts = RenderOptions()
+        opts.doccAlertMode = .off
+        let html = MudCore.renderUpToHTML("> Note: Core note\n", options: opts)
         #expect(html.contains("<blockquote>"))
         #expect(!html.contains("class=\"alert"))
     }
 
     @Test func extendedAliasPlainWhenModeOff() {
-        let html = MudCore.renderUpToHTML("> Remark: An observation\n", doccAlertMode: .off)
+        var opts = RenderOptions()
+        opts.doccAlertMode = .off
+        let html = MudCore.renderUpToHTML("> Remark: An observation\n", options: opts)
         #expect(html.contains("<blockquote>"))
         #expect(!html.contains("class=\"alert"))
     }
@@ -422,9 +430,11 @@ struct UpHTMLVisitorTests {
 
     @Test func imageSourceResolution() {
         let base = URL(fileURLWithPath: "/tmp/test.md")
+        var opts = RenderOptions()
+        opts.baseURL = base
         let html = MudCore.renderUpToHTML(
             "![](photo.png)\n",
-            baseURL: base,
+            options: opts,
             resolveImageSource: { source, _ in "resolved-\(source)" }
         )
         #expect(html.contains("src=\"resolved-photo.png\""))

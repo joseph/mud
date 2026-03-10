@@ -11,43 +11,33 @@ public enum MudCore {
     /// Renders Markdown text to HTML body content.
     public static func renderUpToHTML(
         _ markdown: String,
-        baseURL: URL? = nil,
-        resolveImageSource: ((_ source: String, _ baseURL: URL) -> String?)? = nil,
-        doccAlertMode: DocCAlertMode = .extended
+        options: RenderOptions = .init(),
+        resolveImageSource: ((_ source: String, _ baseURL: URL) -> String?)? = nil
     ) -> String {
         let doc = MarkdownParser.parse(markdown)
         var upVisitor = UpHTMLVisitor()
-        upVisitor.baseURL = baseURL
+        upVisitor.baseURL = options.baseURL
         upVisitor.resolveImageSource = resolveImageSource
-        upVisitor.alertDetector.doccAlertMode = doccAlertMode
+        upVisitor.alertDetector.doccAlertMode = options.doccAlertMode
         upVisitor.visit(doc)
         return upVisitor.result
     }
 
     /// Renders Markdown text to a complete HTML document with styles.
-    ///
-    /// - Parameter includeBaseTag: When `true` (the default), a `<base>`
-    ///   tag pointing to `baseURL` is included in the document head.
-    ///   Pass `false` when images have already been resolved to data URIs
-    ///   and the document will be opened in an external browser, where a
-    ///   file-path base URL would break anchor links.
     public static func renderUpModeDocument(
         _ markdown: String,
-        title: String = "",
-        baseURL: URL? = nil,
-        theme: String = "earthy",
-        includeBaseTag: Bool = true,
-        blockRemoteContent: Bool = false,
-        resolveImageSource: ((_ source: String, _ baseURL: URL) -> String?)? = nil,
-        doccAlertMode: DocCAlertMode = .extended
+        options: RenderOptions = .init(),
+        resolveImageSource: ((_ source: String, _ baseURL: URL) -> String?)? = nil
     ) -> String {
-        let body = renderUpToHTML(markdown, baseURL: baseURL,
-                                resolveImageSource: resolveImageSource,
-                                doccAlertMode: doccAlertMode)
-        let templateBase = includeBaseTag ? baseURL : nil
-        return HTMLTemplate.wrapUp(body: body, title: title, baseURL: templateBase,
-                                theme: theme,
-                                blockRemoteContent: blockRemoteContent)
+        let body = renderUpToHTML(markdown, options: options,
+                                resolveImageSource: resolveImageSource)
+        var docOptions = options
+        if options.includeBaseTag {
+            docOptions.baseURL = options.baseURL
+        } else {
+            docOptions.baseURL = nil
+        }
+        return HTMLTemplate.wrapUp(body: body, options: docOptions)
     }
 
     /// Extracts headings from a Markdown string for the outline sidebar.
@@ -61,21 +51,18 @@ public enum MudCore {
     /// Renders Markdown text to an HTML table for Down mode (body only).
     public static func renderDownToHTML(
         _ text: String,
-        doccAlertMode: DocCAlertMode = .extended
+        options: RenderOptions = .init()
     ) -> String {
-        downVisitor.highlightAsTable(text, doccAlertMode: doccAlertMode)
+        downVisitor.highlightAsTable(text, doccAlertMode: options.doccAlertMode)
     }
 
     /// Renders Markdown text to a complete HTML document for Down mode.
     public static func renderDownModeDocument(
         _ text: String,
-        title: String = "",
-        theme: String = "earthy",
-        doccAlertMode: DocCAlertMode = .extended
+        options: RenderOptions = .init()
     ) -> String {
         let tableHTML = downVisitor.highlightAsTable(
-            text, doccAlertMode: doccAlertMode)
-        return HTMLTemplate.wrapDown(tableHTML: tableHTML, title: title,
-                                    theme: theme)
+            text, doccAlertMode: options.doccAlertMode)
+        return HTMLTemplate.wrapDown(tableHTML: tableHTML, options: options)
     }
 }

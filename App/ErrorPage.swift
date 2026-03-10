@@ -32,6 +32,8 @@ enum ErrorPage {
     }
 
     private static func render(_ markdown: String) -> String {
-        MudCore.renderUpModeDocument(markdown, theme: "system")
+        var opts = RenderOptions()
+        opts.theme = "system"
+        return MudCore.renderUpModeDocument(markdown, options: opts)
     }
 }

@@ -22,6 +22,7 @@
 		7C282ADC2F4F542E00611919 /* GeneralSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C282AD32F4F542E00611919 /* GeneralSettingsView.swift */; };
 		7C282ADD2F4F542E00611919 /* DownModeSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C282AD22F4F542E00611919 /* DownModeSettingsView.swift */; };
 		7C282ADF2F50063900611919 /* CommandLineSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C282ADE2F50063900611919 /* CommandLineSettingsView.swift */; };
+		7C3640B52F60DC2C00364BEC /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C3640B42F60DC2C00364BEC /* AppState.swift */; };
 		7C442A622F3450190046E0CD /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C442A612F3450190046E0CD /* AppDelegate.swift */; };
 		7C442A652F3457C20046E0CD /* DocumentController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C442A642F3457C20046E0CD /* DocumentController.swift */; };
 		7C442A682F34BB7E0046E0CD /* DocumentWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C442A672F34BB7E0046E0CD /* DocumentWindowController.swift */; };
@@ -94,6 +95,7 @@
 		7C282AD62F4F542E00611919 /* ThemeSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeSettingsView.swift; sourceTree = "<group>"; };
 		7C282AD72F4F542E00611919 /* UpModeSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpModeSettingsView.swift; sourceTree = "<group>"; };
 		7C282ADE2F50063900611919 /* CommandLineSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommandLineSettingsView.swift; sourceTree = "<group>"; };
+		7C3640B42F60DC2C00364BEC /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
 		7C442A612F3450190046E0CD /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		7C442A642F3457C20046E0CD /* DocumentController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentController.swift; sourceTree = "<group>"; };
 		7C442A662F34BB7E0046E0CD /* DocumentContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentContentView.swift; sourceTree = "<group>"; };
@@ -216,6 +218,7 @@
 				7C282AD12F4F541400611919 /* Settings */,
 				7CC975362F340286001C3BB7 /* MudApp.swift */,
 				7C442A612F3450190046E0CD /* AppDelegate.swift */,
+				7C3640B42F60DC2C00364BEC /* AppState.swift */,
 				7CC975842F340FD2001C3BB7 /* FileWatcher.swift */,
 				7C6B316D2F3A228000F6A4E8 /* DeferMutation.swift */,
 				7C2665932F3D6216004C8D74 /* DocumentState.swift */,
@@ -436,6 +439,7 @@
 				7C282ADF2F50063900611919 /* CommandLineSettingsView.swift in Sources */,
 				7C442A652F3457C20046E0CD /* DocumentController.swift in Sources */,
 				7C56C3F32F55166800F922B5 /* SettingsWindowController.swift in Sources */,
+				7C3640B52F60DC2C00364BEC /* AppState.swift in Sources */,
 				7C442A682F34BB7E0046E0CD /* DocumentWindowController.swift in Sources */,
 				7CD0930C2F58F9B7003E4037 /* LightingPreviewCard.swift in Sources */,
 				7C6B316E2F3A228000F6A4E8 /* DeferMutation.swift in Sources */,

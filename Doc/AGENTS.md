@@ -52,7 +52,9 @@ MVP plan.
 
 **App/ key files:**
 
-- `MudApp.swift` — @main, menu commands, AppState
+- `MudApp.swift` — @main, menu commands
+
+- `AppState.swift` — Singleton observable state, UserDefaults persistence
 
 - `AppDelegate.swift` — Lifecycle and document handling
 
@@ -111,7 +113,7 @@ MVP plan.
 
 - `ThemePreviewCard.swift` — Theme color constants and preview card view
 
-- `UpModeSettingsView.swift` — Up Mode settings pane with alert reference table
+- `UpModeSettingsView.swift` — Up Mode settings pane
 
 - `DownModeSettingsView.swift` — Down Mode settings pane
 
@@ -119,6 +121,7 @@ MVP plan.
 
 **Core/ key files:**
 
+- `RenderOptions.swift` — Rendering configuration value type
 - `MudCore.swift` — Public API: renderUpToHTML, renderDownToHTML,
   renderUpModeDocument, renderDownModeDocument, extractHeadings
 - `Rendering/UpHTMLVisitor.swift` — AST → rendered HTML
@@ -159,6 +162,8 @@ or remove key files.
 ## Rendering pipeline
 
 ```
+RenderOptions (configuration value type)
+  ↓
 Markdown string (up mode)
   → MarkdownParser (cmark-gfm) → AST
   → UpHTMLVisitor → rendered HTML body (SlugGenerator adds heading IDs)
@@ -174,8 +179,13 @@ Markdown string (down mode)
 Both modes render into the same WKWebView; toggling mode swaps the HTML
 document.
 
-MudCore exposes: `renderUpToHTML(_:)`, `renderDownToHTML(_:)`,
-`renderUpModeDocument(_:)`, `renderDownModeDocument(_:)`,
+All public rendering functions accept a `RenderOptions` value that bundles
+configuration (theme, baseURL, doccAlertMode, etc.). Call sites build a
+`RenderOptions` and pass it through; adding new options requires only a new
+field on the struct.
+
+MudCore exposes: `renderUpToHTML(_:options:)`, `renderDownToHTML(_:options:)`,
+`renderUpModeDocument(_:options:)`, `renderDownModeDocument(_:options:)`,
 `extractHeadings(_:)`.
 
 

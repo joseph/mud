@@ -32,28 +32,30 @@ struct DocumentContentView: View {
         return appState.theme
     }
 
+    private var renderOptions: RenderOptions {
+        var opts = RenderOptions()
+        opts.title = fileURL.lastPathComponent
+        opts.baseURL = fileURL
+        opts.theme = appState.theme.rawValue
+        opts.blockRemoteContent = !appState.allowRemoteContent
+        opts.doccAlertMode = appState.doccAlertMode
+        return opts
+    }
+
     private var displayContentID: String {
         switch content {
-        case .text(let text): return "\(text)\(appState.allowRemoteContent)\(appState.doccAlertMode.rawValue)"
+        case .text(let text): return "\(text)\(renderOptions)"
         case .error:          return "load-error"
         }
     }
 
     private var modeHTML: String {
         guard case .text(let text) = content else { return "" }
-        let themeName = appState.theme.rawValue
         if state.mode == .down {
-            return MudCore.renderDownModeDocument(text,
-                title: fileURL.lastPathComponent,
-                theme: themeName,
-                doccAlertMode: appState.doccAlertMode)
+            return MudCore.renderDownModeDocument(text, options: renderOptions)
         }
-        return MudCore.renderUpModeDocument(text,
-            baseURL: fileURL,
-            theme: themeName,
-            blockRemoteContent: !appState.allowRemoteContent,
-            resolveImageSource: Self.mudAssetResolver,
-            doccAlertMode: appState.doccAlertMode)
+        return MudCore.renderUpModeDocument(text, options: renderOptions,
+            resolveImageSource: Self.mudAssetResolver)
     }
 
     /// Rewrites local image paths to `mud-asset:` URLs for WKWebView.
@@ -175,22 +177,19 @@ struct DocumentContentView: View {
         let tempURL = URL(fileURLWithPath: tempDir)
             .appendingPathComponent(baseName)
             .appendingPathExtension("html")
-        let themeName = appState.theme.rawValue
+        var exportOptions = renderOptions
+        exportOptions.includeBaseTag = false
+        exportOptions.embedMermaid = true
         let exportDocument: String
         if state.mode == .down {
             exportDocument = MudCore.renderDownModeDocument(text,
-                title: fileURL.lastPathComponent,
-                theme: themeName,
-                doccAlertMode: appState.doccAlertMode)
+                options: exportOptions)
         } else {
             exportDocument = MudCore.renderUpModeDocument(text,
-                baseURL: fileURL,
-                theme: themeName,
-                includeBaseTag: false,
+                options: exportOptions,
                 resolveImageSource: { source, baseURL in
                     ImageDataURI.encode(source: source, baseURL: baseURL)
-                },
-                doccAlertMode: appState.doccAlertMode)
+                })
         }
         let exportHTML = WebView.injectState(
             into: exportDocument,

@@ -150,21 +150,28 @@ struct DownHTMLVisitorTests {
         #expect(html.contains("md-alert-tag"))
     }
 
-    @Test func extendedAliasRendersAlertWhenEnabled() {
-        let html = visitor.highlightAsTable("> Remark: An observation\n", showExtendedAlerts: true)
+    @Test func extendedAliasRendersAlertWhenModeExtended() {
+        let html = visitor.highlightAsTable("> Remark: An observation\n", doccAlertMode: .extended)
         #expect(html.contains("md-alert-note"))
     }
 
-    @Test func extendedAliasPlainWhenDisabled() {
-        let html = visitor.highlightAsTable("> Remark: An observation\n", showExtendedAlerts: false)
+    @Test func extendedAliasPlainWhenModeCommon() {
+        let html = visitor.highlightAsTable("> Remark: An observation\n", doccAlertMode: .common)
         #expect(html.contains("md-blockquote"))
         #expect(!html.contains("md-alert-"))
     }
 
-    @Test func coreAliasRendersAlertWhenExtendedDisabled() {
-        // Core DocC kinds always render as alerts regardless of the toggle.
-        let html = visitor.highlightAsTable("> Note: Content\n", showExtendedAlerts: false)
+    @Test func coreAliasRendersAlertWhenModeCommon() {
+        // Core DocC kinds always render as alerts in .common mode.
+        let html = visitor.highlightAsTable("> Note: Content\n", doccAlertMode: .common)
         #expect(html.contains("md-alert-note"))
+    }
+
+    @Test func coreAliasPlainWhenModeOff() {
+        // No DocC asides are processed in .off mode.
+        let html = visitor.highlightAsTable("> Note: Content\n", doccAlertMode: .off)
+        #expect(html.contains("md-blockquote"))
+        #expect(!html.contains("md-alert-"))
     }
 
     // MARK: - Table structure

@@ -18,14 +18,19 @@ struct UpModeSettingsView: View {
                     .foregroundStyle(.secondary)
             }
             Section {
-                Toggle("Extended DocC Alerts", isOn: Binding(
-                    get: { appState.showExtendedAlerts },
+                Picker("DocC Asides", selection: Binding(
+                    get: { appState.doccAlertMode },
                     set: { newValue in
-                        appState.showExtendedAlerts = newValue
-                        appState.saveShowExtendedAlerts()
+                        appState.doccAlertMode = newValue
+                        appState.saveDoccAlertMode()
                     }
-                ))
-                AlertReferenceTable(showExtendedAlerts: appState.showExtendedAlerts)
+                )) {
+                    Text("Off").tag(DocCAlertMode.off)
+                    Text("Common").tag(DocCAlertMode.common)
+                    Text("Extended").tag(DocCAlertMode.extended)
+                }
+                .pickerStyle(.segmented)
+                AlertReferenceTable(doccAlertMode: appState.doccAlertMode)
                     .padding(.vertical, -10) // XXX-03-2026-JP -- hack to align table to horizontal dividers above and below
                 HStack(spacing: 0) {
                     Text("Learn more: ")
@@ -55,7 +60,7 @@ private extension AlertCategory {
 }
 
 private struct AlertReferenceTable: View {
-    let showExtendedAlerts: Bool
+    let doccAlertMode: DocCAlertMode
     @Environment(\.colorScheme) private var colorScheme
 
     // Common categories, in the order they appear in alerts.md.
@@ -121,7 +126,8 @@ private struct AlertReferenceTable: View {
                         ForEach(categories, id: \.rawValue) { category in
                             AlertBadgeView(
                                 label: category.title, category: category,
-                                isStyled: true, color: color(for: category))
+                                isStyled: doccAlertMode != .off,
+                                color: color(for: category))
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 4)
@@ -133,7 +139,7 @@ private struct AlertReferenceTable: View {
                         ForEach(rows, id: \.extended) { row in
                             AlertBadgeView(
                                 label: row.extended, category: row.category,
-                                isStyled: showExtendedAlerts,
+                                isStyled: doccAlertMode == .extended,
                                 color: color(for: row.category))
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 10)
@@ -147,7 +153,7 @@ private struct AlertReferenceTable: View {
             .frame(maxHeight: 144)
         }
         .background(Color(NSColor.textBackgroundColor))
-        .animation(.easeInOut(duration: 0.15), value: showExtendedAlerts)
+        .animation(.easeInOut(duration: 0.15), value: doccAlertMode)
     }
 }
 

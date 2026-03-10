@@ -294,18 +294,30 @@ struct UpHTMLVisitorTests {
         #expect(html.contains("Mutating Variant: <strong>"))
     }
 
-    // MARK: - Extended alerts toggle
+    // MARK: - DocC alert mode
 
-    @Test func coreAliasRendersWhenExtendedOff() {
-        // Core DocC kinds (Note:, Tip:, etc.) always render as styled alerts,
-        // regardless of the showExtendedAlerts setting.
-        let html = MudCore.renderUpToHTML("> Note: Core note\n", showExtendedAlerts: false)
+    @Test func coreAliasRendersWhenModeCommon() {
+        // Core DocC kinds always render as styled alerts in .common mode.
+        let html = MudCore.renderUpToHTML("> Note: Core note\n", doccAlertMode: .common)
         #expect(html.contains("class=\"alert alert-note\""))
     }
 
-    @Test func extendedAliasPlainWhenExtendedOff() {
-        // Extended aliases fall back to plain blockquotes when disabled.
-        let html = MudCore.renderUpToHTML("> Remark: An observation\n", showExtendedAlerts: false)
+    @Test func extendedAliasPlainWhenModeCommon() {
+        // Extended aliases fall back to plain blockquotes in .common mode.
+        let html = MudCore.renderUpToHTML("> Remark: An observation\n", doccAlertMode: .common)
+        #expect(html.contains("<blockquote>"))
+        #expect(!html.contains("class=\"alert"))
+    }
+
+    @Test func coreAliasPlainWhenModeOff() {
+        // No DocC asides are processed in .off mode.
+        let html = MudCore.renderUpToHTML("> Note: Core note\n", doccAlertMode: .off)
+        #expect(html.contains("<blockquote>"))
+        #expect(!html.contains("class=\"alert"))
+    }
+
+    @Test func extendedAliasPlainWhenModeOff() {
+        let html = MudCore.renderUpToHTML("> Remark: An observation\n", doccAlertMode: .off)
         #expect(html.contains("<blockquote>"))
         #expect(!html.contains("class=\"alert"))
     }

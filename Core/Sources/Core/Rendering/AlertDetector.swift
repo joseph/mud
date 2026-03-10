@@ -32,15 +32,25 @@ public enum AlertCategory: String, CaseIterable, Sendable {
     }()
 }
 
+/// Controls how DocC asides are processed.
+public enum DocCAlertMode: String, CaseIterable, Sendable {
+    /// No DocC asides are processed; all blockquotes render as plain.
+    case off
+    /// Only the 6 canonical DocC kinds are processed.
+    case common
+    /// All DocC kinds, including extended aliases, are processed.
+    case extended
+}
+
 /// Detects GFM alerts and DocC asides in blockquote nodes, mapping them
 /// to visual alert categories.
 ///
-/// Core DocC kinds (the six canonical categories) always map to a category.
-/// Extended DocC aliases map only when `showExtendedAlerts` is true;
-/// otherwise those blockquotes are left unstyled.
+/// The six canonical DocC kinds map to a category when `doccAlertMode` is
+/// `.common` or `.extended`. Extended aliases map only when `.extended`.
+/// When `.off`, no DocC asides are processed.
 struct AlertDetector {
-    /// When false, extended DocC aliases render as plain blockquotes.
-    var showExtendedAlerts: Bool = true
+    /// Controls which DocC asides are processed.
+    var doccAlertMode: DocCAlertMode = .extended
 
     // MARK: - GFM detection
 
@@ -66,7 +76,7 @@ struct AlertDetector {
     // MARK: - DocC detection
 
     /// Core DocC kinds — the six canonical categories in their DocC form.
-    /// Always active regardless of `showExtendedAlerts`.
+    /// Active when `doccAlertMode` is `.common` or `.extended`.
     private static let coreMap: [String: AlertCategory] = [
         "Note":      .note,
         "Tip":       .tip,
@@ -77,7 +87,7 @@ struct AlertDetector {
     ]
 
     /// Extended DocC aliases — non-canonical kinds that map to a common
-    /// category. Active only when `showExtendedAlerts` is true.
+    /// category. Active only when `doccAlertMode` is `.extended`.
     private static let extendedMap: [String: AlertCategory] = [
         // Note
         "Remark":             .note,
@@ -110,11 +120,11 @@ struct AlertDetector {
 
     /// Returns the alert category, display title, and tag-stripped content
     /// for a DocC aside blockquote, or nil if the blockquote is not a
-    /// recognised aside (or if it is an extended alias and
-    /// `showExtendedAlerts` is false).
+    /// recognised aside (or if `doccAlertMode` excludes it).
     func detectDocCAlert(
         _ blockQuote: BlockQuote
     ) -> (AlertCategory, String, [BlockMarkup])? {
+        guard doccAlertMode != .off else { return nil }
         guard let aside = Aside(
             blockQuote, tagRequirement: .requireAnyLengthTag
         ) else { return nil }
@@ -122,7 +132,7 @@ struct AlertDetector {
         if let category = Self.coreMap[raw] {
             return (category, aside.kind.displayName, aside.content)
         }
-        if showExtendedAlerts, let category = Self.extendedMap[raw] {
+        if doccAlertMode == .extended, let category = Self.extendedMap[raw] {
             return (category, aside.kind.displayName, aside.content)
         }
         return nil

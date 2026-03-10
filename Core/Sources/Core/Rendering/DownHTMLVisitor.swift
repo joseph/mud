@@ -13,7 +13,7 @@ public struct DownHTMLVisitor: Sendable {
     /// per source line, line-number cells, and syntax-highlight spans.
     public func highlightAsTable(
         _ markdown: String,
-        showExtendedAlerts: Bool = true
+        doccAlertMode: DocCAlertMode = .extended
     ) -> String {
         let doc = MarkdownParser.parse(markdown)
         let sourceLines = markdown.split(
@@ -21,7 +21,7 @@ public struct DownHTMLVisitor: Sendable {
         ).map { Array($0.utf8) }
 
         var alertDetector = AlertDetector()
-        alertDetector.showExtendedAlerts = showExtendedAlerts
+        alertDetector.doccAlertMode = doccAlertMode
         var collector = EventCollector(sourceLines: sourceLines)
         collector.alertDetector = alertDetector
         collector.visit(doc)

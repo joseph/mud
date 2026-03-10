@@ -1,4 +1,5 @@
 import Combine
+import MudCore
 import SwiftUI
 import UniformTypeIdentifiers
 
@@ -227,7 +228,7 @@ class AppState: ObservableObject {
     @Published var sidebarVisible: Bool
     @Published var quitOnClose: Bool
     @Published var allowRemoteContent: Bool
-    @Published var showExtendedAlerts: Bool
+    @Published var doccAlertMode: DocCAlertMode
     var openSettingsAction: (() -> Void)?
 
     private static let lightingKey = "Mud-Lighting"
@@ -237,7 +238,7 @@ class AppState: ObservableObject {
     private static let sidebarVisibleKey = "Mud-SidebarVisible"
     private static let quitOnCloseKey = "Mud-QuitOnClose"
     private static let allowRemoteContentKey = "Mud-AllowRemoteContent"
-    private static let showExtendedAlertsKey = "Mud-ShowExtendedAlerts"
+    private static let doccAlertModeKey = "Mud-DoccAlertMode"
 
     private init() {
         let raw = UserDefaults.standard.string(forKey: Self.lightingKey) ?? ""
@@ -251,7 +252,8 @@ class AppState: ObservableObject {
         self.sidebarVisible = defaults.bool(forKey: Self.sidebarVisibleKey)
         self.quitOnClose = defaults.object(forKey: Self.quitOnCloseKey) as? Bool ?? true
         self.allowRemoteContent = defaults.object(forKey: Self.allowRemoteContentKey) as? Bool ?? true
-        self.showExtendedAlerts = defaults.object(forKey: Self.showExtendedAlertsKey) as? Bool ?? true
+        let doccRaw = defaults.string(forKey: Self.doccAlertModeKey) ?? ""
+        self.doccAlertMode = DocCAlertMode(rawValue: doccRaw) ?? .extended
     }
 
     func saveLighting(_ lighting: Lighting) {
@@ -279,8 +281,8 @@ class AppState: ObservableObject {
         UserDefaults.standard.set(allowRemoteContent, forKey: Self.allowRemoteContentKey)
     }
 
-    func saveShowExtendedAlerts() {
-        UserDefaults.standard.set(showExtendedAlerts, forKey: Self.showExtendedAlertsKey)
+    func saveDoccAlertMode() {
+        UserDefaults.standard.set(doccAlertMode.rawValue, forKey: Self.doccAlertModeKey)
     }
 
     func toggle(_ option: ViewToggle) {

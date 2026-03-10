@@ -13,13 +13,13 @@ public enum MudCore {
         _ markdown: String,
         baseURL: URL? = nil,
         resolveImageSource: ((_ source: String, _ baseURL: URL) -> String?)? = nil,
-        showExtendedAlerts: Bool = true
+        doccAlertMode: DocCAlertMode = .extended
     ) -> String {
         let doc = MarkdownParser.parse(markdown)
         var upVisitor = UpHTMLVisitor()
         upVisitor.baseURL = baseURL
         upVisitor.resolveImageSource = resolveImageSource
-        upVisitor.alertDetector.showExtendedAlerts = showExtendedAlerts
+        upVisitor.alertDetector.doccAlertMode = doccAlertMode
         upVisitor.visit(doc)
         return upVisitor.result
     }
@@ -39,11 +39,11 @@ public enum MudCore {
         includeBaseTag: Bool = true,
         blockRemoteContent: Bool = false,
         resolveImageSource: ((_ source: String, _ baseURL: URL) -> String?)? = nil,
-        showExtendedAlerts: Bool = true
+        doccAlertMode: DocCAlertMode = .extended
     ) -> String {
         let body = renderUpToHTML(markdown, baseURL: baseURL,
                                 resolveImageSource: resolveImageSource,
-                                showExtendedAlerts: showExtendedAlerts)
+                                doccAlertMode: doccAlertMode)
         let templateBase = includeBaseTag ? baseURL : nil
         return HTMLTemplate.wrapUp(body: body, title: title, baseURL: templateBase,
                                 theme: theme,
@@ -61,9 +61,9 @@ public enum MudCore {
     /// Renders Markdown text to an HTML table for Down mode (body only).
     public static func renderDownToHTML(
         _ text: String,
-        showExtendedAlerts: Bool = true
+        doccAlertMode: DocCAlertMode = .extended
     ) -> String {
-        downVisitor.highlightAsTable(text, showExtendedAlerts: showExtendedAlerts)
+        downVisitor.highlightAsTable(text, doccAlertMode: doccAlertMode)
     }
 
     /// Renders Markdown text to a complete HTML document for Down mode.
@@ -71,10 +71,10 @@ public enum MudCore {
         _ text: String,
         title: String = "",
         theme: String = "earthy",
-        showExtendedAlerts: Bool = true
+        doccAlertMode: DocCAlertMode = .extended
     ) -> String {
         let tableHTML = downVisitor.highlightAsTable(
-            text, showExtendedAlerts: showExtendedAlerts)
+            text, doccAlertMode: doccAlertMode)
         return HTMLTemplate.wrapDown(tableHTML: tableHTML, title: title,
                                     theme: theme)
     }

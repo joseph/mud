@@ -93,5 +93,13 @@ html:not(.has-line-numbers) .ln {
 .md-link        { color: var(--link-color); }
 .md-image       { color: var(--syntax-constant); }
 .md-blockquote  { color: var(--syntax-comment); font-style: italic; }
+
+/* Alert tag colorization: [!NOTE] / Note: rendered in the alert color. */
+.md-alert-note .md-alert-tag      { color: var(--alert-note-border);      font-style: normal; font-weight: bold; }
+.md-alert-tip .md-alert-tag       { color: var(--alert-tip-border);       font-style: normal; font-weight: bold; }
+.md-alert-important .md-alert-tag { color: var(--alert-important-border); font-style: normal; font-weight: bold; }
+.md-alert-status .md-alert-tag    { color: var(--alert-status-border);    font-style: normal; font-weight: bold; }
+.md-alert-warning .md-alert-tag   { color: var(--alert-warning-border);   font-style: normal; font-weight: bold; }
+.md-alert-caution .md-alert-tag   { color: var(--alert-caution-border);   font-style: normal; font-weight: bold; }
 .md-hr          { color: var(--syntax-comment); }
 .md-html        { color: var(--syntax-keyword); }

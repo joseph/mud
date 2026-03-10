@@ -28,6 +28,40 @@ body *:first-child {
     min-height: 100%;
 }
 
+/* Alert color variables (shared between Up and Down mode).
+   Themes may override these custom properties. */
+:root {
+    --alert-note-border: #0969da;
+    --alert-note-title: #0969da;
+    --alert-tip-border: #1a7f37;
+    --alert-tip-title: #1a7f37;
+    --alert-important-border: #8250df;
+    --alert-important-title: #8250df;
+    --alert-warning-border: #9a6700;
+    --alert-warning-title: #9a6700;
+    --alert-caution-border: #d1242f;
+    --alert-caution-title: #d1242f;
+    --alert-status-border: #ff7700;
+    --alert-status-title: #ff7700;
+}
+
+@media (prefers-color-scheme: dark) {
+:root {
+    --alert-note-border: #4493f8;
+    --alert-note-title: #4493f8;
+    --alert-tip-border: #3fb950;
+    --alert-tip-title: #3fb950;
+    --alert-important-border: #ab7df8;
+    --alert-important-title: #ab7df8;
+    --alert-warning-border: #d29922;
+    --alert-warning-title: #d29922;
+    --alert-caution-border: #f85149;
+    --alert-caution-title: #f85149;
+    --alert-status-border: #ff6600;
+    --alert-status-title: #ff6600;
+}
+}
+
 /* Syntax highlighting */
 .hljs {
     color: var(--text-color);

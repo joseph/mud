@@ -1,9 +1,7 @@
 Plan: Standardize Alerts
 ===============================================================================
 
-> Status: Underway
->
-> Phases 1 and 2 complete. Phase 3 next.
+> Status: Complete
 
 
 ## Context
@@ -181,7 +179,7 @@ Section {
 Call `appState.saveShowExtendedAlerts()` in the `set` closure.
 
 
-## Phase 3: Down Mode (step 9)
+## Phase 3: Down Mode (step 9) ✓
 
 ### 9. Down Mode: alert highlighting
 

@@ -63,7 +63,7 @@ public enum MudCore {
         _ text: String,
         showExtendedAlerts: Bool = true
     ) -> String {
-        downVisitor.highlightAsTable(text)
+        downVisitor.highlightAsTable(text, showExtendedAlerts: showExtendedAlerts)
     }
 
     /// Renders Markdown text to a complete HTML document for Down mode.
@@ -73,7 +73,8 @@ public enum MudCore {
         theme: String = "earthy",
         showExtendedAlerts: Bool = true
     ) -> String {
-        let tableHTML = downVisitor.highlightAsTable(text)
+        let tableHTML = downVisitor.highlightAsTable(
+            text, showExtendedAlerts: showExtendedAlerts)
         return HTMLTemplate.wrapDown(tableHTML: tableHTML, title: title,
                                     theme: theme)
     }

@@ -11,13 +11,19 @@ public struct DownHTMLVisitor: Sendable {
 
     /// Returns a complete `<table class="down-lines">` with one row
     /// per source line, line-number cells, and syntax-highlight spans.
-    public func highlightAsTable(_ markdown: String) -> String {
+    public func highlightAsTable(
+        _ markdown: String,
+        showExtendedAlerts: Bool = true
+    ) -> String {
         let doc = MarkdownParser.parse(markdown)
         let sourceLines = markdown.split(
             separator: "\n", omittingEmptySubsequences: false
         ).map { Array($0.utf8) }
 
+        var alertDetector = AlertDetector()
+        alertDetector.showExtendedAlerts = showExtendedAlerts
         var collector = EventCollector(sourceLines: sourceLines)
+        collector.alertDetector = alertDetector
         collector.visit(doc)
         var events = collector.events
         events.sort()
@@ -61,6 +67,7 @@ public struct DownHTMLVisitor: Sendable {
         let sourceLines: [[UInt8]]
         var events: [SpanEvent] = []
         var codeBlocks: [CodeBlockInfo] = []
+        var alertDetector = AlertDetector()
 
         // -- Container nodes --
 
@@ -69,7 +76,56 @@ public struct DownHTMLVisitor: Sendable {
         }
 
         mutating func visitBlockQuote(_ blockQuote: BlockQuote) {
-            emitContainer(blockQuote, cssClass: "md-blockquote")
+            let depth = Self.nodeDepth(blockQuote)
+            if let (category, _) = alertDetector.detectGFMAlert(blockQuote) {
+                emitContainer(blockQuote,
+                    cssClass: "md-blockquote md-alert-\(category.rawValue)")
+                emitAlertMarkers(in: blockQuote, depth: depth)
+                let tag = "[!\(category.rawValue.uppercased())]"
+                emitAlertTagSpan(in: blockQuote, tagLen: tag.utf8.count,
+                                 depth: depth)
+            } else if let (category, _, _) = alertDetector.detectDocCAlert(blockQuote) {
+                emitContainer(blockQuote,
+                    cssClass: "md-blockquote md-alert-\(category.rawValue)")
+                emitAlertMarkers(in: blockQuote, depth: depth)
+                if let aside = Aside(blockQuote,
+                                     tagRequirement: .requireAnyLengthTag) {
+                    emitAlertTagSpan(in: blockQuote,
+                                     tagLen: aside.kind.rawValue.utf8.count + 1,
+                                     depth: depth)
+                }
+            } else {
+                emitContainer(blockQuote, cssClass: "md-blockquote")
+            }
+        }
+
+        /// Emits a 1-character `md-alert-tag` span over the `>` marker
+        /// on every line of the blockquote.
+        private mutating func emitAlertMarkers(
+            in blockQuote: BlockQuote, depth: Int32
+        ) {
+            guard let range = blockQuote.range else { return }
+            let col = range.lowerBound.column
+            for line in range.lowerBound.line...range.upperBound.line {
+                emitSpan("md-alert-tag", depth: depth + 1,
+                         from: (line: line, column: col),
+                         to:   (line: line, column: col + 1))
+            }
+        }
+
+        /// Emits a nested `md-alert-tag` span covering the tag text
+        /// (e.g. `[!NOTE]` or `Note:`) on the first line of a blockquote.
+        private mutating func emitAlertTagSpan(
+            in blockQuote: BlockQuote, tagLen: Int, depth: Int32
+        ) {
+            guard let para = Array(blockQuote.children).first as? Paragraph,
+                  let textNode = Array(para.children).first as? Text,
+                  let range = textNode.range else { return }
+            let line = range.lowerBound.line
+            let col  = range.lowerBound.column
+            emitSpan("md-alert-tag", depth: depth + 2,
+                     from: (line: line, column: col),
+                     to:   (line: line, column: col + tagLen))
         }
 
         mutating func visitEmphasis(_ emphasis: Emphasis) {

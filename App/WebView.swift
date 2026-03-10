@@ -177,39 +177,11 @@ struct WebView: NSViewRepresentable {
         context.coordinator.lastMode = mode
         context.coordinator.lastReloadID = reloadID
         context.coordinator.needsMermaid = html.contains("language-mermaid")
-        let statedHTML = Self.injectState(
-            into: html,
-            bodyClasses: bodyClasses,
-            zoomLevel: zoomLevel
-        )
-        webView.loadHTMLString(statedHTML, baseURL: baseURL)
+        webView.loadHTMLString(html, baseURL: baseURL)
     }
 
     func makeCoordinator() -> Coordinator {
         Coordinator(baseURL: baseURL)
-    }
-
-    /// Injects view state (body classes, zoom) into the `<html>` tag so the
-    /// page renders correctly from first paint.
-    static func injectState(
-        into html: String,
-        bodyClasses: Set<String>,
-        zoomLevel: Double
-    ) -> String {
-        var attrs: [String] = []
-
-        if !bodyClasses.isEmpty {
-            let sorted = bodyClasses.sorted()
-            attrs.append("class=\"\(sorted.joined(separator: " "))\"")
-        }
-
-        if zoomLevel != 1.0 {
-            attrs.append("style=\"zoom: \(zoomLevel)\"")
-        }
-
-        if attrs.isEmpty { return html }
-        let tag = "<html \(attrs.joined(separator: " "))>"
-        return html.replacingOccurrences(of: "<html>", with: tag)
     }
 
     static func parseMatchInfo(_ result: Any?) -> MatchInfo? {

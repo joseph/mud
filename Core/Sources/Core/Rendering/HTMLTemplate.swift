@@ -4,66 +4,35 @@ import Foundation
 public enum HTMLTemplate {
     /// Wraps body HTML in an Up-mode document.
     static func wrapUp(body: String, options: RenderOptions) -> String {
-        let baseTag = options.baseURL.map { "<base href=\"\($0.absoluteString)\">" } ?? ""
-        let imgSrc = options.blockRemoteContent ? "mud-asset: data:" : "mud-asset: data: https:"
-        let hasMermaid = options.embedMermaid && body.contains("language-mermaid")
-        let scriptSrc = hasMermaid
-            ? "https://cdn.jsdelivr.net 'unsafe-inline'"
-            : "'none'"
-        let mermaidScripts = hasMermaid ? """
+        var doc = HTMLDocument(options: options)
+        doc.styles = [themeCSS(for: options.theme), sharedCSS, upCSS]
+        doc.cspImgSrc = options.blockRemoteContent
+            ? ["mud-asset:", "data:"]
+            : ["mud-asset:", "data:", "https:"]
+        doc.bodyContent = "    <article class=\"up-mode-output\">\n\(body)\n    </article>"
 
-            <script src="\(mermaidCDN)"></script>
-            <script>\(mermaidInitJS)</script>
-        """ : ""
+        if options.embedMermaid && body.contains("language-mermaid") {
+            doc.cspScriptSrc = ["https://cdn.jsdelivr.net", "'unsafe-inline'"]
+            doc.bodyScripts = [.src(mermaidCDN), .inline(mermaidInitJS)]
+        }
 
-        return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src \(imgSrc); style-src 'unsafe-inline'; script-src \(scriptSrc)">
-            \(baseTag)
-            <title>\(escapeHTML(options.title))</title>
-            <style id="mud-theme">\(themeCSS(for: options.theme))</style>
-            <style>\(sharedCSS)\(upCSS)</style>
-        </head>
-        <body>
-            <article class="up-mode-output">
-        \(body)
-            </article>\(mermaidScripts)
-        </body>
-        </html>
-        """
+        return doc.render()
     }
 
     /// Wraps a pre-built table in a Down-mode document.
     static func wrapDown(tableHTML: String, options: RenderOptions) -> String {
-        return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <meta charset="utf-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1">
-            <title>\(escapeHTML(options.title))</title>
-            <style id="mud-theme">\(themeCSS(for: options.theme))</style>
-            <style>\(sharedCSS)\(downCSS)</style>
-        </head>
-        <body>
+        var doc = HTMLDocument(options: options)
+        doc.styles = [themeCSS(for: options.theme), sharedCSS, downCSS]
+        doc.bodyContent = """
             <div class="down-mode-output">
                 \(tableHTML)
             </div>
-        </body>
-        </html>
         """
+        return doc.render()
     }
 
     static let mermaidCDN =
         "https://cdn.jsdelivr.net/npm/mermaid@11.12.3/dist/mermaid.min.js"
-
-    private static func escapeHTML(_ string: String) -> String {
-        HTMLEscaping.escape(string)
-    }
 
     // MARK: - Embedded resources
 

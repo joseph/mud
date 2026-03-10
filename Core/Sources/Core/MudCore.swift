@@ -31,13 +31,7 @@ public enum MudCore {
     ) -> String {
         let body = renderUpToHTML(markdown, options: options,
                                 resolveImageSource: resolveImageSource)
-        var docOptions = options
-        if options.includeBaseTag {
-            docOptions.baseURL = options.baseURL
-        } else {
-            docOptions.baseURL = nil
-        }
-        return HTMLTemplate.wrapUp(body: body, options: docOptions)
+        return HTMLTemplate.wrapUp(body: body, options: options)
     }
 
     /// Extracts headings from a Markdown string for the outline sidebar.

@@ -126,6 +126,7 @@ MVP plan.
   renderUpModeDocument, renderDownModeDocument, extractHeadings
 - `Rendering/UpHTMLVisitor.swift` — AST → rendered HTML
 - `Rendering/DownHTMLVisitor.swift` — AST → syntax-highlighted raw HTML
+- `Rendering/HTMLDocument.swift` — Structured HTML document builder
 - `Rendering/HTMLTemplate.swift` — Document wrapping and resource loading
 - `Rendering/MarkdownParser.swift` — swift-cmark wrapper
 - `Rendering/SlugGenerator.swift` — Heading ID generation

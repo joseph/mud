@@ -55,7 +55,9 @@ struct HTMLTemplateTests {
 
     @Test func themeCSS() {
         let doc = HTMLTemplate.wrapUp(body: "", options: .init())
-        #expect(doc.contains("id=\"mud-theme\""))
+        // Theme CSS is embedded in the style block.
+        let earthyCSS = HTMLTemplate.themeCSS(for: "earthy")
+        #expect(doc.contains(earthyCSS))
     }
 
     @Test func unknownThemeFallsBackToEarthy() {
@@ -85,6 +87,61 @@ struct HTMLTemplateTests {
         opts.title = "<script>"
         let doc = HTMLTemplate.wrapDown(tableHTML: "", options: opts)
         #expect(doc.contains("<title>&lt;script&gt;</title>"))
+    }
+
+    // MARK: - HTML classes and zoom
+
+    @Test func htmlClassesBakedIn() {
+        var opts = RenderOptions()
+        opts.htmlClasses = ["has-line-numbers", "is-readable-column"]
+        let doc = HTMLTemplate.wrapUp(body: "", options: opts)
+        #expect(doc.contains("<html class=\"has-line-numbers is-readable-column\">"))
+    }
+
+    @Test func zoomLevelBakedIn() {
+        var opts = RenderOptions()
+        opts.zoomLevel = 1.5
+        let doc = HTMLTemplate.wrapUp(body: "", options: opts)
+        #expect(doc.contains("<html style=\"zoom: 1.5\">"))
+    }
+
+    @Test func defaultZoomNoAttribute() {
+        let doc = HTMLTemplate.wrapUp(body: "", options: .init())
+        #expect(doc.contains("<html>"))
+    }
+
+    // MARK: - Mermaid embedding
+
+    @Test func embedMermaidAddsScripts() {
+        var opts = RenderOptions()
+        opts.embedMermaid = true
+        let body = "<pre><code class=\"language-mermaid\">graph TD</code></pre>"
+        let doc = HTMLTemplate.wrapUp(body: body, options: opts)
+        #expect(doc.contains("<script src=\""))
+        #expect(doc.contains("cdn.jsdelivr.net"))
+    }
+
+    @Test func embedMermaidUpdatesCSP() {
+        var opts = RenderOptions()
+        opts.embedMermaid = true
+        let body = "<pre><code class=\"language-mermaid\">graph TD</code></pre>"
+        let doc = HTMLTemplate.wrapUp(body: body, options: opts)
+        #expect(doc.contains("script-src https://cdn.jsdelivr.net"))
+    }
+
+    @Test func embedMermaidNoopWithoutCodeBlocks() {
+        var opts = RenderOptions()
+        opts.embedMermaid = true
+        let doc = HTMLTemplate.wrapUp(body: "<p>no mermaid</p>", options: opts)
+        #expect(doc.contains("script-src 'none'"))
+        #expect(!doc.contains("<script"))
+    }
+
+    @Test func noMermaidByDefault() {
+        let body = "<pre><code class=\"language-mermaid\">graph TD</code></pre>"
+        let doc = HTMLTemplate.wrapUp(body: body, options: .init())
+        #expect(doc.contains("script-src 'none'"))
+        #expect(!doc.contains("<script"))
     }
 
     // MARK: - JS resources

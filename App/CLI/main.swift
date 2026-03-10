@@ -141,6 +141,7 @@ func render(_ markdown: String, title: String, baseURL: URL?) -> String {
     options.title = title
     options.baseURL = baseURL
     options.theme = theme
+    options.htmlClasses = Set(htmlClasses)
 
     if fragment {
         var body: String
@@ -157,27 +158,16 @@ func render(_ markdown: String, title: String, baseURL: URL?) -> String {
         options.embedMermaid = true
     }
 
-    var html: String
+    let imageResolver: ((_ source: String, _ baseURL: URL) -> String?)? =
+        browser ? { source, base in ImageDataURI.encode(source: source, baseURL: base) } : nil
+
     switch mode {
     case .up:
-        if browser {
-            html = MudCore.renderUpModeDocument(
-                markdown, options: options,
-                resolveImageSource: { source, base in
-                    ImageDataURI.encode(source: source, baseURL: base)
-                }
-            )
-        } else {
-            html = MudCore.renderUpModeDocument(markdown, options: options)
-        }
+        return MudCore.renderUpModeDocument(markdown, options: options,
+            resolveImageSource: imageResolver)
     case .down:
-        html = MudCore.renderDownModeDocument(markdown, options: options)
+        return MudCore.renderDownModeDocument(markdown, options: options)
     }
-    if !htmlClasses.isEmpty {
-        let attr = "class=\"\(htmlClasses.joined(separator: " "))\""
-        html = html.replacingOccurrences(of: "<html>", with: "<html \(attr)>")
-    }
-    return html
 }
 
 // MARK: - Browser helpers

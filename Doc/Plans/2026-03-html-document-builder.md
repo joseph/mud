@@ -1,7 +1,7 @@
 Plan: HTML Document Builder
 ===============================================================================
 
-> Status: Planning
+> Status: Underway
 
 
 ## Context

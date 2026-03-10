@@ -39,12 +39,14 @@ struct DocumentContentView: View {
         opts.theme = appState.theme.rawValue
         opts.blockRemoteContent = !appState.allowRemoteContent
         opts.doccAlertMode = appState.doccAlertMode
+        opts.htmlClasses = Set(appState.viewToggles.map(\.className))
+        opts.zoomLevel = modeZoomLevel
         return opts
     }
 
     private var displayContentID: String {
         switch content {
-        case .text(let text): return "\(text)\(renderOptions)"
+        case .text(let text): return "\(text)\(renderOptions.contentIdentity)"
         case .error:          return "load-error"
         }
     }
@@ -90,8 +92,8 @@ struct DocumentContentView: View {
             contentID: displayContentID,
             mode: state.mode,
             theme: displayTheme,
-            bodyClasses: Set(appState.viewToggles.map(\.className)),
-            zoomLevel: modeZoomLevel,
+            bodyClasses: renderOptions.htmlClasses,
+            zoomLevel: renderOptions.zoomLevel,
             searchQuery: findState.currentQuery,
             scrollTarget: state.scrollTarget,
             reloadID: state.reloadID,
@@ -180,22 +182,17 @@ struct DocumentContentView: View {
         var exportOptions = renderOptions
         exportOptions.includeBaseTag = false
         exportOptions.embedMermaid = true
-        let exportDocument: String
+        let exportHTML: String
         if state.mode == .down {
-            exportDocument = MudCore.renderDownModeDocument(text,
+            exportHTML = MudCore.renderDownModeDocument(text,
                 options: exportOptions)
         } else {
-            exportDocument = MudCore.renderUpModeDocument(text,
+            exportHTML = MudCore.renderUpModeDocument(text,
                 options: exportOptions,
                 resolveImageSource: { source, baseURL in
                     ImageDataURI.encode(source: source, baseURL: baseURL)
                 })
         }
-        let exportHTML = WebView.injectState(
-            into: exportDocument,
-            bodyClasses: Set(appState.viewToggles.map(\.className)),
-            zoomLevel: modeZoomLevel
-        )
         guard let data = exportHTML.data(using: .utf8) else { return }
         try? data.write(to: tempURL)
         guard let browserURL = NSWorkspace.shared.urlForApplication(

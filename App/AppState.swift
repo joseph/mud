@@ -13,6 +13,7 @@ class AppState: ObservableObject {
     @Published var sidebarVisible: Bool
     @Published var quitOnClose: Bool
     @Published var allowRemoteContent: Bool
+    @Published var enabledExtensions: Set<String>
     @Published var doccAlertMode: DocCAlertMode
     var openSettingsAction: (() -> Void)?
 
@@ -23,6 +24,7 @@ class AppState: ObservableObject {
     private static let sidebarVisibleKey = "Mud-SidebarVisible"
     private static let quitOnCloseKey = "Mud-QuitOnClose"
     private static let allowRemoteContentKey = "Mud-AllowRemoteContent"
+    private static let enabledExtensionsKey = "Mud-EnabledExtensions"
     private static let doccAlertModeKey = "Mud-DoccAlertMode"
 
     private init() {
@@ -37,6 +39,12 @@ class AppState: ObservableObject {
         self.sidebarVisible = defaults.bool(forKey: Self.sidebarVisibleKey)
         self.quitOnClose = defaults.object(forKey: Self.quitOnCloseKey) as? Bool ?? true
         self.allowRemoteContent = defaults.object(forKey: Self.allowRemoteContentKey) as? Bool ?? true
+        let allExtensions = Set(RenderExtension.registry.keys)
+        if let saved = defaults.array(forKey: Self.enabledExtensionsKey) as? [String] {
+            self.enabledExtensions = Set(saved).intersection(allExtensions)
+        } else {
+            self.enabledExtensions = allExtensions
+        }
         let doccRaw = defaults.string(forKey: Self.doccAlertModeKey) ?? ""
         self.doccAlertMode = DocCAlertMode(rawValue: doccRaw) ?? .extended
     }
@@ -64,6 +72,10 @@ class AppState: ObservableObject {
 
     func saveAllowRemoteContent() {
         UserDefaults.standard.set(allowRemoteContent, forKey: Self.allowRemoteContentKey)
+    }
+
+    func saveEnabledExtensions() {
+        UserDefaults.standard.set(Array(enabledExtensions), forKey: Self.enabledExtensionsKey)
     }
 
     func saveDoccAlertMode() {

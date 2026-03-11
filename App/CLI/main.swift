@@ -155,7 +155,7 @@ func render(_ markdown: String, title: String, baseURL: URL?) -> String {
 
     if browser {
         options.includeBaseTag = false
-        options.extensions.insert("mermaid")
+        options.extensions = Set(RenderExtension.registry.keys)
     }
 
     let imageResolver: ((_ source: String, _ baseURL: URL) -> String?)? =

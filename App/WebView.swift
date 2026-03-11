@@ -57,6 +57,7 @@ struct WebView: NSViewRepresentable {
     var scrollTarget: ScrollTarget?
     var reloadID: UUID?
     var printID: UUID?
+    var extensions: Set<String> = []
     var onSearchResult: ((MatchInfo?) -> Void)?
 
     func makeNSView(context: Context) -> WKWebView {
@@ -176,7 +177,9 @@ struct WebView: NSViewRepresentable {
         context.coordinator.lastContentID = contentID
         context.coordinator.lastMode = mode
         context.coordinator.lastReloadID = reloadID
-        context.coordinator.activeExtensions = RenderExtension.registry.values
+        context.coordinator.activeExtensions = extensions.compactMap {
+                RenderExtension.registry[$0]
+            }
             .filter { html.contains($0.marker) }
         webView.loadHTMLString(html, baseURL: baseURL)
     }

@@ -18,6 +18,21 @@ struct UpModeSettingsView: View {
                     .foregroundStyle(.secondary)
             }
             Section {
+                Toggle("Mermaid Diagrams", isOn: Binding(
+                    get: { appState.enabledExtensions.contains("mermaid") },
+                    set: { newValue in
+                        if newValue {
+                            appState.enabledExtensions.insert("mermaid")
+                        } else {
+                            appState.enabledExtensions.remove("mermaid")
+                        }
+                        appState.saveEnabledExtensions()
+                    }
+                ))
+                Text("Render mermaid code blocks as diagrams.")
+                    .foregroundStyle(.secondary)
+            }
+            Section {
                 Picker("DocC Asides", selection: Binding(
                     get: { appState.doccAlertMode },
                     set: { newValue in

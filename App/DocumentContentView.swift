@@ -39,6 +39,7 @@ struct DocumentContentView: View {
         opts.theme = appState.theme.rawValue
         opts.blockRemoteContent = !appState.allowRemoteContent
         opts.doccAlertMode = appState.doccAlertMode
+        opts.extensions = appState.enabledExtensions
         opts.htmlClasses = Set(appState.viewToggles.map(\.className))
         opts.zoomLevel = modeZoomLevel
         return opts
@@ -98,6 +99,7 @@ struct DocumentContentView: View {
             scrollTarget: state.scrollTarget,
             reloadID: state.reloadID,
             printID: state.printID,
+            extensions: appState.enabledExtensions,
             onSearchResult: { info in
                 findState.matchInfo = info
             }
@@ -181,7 +183,6 @@ struct DocumentContentView: View {
             .appendingPathExtension("html")
         var exportOptions = renderOptions
         exportOptions.includeBaseTag = false
-        exportOptions.extensions.insert("mermaid")
         let exportHTML: String
         if state.mode == .down {
             exportHTML = MudCore.renderDownModeDocument(text,

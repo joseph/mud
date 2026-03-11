@@ -1,7 +1,7 @@
 Plan: Mermaid Diagrams Toggle
 ===============================================================================
 
-> Status: Planning
+> Status: Underway
 
 
 ## Context
@@ -16,85 +16,106 @@ When disabled, mermaid code blocks remain as syntax-highlighted `<pre><code>`
 blocks (same as Down Mode shows them).
 
 
+## Design
+
+`RenderOptions.extensions` is the single source of truth for which extensions
+are active. Both HTMLTemplate (embedded export) and WebView (runtime injection)
+read from it. `AppState` persists a set of enabled extension names; this set
+flows into `renderOptions.extensions` in `DocumentContentView`, and is also
+passed directly to `WebView` for runtime injection gating.
+
+Because `extensions` is part of `RenderOptions.contentIdentity`, toggling an
+extension in settings automatically triggers a re-render — no separate content
+ID hack is needed.
+
+
 ## Current flow
 
 ```
 UpHTMLVisitor
   → <pre><code class="language-mermaid">…</code></pre>
-  → WebView filters RenderExtension.registry by marker presence in HTML
-  → activeExtensions populated with matching RenderExtension values
-  → didFinish injects each extension's runtimeJS() sequentially
-  → mermaid-init.js replaces <pre> with <div class="mermaid"> and calls mermaid.run()
-```
 
-The toggle adds a filter step: exclude `RenderExtension.mermaid` from
-`activeExtensions` when the setting is off.
+WebView (runtime, WKWebView):
+  → filters enabled extensions by marker presence in HTML
+  → didFinish injects each extension's runtimeJS() sequentially
+
+HTMLTemplate (export, Open in Browser / CLI --browser):
+  → loops over options.extensions, checks marker, embeds scripts + CSP
+```
 
 
 ## Changes
 
-### 1. Add `mermaidEnabled` to `AppState`
+### 1. Add `enabledExtensions` to `AppState`
 
 In `App/AppState.swift`:
 
-- Add `@Published var mermaidEnabled: Bool`.
-- UserDefaults key: `"Mud-MermaidEnabled"`.
-- Default: `true`.
-- Add `saveMermaidEnabled()` method (same pattern as other prefs).
+- Add `@Published var enabledExtensions: Set<String>`.
+- UserDefaults key: `"Mud-EnabledExtensions"` (persisted as `[String]`).
+- Default: all keys from `RenderExtension.registry`.
+- Intersect saved values with registry keys on load (ignores stale entries).
+- Add `saveEnabledExtensions()` method.
 
 
-### 2. Gate mermaid extension in `WebView`
+### 2. Flow extensions through `RenderOptions`
 
-In `App/WebView.swift`, `updateNSView`: add a filter to exclude extensions
-disabled by settings:
+In `App/DocumentContentView.swift`:
 
-```swift
-context.coordinator.activeExtensions = RenderExtension.registry.values
-    .filter { html.contains($0.marker) }
-    .filter { $0.name != "mermaid" || appState.mermaidEnabled }
-```
-
-Include `appState.mermaidEnabled` in `displayContentID` (in
-`DocumentContentView.swift`) so toggling the setting triggers a re-render. This
-is already handled by `RenderOptions.contentIdentity` — we just need to make
-sure the setting flows into the render options or the content ID.
-
-Simplest approach: incorporate `mermaidEnabled` into `displayContentID`
-directly, since it affects WebView behaviour but not the HTML itself:
-
-```swift
-private var displayContentID: String {
-    switch content {
-    case .text(let text):
-        return "\(text)\(renderOptions.contentIdentity)\(appState.mermaidEnabled)"
-    case .error:
-        return "load-error"
-    }
-}
-```
+- Set `renderOptions.extensions = appState.enabledExtensions`.
+- Remove the separate `disabledExtensions` computed property.
+- `displayContentID` uses `renderOptions.contentIdentity` (which already
+  includes `extensions.sorted()`), so no extra content ID logic is needed.
+- Export (Open in Browser) inherits the same extensions from `renderOptions`
+  instead of hard-coding `"mermaid"`.
 
 
-### 3. Add toggle to `UpModeSettingsView`
+### 3. Gate runtime injection in `WebView`
+
+In `App/WebView.swift`:
+
+- Replace `disabledExtensions: Set<String>` with `extensions: Set<String>`.
+
+- `updateNSView` resolves extensions from the registry by name, then filters by
+  marker presence:
+
+  ```swift
+  context.coordinator.activeExtensions = extensions.compactMap {
+          RenderExtension.registry[$0]
+      }
+      .filter { html.contains($0.marker) }
+  ```
+
+
+### 4. Add toggle to `UpModeSettingsView`
 
 In `App/Settings/UpModeSettingsView.swift`, add a section with a "Mermaid
-Diagrams" toggle and a brief description. Place it after the "Allow Remote
-Content" section.
+Diagrams" toggle. The binding inserts/removes `"mermaid"` from
+`appState.enabledExtensions`. Place it after the "Allow Remote Content"
+section.
 
 
-### 4. Update `Doc/AGENTS.md`
+### 5. Use registry for CLI browser export
 
-Add "Mermaid Diagrams" to the `UpModeSettingsView.swift` bullet.
+In `App/CLI/main.swift`, replace `options.extensions.insert("mermaid")` with
+`options.extensions = Set(RenderExtension.registry.keys)` so browser export
+automatically picks up all registered extensions.
+
+
+### 6. Update `Doc/AGENTS.md`
+
+Add setting names to the `UpModeSettingsView.swift` bullet.
 
 
 ## Files changed
 
-| File                                    | Change                                  |
-| --------------------------------------- | --------------------------------------- |
-| `App/AppState.swift`                    | Add `mermaidEnabled` property + persist |
-| `App/WebView.swift`                     | Filter `activeExtensions` on setting    |
-| `App/DocumentContentView.swift`         | Include flag in `displayContentID`      |
-| `App/Settings/UpModeSettingsView.swift` | Add Mermaid Diagrams toggle             |
-| `Doc/AGENTS.md`                         | Update settings file reference          |
+| File                                    | Change                                    |
+| --------------------------------------- | ----------------------------------------- |
+| `App/AppState.swift`                    | Add `enabledExtensions` set + persist     |
+| `App/DocumentContentView.swift`         | Flow extensions through `renderOptions`   |
+| `App/WebView.swift`                     | Accept `extensions` set, resolve + filter |
+| `App/Settings/UpModeSettingsView.swift` | Add Mermaid Diagrams toggle               |
+| `App/CLI/main.swift`                    | Use registry keys for browser export      |
+| `Doc/AGENTS.md`                         | Update settings file reference            |
 
 
 ## Verification
@@ -104,3 +125,5 @@ Add "Mermaid Diagrams" to the `UpModeSettingsView.swift` bullet.
 - With toggle off: mermaid code blocks render as syntax-highlighted source.
 - Toggling triggers an immediate re-render of the current document.
 - Down Mode is unaffected regardless of toggle state.
+- Open in Browser respects the toggle (disabled = no mermaid scripts embedded).
+- CLI `--browser` embeds all registered extensions.

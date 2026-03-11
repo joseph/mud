@@ -42,6 +42,21 @@ struct UpModeSettingsView: View {
                 }
 
             }
+            Section {
+                Toggle("Copy Code", isOn: Binding(
+                    get: { appState.enabledExtensions.contains("copyCode") },
+                    set: { newValue in
+                        if newValue {
+                            appState.enabledExtensions.insert("copyCode")
+                        } else {
+                            appState.enabledExtensions.remove("copyCode")
+                        }
+                        appState.saveEnabledExtensions()
+                    }
+                ))
+                Text("Show a Copy button on code blocks.")
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
         .padding(.top, -18) // XXX-03-2026-JP -- hack to align top-of-pane with top-of-sidebar

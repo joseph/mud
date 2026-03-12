@@ -42,7 +42,13 @@ struct UpModeSettingsView: View {
                 }
 
             }
-            Section {
+            Section("Code Blocks") {
+                Toggle("Code Block Headers", isOn: Binding(
+                    get: { appState.viewToggles.contains(.codeHeader) },
+                    set: { _ in appState.toggle(.codeHeader) }
+                ))
+                Text("Show a header bar with the language name on code blocks.")
+                    .foregroundStyle(.secondary)
                 Toggle("Copy Code", isOn: Binding(
                     get: { appState.enabledExtensions.contains("copyCode") },
                     set: { newValue in

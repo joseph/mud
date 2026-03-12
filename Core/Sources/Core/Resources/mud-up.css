@@ -112,6 +112,10 @@ pre {
 }
 
 pre.mud-code {
+    position: relative;
+}
+
+.is-code-header pre.mud-code:has(> .code-header) {
     padding-top: 0;
 }
 
@@ -124,6 +128,10 @@ pre code {
 
 /* Code block header bar */
 .code-header {
+    display: none;
+}
+
+.is-code-header .code-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -151,12 +159,16 @@ pre code {
     border-radius: 4px;
     background: transparent;
     color: var(--blockquote-color);
-    font-family: inherit;
-    font-size: inherit;
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+    font-size: 0.75rem;
     text-transform: uppercase;
     cursor: pointer;
     opacity: 0;
     transition: opacity 0.15s ease;
+}
+
+.code-copy-btn svg {
+  padding-right: 0.25rem;
 }
 
 pre.mud-code:hover .code-copy-btn {
@@ -166,6 +178,13 @@ pre.mud-code:hover .code-copy-btn {
 .code-copy-btn:hover {
     background-color: var(--border-color);
     color: var(--text-color);
+}
+
+/* Floating copy button (when header bar is hidden) */
+.code-copy-floating {
+    position: absolute;
+    top: 0.4em;
+    right: 0.8em;
 }
 
 .code-copy-btn.copied {

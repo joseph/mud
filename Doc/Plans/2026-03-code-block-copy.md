@@ -1,22 +1,23 @@
 Plan: Code Block Copy Button
 ===============================================================================
 
-> Status: Planning
+> Status: Underway
 
 
 ## Goal
 
-Add a "Copy" button to fenced code blocks in Up Mode. The button sits in a
-subtle header bar above the code block, with the language name on the left and
-the copy button on the right. The header bar is always visible when a code
-block has a language tag; the copy button appears only on hover.
+Add a "Copy" button to fenced code blocks in Up Mode, implemented as a
+`RenderExtension` so it can be toggled independently. Also add an optional
+header bar on code blocks showing the language name.
 
-Implement this as a `RenderExtension` so it can be toggled independently.
+Both features are controlled by settings in the Up Mode settings pane.
 
 
 ## Design
 
 ### Header bar anatomy
+
+When both "Code Block Headers" and "Copy Code" are on:
 
 ```
 ┌──────────────────────────────────────────┐
@@ -27,58 +28,40 @@ Implement this as a `RenderExtension` so it can be toggled independently.
 └──────────────────────────────────────────┘
 ```
 
-- The **header bar** is visible whenever the code block has a known language.
-  For code blocks with no language, no header bar is shown (or an empty one —
-  TBD during implementation).
+When "Code Block Headers" is off and "Copy Code" is on, the copy button floats
+in the top-right corner of the code block:
+
+```
+┌──────────────────────────────────────────┐
+│  let x = 42                     © Copy   │
+│  print(x)                                │
+└──────────────────────────────────────────┘
+```
+
 - The **copy icon** is the Octicon "copy" SVG (16×16). Label reads `Copy`.
 - On hover over the `<pre>` element, the copy button fades in.
-- On click, the button copies the text content of the `<code>` element to the
-  clipboard, briefly changes label to `Copied!`, then reverts.
+- On click, copies the text content of the `<code>` element to the clipboard,
+  briefly changes label to `Copied!` with a check icon, then reverts.
 
 
-### Why a RenderExtension?
+### Two independent settings
 
-The copy feature fits the existing `RenderExtension` pattern cleanly:
+| Setting            | Mechanism         | Default |
+| ------------------ | ----------------- | ------- |
+| Code Block Headers | `ViewToggle`      | On      |
+| Copy Code          | `RenderExtension` | On      |
 
-| Aspect             | How it maps                                       |
-| ------------------ | ------------------------------------------------- |
-| `name`             | `"copyCode"`                                      |
-| `marker`           | `"mud-code"` (class on `<pre>` for code blocks)   |
-| `cspSources`       | None needed — pure inline JS, no external scripts |
-| `embeddedScripts`  | One `.inline(...)` script                         |
-| `runtimeResources` | One JS file: `copy-code.js`                       |
-
-The marker `mud-code` triggers inclusion only when the document actually
-contains code blocks. `UpHTMLVisitor` adds a `class="mud-code"` to every
-`<pre>` it emits for fenced/indented code, giving us a precise marker that
-won't false-positive on `<pre>` tags in raw HTML blocks.
+The header bar is purely CSS-driven (body class `is-code-header`). The copy
+button is injected by JS. They are independent: any combination of on/off
+works.
 
 
 ### Implementation layers
 
-#### 1. CSS (`mud-up.css`)
+#### 1. HTML (`UpHTMLVisitor.swift`)
 
-Add styles for the header bar and copy button. Keep them in `mud-up.css` since
-this is an Up Mode feature. Key style considerations:
-
-- `pre.mud-code` needs `position: relative` and zero top-padding (the header
-  bar occupies that space).
-- Header bar: flex row, subtle background slightly different from code-bg,
-  top-left and top-right border radii matching the `pre` element.
-- Language label: small, muted text, lowercase.
-- Copy button: transparent until `pre:hover`, then fades in. Cursor: pointer.
-- "Copied!" state: brief green flash or check icon.
-
-The header bar styles are **not** gated by the extension — they're part of the
-base Up Mode styles. This means the language label is always visible regardless
-of whether the copy extension is enabled. The copy button itself is injected
-only by the JS extension.
-
-
-#### 2. HTML changes (`UpHTMLVisitor.swift`)
-
-Modify `visitCodeBlock` to emit a header bar `<div>` inside the `<pre>`, before
-the `<code>` element:
+All code blocks emit `<pre class="mud-code">`. When a language is specified, a
+header `<div>` is included:
 
 ```html
 <pre class="mud-code">
@@ -89,7 +72,7 @@ the `<code>` element:
 </pre>
 ```
 
-For code blocks with no language:
+Language-less code blocks have no header div:
 
 ```html
 <pre class="mud-code">
@@ -97,9 +80,18 @@ For code blocks with no language:
 </pre>
 ```
 
-No header `<div>` is emitted when there is no language. When the copy extension
-is active, the JS inserts a header bar into language-less blocks too (so the
-copy button has a place to land).
+
+#### 2. CSS (`mud-up.css`)
+
+- `pre.mud-code` gets `position: relative` (needed for floating copy button).
+- `.code-header` is `display: none` by default.
+- `.is-code-header .code-header` overrides to `display: flex`.
+- `.is-code-header pre.mud-code:has(> .code-header)` sets `padding-top: 0` (the
+  header bar provides the visual spacing; language-less blocks keep normal
+  padding).
+- `.code-copy-btn` fades in on `pre.mud-code:hover`.
+- `.code-copy-floating` absolutely positions the button in the top-right corner
+  of the `<pre>`.
 
 
 #### 3. JavaScript (`copy-code.js`)
@@ -107,14 +99,12 @@ copy button has a place to land).
 A small runtime script that:
 
 1. Queries all `pre.mud-code` elements.
-2. For blocks without a `.code-header`, creates and prepends one.
-3. Creates a button with the Octicon copy SVG and "Copy" label, appends it to
-   each `.code-header`.
-4. On click, reads `pre > code` text content, calls
-   `navigator.clipboard.writeText()`, swaps label to "Copied!" with a check
-   icon, and reverts after 2 seconds.
-
-The SVG is embedded as a string literal in the JS file.
+2. Checks whether each block has a visible `.code-header`.
+3. **Header visible:** appends the copy button to the header.
+4. **Header hidden or absent:** appends the button directly to the `<pre>` with
+   the `code-copy-floating` class.
+5. On click, uses `navigator.clipboard.writeText()` with a
+   `document.execCommand('copy')` fallback.
 
 
 #### 4. Extension registration (`RenderExtension.swift`)
@@ -129,40 +119,44 @@ static let copyCode = RenderExtension(
 )
 ```
 
-Add to the registry.
+
+#### 5. ViewToggle (`ViewToggle.swift`)
+
+New `codeHeader` case with class name `is-code-header`, defaulting to on. Uses
+`UserDefaults.object(forKey:)` nil check to distinguish "never set" from
+"explicitly off".
 
 
-#### 5. App integration
+#### 6. Settings UI (`UpModeSettingsView.swift`)
 
-- Add a `copyCode` toggle to `AppState` (persisted via UserDefaults),
-  defaulting to **on**.
-- Wire the toggle into `RenderOptions.extensions` alongside the existing
-  Mermaid toggle.
-- Add a checkbox to the Up Mode settings pane.
+A "Code Blocks" section in the Up Mode settings pane with two toggles:
+
+- **Code Block Headers** — toggles `codeHeader` ViewToggle.
+- **Copy Code** — toggles the `copyCode` extension.
 
 
 ## Open questions
 
 1. ~~**Clipboard API availability**~~ — Resolved:
-   `navigator.clipboard.writeText()` works in WKWebView. The
-   `execCommand('copy')` fallback is still in the JS for resilience.
+   `navigator.clipboard.writeText()` works in WKWebView.
 
-2. **Header bar revert plan** — If the header bar feels clunky, the fallback is
-   to remove it and position the copy button absolutely in the top-right corner
-   of the `<pre>` element (simpler, more common pattern). The JS and extension
-   plumbing would remain the same; only CSS and the emitted HTML change.
+2. ~~**Header bar revert plan**~~ — Resolved: both layouts are supported.
 
 3. **Down Mode** — Deferred. Down Mode code blocks are the entire document (one
    big syntax-highlighted block), so a copy button doesn't make sense there in
-   the same way. May revisit for per-line or per-block selection later.
+   the same way. May revisit later.
 
 
 ## Sequence
 
-1. CSS styles for header bar and copy button
-2. `UpHTMLVisitor` changes to emit header bar HTML
-3. `copy-code.js` runtime script
-4. `RenderExtension.copyCode` registration
-5. `AppState` toggle + settings UI + menu item
-6. Test in app, iterate on styling
-7. Decide on header bar vs. overlay based on feel
+All steps complete. Remaining work: final testing and commit.
+
+1. ~~HTML: `UpHTMLVisitor` emits `<pre class="mud-code">` with header div~~
+2. ~~CSS: header bar styles, floating copy button, visibility toggle~~
+3. ~~JS: `copy-code.js` with header detection and fallback~~
+4. ~~Extension: `RenderExtension.copyCode` registered~~
+5. ~~ViewToggle: `codeHeader` case with default-on logic~~
+6. ~~Settings: "Code Blocks" section with both toggles~~
+7. ~~Bug fixes: `document.documentElement` class check, padding consistency,
+   hidden-header button placement~~
+8. ~~Rename: `Mud.setBodyClass` → `Mud.setClass`~~

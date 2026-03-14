@@ -19,10 +19,11 @@ directories.
 
 ## What's affected
 
-* Local images will not load (alt text is shown instead)
-* Links to other local markdown files will not open
-* Open In Browser feature is not available
-* Install Command Line Tool feature is not available
+- Local images will not load (alt text is shown instead)
+- Links to other local markdown files will not open
+- Open in Browser is not available
+- Command Line Tool installation is manual (no Install button)
+- No automatic updates (the App Store handles updates instead)
 
 
 ## Solution
@@ -30,5 +31,5 @@ directories.
 If you are happy with these limitations, continue to use the App Store version!
 
 If these limitations are getting in your way, download the app directly from
-[GitHub](https://github.com/joseph/mud/releases). It's not sandboxed, but it
-is notarized.
+[GitHub](https://github.com/joseph/mud/releases). The direct version is not
+sandboxed, and it is notarized and includes automatic updates via Sparkle.

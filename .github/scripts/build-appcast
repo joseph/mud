@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Usage: build-appcast <dmg-path> <version> <build-number> <key-file> [existing-appcast]
+#
+# Outputs appcast.xml to stdout.
+#
+# Sparkle compares sparkle:version against CFBundleVersion (the build number),
+# and displays sparkle:shortVersionString to the user.
+#
+# Example (local):
+#   .github/scripts/build-appcast Mud-v1.2.0.dmg 1.2.0 42 ~/sparkle_key > appcast.xml
+#
+# Example (CI):
+#   .github/scripts/build-appcast "$DMG" "$VERSION" "$BUILD" "$KEY_FILE" "$EXISTING" > appcast.xml
+
+DMG="$1"
+VERSION="$2"
+BUILD="$3"
+KEY_FILE="$4"
+EXISTING="${5:-}"
+
+SIGN_UPDATE="Vendor/Sparkle/bin/sign_update"
+DOWNLOAD_URL="https://github.com/joseph/mud/releases/download/v${VERSION}/$(basename "$DMG")"
+
+# Sign the DMG
+SIGNATURE=$("$SIGN_UPDATE" "$DMG" --ed-key-file "$KEY_FILE")
+ED_SIG=$(echo "$SIGNATURE" | sed 's/.*edSignature="\([^"]*\)".*/\1/')
+LENGTH=$(echo "$SIGNATURE" | sed 's/.*length="\([^"]*\)".*/\1/')
+
+# Extract release notes from CHANGELOG.md
+NOTES_MD=$(sed -n "/^## Version ${VERSION}$/,/^## /{/^## Version ${VERSION}$/d;/^## /!p}" \
+  CHANGELOG.md 2>/dev/null || true)
+if command -v cmark-gfm &>/dev/null; then
+  NOTES_HTML=$(echo "$NOTES_MD" | cmark-gfm --extension table,autolink,strikethrough)
+else
+  # Fallback: wrap in <pre> if cmark-gfm isn't available
+  NOTES_HTML="<pre>${NOTES_MD}</pre>"
+fi
+
+# Build XML item
+ITEM="    <item>
+      <title>Version ${VERSION}</title>
+      <sparkle:version>${BUILD}</sparkle:version>
+      <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
+      <pubDate>$(date -R)</pubDate>
+      <description><![CDATA[${NOTES_HTML}]]></description>
+      <enclosure
+        url=\"${DOWNLOAD_URL}\"
+        type=\"application/octet-stream\"
+        sparkle:edSignature=\"${ED_SIG}\"
+        length=\"${LENGTH}\" />
+    </item>"
+
+# Insert into existing appcast or create new one
+if [ -n "$EXISTING" ] && [ -f "$EXISTING" ] && grep -q '<channel>' "$EXISTING"; then
+  sed "/<\/channel>/i\\
+${ITEM}" "$EXISTING"
+else
+  cat <<EOF
+<?xml version="1.0" encoding="utf-8"?>
+<rss version="2.0"
+     xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+  <channel>
+    <title>Mud</title>
+${ITEM}
+  </channel>
+</rss>
+EOF
+fi

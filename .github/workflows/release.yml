@@ -51,23 +51,25 @@ jobs:
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
+      - name: Download Sparkle
+        run: .github/scripts/update-sparkle
+
       - name: Resolve packages
         run: |
           xcodebuild -resolvePackageDependencies \
             -project Mud.xcodeproj \
-            -scheme Mud
+            -scheme "Mud - Direct"
 
       - name: Archive
         run: |
           xcodebuild archive \
             -project Mud.xcodeproj \
-            -scheme Mud \
-            -configuration Release \
+            -scheme "Mud - Direct" \
+            -configuration Release-Direct \
             -archivePath "$RUNNER_TEMP/Mud.xcarchive" \
             CODE_SIGN_STYLE=Manual \
             "CODE_SIGN_IDENTITY=Developer ID Application" \
             DEVELOPMENT_TEAM=XVL2AFNXH5 \
-            ENABLE_APP_SANDBOX=NO \
             MARKETING_VERSION=${{ steps.version.outputs.version }} \
             CURRENT_PROJECT_VERSION=${{ github.run_number }}
 
@@ -119,6 +121,41 @@ jobs:
             "Mud-${TAG}.dmg.sha256" \
             --title "Mud ${{ steps.version.outputs.version }}" \
             --generate-notes
+
+      - name: Build and publish appcast
+        env:
+          SPARKLE_PRIVATE_KEY: ${{ secrets.SPARKLE_PRIVATE_KEY }}
+          WEBSITE_SSH_KEY: ${{ secrets.WEBSITE_SSH_KEY }}
+          WEBSITE_SSH_USER: ${{ secrets.WEBSITE_SSH_USER }}
+          WEBSITE_SSH_HOST: ${{ secrets.WEBSITE_SSH_HOST }}
+        run: |
+          VERSION=${{ steps.version.outputs.version }}
+          TAG=${{ steps.version.outputs.tag }}
+          DMG="Mud-${TAG}.dmg"
+
+          # Write key files
+          echo "$SPARKLE_PRIVATE_KEY" > "$RUNNER_TEMP/sparkle_key"
+          echo "$WEBSITE_SSH_KEY" > "$RUNNER_TEMP/deploy_key"
+          chmod 600 "$RUNNER_TEMP/deploy_key"
+
+          # Fetch existing appcast
+          curl -sL -o "$RUNNER_TEMP/existing_appcast.xml" \
+            "https://apps.josephpearson.org/mud/appcast.xml" 2>/dev/null || true
+
+          # Build appcast
+          .github/scripts/build-appcast \
+            "$DMG" "$VERSION" "${{ github.run_number }}" \
+            "$RUNNER_TEMP/sparkle_key" \
+            "$RUNNER_TEMP/existing_appcast.xml" \
+            > appcast.xml
+
+          # Publish
+          scp -i "$RUNNER_TEMP/deploy_key" -o StrictHostKeyChecking=no \
+            appcast.xml \
+            "${WEBSITE_SSH_USER}@${WEBSITE_SSH_HOST}:mud/appcast.xml"
+
+          # Clean up
+          rm -f "$RUNNER_TEMP/sparkle_key" "$RUNNER_TEMP/deploy_key"
 
       - name: Clean up keychain
         if: always()

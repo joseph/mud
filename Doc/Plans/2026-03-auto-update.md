@@ -74,107 +74,64 @@ Done. Added `SUFeedURL`, `SUPublicEDKey`, and `SUEnableAutomaticChecks` to
 are present in both configurations.
 
 
-### 3. App code (4 files)
+### 3. App code ✓
 
 All Sparkle imports and usage are wrapped in `#if SPARKLE`. In App Store
 builds, this code compiles out entirely.
 
-**`App/AppDelegate.swift`** — Conditionally import Sparkle. In
-`applicationDidFinishLaunching`, create `SPUStandardUpdaterController`. Expose
-the `SPUUpdater` instance via a property.
+**`App/CheckForUpdatesView.swift`** — Contains three components, all wrapped in
+`#if SPARKLE`:
 
-```swift
-#if SPARKLE
-import Sparkle
-#endif
+- `SparkleController` — a static enum that owns the
+  `SPUStandardUpdaterController` and exposes its `SPUUpdater` via a computed
+  property. This is the single point of access to the updater throughout the
+  app. Initialized eagerly as a static property so the updater is available
+  before SwiftUI evaluates any view bodies.
+- `CheckForUpdatesViewModel` — observes `canCheckForUpdates` via KVO using
+  `assign(to: &$canCheckForUpdates)` (no cancellable, no retain cycle).
+  Parameterless init — reads the updater from `SparkleController`.
+- `CheckForUpdatesView` — a `Button` for the app menu, disabled when the
+  updater can't check. Uses `@StateObject` for the view model.
 
-// On AppDelegate:
-#if SPARKLE
-private var updaterController: SPUStandardUpdaterController?
-var updater: SPUUpdater? { updaterController?.updater }
-#endif
+**`App/MudApp.swift`** — "Check for Updates..." menu item after Settings,
+guarded by `#if SPARKLE`. No parameters passed — `CheckForUpdatesView()` is
+self-contained. Also adds "Release Notes" to the Help menu (opens bundled
+`Doc/RELEASES.md`).
 
-// In applicationDidFinishLaunching:
-#if SPARKLE
-updaterController = SPUStandardUpdaterController(
-    startingUpdater: true,
-    updaterDelegate: nil,
-    userDriverDelegate: nil
-)
-#endif
-```
+**`App/Settings/SettingsView.swift`** — `.updates` case added to `SettingsPane`
+enum, guarded by `#if SPARKLE`. Routes to `UpdateSettingsView()` with no
+parameters.
 
-**`App/CheckForUpdatesView.swift`** _(new)_ — Standard Sparkle 2 + SwiftUI
-pattern: a view model that observes `updater.canCheckForUpdates` via Combine,
-and a `Button` view for the menu item. The entire file is wrapped in
-`#if SPARKLE`.
+**`App/Settings/UpdateSettingsView.swift`** — Settings pane with a single
+radio-group picker ("Automatic updates") offering three modes: Off, Ask before
+installing, Install automatically. Backed by two `@AppStorage` properties using
+Sparkle's own UserDefaults keys (`SUEnableAutomaticChecks` and
+`SUAutomaticallyUpdate`), so changes from Sparkle's dialogs and the settings
+pane stay in sync. Default: "Ask before installing" (auto-check on,
+auto-install off). Includes a "Check Now" button that calls
+`SparkleController.updater.checkForUpdates()` directly, and a release notes
+link to the project website.
 
-```swift
-#if SPARKLE
-import SwiftUI
-import Sparkle
-import Combine
-
-final class CheckForUpdatesViewModel: ObservableObject {
-    @Published var canCheckForUpdates = false
-    private let updater: SPUUpdater?
-    private var cancellable: AnyCancellable?
-
-    init(updater: SPUUpdater?) {
-        self.updater = updater
-        cancellable = updater?.publisher(for: \.canCheckForUpdates)
-            .assign(to: \.canCheckForUpdates, on: self)
-    }
-
-    func checkForUpdates() { updater?.checkForUpdates() }
-}
-
-struct CheckForUpdatesView: View {
-    @ObservedObject private var viewModel: CheckForUpdatesViewModel
-
-    init(updater: SPUUpdater?) {
-        self.viewModel = CheckForUpdatesViewModel(updater: updater)
-    }
-
-    var body: some View {
-        Button("Check for Updates...") { viewModel.checkForUpdates() }
-            .disabled(!viewModel.canCheckForUpdates)
-    }
-}
-#endif
-```
-
-**`App/MudApp.swift`** — Add "Check for Updates..." after the Settings item,
-guarded by `#if SPARKLE`:
-
-```swift
-CommandGroup(replacing: .appSettings) {
-    Button("Settings...") { ... }
-        .keyboardShortcut(",", modifiers: .command)
-
-    #if SPARKLE
-    CheckForUpdatesView(updater: appDelegate.updater)
-    #endif
-}
-```
-
-**`App/Settings/SettingsView.swift`** — Add `.updates` case to `SettingsPane`.
-Use a computed `visibleCases` that conditionally includes it via `#if SPARKLE`.
-Wire up `UpdateSettingsView` in the detail switch.
-
-**`App/Settings/UpdateSettingsView.swift`** _(new)_ — Settings pane with:
-
-- Toggle: "Automatically check for updates" (bound to
-  `updater.automaticallyChecksForUpdates`)
-- Toggle: "Automatically download updates" (bound to
-  `updater.automaticallyDownloadsUpdates`)
-- "Check Now" button
-
-The entire file is wrapped in `#if SPARKLE`. Follows the established pattern:
-`Form { ... }.formStyle(.grouped).padding(.top, -18)`.
+**`App/AppDelegate.swift`** — No Sparkle code. The updater lifecycle is fully
+managed by `SparkleController`.
 
 
-### 4. Release notes
+#### Design notes
+
+- **`SparkleController` rather than `AppDelegate`** — SwiftUI's
+  `@NSApplicationDelegateAdaptor` wraps the delegate, so
+  `NSApp.delegate as? AppDelegate` fails. A static enum avoids the problem
+  entirely and gives the updater a single, reliable access path.
+- **`@AppStorage` rather than `SPUUpdater` bindings** — manual
+  `Binding(get:set:)` to the updater's properties doesn't trigger SwiftUI
+  re-renders (no `@Published`, no `@State` change). Since Sparkle stores
+  preferences in UserDefaults, `@AppStorage` reads and writes the same backing
+  store with full SwiftUI reactivity.
+- **Radio group rather than two toggles** — auto-install without auto-check is
+  nonsensical. A three-mode picker eliminates the impossible state.
+
+
+### 4. Release notes ✓
 
 Sparkle displays per-release notes in its update dialog. Rather than embedding
 HTML inline in the appcast, use `<sparkle:releaseNotesLink>` to point at hosted
@@ -208,7 +165,7 @@ website alongside the appcast.
 7. Push the tag to GitHub to trigger the release workflow
 
 
-### 5. Release workflow scripts
+### 5. Release workflow scripts ✓
 
 The release workflow's Sparkle-related logic lives in scripts under
 `.github/scripts/`, testable locally outside of CI.
@@ -218,87 +175,10 @@ the framework and CLI tools. Used by both developers (for the framework) and CI
 (for the framework + `sign_update` tool). Accepts an optional version argument
 (defaults to `2.9.0`).
 
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-SPARKLE_VERSION="${1:-2.9.0}"
-URL="https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz"
-
-echo "Downloading Sparkle ${SPARKLE_VERSION}..."
-TMPDIR=$(mktemp -d)
-curl -sL -o "${TMPDIR}/sparkle.tar.xz" "$URL"
-tar xf "${TMPDIR}/sparkle.tar.xz" -C "$TMPDIR"
-
-mkdir -p Vendor/Sparkle
-rm -rf Vendor/Sparkle/Sparkle.framework
-cp -R "${TMPDIR}/Sparkle.framework" Vendor/Sparkle/
-
-mkdir -p Vendor/Sparkle/bin
-cp "${TMPDIR}/bin/sign_update" Vendor/Sparkle/bin/
-cp "${TMPDIR}/bin/generate_keys" Vendor/Sparkle/bin/
-
-rm -rf "$TMPDIR"
-echo "Sparkle ${SPARKLE_VERSION} installed to Vendor/Sparkle/"
-```
-
 **`.github/scripts/build-release-notes`** — Ruby script that reads
 `Doc/RELEASES.md`, extracts each version section, and renders HTML via the Mud
 CLI. Produces `Site/releases/vX.Y.Z.html` for each version and
 `Site/releases/history.html` for the full document.
-
-```ruby
-#!/usr/bin/env ruby
-# frozen_string_literal: true
-
-# Usage: build-release-notes [mud-cli-path]
-#
-# Reads Doc/RELEASES.md, extracts per-version sections, and renders HTML
-# to Site/releases/ using the Mud CLI.
-#
-# The Mud CLI path defaults to the bundled location in Mud.app. Override
-# with the first argument for CI or non-standard installs.
-
-require "fileutils"
-
-RELEASES_PATH = "Doc/RELEASES.md"
-OUTPUT_DIR = "Site/releases"
-
-mud_cli = ARGV[0] || "/Applications/Mud.app/Contents/Helpers/mud"
-
-abort "#{RELEASES_PATH} not found" unless File.exist?(RELEASES_PATH)
-abort "Mud CLI not found at #{mud_cli}" unless File.executable?(mud_cli)
-
-content = File.read(RELEASES_PATH)
-
-# Extract version sections (## vX.Y.Z ... up to next ## or EOF)
-sections = content.scan(/^(## v\S+.*?)(?=^## |\z)/m)
-
-FileUtils.mkdir_p(OUTPUT_DIR)
-
-sections.each do |match|
-  section = match[0].strip
-  version = section[/^## (v\S+)/, 1]
-  next unless version
-
-  outfile = File.join(OUTPUT_DIR, "#{version}.html")
-  IO.popen([mud_cli, "-u"], "r+") do |io|
-    io.write(section)
-    io.close_write
-    File.write(outfile, io.read)
-  end
-  puts "  #{outfile}"
-end
-
-# Full history
-history_file = File.join(OUTPUT_DIR, "history.html")
-IO.popen([mud_cli, "-u"], "r+") do |io|
-  io.write(content)
-  io.close_write
-  File.write(history_file, io.read)
-end
-puts "  #{history_file}"
-```
 
 **`.github/scripts/build-appcast`** — given a signed DMG, generates an
 `appcast.xml` containing a single item for the current release. Uses
@@ -309,60 +189,6 @@ appcast has a version newer than what's installed, so a single-item appcast
 works for users on any older version. This avoids fetching and merging with a
 previous appcast from the website — eliminating a network dependency and the
 risk of silently losing previous entries if the server is unreachable.
-
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-
-# Usage: build-appcast <dmg-path> <version> <build-number> <key-file>
-#
-# Outputs appcast.xml to stdout.
-#
-# Sparkle compares sparkle:version against CFBundleVersion (the build number),
-# and displays sparkle:shortVersionString to the user.
-#
-# Example (local):
-#   .github/scripts/build-appcast Mud-v1.2.0.dmg 1.2.0 42 ~/sparkle_key > appcast.xml
-#
-# Example (CI):
-#   .github/scripts/build-appcast "$DMG" "$VERSION" "$BUILD" "$KEY_FILE" > appcast.xml
-
-DMG="$1"
-VERSION="$2"
-BUILD="$3"
-KEY_FILE="$4"
-
-SIGN_UPDATE="Vendor/Sparkle/bin/sign_update"
-DOWNLOAD_URL="https://github.com/joseph/mud/releases/download/v${VERSION}/$(basename "$DMG")"
-NOTES_URL="https://apps.josephpearson.org/mud/releases/v${VERSION}.html"
-
-# Sign the DMG
-SIGNATURE=$("$SIGN_UPDATE" "$DMG" --ed-key-file "$KEY_FILE")
-ED_SIG=$(echo "$SIGNATURE" | sed 's/.*edSignature="\([^"]*\)".*/\1/')
-LENGTH=$(echo "$SIGNATURE" | sed 's/.*length="\([^"]*\)".*/\1/')
-
-cat <<EOF
-<?xml version="1.0" encoding="utf-8"?>
-<rss version="2.0"
-     xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
-  <channel>
-    <title>Mud</title>
-    <item>
-      <title>Version ${VERSION}</title>
-      <sparkle:version>${BUILD}</sparkle:version>
-      <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>
-      <pubDate>$(date -R)</pubDate>
-      <sparkle:releaseNotesLink>${NOTES_URL}</sparkle:releaseNotesLink>
-      <enclosure
-        url="${DOWNLOAD_URL}"
-        type="application/octet-stream"
-        sparkle:edSignature="${ED_SIG}"
-        length="${LENGTH}" />
-    </item>
-  </channel>
-</rss>
-EOF
-```
 
 All three scripts live in `.github/scripts/` (not in the git-ignored
 `Vendor/Sparkle/` directory).
@@ -430,8 +256,7 @@ both the framework (for the build) and `sign_update` (for appcast generation):
 
     # Build appcast (single-item, no fetch needed)
     .github/scripts/build-appcast \
-      "$DMG" "$VERSION" "${{ github.run_number }}" \
-      "$RUNNER_TEMP/sparkle_key" \
+      "$DMG" "$VERSION" "$RUNNER_TEMP/sparkle_key" \
       > appcast.xml
 
     # Publish appcast and release notes
@@ -447,19 +272,10 @@ both the framework (for the build) and `sign_update` (for appcast generation):
 ```
 
 
-### 7. Documentation
+### 7. Documentation ✓
 
-`Vendor/Sparkle/` added to `.gitignore`. ✓
-
-Still to do: update `Doc/AGENTS.md` file quick reference to include:
-
-- `CheckForUpdatesView.swift`
-- `UpdateSettingsView.swift`
-- `.github/scripts/update-sparkle`
-- `.github/scripts/build-appcast`
-- `.github/scripts/build-release-notes`
-- `Doc/RELEASES.md`
-- `Site/releases/`
+`Vendor/Sparkle/` added to `.gitignore`. `Doc/AGENTS.md` file quick reference
+updated with all new files.
 
 
 ## Why not SPM?
@@ -490,17 +306,17 @@ no framework in the bundle, no rejection.
 | `App/Info.plist`                        | `SUFeedURL`, `SUPublicEDKey`, `SUEnableAutomaticChecks`     | ✓      |
 | `.gitignore`                            | Add `Vendor/Sparkle/`                                       | ✓      |
 | `.github/scripts/update-sparkle`        | New — download Sparkle framework + CLI tools                | ✓      |
-| `App/AppDelegate.swift`                 | `#if SPARKLE` updater controller init and property          |        |
-| `App/MudApp.swift`                      | `#if SPARKLE` "Check for Updates..." menu item              |        |
-| `App/CheckForUpdatesView.swift`         | New — menu button + view model (entire file `#if SPARKLE`)  |        |
-| `App/Settings/SettingsView.swift`       | `.updates` pane (`#if SPARKLE`)                             |        |
-| `App/Settings/UpdateSettingsView.swift` | New — update preferences pane (entire file `#if SPARKLE`)   |        |
-| `Doc/RELEASES.md`                       | Release notes in Markdown (already exists)                  |        |
-| `Site/releases/`                        | Pre-rendered release notes HTML (generated by Ruby script)  |        |
-| `.github/scripts/build-release-notes`   | New — Ruby script: extract + render release notes via Mud   |        |
-| `.github/scripts/build-appcast`         | New — sign DMG, output appcast XML with releaseNotesLink    |        |
-| `.github/workflows/release.yml`         | Download Sparkle, Release-Direct, appcast + site deploy     |        |
-| `Doc/AGENTS.md`                         | File quick reference                                        |        |
+| `App/AppDelegate.swift`                 | Sparkle code removed (updater moved to SparkleController)   | ✓      |
+| `App/MudApp.swift`                      | `CheckForUpdatesView()` menu item; Release Notes help item  | ✓      |
+| `App/CheckForUpdatesView.swift`         | New — SparkleController, view model, menu button            | ✓      |
+| `App/Settings/SettingsView.swift`       | `.updates` pane (`#if SPARKLE`)                             | ✓      |
+| `App/Settings/UpdateSettingsView.swift` | New — radio-group picker, Check Now, release notes link     | ✓      |
+| `Doc/RELEASES.md`                       | Release notes in Markdown (already exists)                  | ✓      |
+| `Site/releases/`                        | Pre-rendered release notes HTML (generated by Ruby script)  | ✓      |
+| `.github/scripts/build-release-notes`   | New — Ruby script: extract + render release notes via Mud   | ✓      |
+| `.github/scripts/build-appcast`         | New — sign DMG, output appcast XML with releaseNotesLink    | ✓      |
+| `.github/workflows/release.yml`         | Download Sparkle, Release-Direct, appcast + site deploy     | ✓      |
+| `Doc/AGENTS.md`                         | File quick reference                                        | ✓      |
 
 
 ## Verification
@@ -512,87 +328,6 @@ no framework in the bundle, no rejection.
 2. Build with the **Mud - AppStore** scheme — confirm both are absent.
 3. Inspect the App Store binary with `otool -L` — confirm no reference to
    `Sparkle.framework`.
-
-
-### Local update flow (no publishing required)
-
-Test the full update cycle without pushing a release to GitHub. The existing
-EdDSA key pair (public key in `Info.plist`, private key in the developer's
-Keychain from `generate_keys`) is used throughout.
-
-1. **Write the private key to a file** — `build-appcast` needs the EdDSA
-   private key that matches the `SUPublicEDKey` in `Info.plist`. Use the
-   original key saved during prerequisite setup (stored as the
-   `SPARKLE_PRIVATE_KEY` GitHub Actions secret). Write it to a temporary file:
-
-   ```
-   echo '<paste the private key>' > /tmp/sparkle_key
-   ```
-
-2. **Build a "current" (old) version** — this is the version already installed
-   on the machine that will discover the update. Make two temporary changes
-   before building:
-
-   - In `App/Info.plist`, change `SUFeedURL` to
-     `http://localhost:8080/appcast.xml` (so the installed app checks the local
-     server, not production — Sparkle reads this from the bundle plist, so it
-     must be baked in at build time).
-   - In the Xcode project, select the **Mud** target → Build Settings → search
-     for `MARKETING_VERSION`. Change it to something low (e.g. `0.9.0`) in the
-     **Release-Direct** column.
-
-   Then build and copy to `/Applications`:
-
-   - Product → Archive (uses the Mud - Direct scheme).
-   - In Organizer, click Distribute App → Direct Distribution → Export.
-   - Copy the exported `Mud.app` to `/Applications`.
-
-3. **Build the "new" version** — restore `SUFeedURL` in `App/Info.plist` to
-   `https://apps.josephpearson.org/mud/appcast.xml` and `MARKETING_VERSION` to
-   its real value (e.g. `1.0.0`). Archive and export again as above. This time,
-   create a DMG from the exported app (the appcast signs the DMG, not the bare
-   .app):
-
-   ```
-   mkdir -p /tmp/mud-dmg
-   cp -R /path/to/exported/Mud.app /tmp/mud-dmg/
-   hdiutil create -volname Mud -srcfolder /tmp/mud-dmg \
-     -ov -format UDZO Mud-v1.0.0.dmg
-   rm -rf /tmp/mud-dmg
-   ```
-
-4. **Create a local appcast** — use the `build-appcast` script. It needs a
-   `CHANGELOG.md` entry matching the version:
-
-   ```
-   .github/scripts/build-appcast Mud-v1.0.0.dmg 1.0.0 2 /tmp/sparkle_key \
-     > /tmp/appcast.xml
-   ```
-
-   The third argument (`2`) is the build number — it must be higher than the
-   installed app's `CFBundleVersion` (`1`).
-
-   Then edit `/tmp/appcast.xml` to change the download URL to
-   `http://localhost:8080/Mud-v1.0.0.dmg`.
-
-5. **Serve locally** — place the DMG and appcast in a directory and run:
-
-   ```
-   mkdir -p /tmp/mud-update
-   cp Mud-v1.0.0.dmg /tmp/appcast.xml /tmp/mud-update/
-   cd /tmp/mud-update && python3 -m http.server 8080
-   ```
-
-6. **Launch the old build** — run the installed 0.9.0 build from
-   `/Applications`. Trigger "Check for Updates..." and verify Sparkle finds the
-   new version, shows the release notes, downloads the DMG, and offers to
-   install it.
-
-7. **Clean up** — delete the temporary key file:
-
-   ```
-   rm -f /tmp/sparkle_key
-   ```
 
 
 ### Production verification

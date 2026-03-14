@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SPARKLE_VERSION="${1:-2.9.0}"
+URL="https://github.com/sparkle-project/Sparkle/releases/download/${SPARKLE_VERSION}/Sparkle-${SPARKLE_VERSION}.tar.xz"
+
+echo "Downloading Sparkle ${SPARKLE_VERSION}..."
+TMPDIR=$(mktemp -d)
+curl -sL -o "${TMPDIR}/sparkle.tar.xz" "$URL"
+tar xf "${TMPDIR}/sparkle.tar.xz" -C "$TMPDIR"
+
+mkdir -p Vendor/Sparkle
+rm -rf Vendor/Sparkle/Sparkle.framework
+cp -R "${TMPDIR}/Sparkle.framework" Vendor/Sparkle/
+
+mkdir -p Vendor/Sparkle/bin
+cp "${TMPDIR}/bin/sign_update" Vendor/Sparkle/bin/
+cp "${TMPDIR}/bin/generate_keys" Vendor/Sparkle/bin/
+
+rm -rf "$TMPDIR"
+echo "Sparkle ${SPARKLE_VERSION} installed to Vendor/Sparkle/"

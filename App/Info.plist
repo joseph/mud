@@ -4,6 +4,12 @@
 <dict>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>SUFeedURL</key>
+	<string>https://apps.josephpearson.org/mud/appcast.xml</string>
+	<key>SUPublicEDKey</key>
+	<string>SLb8PPG1VxkLUhB+eofc/mUpZlXptWwMdBqXUTKjpjc=</string>
+	<key>SUEnableAutomaticChecks</key>
+	<true/>
 	<key>LSApplicationCategoryType</key>
 	<string>public.app-category.developer-tools</string>
 	<key>CFBundleDocumentTypes</key>

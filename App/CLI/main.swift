@@ -132,8 +132,6 @@ if files.isEmpty {
     if browser { openInBrowser(tempURLs) }
 }
 
-exit(0)
-
 // MARK: - Rendering
 
 func render(_ markdown: String, title: String, baseURL: URL?) -> String {

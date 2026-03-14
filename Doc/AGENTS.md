@@ -122,6 +122,9 @@ MVP plan.
 
 - `CommandLineSettingsView.swift` — Command Line settings pane
 
+- `DebuggingSettingsView.swift` — Debugging pane (debug builds only; reset
+  preferences)
+
 **Core/ key files:**
 
 - `RenderExtension.swift` — Client-side rendering extension type and registry

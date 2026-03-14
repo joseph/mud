@@ -38,6 +38,7 @@
 		7CA1197F2F3CC4D00098484A /* ViewToggle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CA1197E2F3CC4CC0098484A /* ViewToggle.swift */; };
 		7CA119812F3CC5110098484A /* Mode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CA119802F3CC50F0098484A /* Mode.swift */; };
 		7CB9BB902F38E28B008AB0BC /* Mud.icon in Resources */ = {isa = PBXBuildFile; fileRef = 7CB9BB8F2F38E28B008AB0BC /* Mud.icon */; };
+		7CC6E6B72F657A2200FE7D66 /* DebuggingSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC6E6B62F657A2200FE7D66 /* DebuggingSettingsView.swift */; };
 		7CC9753A2F340286001C3BB7 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7CC975332F340286001C3BB7 /* Assets.xcassets */; };
 		7CC9753D2F340286001C3BB7 /* MudApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC975362F340286001C3BB7 /* MudApp.swift */; };
 		7CC975592F34038A001C3BB7 /* MudCore in Frameworks */ = {isa = PBXBuildFile; productRef = 7CC975582F34038A001C3BB7 /* MudCore */; };
@@ -111,6 +112,7 @@
 		7CA1197E2F3CC4CC0098484A /* ViewToggle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewToggle.swift; sourceTree = "<group>"; };
 		7CA119802F3CC50F0098484A /* Mode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Mode.swift; sourceTree = "<group>"; };
 		7CB9BB8F2F38E28B008AB0BC /* Mud.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = Mud.icon; sourceTree = "<group>"; };
+		7CC6E6B62F657A2200FE7D66 /* DebuggingSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebuggingSettingsView.swift; sourceTree = "<group>"; };
 		7CC975212F3401F4001C3BB7 /* Mud.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Mud.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7CC975332F340286001C3BB7 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		7CC975352F340286001C3BB7 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -175,6 +177,7 @@
 				7C282AD72F4F542E00611919 /* UpModeSettingsView.swift */,
 				7C282AD22F4F542E00611919 /* DownModeSettingsView.swift */,
 				7C282ADE2F50063900611919 /* CommandLineSettingsView.swift */,
+				7CC6E6B62F657A2200FE7D66 /* DebuggingSettingsView.swift */,
 				7CD0930B2F58F9B7003E4037 /* LightingPreviewCard.swift */,
 				7C282AD52F4F542E00611919 /* ThemePreviewCard.swift */,
 				7C1238772F5FB22900F384B2 /* CSSColors.swift */,
@@ -435,6 +438,7 @@
 				7C282ADB2F4F542E00611919 /* ThemeSettingsView.swift in Sources */,
 				7C282ADC2F4F542E00611919 /* GeneralSettingsView.swift in Sources */,
 				7C282ADD2F4F542E00611919 /* DownModeSettingsView.swift in Sources */,
+				7CC6E6B72F657A2200FE7D66 /* DebuggingSettingsView.swift in Sources */,
 				7C442A622F3450190046E0CD /* AppDelegate.swift in Sources */,
 				7CA1197F2F3CC4D00098484A /* ViewToggle.swift in Sources */,
 				7C2665942F3D6216004C8D74 /* DocumentState.swift in Sources */,

@@ -7,6 +7,9 @@ enum SettingsPane: String, CaseIterable, Identifiable {
     case upMode
     case downMode
     case commandLine
+    #if DEBUG
+    case debugging
+    #endif
 
     var id: String { rawValue }
 
@@ -18,6 +21,9 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .upMode: return "Up Mode"
         case .downMode: return "Down Mode"
         case .commandLine: return "Command Line"
+        #if DEBUG
+        case .debugging: return "Debugging"
+        #endif
         }
     }
 
@@ -29,6 +35,9 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .upMode: return "arrowshape.up.circle"
         case .downMode: return "arrowshape.down.circle"
         case .commandLine: return "terminal"
+        #if DEBUG
+        case .debugging: return "ladybug"
+        #endif
         }
     }
 }
@@ -69,6 +78,10 @@ struct SettingsView: View {
             DownModeSettingsView()
         case .commandLine:
             CommandLineSettingsView()
+        #if DEBUG
+        case .debugging:
+            DebuggingSettingsView()
+        #endif
         }
     }
 }

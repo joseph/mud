@@ -32,14 +32,14 @@
 		7C56C3F32F55166800F922B5 /* SettingsWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C56C3F22F55166800F922B5 /* SettingsWindowController.swift */; };
 		7C5A00042F4800020046E0CD /* CommandLineInstaller.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C5A00032F4800020046E0CD /* CommandLineInstaller.swift */; };
 		7C6532B12F585CEE00B71730 /* MudCore in Frameworks */ = {isa = PBXBuildFile; productRef = 7C6532B02F585CEE00B71730 /* MudCore */; };
-		7C6532B32F585D6300B71730 /* mud in CopyFiles */ = {isa = PBXBuildFile; fileRef = 7C6532A82F585CA100B71730 /* mud */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+		7C6532B32F585D6300B71730 /* mud in Copy CLI helper */ = {isa = PBXBuildFile; fileRef = 7C6532A82F585CA100B71730 /* mud */; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
 		7C6B316E2F3A228000F6A4E8 /* DeferMutation.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C6B316D2F3A228000F6A4E8 /* DeferMutation.swift */; };
 		7C8D10302F34CF0400F359C8 /* FindFeature.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C8D102F2F34CF0400F359C8 /* FindFeature.swift */; };
 		7CA1197F2F3CC4D00098484A /* ViewToggle.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CA1197E2F3CC4CC0098484A /* ViewToggle.swift */; };
 		7CA119812F3CC5110098484A /* Mode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CA119802F3CC50F0098484A /* Mode.swift */; };
 		7CB9BB902F38E28B008AB0BC /* Mud.icon in Resources */ = {isa = PBXBuildFile; fileRef = 7CB9BB8F2F38E28B008AB0BC /* Mud.icon */; };
 		7CC6E6B72F657A2200FE7D66 /* DebuggingSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC6E6B62F657A2200FE7D66 /* DebuggingSettingsView.swift */; };
-		7CC6E6C02F658B1300FE7D66 /* Sparkle.framework in CopyFiles */ = {isa = PBXBuildFile; fileRef = 7CC6E6BF2F658B1300FE7D66 /* Sparkle.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
+		7CC6E6C02F658B1300FE7D66 /* Sparkle.framework in Embed Sparkle */ = {isa = PBXBuildFile; fileRef = 7CC6E6BF2F658B1300FE7D66 /* Sparkle.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		7CC6E6E32F6595BD00FE7D66 /* UpdateSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC6E6E22F6595BD00FE7D66 /* UpdateSettingsView.swift */; };
 		7CC6E6E52F6595F900FE7D66 /* CheckForUpdatesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC6E6E42F6595F900FE7D66 /* CheckForUpdatesView.swift */; };
 		7CC9753A2F340286001C3BB7 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7CC975332F340286001C3BB7 /* Assets.xcassets */; };
@@ -63,32 +63,23 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		7C6532A62F585CA100B71730 /* CopyFiles */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = /usr/share/man/man1/;
-			dstSubfolderSpec = 0;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 1;
-		};
-		7C6532B22F585D3900B71730 /* CopyFiles */ = {
+		7C6532B22F585D3900B71730 /* Copy CLI helper */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = Contents/Helpers;
 			dstSubfolderSpec = 1;
 			files = (
-				7C6532B32F585D6300B71730 /* mud in CopyFiles */,
+				7C6532B32F585D6300B71730 /* mud in Copy CLI helper */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		7CC6E6BE2F658ABE00FE7D66 /* CopyFiles */ = {
+		7CC6E6BE2F658ABE00FE7D66 /* Embed Sparkle */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
 			dstPath = "";
 			dstSubfolderSpec = 10;
 			files = (
-				7CC6E6C02F658B1300FE7D66 /* Sparkle.framework in CopyFiles */,
+				7CC6E6C02F658B1300FE7D66 /* Sparkle.framework in Embed Sparkle */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -274,7 +265,6 @@
 			buildPhases = (
 				7C6532A42F585CA100B71730 /* Sources */,
 				7C6532A52F585CA100B71730 /* Frameworks */,
-				7C6532A62F585CA100B71730 /* CopyFiles */,
 			);
 			buildRules = (
 			);
@@ -298,11 +288,11 @@
 				7CC9751D2F3401F4001C3BB7 /* Sources */,
 				7CC9751E2F3401F4001C3BB7 /* Frameworks */,
 				7CC9751F2F3401F4001C3BB7 /* Resources */,
-				7C6532B22F585D3900B71730 /* CopyFiles */,
+				7C6532B22F585D3900B71730 /* Copy CLI helper */,
 				7C9B0C1D2F5E1000001C3BB7 /* Strip CLI assets (sandboxed) */,
-				7C6532BA2F585DC100B71730 /* ShellScript */,
-				7CC6E6BE2F658ABE00FE7D66 /* CopyFiles */,
-				7CC6E6C12F658B1C00FE7D66 /* ShellScript */,
+				7C6532BA2F585DC100B71730 /* Make mud.sh executable */,
+				7CC6E6BE2F658ABE00FE7D66 /* Embed Sparkle */,
+				7CC6E6C12F658B1C00FE7D66 /* Strip Sparkle (App Store) */,
 				7CA45B002F6E8A0000B71730 /* Increment Build Number (App Store) */,
 			);
 			buildRules = (
@@ -375,7 +365,7 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXShellScriptBuildPhase section */
-		7C6532BA2F585DC100B71730 /* ShellScript */ = {
+		7C6532BA2F585DC100B71730 /* Make mud.sh executable */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -385,6 +375,7 @@
 			);
 			inputPaths = (
 			);
+			name = "Make mud.sh executable";
 			outputFileListPaths = (
 			);
 			outputPaths = (
@@ -412,7 +403,7 @@
 			shellPath = /bin/sh;
 			shellScript = "if [ \"${ENABLE_APP_SANDBOX}\" = \"YES\" ]; then\n  rm -rf \"$BUILT_PRODUCTS_DIR/$CONTENTS_FOLDER_PATH/Helpers\"\n  rm -f  \"$BUILT_PRODUCTS_DIR/$CONTENTS_FOLDER_PATH/Resources/mud.sh\"\nfi\n";
 		};
-		7CC6E6C12F658B1C00FE7D66 /* ShellScript */ = {
+		7CC6E6C12F658B1C00FE7D66 /* Strip Sparkle (App Store) */ = {
 			isa = PBXShellScriptBuildPhase;
 			alwaysOutOfDate = 1;
 			buildActionMask = 2147483647;
@@ -422,6 +413,7 @@
 			);
 			inputPaths = (
 			);
+			name = "Strip Sparkle (App Store)";
 			outputFileListPaths = (
 			);
 			outputPaths = (

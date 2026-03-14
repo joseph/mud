@@ -290,6 +290,7 @@
 				7CC9751F2F3401F4001C3BB7 /* Resources */,
 				7C6532B22F585D3900B71730 /* Copy CLI helper */,
 				7C9B0C1D2F5E1000001C3BB7 /* Strip CLI assets (sandboxed) */,
+				7CA45B012F6E8A0100B71730 /* Strip local docs */,
 				7C6532BA2F585DC100B71730 /* Make mud.sh executable */,
 				7CC6E6BE2F658ABE00FE7D66 /* Embed Sparkle */,
 				7CC6E6C12F658B1C00FE7D66 /* Strip Sparkle (App Store) */,
@@ -440,6 +441,25 @@
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
 			shellScript = "# Only increment for App Store archives\n[ \"$ACTION\" != \"install\" ] && exit 0\n[[ \"$CONFIGURATION\" != *AppStore* ]] && exit 0\n\nBUILD_NUMBER_FILE=\"$SRCROOT/Mud.xcodeproj/xcuserdata/BUILD_NUMBER\"\nBUILD=$(cat \"$BUILD_NUMBER_FILE\" 2>/dev/null || echo \"0\")\nBUILD=$((BUILD + 1))\necho \"$BUILD\" > \"$BUILD_NUMBER_FILE\"\n\nPLIST=\"$BUILT_PRODUCTS_DIR/$INFOPLIST_PATH\"\n/usr/libexec/PlistBuddy -c \"Set :CFBundleVersion $BUILD\" \"$PLIST\"\necho \"App Store build number: $BUILD\"\n";
+		};
+		7CA45B012F6E8A0100B71730 /* Strip local docs */ = {
+			isa = PBXShellScriptBuildPhase;
+			alwaysOutOfDate = 1;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputFileListPaths = (
+			);
+			inputPaths = (
+			);
+			name = "Strip local docs";
+			outputFileListPaths = (
+			);
+			outputPaths = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "rm -rf \"${BUILT_PRODUCTS_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Doc/Local\"\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

@@ -3,7 +3,10 @@
 Core/.build/
 Core/Package.resolved
 
-Vendor/Sparkle/
+Vendor/
+
+Site/dev
+Doc/Local
 
 .claude/tmp
 .claude/settings.local.json

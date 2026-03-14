@@ -146,7 +146,10 @@ struct DocumentContentView: View {
             fileWatcher = nil
         }
         .onChange(of: state.reloadID) { _, id in
-            if id != nil { loadFromDisk() }
+            if id != nil {
+                loadFromDisk()
+                setupFileWatcher()
+            }
         }
         .onChange(of: state.openInBrowserID) { _, id in
             if id != nil { openInBrowser() }

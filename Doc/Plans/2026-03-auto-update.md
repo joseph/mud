@@ -1,7 +1,7 @@
 Plan: Auto-Update via Sparkle
 ===============================================================================
 
-> Status: Planning
+> Status: Underway
 
 
 ## Context
@@ -33,69 +33,45 @@ workflow to EdDSA-sign the DMG and publish an appcast with release notes.
 
 ## Prerequisites (manual, one-time)
 
-1. **Generate EdDSA key pair** using Sparkle's `generate_keys` tool.
-2. **Store private key** as GitHub Actions secret `SPARKLE_PRIVATE_KEY`.
-3. **Website deploy access** — generate a dedicated SSH key pair for CI
-   deployment. Add the public key to the hosting server's `authorized_keys`.
-   Store as GitHub Actions secrets: `WEBSITE_SSH_KEY` (private key),
-   `WEBSITE_SSH_USER` (username), `WEBSITE_SSH_HOST` (hostname). Ensure the
-   appcast destination directory exists on the server.
-4. **Download Sparkle 2 locally** — run `.github/scripts/update-sparkle` (see
-   section 5) to fetch and extract `Sparkle.framework` and CLI tools into
-   `Vendor/Sparkle/`. This directory is git-ignored; CI downloads it fresh each
-   build.
+All prerequisites are complete.
+
+1. ~~**Generate EdDSA key pair**~~ — done via
+   `Vendor/Sparkle/bin/generate_keys`. Public key added to `App/Info.plist` as
+   `SUPublicEDKey`.
+2. ~~**Store private key**~~ — stored as GitHub Actions secret
+   `SPARKLE_PRIVATE_KEY`.
+3. ~~**Website deploy access**~~ — SSH key pair generated, public key added to
+   server. Stored as GitHub Actions secrets: `WEBSITE_SSH_KEY`,
+   `WEBSITE_SSH_USER`, `WEBSITE_SSH_HOST`. Appcast destination directory exists
+   on the server.
+4. ~~**Download Sparkle 2 locally**~~ — `.github/scripts/update-sparkle`
+   created and run. Sparkle 2.9.0 framework and CLI tools installed to
+   `Vendor/Sparkle/` (git-ignored).
 
 
 ## Implementation
 
-### 1. Build configurations and schemes
+### 1. Build configurations and schemes ✓
 
-**Build configurations** — rename the existing Debug and Release configurations
-to Debug-AppStore and Release-AppStore. Duplicate them to create Debug-Direct
-and Release-Direct. Then set the following build settings on the Direct
-configurations only:
+Done. Four build configurations on the Mud app target:
 
-| Build setting                         | Debug-Direct / Release-Direct only  |
-| ------------------------------------- | ----------------------------------- |
-| `SWIFT_ACTIVE_COMPILATION_CONDITIONS` | Add `SPARKLE`                       |
-| `OTHER_LDFLAGS`                       | Add `-framework Sparkle`            |
-| `FRAMEWORK_SEARCH_PATHS`              | Add `$(PROJECT_DIR)/Vendor/Sparkle` |
+- **Debug-AppStore / Release-AppStore** — no Sparkle references.
+- **Debug-Direct / Release-Direct** — `SPARKLE` compilation condition,
+  `-framework Sparkle` linker flag, `$(PROJECT_DIR)/Vendor/Sparkle` framework
+  search path.
 
-Leave Debug-AppStore and Release-AppStore unchanged — they never reference
-Sparkle.
+Two shared schemes: **Mud - Direct** (Debug-Direct / Release-Direct) and **Mud
+\- AppStore** (Debug-AppStore / Release-AppStore).
 
-**Schemes:**
-
-- **Mud - Direct** — uses Debug-Direct (Run) and Release-Direct (Archive). For
-  direct distribution builds.
-- **Mud - AppStore** — uses Debug-AppStore (Run) and Release-AppStore
-  (Archive). For Mac App Store submissions.
-
-**Embed framework** — add a Copy Files build phase (Destination: Frameworks)
-that copies `Sparkle.framework` into the app bundle, with a Run Script
-condition that skips the copy for non-Sparkle configurations:
-
-```bash
-if [ "$CONFIGURATION" = "Debug-AppStore" ] || [ "$CONFIGURATION" = "Release-AppStore" ]; then
-    rm -rf "${BUILT_PRODUCTS_DIR}/${FRAMEWORKS_FOLDER_PATH}/Sparkle.framework"
-fi
-```
-
-This is a belt-and-suspenders safety net — the App Store configurations don't
-link Sparkle, so the framework would be dead weight even if accidentally
-copied.
+Copy Files build phase embeds `Sparkle.framework`, with a belt-and-suspenders
+Run Script that strips it for AppStore configurations.
 
 
-### 2. Info.plist keys
+### 2. Info.plist keys ✓
 
-Add to `App/Info.plist`:
-
-- `SUFeedURL` → `https://apps.josephpearson.org/mud/appcast.xml`
-- `SUPublicEDKey` → _(generated public key)_
-- `SUEnableAutomaticChecks` → `true`
-
-These keys are inert without the Sparkle framework, so they can be present in
-both configurations.
+Done. Added `SUFeedURL`, `SUPublicEDKey`, and `SUEnableAutomaticChecks` to
+`App/Info.plist`. These keys are inert without the Sparkle framework, so they
+are present in both configurations.
 
 
 ### 3. App code (4 files)
@@ -412,18 +388,14 @@ both the framework (for the build) and `sign_update` (for appcast generation):
 
 ### 7. Documentation
 
-Update `Doc/AGENTS.md` file quick reference to include:
+`Vendor/Sparkle/` added to `.gitignore`. ✓
+
+Still to do: update `Doc/AGENTS.md` file quick reference to include:
 
 - `CheckForUpdatesView.swift`
 - `UpdateSettingsView.swift`
 - `.github/scripts/update-sparkle`
 - `.github/scripts/build-appcast`
-
-Add to `.gitignore`:
-
-```
-Vendor/Sparkle/
-```
 
 
 ## Why not SPM?
@@ -447,22 +419,22 @@ no framework in the bundle, no rejection.
 
 ## Files changed
 
-| File                                    | Change                                                      |
-| --------------------------------------- | ----------------------------------------------------------- |
-| `Vendor/Sparkle/`                       | Git-ignored; framework downloaded by script and CI          |
-| `Mud.xcodeproj/project.pbxproj`         | Build configs, schemes, framework embed phase, linker flags |
-| `App/Info.plist`                        | `SUFeedURL`, `SUPublicEDKey`, `SUEnableAutomaticChecks`     |
-| `App/AppDelegate.swift`                 | `#if SPARKLE` updater controller init and property          |
-| `App/MudApp.swift`                      | `#if SPARKLE` "Check for Updates..." menu item              |
-| `App/CheckForUpdatesView.swift`         | New — menu button + view model (entire file `#if SPARKLE`)  |
-| `App/Settings/SettingsView.swift`       | `.updates` pane (`#if SPARKLE`)                             |
-| `App/Settings/UpdateSettingsView.swift` | New — update preferences pane (entire file `#if SPARKLE`)   |
-| `CHANGELOG.md`                          | New — per-release notes in Markdown                         |
-| `.gitignore`                            | Add `Vendor/Sparkle/`                                       |
-| `.github/scripts/update-sparkle`        | New — download Sparkle framework + CLI tools                |
-| `.github/scripts/build-appcast`         | New — sign DMG, extract release notes, output appcast XML   |
-| `.github/workflows/release.yml`         | Download Sparkle, use Release-Sparkle config, build appcast |
-| `Doc/AGENTS.md`                         | File quick reference                                        |
+| File                                    | Change                                                      | Status |
+| --------------------------------------- | ----------------------------------------------------------- | ------ |
+| `Vendor/Sparkle/`                       | Git-ignored; framework downloaded by script and CI          | ✓      |
+| `Mud.xcodeproj/project.pbxproj`         | Build configs, schemes, framework embed phase, linker flags | ✓      |
+| `App/Info.plist`                        | `SUFeedURL`, `SUPublicEDKey`, `SUEnableAutomaticChecks`     | ✓      |
+| `.gitignore`                            | Add `Vendor/Sparkle/`                                       | ✓      |
+| `.github/scripts/update-sparkle`        | New — download Sparkle framework + CLI tools                | ✓      |
+| `App/AppDelegate.swift`                 | `#if SPARKLE` updater controller init and property          |        |
+| `App/MudApp.swift`                      | `#if SPARKLE` "Check for Updates..." menu item              |        |
+| `App/CheckForUpdatesView.swift`         | New — menu button + view model (entire file `#if SPARKLE`)  |        |
+| `App/Settings/SettingsView.swift`       | `.updates` pane (`#if SPARKLE`)                             |        |
+| `App/Settings/UpdateSettingsView.swift` | New — update preferences pane (entire file `#if SPARKLE`)   |        |
+| `CHANGELOG.md`                          | New — per-release notes in Markdown                         |        |
+| `.github/scripts/build-appcast`         | New — sign DMG, extract release notes, output appcast XML   |        |
+| `.github/workflows/release.yml`         | Download Sparkle, use Release-Direct config, build appcast  |        |
+| `Doc/AGENTS.md`                         | File quick reference                                        |        |
 
 
 ## Verification
@@ -478,35 +450,83 @@ no framework in the bundle, no rejection.
 
 ### Local update flow (no publishing required)
 
-Test the full update cycle without pushing a release to GitHub or an appcast to
-Dreamhost:
+Test the full update cycle without pushing a release to GitHub. The existing
+EdDSA key pair (public key in `Info.plist`, private key in the developer's
+Keychain from `generate_keys`) is used throughout.
 
-1. **Generate a key pair** — run Sparkle's `generate_keys` tool. Note the
-   public key.
-
-2. **Build a "current" version** — set `CFBundleShortVersionString` to
-   something low (e.g. `0.9.0`). Build, archive, and export a Developer ID
-   signed DMG. Install it to `/Applications`.
-
-3. **Build the "new" version** — restore the real version number. Build and
-   export a second DMG.
-
-4. **Create a local appcast** — use `sign_update` on the new DMG and construct
-   an `appcast.xml` with the signature, length, and a `http://localhost:8080/`
-   download URL.
-
-5. **Serve locally** — place the DMG and `appcast.xml` in a directory and run:
+1. **Write the private key to a file** — `build-appcast` needs the EdDSA
+   private key that matches the `SUPublicEDKey` in `Info.plist`. Use the
+   original key saved during prerequisite setup (stored as the
+   `SPARKLE_PRIVATE_KEY` GitHub Actions secret). Write it to a temporary file:
 
    ```
-   python3 -m http.server 8080
+   echo '<paste the private key>' > /tmp/sparkle_key
    ```
 
-6. **Point the app at the local feed** — pass a launch argument:
-   `-SUFeedURL http://localhost:8080/appcast.xml`.
+2. **Build a "current" (old) version** — this is the version already installed
+   on the machine that will discover the update. Make two temporary changes
+   before building:
 
-7. **Launch the old build** — trigger "Check for Updates..." and verify Sparkle
-   finds the new version, shows the release notes, downloads the DMG, and
-   offers to install it.
+   - In `App/Info.plist`, change `SUFeedURL` to
+     `http://localhost:8080/appcast.xml` (so the installed app checks the local
+     server, not production — Sparkle reads this from the bundle plist, so it
+     must be baked in at build time).
+   - In the Xcode project, select the **Mud** target → Build Settings → search
+     for `MARKETING_VERSION`. Change it to something low (e.g. `0.9.0`) in the
+     **Release-Direct** column.
+
+   Then build and copy to `/Applications`:
+
+   - Product → Archive (uses the Mud - Direct scheme).
+   - In Organizer, click Distribute App → Direct Distribution → Export.
+   - Copy the exported `Mud.app` to `/Applications`.
+
+3. **Build the "new" version** — restore `SUFeedURL` in `App/Info.plist` to
+   `https://apps.josephpearson.org/mud/appcast.xml` and `MARKETING_VERSION` to
+   its real value (e.g. `1.0.0`). Archive and export again as above. This time,
+   create a DMG from the exported app (the appcast signs the DMG, not the bare
+   .app):
+
+   ```
+   mkdir -p /tmp/mud-dmg
+   cp -R /path/to/exported/Mud.app /tmp/mud-dmg/
+   hdiutil create -volname Mud -srcfolder /tmp/mud-dmg \
+     -ov -format UDZO Mud-v1.0.0.dmg
+   rm -rf /tmp/mud-dmg
+   ```
+
+4. **Create a local appcast** — use the `build-appcast` script. It needs a
+   `CHANGELOG.md` entry matching the version:
+
+   ```
+   .github/scripts/build-appcast Mud-v1.0.0.dmg 1.0.0 2 /tmp/sparkle_key \
+     > /tmp/appcast.xml
+   ```
+
+   The third argument (`2`) is the build number — it must be higher than the
+   installed app's `CFBundleVersion` (`1`).
+
+   Then edit `/tmp/appcast.xml` to change the download URL to
+   `http://localhost:8080/Mud-v1.0.0.dmg`.
+
+5. **Serve locally** — place the DMG and appcast in a directory and run:
+
+   ```
+   mkdir -p /tmp/mud-update
+   cp Mud-v1.0.0.dmg /tmp/appcast.xml /tmp/mud-update/
+   cd /tmp/mud-update && python3 -m http.server 8080
+   ```
+
+6. **Launch the old build** — run the installed 0.9.0 build from
+   `/Applications`. Trigger "Check for Updates..." and verify Sparkle finds the
+   new version, shows the release notes, downloads the DMG, and offers to
+   install it.
+
+7. **Clean up** — delete the temporary key file:
+
+   ```
+   rm -f /tmp/sparkle_key
+   ```
 
 
 ### Production verification

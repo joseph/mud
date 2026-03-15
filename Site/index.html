@@ -78,8 +78,21 @@ body {
     background-color: var(--body-bg);
 }
 
-body *:first-child {
+article {
     min-height: 100%;
+}
+
+header {
+  border-bottom: 1px solid #EEE;
+  max-width: calc(800px + 4em);
+  margin: 0 auto;
+}
+
+header img {
+  display: block;
+  margin: 0 auto;
+  width: 200px;
+  max-width: 40vw;
 }
 
 /* Syntax highlighting */
@@ -396,8 +409,11 @@ footer {
 </style>
 </head>
 <body>
+    <header>
+      <img src="mud-header.png" alt="Mud: Mark Up or Down" />
+    </header>
     <article class="up-mode-output">
-      <h1 id="mud-mark-up-or-down">Mud: Mark Up or Down</h1>
+      <h1 id="mud-mark-up-or-down">Mud: A Perfect Markdown Viewer</h1>
 
       <p>Markdown is suddenly everywhere.</p>
       <p>It’s how we speak to machines now. It’s how they speak to us.</p>
@@ -485,6 +501,22 @@ mud -d file.md                 <span class="hljs-comment"># Render to HTML (mark
 <span class="hljs-built_in">echo</span> <span class="hljs-string">"# Hi"</span> | mud -u           <span class="hljs-comment"># Pipe stdin to HTML</span>
 mud -u --theme riot file.md    <span class="hljs-comment"># Pick a theme</span>
 </code></pre>
+
+
+      <h2 id="screenshots">Screenshots</h2>
+
+      <div><img src="screenshots/mud-ss-03.png" alt="Screenshot: Mud" /></div>
+      <div><img src="screenshots/mud-ss-04.png" alt="Screenshot: Mud" /></div>
+      <div><img src="screenshots/mud-ss-05.png" alt="Screenshot: Mud" /></div>
+      <div><img src="screenshots/mud-ss-06.png" alt="Screenshot: Mud" /></div>
+      <div><img src="screenshots/mud-ss-07.png" alt="Screenshot: Mud" /></div>
+      <div><img src="screenshots/mud-ss-08.png" alt="Screenshot: Mud" /></div>
+      <div><img src="screenshots/mud-ss-09.png" alt="Screenshot: Mud" /></div>
+      <div><img src="screenshots/mud-ss-10.png" alt="Screenshot: Mud" /></div>
+      <div><img src="screenshots/mud-ss-11.png" alt="Screenshot: Mud" /></div>
+      <div><img src="screenshots/mud-ss-12.png" alt="Screenshot: Mud" /></div>
+      <div><img src="screenshots/mud-ss-13.png" alt="Screenshot: Mud" /></div>
+
       <h2 id="license">License</h2>
       <p>
         MIT with Commons Clause.

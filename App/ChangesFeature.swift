@@ -255,7 +255,7 @@ private struct ChangesSincePopover: View {
             menuItemContent(item)
         } else {
             Button {
-                changeTracker.selectBaseline(item.id)
+                changeTracker.selectWaypoint(item.id)
                 isPresented = false
             } label: {
                 menuItemContent(item)

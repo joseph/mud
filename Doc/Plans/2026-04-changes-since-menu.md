@@ -57,14 +57,14 @@ waypoint at any time — a new accept replaces the previous one. Only `.reload`
 waypoints accumulate; cap those at a reasonable limit (e.g. 100).
 
 
-### Active baseline
+### Active waypoint
 
-Add a concept of the **active baseline** — the waypoint the diff is computed
+Add a concept of the **active waypoint** — the waypoint the diff is computed
 against. Currently this is always the last waypoint. With the menu, the user
-can select any waypoint as the baseline.
+can select any waypoint.
 
 ```swift
-@Published var activeBaselineID: UUID?
+@Published var activeWaypointID: UUID?
 ```
 
 When nil, defaults to the most recent `.accept` waypoint (or `.initial` if no
@@ -148,15 +148,15 @@ continue to use these types as before — the only change is the import path.
   rather than appending a second one.
 
 
-### Step 2: Active baseline selection
+### Step 2: Active waypoint selection
 
-- Add `@Published var activeBaselineID: UUID?` to `ChangeTracker`.
-- Extract a computed `activeBaseline: ParsedMarkdown?` that resolves the
-  baseline — either the waypoint matching `activeBaselineID`, or falling back
-  to the most recent `.accept` (or `.initial`).
-- Change `update(_:)` to diff against `activeBaseline` instead of the last
+- Add `@Published var activeWaypointID: UUID?` to `ChangeTracker`.
+- Extract a computed `activeWaypoint: ParsedMarkdown?` that resolves to either
+  the waypoint matching `activeWaypointID`, or falling back to the most recent
+  `.accept` (or `.initial`).
+- Change `update(_:)` to diff against `activeWaypoint` instead of the last
   waypoint.
-- When `accept()` is called, reset `activeBaselineID` to nil (so it defaults
+- When `accept()` is called, reset `activeWaypointID` to nil (so it defaults
   back to the new accept waypoint).
 
 
@@ -170,7 +170,7 @@ struct ChangeMenuItem: Identifiable {
   let label: String     // "since last accepted", "since 3 minutes ago", etc.
   let timestamp: Date
   let changeCount: Int
-  let isActive: Bool    // currently selected baseline
+  let isActive: Bool    // currently selected waypoint
 }
 
 func menuItems() -> [ChangeMenuItem]
@@ -205,7 +205,7 @@ Both `update(_:)` and `accept()` set `cachedMenuItems = nil`.
 ### Step 4: Xcode integration and menu UI
 
 Replace the stub `Menu` in `ChangesBar` with the real picker. Each item is a
-`Button` that sets `changeTracker.activeBaselineID`. The active item gets a
+`Button` that sets `changeTracker.activeWaypointID`. The active item gets a
 checkmark.
 
 Layout per item:
@@ -237,12 +237,12 @@ file should be `ChangeTrackerTests.swift`.
   `accept()` replaces it — there is never more than one `.accept` waypoint.
 
 
-### Active baseline resolution
+### Active waypoint resolution
 
-- With no `activeBaselineID` and no accepts, baseline resolves to `.initial`.
-- With no `activeBaselineID` and an accept, baseline resolves to `.accept`.
-- With `activeBaselineID` set, baseline resolves to that specific waypoint.
-- `accept()` resets `activeBaselineID` to nil.
+- With no `activeWaypointID` and no accepts, resolves to `.initial`.
+- With no `activeWaypointID` and an accept, resolves to `.accept`.
+- With `activeWaypointID` set, resolves to that specific waypoint.
+- `accept()` resets `activeWaypointID` to nil.
 
 
 ### Menu item computation
@@ -254,7 +254,7 @@ file should be `ChangeTrackerTests.swift`.
   collapsed. Buckets matching the accepted/initial waypoint are skipped.
 - **Change counts:** Each menu item's `changeCount` matches the result of
   diffing that waypoint against the current content.
-- **Active flag:** The menu item matching the current baseline has
+- **Active flag:** The menu item matching the current active waypoint has
   `isActive: true`.
 
 

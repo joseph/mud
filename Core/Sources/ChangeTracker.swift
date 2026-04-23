@@ -57,7 +57,7 @@ public class ChangeTracker: ObservableObject {
     @Published public private(set) var waypoints: [Waypoint] = []
     @Published public private(set) var changes: [DocumentChange] = []
     @Published public var selectedChangeID: String?
-    @Published public private(set) var activeBaselineID: UUID?
+    @Published public private(set) var activeWaypointID: UUID?
 
     /// The most recent content passed to `update(_:)`.
     public private(set) var currentParsed: ParsedMarkdown?
@@ -73,12 +73,11 @@ public class ChangeTracker: ObservableObject {
 
     public init() {}
 
-    // MARK: - Active baseline
+    // MARK: - Active waypoint
 
-    /// The waypoint used as the diff baseline. Also accessible as
-    /// `activeWaypoint` for compatibility with RenderOptions.waypoint.
-    public var activeBaseline: ParsedMarkdown? {
-        if let id = activeBaselineID,
+    /// The waypoint the diff is computed against.
+    public var activeWaypoint: ParsedMarkdown? {
+        if let id = activeWaypointID,
            let waypoint = waypoints.first(where: { $0.id == id }) {
             return waypoint.parsed
         }
@@ -89,12 +88,9 @@ public class ChangeTracker: ObservableObject {
         return waypoints.first(where: { $0.kind == .initial })?.parsed
     }
 
-    /// Alias for `activeBaseline`, used by `DocumentContentView`.
-    public var activeWaypoint: ParsedMarkdown? { activeBaseline }
-
-    /// The timestamp of the active baseline (for bar display).
+    /// The timestamp of the active waypoint (for bar display).
     public var activeWaypointTimestamp: Date? {
-        if let id = activeBaselineID,
+        if let id = activeWaypointID,
            let waypoint = waypoints.first(where: { $0.id == id }) {
             return waypoint.timestamp
         }
@@ -132,7 +128,7 @@ public class ChangeTracker: ObservableObject {
 
     /// Called on each file load. On the first call, creates the initial
     /// waypoint (no changes). On subsequent calls, diffs against the
-    /// active baseline and updates the change list.
+    /// active waypoint and updates the change list.
     public func update(_ parsed: ParsedMarkdown) {
         update(parsed, at: Date())
     }
@@ -167,29 +163,29 @@ public class ChangeTracker: ObservableObject {
                     let dropIDs = Set(reloads.prefix(dropCount).map(\.id))
                     waypoints.removeAll { dropIDs.contains($0.id) }
 
-                    // If pruning removed the user's selected baseline,
+                    // If pruning removed the user's selected waypoint,
                     // fall back to the default.
-                    if let id = activeBaselineID,
+                    if let id = activeWaypointID,
                        !waypoints.contains(where: { $0.id == id }) {
-                        selectBaseline(nil)
+                        selectWaypoint(nil)
                     }
                 }
             }
 
-            // Diff against the active baseline.
-            if let baseline = activeBaseline {
-                changes = MudCore.computeChanges(old: baseline, new: parsed)
+            // Diff against the active waypoint.
+            if let waypoint = activeWaypoint {
+                changes = MudCore.computeChanges(old: waypoint, new: parsed)
             }
         }
     }
 
-    // MARK: - Select baseline
+    // MARK: - Select waypoint
 
-    /// Selects a waypoint as the diff baseline and recomputes changes.
-    public func selectBaseline(_ id: UUID?) {
-        activeBaselineID = id
-        if let current = currentParsed, let baseline = activeBaseline {
-            changes = MudCore.computeChanges(old: baseline, new: current)
+    /// Selects a waypoint as the diff reference and recomputes changes.
+    public func selectWaypoint(_ id: UUID?) {
+        activeWaypointID = id
+        if let current = currentParsed, let waypoint = activeWaypoint {
+            changes = MudCore.computeChanges(old: waypoint, new: current)
         } else {
             changes = []
         }
@@ -220,24 +216,24 @@ public class ChangeTracker: ObservableObject {
 
         changes = []
         selectedChangeID = nil
-        activeBaselineID = nil
+        activeWaypointID = nil
         diffCache = [:]
     }
 
     // MARK: - External waypoints
 
     /// Replaces all external waypoints (e.g. from git) with the given set.
-    /// If the active baseline pointed to a now-removed external waypoint,
-    /// resets to the default baseline.
+    /// If the active waypoint pointed to a now-removed external waypoint,
+    /// resets to the default.
     public func setExternalWaypoints(_ waypoints: [Waypoint]) {
         self.waypoints.removeAll { if case .external = $0.kind { true } else { false } }
         self.waypoints.append(contentsOf: waypoints)
         diffCache = [:]
 
-        // Reset baseline if it pointed to a removed external waypoint.
-        if let id = activeBaselineID,
+        // Reset active waypoint if it pointed to a removed external waypoint.
+        if let id = activeWaypointID,
            !self.waypoints.contains(where: { $0.id == id }) {
-            selectBaseline(nil)
+            selectWaypoint(nil)
         }
     }
 
@@ -273,7 +269,7 @@ public class ChangeTracker: ObservableObject {
             items.append(ChangeMenuItem(
                 id: wp.id, label: label, timestamp: wp.timestamp,
                 changeCount: diff.groupCount,
-                isActive: isActiveBaseline(wp),
+                isActive: isActiveWaypoint(wp),
                 hasInsertions: diff.hasInsertions,
                 hasDeletions: diff.hasDeletions))
             usedWaypointIDs.insert(wp.id)
@@ -315,7 +311,7 @@ public class ChangeTracker: ObservableObject {
                 items.append(ChangeMenuItem(
                     id: oldWP.id, label: label, timestamp: newWP.timestamp,
                     changeCount: diff.groupCount,
-                    isActive: isActiveBaseline(oldWP),
+                    isActive: isActiveWaypoint(oldWP),
                     hasInsertions: diff.hasInsertions,
                     hasDeletions: diff.hasDeletions))
                 usedWaypointIDs.insert(oldWP.id)
@@ -331,7 +327,7 @@ public class ChangeTracker: ObservableObject {
             items.append(ChangeMenuItem(
                 id: wp.id, label: "since document opened",
                 timestamp: wp.timestamp, changeCount: diff.groupCount,
-                isActive: isActiveBaseline(wp),
+                isActive: isActiveWaypoint(wp),
                 hasInsertions: diff.hasInsertions,
                 hasDeletions: diff.hasDeletions))
         }
@@ -348,7 +344,7 @@ public class ChangeTracker: ObservableObject {
             items.append(ChangeMenuItem(
                 id: wp.id, label: label, timestamp: wp.timestamp,
                 changeCount: diff.groupCount,
-                isActive: isActiveBaseline(wp),
+                isActive: isActiveWaypoint(wp),
                 hasInsertions: diff.hasInsertions,
                 hasDeletions: diff.hasDeletions,
                 detail: detail, isExternal: true))
@@ -395,11 +391,11 @@ public class ChangeTracker: ObservableObject {
         return max(1, (nowMin - anchorMin) + (secsIntoNowMin > 0 ? 1 : 0))
     }
 
-    private func isActiveBaseline(_ waypoint: Waypoint) -> Bool {
-        if let id = activeBaselineID {
+    private func isActiveWaypoint(_ waypoint: Waypoint) -> Bool {
+        if let id = activeWaypointID {
             return waypoint.id == id
         }
-        // Default baseline: most recent .accept, then .initial.
+        // Default: most recent .accept, then .initial.
         if let accept = waypoints.last(where: { $0.kind == .accept }) {
             return waypoint.id == accept.id
         }

@@ -171,7 +171,7 @@ bar from **View → Show Changes** (⌃⌘C) or the toolbar button.
 - **Down mode** — colored line-number gutters and background tints mark changed
   lines, with word-level markers for fine-grained detail.
 - **Changes sidebar** — a list of all change groups; click to navigate.
-- **Baselines** — diff against the last accept point, a time-based snapshot, or
+- **Waypoints** — diff against the last accept point, a time-based snapshot, or
   (with git waypoints enabled) a recent commit.
 
 See `Doc/Guides/change-tracking.md` for the full guide.

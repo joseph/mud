@@ -257,7 +257,7 @@ defaults write org.josephpearson.Mud changes.show-inline-deletions -bool true
 
 ### `changes.show-git-waypoints` — bool
 
-Include Git commit boundaries in the list of baselines you can diff against, in
+Include Git commit boundaries in the list of waypoints you can diff against, in
 addition to in-session waypoints.
 
 - Default: `false`

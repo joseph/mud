@@ -149,9 +149,9 @@ struct ChangeTrackerTests {
         #expect(reloads.contains { $0.parsed.markdown == "V1.\n" })
     }
 
-    @Test func reloadCapClearsOrphanedBaseline() {
+    @Test func reloadCapClearsOrphanedActiveWaypoint() {
         // Selecting a reload that subsequently gets pruned by the cap
-        // should reset activeBaselineID rather than leaving it dangling.
+        // should reset activeWaypointID rather than leaving it dangling.
         let t0 = Date(timeIntervalSinceReferenceDate: 1000 * 60)
         let t = tracker(initial: "V0.\n", at: t0)
 
@@ -162,12 +162,12 @@ struct ChangeTrackerTests {
                 at: t0.addingTimeInterval(TimeInterval(i * 60)))
         }
 
-        // Select the oldest reload as the baseline.
+        // Select the oldest reload as the active waypoint.
         let oldest = t.waypoints
             .filter { $0.kind == .reload }
             .min(by: { $0.timestamp < $1.timestamp })!
-        t.selectBaseline(oldest.id)
-        #expect(t.activeBaselineID == oldest.id)
+        t.selectWaypoint(oldest.id)
+        #expect(t.activeWaypointID == oldest.id)
 
         // 11th reload — pushes the cap, prunes the oldest.
         t.update(
@@ -175,7 +175,7 @@ struct ChangeTrackerTests {
             at: t0.addingTimeInterval(11 * 60))
 
         #expect(!t.waypoints.contains { $0.id == oldest.id })
-        #expect(t.activeBaselineID == nil)
+        #expect(t.activeWaypointID == nil)
     }
 
     @Test func pruningNeverRemovesInitial() {
@@ -232,47 +232,47 @@ struct ChangeTrackerTests {
         #expect(accepts[0].id != firstAcceptID)
     }
 
-    // MARK: - Active baseline resolution
+    // MARK: - Active waypoint resolution
 
-    @Test func baselineDefaultsToInitial() {
+    @Test func activeWaypointDefaultsToInitial() {
         let t = tracker()
-        #expect(t.activeBaseline != nil)
-        #expect(t.activeBaselineID == nil)
-        // Baseline is the initial waypoint's content.
-        #expect(t.activeBaseline?.markdown == "Hello.\n")
+        #expect(t.activeWaypoint != nil)
+        #expect(t.activeWaypointID == nil)
+        // Active waypoint is the initial waypoint's content.
+        #expect(t.activeWaypoint?.markdown == "Hello.\n")
     }
 
-    @Test func baselineDefaultsToAcceptWhenPresent() {
+    @Test func activeWaypointDefaultsToAcceptWhenPresent() {
         let t0 = Date()
         let t = tracker(initial: "V1.\n", at: t0)
 
         t.update(ParsedMarkdown("V2.\n"), at: t0.addingTimeInterval(90))
         t.acceptAt(t0.addingTimeInterval(90))
 
-        #expect(t.activeBaseline?.markdown == "V2.\n")
+        #expect(t.activeWaypoint?.markdown == "V2.\n")
     }
 
-    @Test func baselineResolvesToExplicitID() {
+    @Test func activeWaypointResolvesToExplicitID() {
         let t0 = Date()
         let t = tracker(initial: "V1.\n", at: t0)
 
         t.update(ParsedMarkdown("V2.\n"), at: t0.addingTimeInterval(90))
         let reloadID = t.waypoints.first { $0.kind == .reload }!.id
-        t.selectBaseline(reloadID)
+        t.selectWaypoint(reloadID)
 
-        #expect(t.activeBaseline?.markdown == "V2.\n")
+        #expect(t.activeWaypoint?.markdown == "V2.\n")
     }
 
-    @Test func acceptResetsActiveBaselineID() {
+    @Test func acceptResetsActiveWaypointID() {
         let t0 = Date()
         let t = tracker(at: t0)
 
         t.update(ParsedMarkdown("V2.\n"), at: t0.addingTimeInterval(90))
         let reloadID = t.waypoints.first { $0.kind == .reload }!.id
-        t.selectBaseline(reloadID)
+        t.selectWaypoint(reloadID)
 
         t.acceptAt(t0.addingTimeInterval(90))
-        #expect(t.activeBaselineID == nil)
+        #expect(t.activeWaypointID == nil)
     }
 
     // MARK: - Menu item computation
@@ -368,12 +368,12 @@ struct ChangeTrackerTests {
         t.update(ParsedMarkdown("V2.\n"), at: t0.addingTimeInterval(90))
 
         let items = t.menuItems(at: t0.addingTimeInterval(90))
-        // Default baseline is initial — it should be active.
+        // Default active waypoint is initial — it should be active.
         let opened = items.first { $0.label == "since document opened" }!
         #expect(opened.isActive)
     }
 
-    @Test func menuActiveFlagReflectsExplicitBaseline() {
+    @Test func menuActiveFlagReflectsExplicitWaypoint() {
         let t0 = Date()
         let t = tracker(initial: "V1.\n", at: t0)
 
@@ -383,11 +383,11 @@ struct ChangeTrackerTests {
         t.update(ParsedMarkdown("V3.\n"), at: now.addingTimeInterval(-120))
         t.update(ParsedMarkdown("V4.\n"), at: now)
 
-        // Set baseline to the -4m reload.
+        // Set active waypoint to the -4m reload.
         let target = t.waypoints.first {
             $0.kind == .reload && $0.parsed.markdown == "V2.\n"
         }!
-        t.selectBaseline(target.id)
+        t.selectWaypoint(target.id)
 
         let items = t.menuItems(at: now)
         let activeItems = items.filter(\.isActive)
@@ -515,7 +515,7 @@ struct ChangeTrackerTests {
         // V2 was never stored as its own waypoint.
         #expect(!t.waypoints.contains { $0.parsed == v2 })
 
-        // The Recent menu shows a single gap entry whose baseline is
+        // The Recent menu shows a single gap entry whose waypoint is
         // V1 (the pre-noop state), anchored on V3's minute.
         let items = t.menuItems(at: t0.addingTimeInterval(240))
         let gapItems = items.filter { $0.label.contains("minute") }
@@ -552,8 +552,8 @@ struct ChangeTrackerTests {
         #expect(!gapItemsAfter.isEmpty)
     }
 
-    @Test func menuGapEntrySelectsOlderEndpointAsBaseline() {
-        // Selecting a gap entry sets activeBaselineID to the W_old of
+    @Test func menuGapEntrySelectsOlderEndpointAsActiveWaypoint() {
+        // Selecting a gap entry sets activeWaypointID to the W_old of
         // that gap, and a re-rendered menu marks it active.
         let t0 = Date(timeIntervalSinceReferenceDate: 1000 * 60)
         let t = tracker(initial: "V0.\n", at: t0)
@@ -568,8 +568,8 @@ struct ChangeTrackerTests {
         }!
         let gap = items.first { $0.id == v1Reload.id }!
 
-        t.selectBaseline(gap.id)
-        #expect(t.activeBaselineID == v1Reload.id)
+        t.selectWaypoint(gap.id)
+        #expect(t.activeWaypointID == v1Reload.id)
 
         let items2 = t.menuItems(at: now)
         let activeItems = items2.filter(\.isActive)
@@ -686,45 +686,45 @@ struct ChangeTrackerTests {
         #expect(t.waypoints.count == waypointCountBefore)
     }
 
-    @Test func setExternalWaypointsResetsOrphanedBaseline() {
+    @Test func setExternalWaypointsResetsOrphanedActiveWaypoint() {
         let t0 = Date()
         let t = tracker(initial: "V1.\n", at: t0)
         t.update(ParsedMarkdown("V2.\n"), at: t0.addingTimeInterval(90))
 
         let ext = externalWaypoint(content: "Old.\n")
         t.setExternalWaypoints([ext])
-        t.selectBaseline(ext.id)
-        #expect(t.activeBaselineID == ext.id)
+        t.selectWaypoint(ext.id)
+        #expect(t.activeWaypointID == ext.id)
 
-        // Replacing externals removes the selected one — baseline resets.
+        // Replacing externals removes the selected one — active waypoint resets.
         t.setExternalWaypoints([])
-        #expect(t.activeBaselineID == nil)
+        #expect(t.activeWaypointID == nil)
     }
 
-    @Test func setExternalWaypointsKeepsBaselineIfStillPresent() {
+    @Test func setExternalWaypointsKeepsActiveWaypointIfStillPresent() {
         let t0 = Date()
         let t = tracker(initial: "V1.\n", at: t0)
         t.update(ParsedMarkdown("V2.\n"), at: t0.addingTimeInterval(90))
 
         let ext = externalWaypoint(content: "Old.\n")
         t.setExternalWaypoints([ext])
-        t.selectBaseline(ext.id)
+        t.selectWaypoint(ext.id)
 
-        // Re-set with the same waypoint still present — baseline stays.
+        // Re-set with the same waypoint still present — active waypoint stays.
         t.setExternalWaypoints([ext])
-        #expect(t.activeBaselineID == ext.id)
+        #expect(t.activeWaypointID == ext.id)
     }
 
-    @Test func externalBaselineWorksForDiff() {
+    @Test func externalWaypointWorksForDiff() {
         let t0 = Date()
         let t = tracker(initial: "V1.\n", at: t0)
         t.update(ParsedMarkdown("V2.\n"), at: t0.addingTimeInterval(90))
 
         let ext = externalWaypoint(content: "Something else.\n")
         t.setExternalWaypoints([ext])
-        t.selectBaseline(ext.id)
+        t.selectWaypoint(ext.id)
 
-        #expect(t.activeBaseline?.markdown == "Something else.\n")
+        #expect(t.activeWaypoint?.markdown == "Something else.\n")
         #expect(!t.changes.isEmpty)
     }
 
@@ -770,7 +770,7 @@ struct ChangeTrackerTests {
 
         let ext = externalWaypoint(content: "Different.\n")
         t.setExternalWaypoints([ext])
-        t.selectBaseline(ext.id)
+        t.selectWaypoint(ext.id)
 
         let items = t.menuItems(at: t0.addingTimeInterval(90))
         let externalItems = items.filter(\.isExternal)

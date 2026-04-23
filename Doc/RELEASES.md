@@ -17,8 +17,8 @@ RELEASES
 - Preferences set by `defaults write …` now take effect without restarting the
   app. You can find a thorough guide to "setting preferences from the command
   line" in Help > HUMANS, including some hidden preferences.
-- Word-level diff markers inside indented code blocks line up more
-  accurately with the code they annotate.
+- Word-level diff markers inside indented code blocks line up more accurately
+  with the code they annotate.
 
 > Tip: Did you know you can enable Git commits as change waypoints in Settings?
 
@@ -51,8 +51,8 @@ earlier reloads from the same Mud session. More:
   expand it.
 - Changes sidebar pane lists every change with a summary; click a row to scroll
   to that change in the document.
-- Changes floating controls show the active baseline and change count, with a
-  popover to switch baselines — choose from time-based snapshots,
+- Changes floating controls show the active waypoint and change count, with a
+  popover to switch waypoints — choose from time-based snapshots,
   document-opened, or last-accepted states.
 - Git commit comparisons (direct distribution, opt-in): diff against the staged
   version or any of the last five commits that touched the file.

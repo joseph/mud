@@ -241,7 +241,7 @@ MVP plan.
 - `Diff/ChangeList.swift` — Sidebar change list computed from `DiffContext`
 - `Diff/ChangeGroup.swift` — Group consecutive changes by `groupID` for
   navigation and counts
-- `ChangeTracker.swift` — Waypoint history, active baseline selection, menu
+- `ChangeTracker.swift` — Waypoint history, active waypoint selection, menu
   item computation with caching
 
 **QuickLook/ key files:**

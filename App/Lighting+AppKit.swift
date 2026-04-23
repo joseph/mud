@@ -39,8 +39,12 @@ extension Lighting {
         }
     }
 
-    /// Whether the system is currently in dark mode
+    /// Whether the system is currently in dark mode.
+    ///
+    /// Uses `NSApplication.shared` rather than `NSApp` because this is read
+    /// from `MudApp.body` during SwiftUI app-graph instantiation, which can
+    /// run before `NSApp` is assigned.
     static var systemIsDark: Bool {
-        NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        NSApplication.shared.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
     }
 }

@@ -29,6 +29,7 @@ class DocumentWindowController: NSWindowController {
             defer: false
         )
         window.title = url.lastPathComponent
+        window.representedURL = url
         window.toolbarStyle = .unified
         window.minSize = NSSize(width: 500, height: 400)
 

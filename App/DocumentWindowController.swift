@@ -135,6 +135,12 @@ class DocumentWindowController: NSWindowController {
             }
             .store(in: &cancellables)
 
+        AppState.shared.$changesEnabled
+            .sink { [weak self] enabled in
+                self?.updateChangesButton(enabled)
+            }
+            .store(in: &cancellables)
+
         state.$contentTitle
             .combineLatest(AppState.shared.$uiUseHeadingAsTitle)
             .sink { [weak self] title, useHeading in
@@ -180,17 +186,25 @@ class DocumentWindowController: NSWindowController {
     }
 
     private func updateLightingButton(_ lighting: Lighting) {
-        lightingButton?.image = NSImage(systemSymbolName: lighting.isDark() ? "moon" : "sun.max", accessibilityDescription: nil)
+        let isDark = lighting.isDark()
+        lightingButton?.image = NSImage(systemSymbolName: isDark ? "moon" : "sun.max", accessibilityDescription: nil)
+        lightingButton?.toolTip = isDark ? "Switch to Bright Lighting" : "Switch to Dark Lighting"
     }
 
     private func updateModeButton(_ mode: Mode) {
         let symbol = mode == .down ? "arrow.uturn.down.circle.fill" : "arrow.uturn.up.circle"
         modeButton?.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+        modeButton?.toolTip = mode == .down ? "Switch to Mark Up" : "Switch to Mark Down"
     }
 
     private func updateReadableColumnButton(_ on: Bool) {
         let symbol = on ? "rectangle.compress.vertical" : "rectangle.expand.vertical"
         readableColumnButton?.image = rotatedSymbol(symbol)
+        readableColumnButton?.toolTip = on ? "Show document full-width" : "Show document in a readable-width column"
+    }
+
+    private func updateChangesButton(_ enabled: Bool) {
+        changesButton?.toolTip = enabled ? "Hide Changes" : "Show Changes"
     }
 
     private func updateToggleButton(_ button: NSButton?, on: Bool) {
@@ -377,8 +391,9 @@ extension DocumentWindowController: NSToolbarDelegate {
 
         switch itemIdentifier {
         case .toggleLighting:
-            let button = makeToolbarButton(symbolName: AppState.shared.lighting.isDark() ? "moon" : "sun.max", action: #selector(toggleLighting(_:)))
+            let button = makeToolbarButton(symbolName: "sun.max", action: #selector(toggleLighting(_:)))
             lightingButton = button
+            updateLightingButton(AppState.shared.lighting)
             item.view = button
             item.label = "Lighting"
             return item
@@ -386,6 +401,7 @@ extension DocumentWindowController: NSToolbarDelegate {
         case .toggleMode:
             let button = makeToolbarButton(symbolName: "arrow.uturn.up.circle", action: #selector(toggleMode(_:)))
             modeButton = button
+            updateModeButton(state.mode)
             item.view = button
             item.label = "Mode"
             return item
@@ -393,6 +409,7 @@ extension DocumentWindowController: NSToolbarDelegate {
         case .toggleChanges:
             let button = makeToolbarButton(symbolName: "document.badge.clock", action: #selector(toggleChangesBar(_:)))
             changesButton = button
+            updateChangesButton(AppState.shared.changesEnabled)
             item.view = button
             item.label = "Changes"
             return item
@@ -400,6 +417,7 @@ extension DocumentWindowController: NSToolbarDelegate {
         case .toggleFind:
             let button = makeToolbarButton(symbolName: "text.page.badge.magnifyingglass", action: #selector(performFindAction(_:)))
             findButton = button
+            button.toolTip = "Find…"
             item.view = button
             item.label = "Find"
             return item
@@ -420,6 +438,8 @@ extension DocumentWindowController: NSToolbarDelegate {
             control.setImage(NSImage(systemSymbolName: "plus.magnifyingglass", accessibilityDescription: "Zoom In"), forSegment: 2)
             control.setWidth(30, forSegment: 0)
             control.setWidth(30, forSegment: 2)
+            control.setToolTip("Zoom Out", forSegment: 0)
+            control.setToolTip("Zoom In", forSegment: 2)
             let level = state.mode == .down ? AppState.shared.downModeZoomLevel : AppState.shared.upModeZoomLevel
             control.setLabel("\(Int(round(level * 100)))%", forSegment: 1)
             control.setWidth(0, forSegment: 1)
@@ -432,6 +452,7 @@ extension DocumentWindowController: NSToolbarDelegate {
 
         case .settings:
             let button = makeToolbarButton(symbolName: "gearshape", action: #selector(openSettings(_:)))
+            button.toolTip = "Settings…"
             item.view = button
             item.label = "Settings"
             return item

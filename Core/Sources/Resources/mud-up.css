@@ -1,24 +1,26 @@
-/* Mud - Up Mode styles */
+/* -- Up Mode -------------------------------------------------------------- */
 
 .up-mode-output {
-    margin: 0 auto;
-    padding: 2em 2em 6em; /* space for floating bars beneath */
-    box-sizing: border-box;
-    background: var(--bg-color);
-    overflow-x: hidden;
+  margin: 0 auto;
+  padding: 2em 2em 6em; /* space for floating bars beneath */
+  box-sizing: border-box;
+  background: var(--bg-color);
+  overflow-x: hidden;
 }
 
 .is-readable-column .up-mode-output {
-    max-width: 800px;
+  max-width: 800px;
 }
 
-/* Typography */
+
+/* -- Typography ----------------------------------------------------------- */
+
 h1, h2, h3, h4, h5, h6 {
-    margin-top: 1.5em;
-    margin-bottom: 0.5em;
-    font-weight: 600;
-    line-height: 1.25;
-    color: var(--heading-color);
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--heading-color);
 }
 
 h1 { font-size: 2em; margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
@@ -29,143 +31,151 @@ h5 { font-size: 0.875em; }
 h6 { font-size: 0.85em; }
 
 p {
-    margin-top: 0;
-    margin-bottom: 1em;
+  margin-top: 0;
+  margin-bottom: 1em;
 }
 
-/* Links */
+/* -- Links ---------------------------------------------------------------- */
+
 a {
-    color: var(--link-color);
-    text-decoration: none;
+  color: var(--link-color);
+  text-decoration: none;
 }
 
 a:hover {
-    text-decoration: underline;
+  text-decoration: underline;
 }
 
-/* Lists */
+
+/* -- Lists ---------------------------------------------------------------- */
+
 ul, ol {
-    margin-top: 0;
-    margin-bottom: 1em;
-    padding-left: 2em;
+  margin-top: 0;
+  margin-bottom: 1em;
+  padding-left: 2em;
 }
 
 li {
-    margin-bottom: 0.25em;
+  margin-bottom: 0.25em;
 }
 
 li > ul, li > ol {
-    margin-bottom: 0;
+  margin-bottom: 0;
 }
 
-/* Task lists — selectors match cmark-gfm's classless output.
-   Simplify to e.g. .task-list-item if we switch to our own tokenizer. */
+
+/* Task lists -------------------------------------------------------------- */
+
 li:has(> input[type="checkbox"]) {
-    list-style: none;
-    margin-left: -1.5em;
+  list-style: none;
+  margin-left: -1.5em;
 }
 
 li:has(> input[type="checkbox"]) > input[type="checkbox"] {
-    display: none;
+  display: none;
 }
 
 li:has(> input[type="checkbox"])::before {
-    content: "";
-    display: inline-block;
-    width: 1em;
-    height: 1em;
-    border: 1.5px solid var(--border-color);
-    border-radius: 3px;
-    margin: 0.15em 0.5em 0 0;
-    float: left;
-    clear: left;
+  content: "";
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border: 1.5px solid var(--border-color);
+  border-radius: 3px;
+  margin: 0.15em 0.5em 0 0;
+  float: left;
+  clear: left;
 }
 
 li:has(> input[type="checkbox"]:checked)::before {
-    background-color: var(--link-color);
-    border-color: var(--link-color);
-    content: "✓";
-    color: var(--bg-color);
-    font-weight: 700;
-    text-align: center;
-    line-height: 1em;
+  background-color: var(--link-color);
+  border-color: var(--link-color);
+  content: "✓";
+  color: var(--bg-color);
+  font-weight: 700;
+  text-align: center;
+  line-height: 1em;
 }
 
-/* Code */
+
+/* -- Code ----------------------------------------------------------------- */
+
 code {
-    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-    font-size: 0.875em;
-    padding: 0.2em 0.4em;
-    color: var(--code-fg);
-    background-color: var(--code-bg);
-    border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.875em;
+  padding: 0.2em 0.4em;
+  color: var(--code-fg);
+  background-color: var(--code-bg);
+  border-radius: 4px;
 }
 
 pre {
-    margin-top: 0;
-    margin-bottom: 1em;
-    padding: 1em;
-    overflow-x: auto;
-    font-size: 0.875em;
-    line-height: 1.45;
-    background-color: var(--code-bg);
-    border-radius: 6px;
+  margin-top: 0;
+  margin-bottom: 1em;
+  padding: 1em;
+  overflow-x: auto;
+  font-size: 0.875em;
+  line-height: 1.45;
+  background-color: var(--code-bg);
+  border-radius: 6px;
 }
 
 pre.mud-code {
-    position: relative;
+  position: relative;
 }
 
 .is-code-header pre.mud-code:has(> .code-header) {
-    padding-top: 0;
+  padding-top: 0;
 }
 
 pre code {
-    padding: 0;
-    background-color: transparent;
-    border-radius: 0;
-    font-size: inherit;
+  padding: 0;
+  background-color: transparent;
+  border-radius: 0;
+  font-size: inherit;
 }
 
-/* Code block header bar */
+
+/* -- Code block header bar ------------------------------------------------ */
+
 .code-header {
-    display: none;
+  display: none;
 }
 
 .is-code-header .code-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.4em 0;
-    border-bottom: 1px solid var(--border-color);
-    margin-bottom: 0.75em;
-    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-    font-size: 0.8em;
-    user-select: none;
-    -webkit-user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4em 0;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 0.75em;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.8em;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .code-language {
-    color: var(--blockquote-color);
-    text-transform: lowercase;
+  color: var(--blockquote-color);
+  text-transform: lowercase;
 }
 
 .code-copy-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35em;
-    margin-left: auto;
-    padding: 0.15em 0.4em;
-    border: none;
-    border-radius: 4px;
-    background: transparent;
-    color: var(--blockquote-color);
-    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-    font-size: 0.75rem;
-    text-transform: uppercase;
-    cursor: pointer;
-    opacity: 0;
-    transition: opacity 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  margin-left: auto;
+  padding: 0.15em 0.4em;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--blockquote-color);
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
 }
 
 .code-copy-btn svg {
@@ -173,56 +183,62 @@ pre code {
 }
 
 pre.mud-code:hover .code-copy-btn {
-    opacity: 1;
+  opacity: 1;
 }
 
 .code-copy-btn:hover {
-    background-color: var(--border-color);
-    color: var(--text-color);
+  background-color: var(--border-color);
+  color: var(--text-color);
 }
 
-/* Floating copy button (when header bar is hidden) */
+
+/* -- Floating copy button (when header bar is hidden) --------------------- */
+
 .code-copy-floating {
-    position: absolute;
-    top: 0.4em;
-    right: 0.8em;
+  position: absolute;
+  top: 0.4em;
+  right: 0.8em;
 }
 
 .code-copy-btn.copied {
-    opacity: 1;
-    color: var(--alert-tip-title);
+  opacity: 1;
+  color: var(--alert-tip-title);
 }
 
-/* Blockquotes */
+
+/* -- Blockquotes ---------------------------------------------------------- */
+
 blockquote {
-    margin: 0 0 1em 0;
-    padding: 0 1em;
-    color: var(--blockquote-color);
-    border-left: 4px solid var(--blockquote-border);
+  margin: 0 0 1em 0;
+  padding: 0 1em;
+  color: var(--blockquote-color);
+  border-left: 4px solid var(--blockquote-border);
 }
 
 blockquote > :first-child {
-    margin-top: 0;
+  margin-top: 0;
 }
 
 blockquote > :last-child {
-    margin-bottom: 0;
+  margin-bottom: 0;
 }
 
-/* Alerts (GFM alerts and DocC asides). */
+
+/* -- Alerts --------------------------------------------------------------- */
+
 .alert {
-    color: var(--text-color);
+  color: var(--text-color);
 }
 
 .alert-title {
-    display: flex;
-    align-items: center;
-    gap: 0.5em;
-    font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  font-weight: 600;
 }
 
 .alert-title svg {
-    flex-shrink: 0;
+  flex-shrink: 0;
 }
 
 .alert-note  { border-left-color: var(--alert-note-border); }
@@ -230,139 +246,146 @@ blockquote > :last-child {
 .alert-important { border-left-color: var(--alert-important-border); }
 .alert-warning   { border-left-color: var(--alert-warning-border); }
 .alert-caution   { border-left-color: var(--alert-caution-border); }
-.alert-status    { border-left-color: var(--alert-status-border); }
+.alert-status  { border-left-color: var(--alert-status-border); }
 
 .alert-note  .alert-title { color: var(--alert-note-title); }
 .alert-tip   .alert-title { color: var(--alert-tip-title); }
 .alert-important .alert-title { color: var(--alert-important-title); }
 .alert-warning   .alert-title { color: var(--alert-warning-title); }
 .alert-caution   .alert-title { color: var(--alert-caution-title); }
-.alert-status    .alert-title { color: var(--alert-status-title); }
+.alert-status  .alert-title { color: var(--alert-status-title); }
 
 .alert-title strong {
-    font-weight: 700;
-    color: var(--text-color);
+  font-weight: 700;
+  color: var(--text-color);
 }
 
-/* Horizontal rules */
+
+/* -- Horizontal rules ----------------------------------------------------- */
+
 hr {
-    height: 2px;
-    margin: 1.5em 0;
-    padding: 0;
-    background-color: var(--border-color);
-    border: 0;
+  height: 2px;
+  margin: 1.5em 0;
+  padding: 0;
+  background-color: var(--border-color);
+  border: 0;
 }
 
-/* Tables */
+
+/* -- Tables --------------------------------------------------------------- */
+
 table {
-    width: 100%;
-    margin-bottom: 1em;
-    border-collapse: collapse;
-    border-spacing: 0;
+  width: 100%;
+  margin-bottom: 1em;
+  border-collapse: collapse;
+  border-spacing: 0;
 }
 
 th, td {
-    padding: 8px 12px;
-    border: 1px solid var(--border-color);
-    text-align: left;
-    vertical-align: top;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  text-align: left;
+  vertical-align: top;
 }
 
 th {
-    font-weight: 600;
-    background-color: var(--code-bg);
+  font-weight: 600;
+  background-color: var(--code-bg);
 }
 
 tr:nth-child(even) {
-    background-color: var(--code-bg);
+  background-color: var(--code-bg);
 }
 
-/* Mermaid diagrams */
+/* -- Mermaid diagrams ----------------------------------------------------- */
+
 .mermaid {
-    text-align: center;
-    margin-bottom: 1em;
+  text-align: center;
+  margin-bottom: 1em;
 }
 
 .mermaid svg {
-    max-width: 100%;
-    height: auto;
+  max-width: 100%;
+  height: auto;
 }
 
-/* Images */
+/* -- Images --------------------------------------------------------------- */
+
 img {
-    max-width: min(800px, 100%);
-    height: auto;
+  max-width: min(800px, 100%);
+  height: auto;
 }
 
-/* Frontmatter */
+/* -- Frontmatter ---------------------------------------------------------- */
+
 .mud-frontmatter {
-    margin-bottom: 1.5em;
-    border-radius: 3px;
-    overflow: hidden;
-    color: var(--blockquote-color);
-    border: 1px solid var(--border-color);
+  margin-bottom: 1.5em;
+  border-radius: 3px;
+  overflow: hidden;
+  color: var(--blockquote-color);
+  border: 1px solid var(--border-color);
 }
 
 .mud-frontmatter summary {
-    font-size: 70%;
-    padding: 1em;
-    cursor: pointer;
-    font-weight: 500;
-    text-transform: uppercase;
-    user-select: none;
-    -webkit-user-select: none;
-    background-color: var(--code-bg);
+  font-size: 70%;
+  padding: 1em;
+  cursor: pointer;
+  font-weight: 500;
+  text-transform: uppercase;
+  user-select: none;
+  -webkit-user-select: none;
+  background-color: var(--code-bg);
 }
 
 .mud-frontmatter[open] summary {
-    border-bottom: 1px solid var(--border-color);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .mud-frontmatter pre {
-    margin: 0;
-    border-radius: 0 0 6px 6px;
+  margin: 0;
+  border-radius: 0 0 6px 6px;
 }
 
 .mud-frontmatter-table {
-    width: 100%;
-    margin: 0;
-    border-collapse: collapse;
-    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-    font-size: 75%;
+  width: 100%;
+  margin: 0;
+  border-collapse: collapse;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 75%;
 }
 
 .mud-frontmatter table tr {
-    background: none;
+  background: none;
 }
 
 .mud-frontmatter-table tr > * {
-    vertical-align: top;
-    border: none;
-    border-bottom: 1px solid var(--border-color);
+  vertical-align: top;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
 }
 
 .mud-frontmatter-table tr:last-child > * {
-    border-bottom: none;
+  border-bottom: none;
 }
 
 .mud-frontmatter-table th {
-    width: 20%;
-    padding: 6px 1em;
-    text-align: right;
-    font-weight: 600;
-    white-space: nowrap;
-    border-right: 1px solid var(--border-color);
+  width: 20%;
+  padding: 6px 1em;
+  text-align: right;
+  font-weight: 600;
+  white-space: nowrap;
+  border-right: 1px solid var(--border-color);
 }
 
 .mud-frontmatter-table td {
-    padding: 7px 1em;
-    color: var(--text-color);
+  padding: 7px 1em;
+  color: var(--text-color);
 }
 
 .mud-frontmatter-table pre {
-    margin: 0;
-    padding: 0;
-    font: inherit;
-    background: transparent;
-    color: var(--syntax-string);
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  background: transparent;
+  color: var(--syntax-string);
 }

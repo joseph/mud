@@ -1,31 +1,31 @@
-/* Mud - Austere theme */
+/* -- Theme: Austere ------------------------------------------------------- */
 
 :root {
-    --text-color: #000;
-    --bg-color: #FFF;
-    --body-bg: #FAFAFA;
-    --link-color: #0969DA;
-    --border-color: #D1D5DB;
-    --code-fg: #265D1F;
-    --code-bg: #4D7A3E09;
-    --heading-color: #000;
-    --blockquote-color: #6B7280;
-    --blockquote-border: #D1D5DB;
+  --text-color: #000;
+  --bg-color: #FFF;
+  --body-bg: #FAFAFA;
+  --link-color: #0969DA;
+  --border-color: #D1D5DB;
+  --code-fg: #265D1F;
+  --code-bg: #4D7A3E09;
+  --heading-color: #000;
+  --blockquote-color: #6B7280;
+  --blockquote-border: #D1D5DB;
 
-    --syntax-comment: #8B949E;
-    --syntax-string: #263D1F;
-    --syntax-number: #6B7280;
-    --syntax-function: #000;
-    --syntax-type: #000;
-    --syntax-constant: #6B7280;
-    --syntax-keyword: var(--heading-color);
-    --syntax-variable: var(--text-color);
-    --syntax-operator: var(--text-color);
-    --syntax-punctuation: var(--text-color);
+  --syntax-comment: #8B949E;
+  --syntax-string: #263D1F;
+  --syntax-number: #6B7280;
+  --syntax-function: #000;
+  --syntax-type: #000;
+  --syntax-constant: #6B7280;
+  --syntax-keyword: var(--heading-color);
+  --syntax-variable: var(--text-color);
+  --syntax-operator: var(--text-color);
+  --syntax-punctuation: var(--text-color);
 }
 
 @media (prefers-color-scheme: dark) {
-:root {
+  :root {
     --text-color: #E6E6E6;
     --bg-color: #191919;
     --body-bg: #111;
@@ -43,5 +43,5 @@
     --syntax-function: #E6E6E6;
     --syntax-type: #E6E6E6;
     --syntax-constant: #999;
-}
+  }
 }

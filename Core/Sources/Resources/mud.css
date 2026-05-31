@@ -1,27 +1,27 @@
-/* Mud - structural styles (theme-agnostic) */
+/* -- Structure ------------------------------------------------------------ */
 
 * {
-    box-sizing: border-box;
+  box-sizing: border-box;
 }
 
 html {
-    font-size: 16px;
-    -webkit-text-size-adjust: 100%;
-    overscroll-behavior-x: none;
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior-x: none;
 }
 
 body {
-    position: absolute;
-    width: 100%;
-    height: 100%;
+  position: absolute;
+  width: 100%;
+  height: 100%;
 
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
-        Helvetica, Arial, sans-serif;
-    font-size: 1rem;
-    line-height: 1.6;
-    color: var(--text-color);
-    background-color: var(--body-bg);
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
+    Helvetica, Arial, sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--text-color);
+  background-color: var(--body-bg);
 }
 
 article {
@@ -29,25 +29,27 @@ article {
 }
 
 
-/* Alert color variables (shared between Up and Down mode).
-   Themes may override these custom properties. */
+/* -- Alert color variables ------------------------------------------------ */
+/* Shared between Up and Down mode. */
+/* Themes may override these custom properties. */
+
 :root {
-    --alert-note-border: #0969da;
-    --alert-note-title: #0969da;
-    --alert-tip-border: #1a7f37;
-    --alert-tip-title: #1a7f37;
-    --alert-important-border: #8250df;
-    --alert-important-title: #8250df;
-    --alert-warning-border: #9a6700;
-    --alert-warning-title: #9a6700;
-    --alert-caution-border: #d1242f;
-    --alert-caution-title: #d1242f;
-    --alert-status-border: #ff7700;
-    --alert-status-title: #ff7700;
+  --alert-note-border: #0969da;
+  --alert-note-title: #0969da;
+  --alert-tip-border: #1a7f37;
+  --alert-tip-title: #1a7f37;
+  --alert-important-border: #8250df;
+  --alert-important-title: #8250df;
+  --alert-warning-border: #9a6700;
+  --alert-warning-title: #9a6700;
+  --alert-caution-border: #d1242f;
+  --alert-caution-title: #d1242f;
+  --alert-status-border: #ff7700;
+  --alert-status-title: #ff7700;
 }
 
 @media (prefers-color-scheme: dark) {
-:root {
+  :root {
     --alert-note-border: #4493f8;
     --alert-note-title: #4493f8;
     --alert-tip-border: #3fb950;
@@ -60,89 +62,91 @@ article {
     --alert-caution-title: #f85149;
     --alert-status-border: #ff6600;
     --alert-status-title: #ff6600;
-}
+  }
 }
 
-/* Syntax highlighting */
+
+/* -- Syntax highlighting -------------------------------------------------- */
+
 .hljs {
-    color: var(--text-color);
-    background: var(--code-bg);
+  color: var(--text-color);
+  background: var(--code-bg);
 }
 
 .hljs-comment,
 .hljs-quote {
-    color: var(--syntax-comment);
-    font-style: italic;
+  color: var(--syntax-comment);
+  font-style: italic;
 }
 
 .hljs-keyword,
 .hljs-selector-tag {
-    color: var(--syntax-keyword);
+  color: var(--syntax-keyword);
 }
 
 .hljs-string,
 .hljs-doctag,
 .hljs-regexp {
-    color: var(--syntax-string);
+  color: var(--syntax-string);
 }
 
 .hljs-number,
 .hljs-literal,
 .hljs-boolean {
-    color: var(--syntax-number);
+  color: var(--syntax-number);
 }
 
 .hljs-function,
 .hljs-title,
 .hljs-section {
-    color: var(--syntax-function);
+  color: var(--syntax-function);
 }
 
 .hljs-variable,
 .hljs-template-variable,
 .hljs-attr {
-    color: var(--syntax-variable);
+  color: var(--syntax-variable);
 }
 
 .hljs-type,
 .hljs-class .hljs-title,
 .hljs-built_in {
-    color: var(--syntax-type);
+  color: var(--syntax-type);
 }
 
 .hljs-symbol,
 .hljs-bullet,
 .hljs-link {
-    color: var(--syntax-constant);
+  color: var(--syntax-constant);
 }
 
 .hljs-code {
-    color: var(--syntax-string);
-    background-color: var(--code-bg);
-    border-radius: 3px;
-    padding: 0.1em 0.3em;
+  color: var(--syntax-string);
+  background-color: var(--code-bg);
+  border-radius: 3px;
+  padding: 0.1em 0.3em;
 }
 
 .hljs-meta,
 .hljs-selector-id,
 .hljs-selector-class {
-    color: var(--syntax-function);
+  color: var(--syntax-function);
 }
 
 .hljs-emphasis {
-    font-style: italic;
+  font-style: italic;
 }
 
 .hljs-strong {
-    font-weight: bold;
+  font-weight: bold;
 }
 
 .hljs-addition {
-    color: var(--syntax-string);
-    background-color: rgba(0, 165, 0, 0.1);
+  color: var(--syntax-string);
+  background-color: rgba(0, 165, 0, 0.1);
 }
 
 .hljs-deletion {
-    color: #f85149;
-    background-color: rgba(248, 81, 73, 0.1);
+  color: #f85149;
+  background-color: rgba(248, 81, 73, 0.1);
 }

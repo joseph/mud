@@ -1,21 +1,22 @@
 /* Mud - change tracking styles (shared between Up and Down mode) */
 
-/* Accent colors for change types */
+/* -- Accent colors for change types --------------------------------------- */
+
 :root {
-    --change-ins: #1a7f37;
-    --change-del: #cf222e;
-    --change-mix: #e89530;
-    --change-ins-ln: #aceebb;
-    --change-del-ln: #ffcecb;
-    --change-ins-word: #c3f3ce;
-    --change-del-word: #ffcecb;
-    --change-ins-tint: color-mix(in srgb, var(--change-ins) 10%, white);
-    --change-del-tint: color-mix(in srgb, var(--change-del) 10%, white);
-    --change-mix-tint: color-mix(in srgb, var(--change-mix) 10%, white);
+  --change-ins: #1a7f37;
+  --change-del: #cf222e;
+  --change-mix: #e89530;
+  --change-ins-ln: #aceebb;
+  --change-del-ln: #ffcecb;
+  --change-ins-word: #c3f3ce;
+  --change-del-word: #ffcecb;
+  --change-ins-tint: color-mix(in srgb, var(--change-ins) 10%, white);
+  --change-del-tint: color-mix(in srgb, var(--change-del) 10%, white);
+  --change-mix-tint: color-mix(in srgb, var(--change-mix) 10%, white);
 }
 
 @media (prefers-color-scheme: dark) {
-:root {
+  :root {
     --change-ins: #3fb950;
     --change-del: #f85149;
     --change-mix: #d29922;
@@ -26,27 +27,27 @@
     --change-ins-tint: color-mix(in srgb, var(--change-ins) 10%, black);
     --change-del-tint: color-mix(in srgb, var(--change-del) 10%, black);
     --change-mix-tint: color-mix(in srgb, var(--change-mix) 10%, black);
-}
+  }
 }
 
 
-/* ── Up mode: overlay positioning ──────────────────────────────── */
+/* -- Up mode: overlay positioning ----------------------------------------- */
 
 .up-mode-output {
-    position: relative;
+  position: relative;
 }
 
 /* JS-positioned overlay: one per change group. Sits above content
    and blends via mix-blend-mode so text remains readable. */
 .mud-overlay {
-    position: absolute;
-    left: 0;
-    right: 0;
-    pointer-events: none;
-    border: 1px solid;
-    border-left: 0;
-    border-right: 0;
-    mix-blend-mode: multiply;
+  position: absolute;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  border: 1px solid;
+  border-left: 0;
+  border-right: 0;
+  mix-blend-mode: multiply;
 }
 
 .mud-overlay-ins { background: var(--change-ins-tint); color: var(--change-ins); }
@@ -58,39 +59,39 @@
 }
 
 
-/* ── Up mode: expando buttons ────────────────────────────────── */
+/* -- Up mode: expando buttons --------------------------------------------- */
 
 .mud-expando {
-    position: absolute;
-    top: -1px;
-    right: 0.75em;
-    min-width: 1.5em;
-    height: 1.5em;
-    padding: 0.2em;
-    white-space: nowrap;
-    box-sizing: content-box;
-    border: 2px solid;
-    border-radius: 1.6em;
-    font-family: inherit;
-    font-weight: 600;
-    font-size: 0.7em;
-    line-height: 1;
-    color: var(--bg-color);
-    background-color: var(--change-mix);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    cursor: pointer;
-    pointer-events: auto;
-    transform: translateY(-50%);
-    transform-origin: center;
+  position: absolute;
+  top: -1px;
+  right: 0.75em;
+  min-width: 1.5em;
+  height: 1.5em;
+  padding: 0.2em;
+  white-space: nowrap;
+  box-sizing: content-box;
+  border: 2px solid;
+  border-radius: 1.6em;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 0.7em;
+  line-height: 1;
+  color: var(--bg-color);
+  background-color: var(--change-mix);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  pointer-events: auto;
+  transform: translateY(-50%);
+  transform-origin: center;
 }
 
 .mud-overlay-ins > .mud-expando { background-color: var(--change-ins); }
 .mud-overlay-del > .mud-expando { background-color: var(--change-del); }
 
 .mud-expando:disabled {
-    cursor: default;
+  cursor: default;
 }
 
 .mud-expando.mud-expando-expanded {
@@ -102,52 +103,52 @@
 .mud-overlay-del .mud-expando-expanded { color: var(--change-del); }
 
 
-/* ── Up mode: collapsed del-only overlays ────────────────────── */
+/* -- Up mode: collapsed del-only overlays --------------------------------- */
 
 .mud-overlay-collapsed {
-    height: 0px !important;
-    border-bottom: 0;
-    overflow: visible;
+  height: 0px !important;
+  border-bottom: 0;
+  overflow: visible;
 }
 
 
-/* ── Up mode: deletions ───────────────────────────────────────── */
+/* -- Up mode: deletions --------------------------------------------------- */
 
 .mud-change-del { display: none; }
 
 .mud-change-del.mud-change-revealed {
-    display: revert;
-    position: relative;
-    text-decoration: line-through;
-    text-decoration-color: color-mix(in srgb, var(--change-del) 50%, transparent);
-    text-decoration-thickness: 1.5px;
+  display: revert;
+  position: relative;
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--change-del) 50%, transparent);
+  text-decoration-thickness: 1.5px;
 }
 
 
-/* ── Up mode: code block line diffs ──────────────────────────── */
+/* -- Up mode: code block line diffs --------------------------------------- */
 
 .cl {
-    /* Structural wrapper only — no visual properties. */
+  /* Structural wrapper only — no visual properties. */
 }
 
 .cl.cl-del {
-    display: none;
+  display: none;
 }
 
 .cl.cl-del.mud-change-revealed {
-    display: inline;
-    text-decoration: line-through;
-    text-decoration-color: color-mix(in srgb, var(--change-del) 50%, transparent);
-    text-decoration-thickness: 1.5px;
-    opacity: 0.75;
+  display: inline;
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--change-del) 50%, transparent);
+  text-decoration-thickness: 1.5px;
+  opacity: 0.75;
 }
 
 .cl.cl-ins {
-    background: color-mix(in srgb, var(--change-ins) 12%, transparent);
+  background: color-mix(in srgb, var(--change-ins) 12%, transparent);
 }
 
 
-/* ── Up mode: active highlight ────────────────────────────────── */
+/* -- Up mode: active highlight -------------------------------------------- */
 
 .mud-overlay-cont {
   border-bottom: 0;
@@ -159,7 +160,7 @@
 }
 
 .mud-expando.mud-change-active {
-    animation: expando-ripple 0.8s cubic-bezier(0.18, 0.89, 0.32, 1.15);
+  animation: expando-ripple 0.8s cubic-bezier(0.18, 0.89, 0.32, 1.15);
 }
 
 @keyframes expando-ripple {
@@ -170,46 +171,46 @@
 }
 
 
-/* ── Down mode ──────────────────────────────────────────────────── */
+/* -- Down mode ------------------------------------------------------------ */
 
 .dl-ins .ln {
-    color: var(--change-ins);
-    background-color: var(--change-ins-ln);
+  color: var(--change-ins);
+  background-color: var(--change-ins-ln);
 }
 
 .dl-ins .lc {
-    background: color-mix(in srgb, var(--change-ins) 10%, transparent);
+  background: color-mix(in srgb, var(--change-ins) 10%, transparent);
 }
 
 .dl-del .ln {
-    color: var(--change-del);
-    background-color: var(--change-del-ln);
+  color: var(--change-del);
+  background-color: var(--change-del-ln);
 }
 
 .dl-del .lc {
-    background: color-mix(in srgb, var(--change-del) 10%, transparent);
-    text-decoration: line-through;
-    text-decoration-color: color-mix(in srgb, var(--change-del) 40%, transparent);
-    text-decoration-thickness: 1.5px;
+  background: color-mix(in srgb, var(--change-del) 10%, transparent);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, var(--change-del) 40%, transparent);
+  text-decoration-thickness: 1.5px;
 }
 
 
-/* ── Word-level inline markers ─────────────────────────────────── */
+/* -- Word-level inline markers -------------------------------------------- */
 
 [data-change-id] ins {
-    text-decoration: none;
-    background: var(--change-ins-word);
+  text-decoration: none;
+  background: var(--change-ins-word);
 }
 
 [data-change-id] del {
-    text-decoration: line-through;
-    text-decoration-color: var(--change-del);
-    background: var(--change-del-word);
+  text-decoration: line-through;
+  text-decoration-color: var(--change-del);
+  background: var(--change-del-word);
 }
 
 /* When a mixed group is revealed (red + green side by side), hide
    inline <del> context words in the insertion block — the full
    deletion is visible in its own block. */
 .mud-change-ins.mud-change-revealed del {
-    display: none;
+  display: none;
 }

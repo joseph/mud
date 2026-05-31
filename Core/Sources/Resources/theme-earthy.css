@@ -1,31 +1,31 @@
-/* Mud - Earthy theme */
+/* -- Theme: Earthy -------------------------------------------------------- */
 
 :root {
-    --text-color: #333;
-    --bg-color: #FFF;
-    --body-bg: #FCFCFA;
-    --link-color: #8E4740;
-    --border-color: #E0DBD4;
-    --code-bg: #F5F3EE;
-    --code-fg: #5D662E;
-    --heading-color: #7A4A2A;
-    --blockquote-color: #8A7B68;
-    --blockquote-border: #DCD6CE;
+  --text-color: #333;
+  --bg-color: #FFF;
+  --body-bg: #FCFCFA;
+  --link-color: #8E4740;
+  --border-color: #E0DBD4;
+  --code-bg: #F5F3EE;
+  --code-fg: #5D662E;
+  --heading-color: #7A4A2A;
+  --blockquote-color: #8A7B68;
+  --blockquote-border: #DCD6CE;
 
-    --syntax-comment: #9A7A4A;
-    --syntax-number: #705D73;
-    --syntax-function: #9A5435;
-    --syntax-type: #7A4A2A;
-    --syntax-constant: #705D73;
-    --syntax-keyword: var(--heading-color);
-    --syntax-string: var(--code-fg);
-    --syntax-variable: var(--text-color);
-    --syntax-operator: var(--text-color);
-    --syntax-punctuation: var(--text-color);
+  --syntax-comment: #9A7A4A;
+  --syntax-number: #705D73;
+  --syntax-function: #9A5435;
+  --syntax-type: #7A4A2A;
+  --syntax-constant: #705D73;
+  --syntax-keyword: var(--heading-color);
+  --syntax-string: var(--code-fg);
+  --syntax-variable: var(--text-color);
+  --syntax-operator: var(--text-color);
+  --syntax-punctuation: var(--text-color);
 }
 
 @media (prefers-color-scheme: dark) {
-:root {
+  :root {
     --text-color: #CFC9C0;
     --bg-color: #100E0D;
     --body-bg: #0E0C0B;
@@ -43,5 +43,5 @@
     --syntax-type: #D4A06A;
     --syntax-constant: #947E96;
     --syntax-keyword: #D4A06A;
-}
+  }
 }

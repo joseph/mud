@@ -108,6 +108,28 @@ struct MudPreferencesTests {
         #expect(tc.config.cliSymlinkPath == nil)
     }
 
+    @Test func openInDefaultBundleIDRoundTrip() {
+        let tc = TestPreferences()
+        defer { tc.tearDown() }
+        #expect(tc.config.openInDefaultBundleID == nil)
+        tc.config.openInDefaultBundleID = "com.barebones.bbedit"
+        #expect(tc.config.openInDefaultBundleID == "com.barebones.bbedit")
+        tc.config.openInDefaultBundleID = nil
+        #expect(tc.config.openInDefaultBundleID == nil)
+    }
+
+    @Test func openInDefaultFormatRoundTrip() {
+        let tc = TestPreferences()
+        defer { tc.tearDown() }
+        #expect(tc.config.openInDefaultFormat == .auto)
+        tc.config.openInDefaultFormat = .html
+        #expect(tc.config.openInDefaultFormat == .html)
+        tc.config.openInDefaultFormat = .markdown
+        #expect(tc.config.openInDefaultFormat == .markdown)
+        tc.config.openInDefaultFormat = .auto
+        #expect(tc.config.openInDefaultFormat == .auto)
+    }
+
     @Test func internalKeysFanOutToMirror() {
         let tc = TestPreferences()
         defer { tc.tearDown() }
@@ -350,7 +372,7 @@ struct MudPreferencesTests {
     // MARK: - Key-catalog invariants
 
     @Test func keyCatalogCount() {
-        #expect(MudPreferences.Keys.allCases.count == 25)
+        #expect(MudPreferences.Keys.allCases.count == 27)
     }
 
     @Test func keyRawValuesAreDistinct() {

@@ -126,6 +126,10 @@ extension MudPreferences {
         case cliInstalled               = "internal.cli-installed"
         case cliSymlinkPath             = "internal.cli-symlink-path"
 
+        // open-in.* — external-editor handoff
+        case openInDefaultBundleID         = "open-in.default-bundle-id"
+        case openInDefaultFormat           = "open-in.default-format"
+
         /// The key this value was persisted under in `UserDefaults.standard`
         /// before the lowercase-hyphen rename. Used by migration only; will be
         /// removed in a follow-up release.
@@ -156,6 +160,8 @@ extension MudPreferences {
             case .windowFrame:                return "Mud-WindowFrame"
             case .cliInstalled:               return "Mud-CLIInstalled"
             case .cliSymlinkPath:             return "Mud-CLISymlinkPath"
+            case .openInDefaultBundleID:         return "Mud-OpenInDefaultBundleID"
+            case .openInDefaultFormat:           return "Mud-OpenInDefaultFormat"
             }
         }
     }
@@ -291,6 +297,16 @@ extension MudPreferences {
     public var cliSymlinkPath: String? {
         get { defaults.string(forKey: Keys.cliSymlinkPath.rawValue) }
         nonmutating set { write(newValue, forKey: .cliSymlinkPath) }
+    }
+
+    public var openInDefaultBundleID: String? {
+        get { defaults.string(forKey: Keys.openInDefaultBundleID.rawValue) }
+        nonmutating set { write(newValue, forKey: .openInDefaultBundleID) }
+    }
+
+    public var openInDefaultFormat: EditorFormat {
+        get { read(.openInDefaultFormat, default: .auto) }
+        nonmutating set { write(newValue, forKey: .openInDefaultFormat) }
     }
 }
 

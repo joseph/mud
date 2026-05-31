@@ -13,7 +13,7 @@ class MudWebView: WKWebView {
             openIn.submenu = buildOpenInSubmenu()
             menu.addItem(openIn)
             if !isSandboxed {
-                menu.addItem(withTitle: "Open in Browser",
+                menu.addItem(withTitle: "Open In Browser",
                              action: #selector(postOpenInBrowser),
                              keyEquivalent: "")
             }

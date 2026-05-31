@@ -77,4 +77,4 @@ Mud does just one thing — it marks up Markdown! — and it does it really well
 | ⌘W       | Close window                                 |
 | ⌘R       | Reload                                       |
 | ⌘P       | Print…                                       |
-| ⌘⇧B      | Open in Browser _(direct distribution only)_ |
+| ⌘⇧B      | Open In Browser _(direct distribution only)_ |

@@ -8,8 +8,8 @@ Mud: A Perfect Markdown Viewer
 
 Download **Mud.app** from either:
 
-- **[GitHub Releases](https://github.com/joseph/mud/releases)** — includes
-  Git change waypoints, CLI, Open in Browser, and Sparkle auto-updates.
+- **[GitHub Releases](https://github.com/joseph/mud/releases)** — includes Git
+  change waypoints, CLI, Open In Browser, and Sparkle auto-updates.
 - **[Mac App Store](https://apps.apple.com/us/app/mud-mark-up-or-down/id6759427937?mt=12)**
   — sandboxed for complete safety, updates through the App Store.
 
@@ -61,7 +61,7 @@ It does one thing — it marks up Markdown! — and it does it really well.
 - [x] Auto-reload on file change
 - [x] YAML frontmatter display (collapsible key-value table in Up mode)
 - [x] Find (Cmd+F)
-- [x] Print and Open in Browser
+- [x] Print and Open In Browser
 - [x] Zoom, readable column, word wrap, and line number toggles
 
 

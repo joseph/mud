@@ -8,7 +8,7 @@
   // Route link clicks through the native app.  Anchor links are left
   // to the browser; everything else is resolved to an absolute URL and
   // posted to the mudOpen message handler registered in WebView.swift.
-  // The handler check doubles as a guard: in Open in Browser (or any
+  // The handler check doubles as a guard: in Open In Browser (or any
   // non-Mud context) window.webkit doesn't exist, so we return early
   // and let the browser handle links normally.
   document.addEventListener("click", function (e) {

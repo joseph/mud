@@ -4,7 +4,7 @@ import Foundation
 ///
 /// Each extension follows the same pattern: detect a marker in the
 /// rendered HTML, conditionally inject scripts for embedded export
-/// (CLI `--browser`, Open in Browser), and conditionally inject
+/// (CLI `--browser`, Open In Browser), and conditionally inject
 /// scripts at runtime in WKWebView.
 public struct RenderExtension: Sendable {
     public let name: String

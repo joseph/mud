@@ -30,7 +30,7 @@ MVP plan.
 - Table of contents sidebar
 - Find (Cmd+F), Find Next/Previous (Cmd+G, Cmd+Shift+G)
 - Print / Save as PDF (Cmd+P)
-- Open in Browser (Cmd+Shift+B) with image data-URI embedding
+- Open In Browser (Cmd+Shift+B) with image data-URI embedding
 - Local images via custom `mud-asset:` URL scheme
 - Remote images allowed
 - Link handling: anchors, local .md, external URLs
@@ -434,7 +434,7 @@ features are hidden or adapted:
 
 - **CLI installer** — The Command Line settings pane shows manual `ln -s`
   instructions instead of the automatic Install button.
-- **Open in Browser** — Hidden entirely. The feature writes a temp HTML file
+- **Open In Browser** — Hidden entirely. The feature writes a temp HTML file
   for the default browser to open, but sandboxed temp locations aren't readable
   by other apps, so the handoff can't work.
 

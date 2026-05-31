@@ -83,7 +83,7 @@ struct MudApp: App {
                 }
 
                 if !isSandboxed {
-                    Button("Open in Browser") {
+                    Button("Open In Browser") {
                         NSApp.sendAction(#selector(DocumentWindowController.openInBrowser(_:)), to: nil, from: nil)
                     }
                     .keyboardShortcut("b", modifiers: [.command, .shift])

@@ -21,7 +21,7 @@ directories.
 
 - Local images will not load (alt text is shown instead)
 - Links to other local markdown files will not open
-- Open in Browser is not available
+- Open In Browser is not available
 - Command Line Tool installation is manual (no Install button)
 - No automatic updates (the App Store handles updates instead)
 

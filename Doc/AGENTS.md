@@ -122,6 +122,14 @@ MVP plan.
 - `CheckForUpdatesView.swift` — SparkleController (static updater owner),
   CheckForUpdatesViewModel (KVO observer), and menu button (`#if SPARKLE`)
 
+- `OpenInEditor.swift` — `RegisteredMarkdownHandler` model plus
+  `EditorLaunchRequest` and `OpenInMenuModel` (`ObservableObject`) backing the
+  File menu's "Open In…" submenu (and the equivalent submenu on `MudWebView`'s
+  context menu). Owns the menu actions and the `NSOpenPanel` chooser with its
+  markdown/HTML accessory; the actual launch is fired by writing to
+  `DocumentState.openInEditorRequest`. Refreshes on launch and whenever
+  `open-in.*` prefs change
+
 **App/CLI/ key files:**
 
 - `main.swift` — `mud` CLI: argument parsing, rendering via MudCore, stdout and
@@ -201,6 +209,8 @@ MVP plan.
 
 - `FloatingControlsPosition.swift` — Top right / bottom right / bottom center
   enum for floating bar placement
+
+- `EditorFormat.swift` — markdown/html enum for the "Open In" handoff
 
 **Core/ key files:**
 

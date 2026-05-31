@@ -346,6 +346,48 @@ defaults write org.josephpearson.Mud quit-on-close -bool false
 ```
 
 
+## Open in
+
+### `open-in.default-bundle-id` — string
+
+Bundle identifier of the application that **File → Open In… → <default>**
+(Cmd-Shift-E) launches with the current document. Set automatically when you
+pick an editor from the **File → Open In…** submenu. While unset, Cmd-Shift-E
+opens the **Choose…** picker instead. Clear from the command line to return to
+that unconfigured state.
+
+- Default: unset
+
+```sh
+defaults read org.josephpearson.Mud open-in.default-bundle-id
+defaults write org.josephpearson.Mud open-in.default-bundle-id -string com.barebones.bbedit
+defaults delete org.josephpearson.Mud open-in.default-bundle-id
+```
+
+A stored bundle ID that no longer resolves (app uninstalled, moved) is treated
+as unset on the next menu rebuild and cleared automatically.
+
+
+### `open-in.default-format` — string
+
+Which representation of the document to hand to the configured editor.
+
+- `auto` — send HTML if the chosen app accepts HTML and doesn't claim markdown;
+  otherwise send markdown _(default)_
+- `markdown` — always send the original `.md` file
+- `html` — always render the document to HTML in the temp directory and send
+  that
+
+Set automatically from the **Export:** picker on the **Choose…** sheet. Picking
+a non-default handler directly from the submenu resets this to `auto`. The
+picker is not offered in sandboxed builds (App Store), because the sandboxed
+temp location isn't readable by other apps — those builds always send markdown.
+
+```sh
+defaults write org.josephpearson.Mud open-in.default-format -string html
+```
+
+
 ## Recipes
 
 Reset a single preference to its built-in default:

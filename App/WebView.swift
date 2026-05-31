@@ -9,6 +9,9 @@ class MudWebView: WKWebView {
     override func willOpenMenu(_ menu: NSMenu, with event: NSEvent) {
         if menu.items.count <= 2 {
             menu.removeAllItems()
+            let openIn = NSMenuItem(title: "Open In…", action: nil, keyEquivalent: "")
+            openIn.submenu = buildOpenInSubmenu()
+            menu.addItem(openIn)
             if !isSandboxed {
                 menu.addItem(withTitle: "Open in Browser",
                              action: #selector(postOpenInBrowser),
@@ -20,9 +23,46 @@ class MudWebView: WKWebView {
             menu.addItem(withTitle: "Reload",
                          action: #selector(postReloadDocument),
                          keyEquivalent: "")
-            for item in menu.items { item.target = self }
+            for item in menu.items where item.action != nil { item.target = self }
         }
         super.willOpenMenu(menu, with: event)
+    }
+
+    private func buildOpenInSubmenu() -> NSMenu {
+        let model = OpenInMenuModel.shared
+        model.refresh()
+        let submenu = NSMenu(title: "Open In…")
+        if let configured = model.configured {
+            submenu.addItem(handlerItem(
+                handler: configured,
+                title: "\(configured.displayName)  (default)"
+            ))
+            submenu.addItem(.separator())
+        }
+        for handler in model.others {
+            submenu.addItem(handlerItem(handler: handler, title: handler.displayName))
+        }
+        submenu.addItem(.separator())
+        let choose = NSMenuItem(
+            title: "Choose…",
+            action: #selector(postChooseEditor),
+            keyEquivalent: ""
+        )
+        choose.target = self
+        submenu.addItem(choose)
+        return submenu
+    }
+
+    private func handlerItem(handler: RegisteredMarkdownHandler, title: String) -> NSMenuItem {
+        let item = NSMenuItem(
+            title: title,
+            action: #selector(postLaunchEditor(_:)),
+            keyEquivalent: ""
+        )
+        item.image = handler.icon
+        item.representedObject = handler
+        item.target = self
+        return item
     }
 
     private func sendActionToController(_ action: Selector) {
@@ -41,6 +81,17 @@ class MudWebView: WKWebView {
 
     @objc private func postReloadDocument() {
         sendActionToController(#selector(DocumentWindowController.reloadDocument(_:)))
+    }
+
+    @objc private func postLaunchEditor(_ sender: NSMenuItem) {
+        guard let handler = sender.representedObject as? RegisteredMarkdownHandler else { return }
+        window?.makeKeyAndOrderFront(nil)
+        OpenInMenuModel.shared.launch(with: handler)
+    }
+
+    @objc private func postChooseEditor() {
+        window?.makeKeyAndOrderFront(nil)
+        OpenInMenuModel.shared.chooseEditor()
     }
 }
 

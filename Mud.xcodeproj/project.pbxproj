@@ -66,6 +66,7 @@
 		7CD0930C2F58F9B7003E4037 /* LightingPreviewCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CD0930B2F58F9B7003E4037 /* LightingPreviewCard.swift */; };
 		7CE6B5A82F833DB3006A9BCA /* Date+Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CE6B5A72F833DB3006A9BCA /* Date+Formatting.swift */; };
 		7CE6B5B02F83E899006A9BCA /* GitProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CE6B5AF2F83E899006A9BCA /* GitProvider.swift */; };
+		7CED000000000000000A0002 /* OpenInEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CED000000000000000A0001 /* OpenInEditor.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -183,6 +184,7 @@
 		7CD0930B2F58F9B7003E4037 /* LightingPreviewCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightingPreviewCard.swift; sourceTree = "<group>"; };
 		7CE6B5A72F833DB3006A9BCA /* Date+Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+Formatting.swift"; sourceTree = "<group>"; };
 		7CE6B5AF2F83E899006A9BCA /* GitProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitProvider.swift; sourceTree = "<group>"; };
+		7CED000000000000000A0001 /* OpenInEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenInEditor.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -369,6 +371,7 @@
 				7CC6E6E42F6595F900FE7D66 /* CheckForUpdatesView.swift */,
 				7CD093072F587185003E4037 /* ErrorPage.swift */,
 				7CE6B5A72F833DB3006A9BCA /* Date+Formatting.swift */,
+				7CED000000000000000A0001 /* OpenInEditor.swift */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -701,6 +704,7 @@
 				7C0A00062F5B0002001C3BB7 /* OutlineSidebarView.swift in Sources */,
 				7C7A73222F67057900A4A7FB /* ChangesSidebarView.swift in Sources */,
 				7C7A73232F67057900A4A7FB /* SidebarView.swift in Sources */,
+				7CED000000000000000A0002 /* OpenInEditor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

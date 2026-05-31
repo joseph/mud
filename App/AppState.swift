@@ -119,6 +119,8 @@ class AppState: ObservableObject {
         case .markdownDocCAlertMode:      self.markdownDocCAlertMode = c.markdownDocCAlertMode
         case .uiUseHeadingAsTitle:        self.uiUseHeadingAsTitle = c.uiUseHeadingAsTitle
         case .uiFloatingControlsPosition: self.uiFloatingControlsPosition = c.uiFloatingControlsPosition
+        case .openInDefaultBundleID, .openInDefaultFormat:
+            OpenInMenuModel.shared.refresh()
         // Every ViewToggle-backed key reloads the whole set — cheaper than
         // duplicating the Key → ViewToggle lookup, and `viewToggles` is a
         // small Set<ViewToggle>.

@@ -8,6 +8,7 @@ import UniformTypeIdentifiers
 struct MudApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @ObservedObject private var appState = AppState.shared
+    @ObservedObject private var openIn = OpenInMenuModel.shared
 
     var body: some Scene {
         // No windows managed by SwiftUI — DocumentController handles them.
@@ -42,6 +43,44 @@ struct MudApp: App {
                 }
 
                 Divider()
+
+                Menu("Open In…") {
+                    if let configured = openIn.configured {
+                        Button {
+                            openIn.launch(with: configured)
+                        } label: {
+                            Label {
+                                Text("\(configured.displayName)  (default)")
+                            } icon: {
+                                Image(nsImage: configured.icon)
+                            }
+                        }
+                        .keyboardShortcut("e", modifiers: [.command, .shift])
+                        Divider()
+                    }
+                    ForEach(openIn.others) { handler in
+                        Button {
+                            openIn.launch(with: handler)
+                        } label: {
+                            Label {
+                                Text(handler.displayName)
+                            } icon: {
+                                Image(nsImage: handler.icon)
+                            }
+                        }
+                    }
+                    Divider()
+                    Button("Choose…") {
+                        openIn.chooseEditor()
+                    }
+                    .modify { view in
+                        if openIn.configured == nil {
+                            view.keyboardShortcut("e", modifiers: [.command, .shift])
+                        } else {
+                            view
+                        }
+                    }
+                }
 
                 if !isSandboxed {
                     Button("Open in Browser") {
@@ -186,6 +225,7 @@ struct MudApp: App {
             }
         }
     }
+
 }
 
 // MARK: - Recent Documents Menu

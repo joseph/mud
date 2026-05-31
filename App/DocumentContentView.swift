@@ -166,6 +166,11 @@ struct DocumentContentView: View {
         .onChange(of: state.openInBrowserID) { _, id in
             if id != nil { openInBrowser() }
         }
+        .onChange(of: state.openInEditorRequest?.id) { _, id in
+            if id != nil, let request = state.openInEditorRequest {
+                openInEditor(request)
+            }
+        }
         #if GIT_PROVIDER
         .onChange(of: appState.changesShowGitWaypoints) { _, enabled in
             if enabled {
@@ -228,6 +233,54 @@ struct DocumentContentView: View {
         }
     }
     #endif
+
+    private func openInEditor(_ request: EditorLaunchRequest) {
+        let target: URL
+        switch request.format {
+        case .markdown, .auto:
+            // `.auto` should be resolved to `.markdown` or `.html` upstream;
+            // treat as markdown as a safe fallback.
+            target = fileURL
+        case .html:
+            guard case .parsed(let parsed) = content,
+                  let url = renderToTempHTML(parsed: parsed)
+            else { return }
+            target = url
+        }
+        NSWorkspace.shared.open(
+            [target],
+            withApplicationAt: request.handler.appURL,
+            configuration: NSWorkspace.OpenConfiguration()
+        )
+    }
+
+    private func renderToTempHTML(parsed: ParsedMarkdown) -> URL? {
+        let baseName = fileURL.deletingPathExtension().lastPathComponent
+        let tempURL = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent(baseName)
+            .appendingPathExtension("html")
+        var exportOptions = renderOptions
+        exportOptions.standalone = true
+        exportOptions.waypoint = nil
+        let html: String
+        if state.mode == .down {
+            html = MudCore.renderDownModeDocument(parsed.markdown,
+                options: exportOptions)
+        } else {
+            html = MudCore.renderUpModeDocument(parsed.markdown,
+                options: exportOptions,
+                resolveImageSource: { source, baseURL in
+                    ImageDataURI.encode(source: source, baseURL: baseURL)
+                })
+        }
+        guard let data = html.data(using: .utf8) else { return nil }
+        do {
+            try data.write(to: tempURL)
+            return tempURL
+        } catch {
+            return nil
+        }
+    }
 
     private func openInBrowser() {
         guard case .parsed(let parsed) = content else { return }

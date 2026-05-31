@@ -21,6 +21,7 @@ class DocumentState: ObservableObject {
     @Published var mode: Mode = .up
     @Published var printID: UUID?
     @Published var openInBrowserID: UUID?
+    @Published var openInEditorRequest: EditorLaunchRequest?
     @Published var reloadID: UUID?
     @Published var outlineHeadings: [OutlineHeading] = []
     @Published var scrollTarget: ScrollTarget?

@@ -59,10 +59,10 @@ class AppState: ObservableObject {
     }
 
     private init() {
-        // Rename any legacy `Mud-*` keys to the lowercase-hyphen names inside
-        // UserDefaults.standard, then fan the current values out to the
-        // app-group mirror so the Quick Look extension sees a fresh snapshot.
-        MudPreferences.shared.migrate()
+        // Fan the current `defaults` values out to the app-group mirror so the
+        // Quick Look extension sees a fresh snapshot of any `defaults write`
+        // changes made while the app was not running.
+        MudPreferences.shared.syncMirror()
 
         let config = MudPreferences.shared
         self.lighting = config.lighting

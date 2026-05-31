@@ -379,9 +379,4 @@ struct MudPreferencesTests {
         let raws = MudPreferences.Keys.allCases.map(\.rawValue)
         #expect(Set(raws).count == raws.count)
     }
-
-    @Test func legacyKeysAreDistinct() {
-        let legacy = MudPreferences.Keys.allCases.map(\.legacyStandardKey)
-        #expect(Set(legacy).count == legacy.count)
-    }
 }

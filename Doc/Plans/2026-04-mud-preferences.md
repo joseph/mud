@@ -32,9 +32,8 @@ shipped — `defaults write` is picked up live while the app is running, via
 per-key KVO on `UserDefaults.standard` (the originally-planned Darwin
 notification path turned out not to fire for app-specific domains).
 
-Only the legacy-key cleanup described under
-[Follow-up cleanup](#follow-up-cleanup) remains, deferred until a release with
-migration in place has been in the field long enough for installs to upgrade.
+The legacy-key rename has since been retired; `syncMirror()` stays as the
+startup fan-out from `defaults` into the app-group mirror.
 
 
 ## Goals
@@ -95,7 +94,7 @@ Preferences/
   Sources/
     MudPreferences.swift              — struct, `.shared`, read/write helpers
     MudPreferencesSnapshot.swift      — value type for extension consumption
-    MudPreferencesMigration.swift     — legacy rename + mirror sync
+    MudPreferencesObserver.swift      — startup mirror sync + KVO observer
     Theme.swift                         — moved from App/
     ViewToggle.swift                    — moved from App/
     SidebarPane.swift                   — moved from App/AppState.swift
@@ -105,7 +104,7 @@ Preferences/
   Tests/
     TestPreferences.swift               — hermetic-suite helper
     MudPreferencesTests.swift           — round-trips, defaults, reset, catalog, mirror fan-out
-    MudPreferencesMigrationTests.swift  — legacy rename + mirror sync
+    MudPreferencesObserverTests.swift   — startup mirror sync + KVO observer
     MudPreferencesSnapshotTests.swift   — snapshot + upModeHTMLClasses
 ```
 
@@ -255,9 +254,7 @@ unsigned test processes) and must match the entitlements file.
 
 Key strings live in a `String`-backed `CaseIterable` enum on `MudPreferences`.
 The Swift identifier is camelCase (Swift requirement for readable case names);
-the `rawValue` is the grouped persistence string. `legacyStandardKey` is used
-by migration only and can be stripped in a follow-up release once existing
-installs have migrated.
+the `rawValue` is the grouped persistence string.
 
 
 ### Per-key accessors
@@ -301,23 +298,18 @@ quit-on-close, etc.) aren't in the snapshot. Future callers can add fields as
 needed without affecting AppState.
 
 
-### Migration
+### Startup mirror sync
 
-Two idempotent phases, composed by `migrate()`:
+`syncMirror()` copies every current `defaults` value into `mirror`, including
+clearing mirror keys whose source value has since been removed. Idempotent;
+no-op when the instance has no mirror.
 
-- `migrateLegacyKeys()` — in-place rename inside `defaults` from each entry's
-  `legacyStandardKey` to its `rawValue`. The new key wins when both are
-  present; the legacy key is always removed.
-- `syncMirror()` — copies every current `defaults` value into `mirror`,
-  including clearing mirror keys whose source value has since been removed.
-  No-op when the instance has no mirror.
-
-`MudPreferences.shared.migrate()` runs once in `AppState.init()` before any
-other preference read, ensuring the mirror reflects the post-rename source of
-truth. The extension doesn't run migration — it has no mirror and no legacy
-keys to rename. If the app has never launched since install, the suite is empty
-and the extension falls back to hard-coded defaults (documented edge case in
-the QL plan).
+`MudPreferences.shared.syncMirror()` runs once in `AppState.init()` before any
+other preference read, ensuring the mirror reflects any `defaults write`
+changes the user made while the app was not running. The extension doesn't sync
+— it has no mirror. If the app has never launched since install, the suite is
+empty and the extension falls back to hard-coded defaults (documented edge case
+in the QL plan).
 
 
 ### Reset
@@ -364,15 +356,14 @@ per-test `mirror` suite, so Swift Testing's default parallel execution is safe.
 - `MudPreferencesTests.swift` — round-trips per type shape, empty-suite
   defaults, fallback when a stored enum raw value doesn't match any case,
   `reset()` clears both stores, mirror fan-out on every write, key-catalog
-  invariants (`Keys.allCases.count == 25`, distinct rawValues, distinct legacy
-  keys), and a second MudPreferences whose `defaults` points at the first's
-  mirror reads back exactly what the app wrote.
-- `MudPreferencesMigrationTests.swift` — legacy rename in-place behavior
-  (neither/one/both/idempotent), type-specific migrations per shape, internal-
-  key migrations (`hasLaunched`, `windowFrame`, `cliInstalled`,
-  `cliSymlinkPath`), `syncMirror()` copies present keys and clears absent ones,
-  `syncMirror()` without a mirror is a no-op, end-to-end `migrate()` lands a
-  legacy value at the new key and in the mirror.
+  invariants (`Keys.allCases.count == 25`, distinct rawValues), and a second
+  MudPreferences whose `defaults` points at the first's mirror reads back
+  exactly what the app wrote.
+- `MudPreferencesObserverTests.swift` — KVO observer surfaces external writes
+  and key removals as `onChange` callbacks and mirror updates, self-filter
+  suppresses in-app writes, lifecycle (refresh before observing is a no-op,
+  re-registering replaces the callback). Also covers `syncMirror()`: copies
+  present keys, clears absent ones, no-op when no mirror, idempotent.
 - `MudPreferencesSnapshotTests.swift` — snapshot of empty suite returns all
   defaults, snapshot reflects each written field, mirror-backed snapshot equals
   defaults-backed snapshot after the same writes, `upModeHTMLClasses` includes
@@ -520,20 +511,3 @@ defaults write org.josephpearson.Mud theme blues
 
 The app window should switch themes without a restart, and a Quick Look preview
 opened afterward in Finder should render with the new theme.
-
-
-## Follow-up cleanup
-
-After at least one release has shipped with migration in place and the
-population of existing installs has had a chance to upgrade, remove:
-
-- `Keys.legacyStandardKey` — no longer referenced.
-- `MudPreferences.migrateLegacyKeys()` and its call in `migrate()`.
-
-`syncMirror()` stays — it still serves the "user did `defaults write` while the
-app wasn't running" case that motivated the whole mirror design.
-
-Users who upgrade past that cleanup release from a pre-migration version lose
-their settings (falling back to defaults). Acceptable on the assumption that
-the migration release is pinned as a minimum supported version for a release or
-two before removal.

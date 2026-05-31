@@ -1,5 +1,21 @@
 import Foundation
 
+// MARK: - Startup mirror sync
+
+extension MudPreferences {
+    /// Copy every `defaults` value into `mirror`. Picks up any `defaults
+    /// write` changes the user made while the app was not running, and
+    /// removes mirror keys whose source value has since been cleared. No-op
+    /// when the instance has no mirror.
+    public func syncMirror() {
+        guard let mirror else { return }
+        for key in Keys.allCases {
+            let value = defaults.object(forKey: key.rawValue)
+            mirror.set(value, forKey: key.rawValue)
+        }
+    }
+}
+
 // MARK: - External change observation
 
 extension MudPreferences {

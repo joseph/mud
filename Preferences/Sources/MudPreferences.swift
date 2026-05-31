@@ -129,41 +129,6 @@ extension MudPreferences {
         // open-in.* — external-editor handoff
         case openInDefaultBundleID         = "open-in.default-bundle-id"
         case openInDefaultFormat           = "open-in.default-format"
-
-        /// The key this value was persisted under in `UserDefaults.standard`
-        /// before the lowercase-hyphen rename. Used by migration only; will be
-        /// removed in a follow-up release.
-        var legacyStandardKey: String {
-            switch self {
-            case .lighting:                   return "Mud-Lighting"
-            case .theme:                      return "Mud-Theme"
-            case .quitOnClose:                return "Mud-QuitOnClose"
-            case .enabledExtensions:          return "Mud-EnabledExtensions"
-            case .changesEnabled:             return "Mud-TrackChanges"
-            case .changesShowInlineDeletions: return "Mud-InlineDeletions"
-            case .changesShowGitWaypoints:    return "Mud-ShowGitWaypoints"
-            case .changesAutoExpandGroups:    return "Mud-autoExpandChanges"
-            case .changesWordDiffThreshold:   return "Mud-WordDiffThreshold"
-            case .upModeZoomLevel:            return "Mud-UpModeZoomLevel"
-            case .upModeAllowRemoteContent:   return "Mud-AllowRemoteContent"
-            case .upModeShowCodeHeader:       return "Mud-codeHeader"
-            case .downModeZoomLevel:          return "Mud-DownModeZoomLevel"
-            case .downModeShowLineNumbers:    return "Mud-lineNumbers"
-            case .downModeWrapLines:          return "Mud-wordWrap"
-            case .sidebarEnabled:             return "Mud-SidebarVisible"
-            case .sidebarPane:                return "Mud-SidebarPane"
-            case .markdownDocCAlertMode:      return "Mud-DoccAlertMode"
-            case .uiUseHeadingAsTitle:        return "Mud-UseHeadingAsTitle"
-            case .uiFloatingControlsPosition: return "Mud-FloatingControlsPosition"
-            case .uiShowReadableColumn:       return "Mud-readableColumn"
-            case .hasLaunched:                return "Mud-HasLaunched"
-            case .windowFrame:                return "Mud-WindowFrame"
-            case .cliInstalled:               return "Mud-CLIInstalled"
-            case .cliSymlinkPath:             return "Mud-CLISymlinkPath"
-            case .openInDefaultBundleID:         return "Mud-OpenInDefaultBundleID"
-            case .openInDefaultFormat:           return "Mud-OpenInDefaultFormat"
-            }
-        }
     }
 }
 

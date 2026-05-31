@@ -176,11 +176,11 @@ MVP plan.
   extension can read a snapshot. Holds the `Keys` enum, per-key read/write
   methods, and `reset()`.
 
-- `MudPreferencesMigration.swift` — `migrateLegacyKeys()` renames legacy
-  `Mud-*` keys in `UserDefaults.standard` to the lowercase-hyphen names;
-  `syncMirror()` fans every current `defaults` value into the mirror (so
-  `defaults write` changes made while the app was not running get picked up).
-  `migrate()` runs both and is called once at launch.
+- `MudPreferencesObserver.swift` — `syncMirror()` fans every current `defaults`
+  value into the mirror (so `defaults write` changes made while the app was not
+  running get picked up); called once at launch.
+  `startObservingExternalChanges` then watches `defaults` via KVO and updates
+  the mirror plus fires an `onChange` callback for in-process changes.
 
 - `MudPreferencesSnapshot.swift` — Value-type snapshot of the prefs that flow
   into `RenderOptions`, plus derived `upModeHTMLClasses`. Consumed by the Quick

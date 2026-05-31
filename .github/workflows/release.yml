@@ -41,6 +41,18 @@ jobs:
           security list-keychains -d user \
             -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
 
+      - name: Install provisioning profiles
+        env:
+          PROVISION_PROFILE_APP: ${{ secrets.PROVISION_PROFILE_APP }}
+          PROVISION_PROFILE_QUICKLOOK: ${{ secrets.PROVISION_PROFILE_QUICKLOOK }}
+        run: |
+          PROFILES_DIR="$HOME/Library/MobileDevice/Provisioning Profiles"
+          mkdir -p "$PROFILES_DIR"
+          echo "$PROVISION_PROFILE_APP" | base64 --decode \
+            > "$PROFILES_DIR/Mud_Developer_ID.provisionprofile"
+          echo "$PROVISION_PROFILE_QUICKLOOK" | base64 --decode \
+            > "$PROFILES_DIR/Mud_QuickLook_Developer_ID.provisionprofile"
+
       - name: Derive version
         id: version
         run: |

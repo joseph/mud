@@ -11,5 +11,12 @@
   <string>manual</string>
   <key>signingCertificate</key>
   <string>Developer ID Application</string>
+  <key>provisioningProfiles</key>
+  <dict>
+    <key>org.josephpearson.Mud</key>
+    <string>Mud Developer Id</string>
+    <key>org.josephpearson.Mud.QuickLook</key>
+    <string>Mud QuickLook Developer Id</string>
+  </dict>
 </dict>
 </plist>

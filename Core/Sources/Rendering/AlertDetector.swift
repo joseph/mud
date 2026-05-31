@@ -125,6 +125,7 @@ struct AlertDetector {
         _ blockQuote: BlockQuote
     ) -> (AlertCategory, String, [BlockMarkup])? {
         guard docCAlertMode != .off else { return nil }
+        guard Self.asideTagShiftIsInBounds(blockQuote) else { return nil }
         guard let aside = Aside(
             blockQuote, tagRequirement: .requireAnyLengthTag
         ) else { return nil }
@@ -136,5 +137,39 @@ struct AlertDetector {
             return (category, aside.kind.displayName, aside.content)
         }
         return nil
+    }
+
+    /// Whether constructing an `Aside` from `blockQuote` would trap.
+    ///
+    /// swift-markdown's `parseAsideTag` shifts the leading text node's start
+    /// column forward by the tag's UTF-8 byte length and forms
+    /// `shiftedStart ..< upperBound` with no `lower <= upper` guard. Smart
+    /// typography can make the decoded string longer than its source span
+    /// (e.g. `'` → `’`, 1 byte → 3), so the shift overruns the node and the
+    /// `Range` initializer crashes the process — `> Don't: x` is enough.
+    /// Still unfixed upstream as of 0.8.0. We replicate the same arithmetic
+    /// and return `false` when the range would be invalid, so the blockquote
+    /// renders plain instead of trapping; well-formed input is unaffected.
+    private static func asideTagShiftIsInBounds(
+        _ blockQuote: BlockQuote
+    ) -> Bool {
+        // Mirror parseAsideTag: first child paragraph, then first child text.
+        guard let paragraph = Array(blockQuote.children).first as? Paragraph,
+              let text = Array(paragraph.children).first as? Text,
+              let colon = text.string.firstIndex(of: ":"),
+              let range = text.range else {
+            // No tag / no range: parseAsideTag builds no range, so it's safe.
+            return true
+        }
+
+        let kindTag = text.string[..<colon]
+        let trailingSpaces = text.string[colon...].dropFirst().prefix(
+            while: { $0 == " " || $0 == "\t" }
+        ).count
+        let shiftCount = kindTag.utf8.count + 1 + trailingSpaces
+
+        var shiftedStart = range.lowerBound
+        shiftedStart.column += shiftCount
+        return shiftedStart <= range.upperBound
     }
 }

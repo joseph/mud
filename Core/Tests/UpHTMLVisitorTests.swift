@@ -345,6 +345,56 @@ struct UpHTMLVisitorTests {
         #expect(!html.contains("class=\"alert"))
     }
 
+    // MARK: - DocC aside crash safety
+
+    // swift-markdown's parseAsideTag forms a Range without a lower<=upper
+    // guard; smart typography (e.g. `'` → `’`) can make the leading text node's
+    // string longer than its source span, overrunning the range and trapping.
+    // detectDocCAlert bails first, so these render plain instead of crashing.
+
+    @Test func smartApostropheBlockquoteDoesNotTrap() {
+        // Minimal real-world reproducer of the App Store crash: a contraction
+        // before a colon. Before the fix this trapped in parseAsideTag.
+        let html = MudCore.renderUpToHTML("> Don't: forget to save\n")
+        #expect(html.contains("<blockquote>"))
+        #expect(!html.contains("class=\"alert"))
+    }
+
+    @Test func smartDashBlockquoteDoesNotTrap() {
+        let html = MudCore.renderUpToHTML("> Note--more--: dashed text\n")
+        #expect(html.contains("<blockquote>"))
+        #expect(!html.contains("class=\"alert"))
+    }
+
+    @Test func nonAsciiTagBlockquoteIsPlain() {
+        // A non-English "word: text" blockquote isn't a known category;
+        // it must fall back to a plain blockquote, never an alert/crash.
+        let html = MudCore.renderUpToHTML("> Замечание: текст\n")
+        #expect(html.contains("<blockquote>"))
+        #expect(!html.contains("class=\"alert"))
+    }
+
+    @Test func unknownTagBlockquoteIsPlain() {
+        let html = MudCore.renderUpToHTML("> Foo: bar baz\n")
+        #expect(html.contains("<blockquote>"))
+        #expect(!html.contains("class=\"alert"))
+    }
+
+    @Test func multiByteAsideRendersWithoutTrapping() {
+        // Recognized tag with multi-byte same-line content renders normally.
+        let html = MudCore.renderUpToHTML("> Note: café crème ☕\n")
+        #expect(html.contains("class=\"alert alert-note\""))
+        #expect(html.contains("café crème ☕"))
+    }
+
+    @Test func colonOnlyTagLineDoesNotTrap() {
+        // Degenerate inputs that drive the tag-stripping shift to the edge.
+        for md in ["> Note:\n", "> :\n", "> Note: \n", "> Tip:\t\n"] {
+            let html = MudCore.renderUpToHTML(md)
+            #expect(html.contains("blockquote"))
+        }
+    }
+
     // MARK: - Tables
 
     @Test func table() {

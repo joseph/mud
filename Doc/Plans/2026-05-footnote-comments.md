@@ -18,10 +18,23 @@ all the usual pain — what happens when the file moves, how do you sync to
 another device, how do you share with a friend or an agent. Markdown is a plain
 text format, and the comments should be too.
 
-So comments are stored **inside the Markdown file, as standard GFM footnotes**
-whose body opens with an inline `<q>` element holding the quoted text and a
-little metadata. This makes Mud a _writer_ for the first time: it modifies the
-`.md` file when (and only when) a user adds, edits, or removes a comment. Every
+So comments are stored **inside the Markdown file, as standard GFM footnotes**.
+The key idea is deliberately small and **not Mud-specific** — it's a convention
+any tool (or human, or agent) can read and write by hand:
+
+> A footnote is a comment **iff its label matches `^comment-\w+$`**. Its body
+> may open with a **blockquote** holding the quoted text; each message is
+> introduced by `💬 <author> (<timestamp>)`. No blockquote ⇒ a "general"
+> (unanchored) comment; more than one `💬` message ⇒ a thread.
+
+That's the whole format — ordinary blockquotes, the `💬` emoji, and footnotes,
+all of which render in any Markdown viewer with footnote support, with nothing
+to strip and no proprietary namespace to learn. The canonical grammar, with a
+worked example per case and the exact properties it parses to, is pinned in
+`Doc/Examples/comments-spec.md`.
+
+This makes Mud a _writer_ for the first time: it modifies the `.md` file when
+(and only when) a user adds, edits, replies to, or removes a comment. Every
 other path stays read-only.
 
 This buys three things for free:
@@ -34,64 +47,95 @@ This buys three things for free:
 - **Reuse** — comments build directly on the
   [Native Footnotes](./2026-05-native-footnotes.md) plan: cmark-based footnote
   detection, source rewriting by sourcepos byte range, and the bottom-section
-  export all carry over.
+  export all carry over unchanged.
+
+**In scope (new vs. an earlier draft):** threading. The format threads
+naturally via repeated `💬` messages, so v1 adopts the threaded _format_ and
+renders a thread as a flat sequence of messages.
 
 **Out of scope, deliberately ruled out** (not deferred): the issue's
-export-as-unified-diff and push-to-forge features, plus the threaded-comments
-and bidirectional-forge-sync extensions. The file _is_ the artifact you hand
-the agent, so those mechanisms are unnecessary.
+export-as-unified-diff and push-to-forge features, plus bidirectional-forge
+sync. The file _is_ the artifact you hand the agent, so those mechanisms are
+unnecessary.
 
 This plan depends on Native Footnotes landing first (or alongside): it reuses
-that plan's `FootnoteProcessor`, cmark glue, and export section machinery.
+that plan's `FootnoteProcessor`, cmark glue, and export-section machinery.
 
 
 ## Confirmed decisions
 
 These were settled during design; the implementation below assumes them.
 
-- **Storage.** A comment is a GFM footnote: a `[^mud-a]` reference at the
-  anchor point plus a definition holding the comment body, grouped at the
-  bottom of the file. Labels are **alpha** (`mud-a`, `mud-b`, …), not numeric,
-  to signal the label is an opaque positional handle rather than a count and to
-  keep comments in a namespace visually distinct from numeric authorial
-  footnotes.
-- **Quote + metadata.** Both ride in a single inline `<q>` element at the head
-  of the definition body:
-  `<q data-mud-comment="CREATED" data-mud-author=…>QUOTE</q>`, where
-  `data-mud-comment` carries the ISO-8601 created timestamp and its mere
-  presence is the classifier flag. The quote is the element's text content —
-  visible everywhere (exports and foreign renderers like GitHub show it) — and
-  the metadata rides as `data-mud-*` attributes, which renderers strip, so they
-  stay invisible. `<q>` is inline, not a CommonMark HTML-block starter, so the
-  comment body stays normal Markdown on the same line. A definition is
-  classified as a Mud comment when it has **both** a `mud-` label prefix
-  **and** a leading `<q>` carrying a `data-mud-comment` attribute — so a
-  coincidental user footnote is never hijacked. The value is the `created` date
-  when it parses as ISO-8601; a missing or malformed value yields a comment
-  with **no creation date** (still a comment). Durable identity is the
-  **label** (stable — never renumbered or reused), not `created`.
-- **Anchoring.** DOM text-quote: the stored `quote` is the rendered plain text
-  of the selection, relocated in the rendered DOM at load time and wrapped in a
-  highlight that the `[⋯]` marker reveals on hover. If the quote can no longer
-  be found (the agent rewrote or deleted the text), the comment is preserved as
-  **orphaned** — body and quote intact, listed in the sidebar, no highlight.
+- **Classifier is the label alone.** A footnote is a comment iff its label
+  matches `^comment-\w+$`. No secondary signal is required — the `comment-`
+  prefix _is_ the statement of intent. Everything else is **optional**: a bare
+  `[^comment-a]: just an observation.` (no quotation, no attribution) is a
+  perfectly valid comment (spec example `comment-a`).
+
+- **Quotation is a leading blockquote; attribution is a `💬` header.** When
+  present, the definition body opens with a blockquote whose text is the quoted
+  range. Each message is introduced by `💬 <author> (<timestamp>):` (a plain
+  paragraph). Nothing Mud-proprietary and nothing hidden: a basic viewer shows
+  the quotation as a blockquote and the attribution as visible text.
+
+- **Attribution grammar is forgiving.** A message's first paragraph may open
+  with `[💬 ]<author> (<timestamp>)[:]` — the `💬` and the trailing colon both
+  optional. The parenthetical is read as `created` **iff** it parses as
+  `YYYY-MM-DD HH:MM[:SS]` (space-separated, seconds optional); `author` is the
+  text before ` (`. If the parenthetical doesn't parse as a timestamp, there is
+  no attribution and the whole paragraph is commentary. So
+  `JP (2026-06-01 18:33): …` → author `JP`, created set;
+  `A quoted comment, no properties.` → no author, no created. Attribution is
+  peeled only from a message's **first** paragraph.
+
+- **Threads are `💬`-delimited messages.** A new message opens at every
+  **paragraph that begins with `💬`**; its body runs to the next such paragraph
+  (or the end), so a message may span several blocks. With **no** `💬` the whole
+  post-quotation body is one message. Only `💬` splits messages — a bare
+  `Author (timestamp):` line never starts a new one (spec example `comment-e`).
+  The root **quotation** anchors in the **document**; a reply that quotes the
+  prior message does so with a blockquote in its own body (parsed, not anchored
+  in v1).
+
+- **Anchoring by verbatim echo; no orphan state.** A comment with **no
+  quotation** (no leading blockquote) is **general** by construction. A comment
+  _with_ a quotation anchors iff that text occurs **verbatim** in the document;
+  if it doesn't (the agent rewrote the text), the comment is simply general.
+  There is **no** distinct "orphaned" state and no sentinel: a comment is
+  either anchored (a highlight is drawn) or not (none is). Whether a quotation
+  matches is a pure **render-time DOM** question, computed in JS, never stored.
+
+- **Strict write, forgiving read.** Mud _generates_ a strict canonical form —
+  alpha labels (`comment-a`, `comment-b`, …); a leading blockquote for the
+  quotation; one `💬 <author> (<timestamp>):` header **per message** (always,
+  even a single one), alone on its line, with the commentary starting in a
+  **new block** below it; four-space-indented continuation; lines under 79
+  characters — but Mud _accepts_ anything the convention allows: any
+  `^comment-\w+$` label, any whitespace, a missing `💬`/author/timestamp/colon,
+  inline commentary on the header line, the blockquote on the marker line or
+  below it. Two consequences of the "new block" rule: a message's commentary
+  may be **any** Markdown (a blockquote, list, code block — it isn't trapped
+  inline after the colon), and the whole codec is **pure block structure with
+  no hard breaks**, so a Markdown formatter (`odmarkdown`) can reflow the body
+  freely and round-trips it idempotently (no exemption needed — see _Risks
+  C10_).
+
 - **Labelling.** The label suffix is an **alpha token allocated in insertion
   order** — the next label is the lexicographically greatest existing
-  _scheme-valid_ label, incremented (if the last letter is `z`, append `a`;
+  _scheme-valid_ suffix, incremented (if the last letter is `z`, append `a`;
   otherwise bump the last letter): `a … z, za, zb … zz, zza …`. Hand-authored
-  labels the scheme could never have produced (`az`, `aa`, `ya`, …) are
-  **ignored when choosing that basis**, so an anomaly can't drag the next label
-  into a strange namespace — the comment after `{a, b, ya}` is `c`, not `yb`.
-  The scheme is lexicographically monotonic over its own labels, so string
-  order equals allocation order and no integer decode is needed; and because
-  the basis is always scheme-valid, the new label exceeds every scheme-valid
-  label and differs from every anomaly, so it can never collide. Labels are
-  **never renumbered**: adding a comment touches only the new marker and one
-  appended definition (a minimal diff), and deleting one leaves a gap rather
-  than reflowing the rest. The label is therefore a stable join-key, not a
-  count, and the durable identity used to match a comment across reloads and to
-  target edits; the user-facing ordinal (1, 2, 3 …) is derived from marker
-  position at render time, and `created` is optional display metadata.
+  suffixes the scheme could never have produced (`az`, `aa`, `comment-1`,
+  `comment-foo`, …) are **ignored when choosing that basis**, so an anomaly
+  can't drag the next label into a strange namespace — the comment after
+  `{a, b, ya}` is `c`. The scheme is lexicographically monotonic over its own
+  labels, so string order equals allocation order and no integer decode is
+  needed; and because the basis is always scheme-valid, the new label exceeds
+  every scheme-valid label and differs from every anomaly, so it can never
+  collide. Labels are **never renumbered**: adding a comment touches only the
+  new marker and one appended definition; deleting one leaves a gap. The label
+  is a stable join-key and durable identity; the user-facing ordinal (1, 2, 3
+  …) is derived from marker position at render time.
+
 - **Rendering.** A comment reference renders — in Mud _and_ exports — as a
   `[⋯]` marker icon (a grayish square with a black middot-ellipsis), not a
   numbered superscript; the highlighted range stays **hidden until the marker
@@ -101,6 +145,7 @@ These were settled during design; the implementation below assumes them.
   emitted **last**, after any authorial footnotes section. Because the marker
   carries no number, comments never consume a footnote number in Mud's rendered
   output — authorial footnotes stay gap-free.
+
 - **Write-back.** Re-read the file from disk → fresh cmark parse →
   byte-surgical edit → atomic write → suppress the self-triggered file-watcher
   reload.
@@ -108,60 +153,85 @@ These were settled during design; the implementation below assumes them.
 
 ## Data model
 
-A comment in the source looks like this (marker shown at a paragraph end; see
-_Anchoring_ for why):
+The on-disk grammar — one worked example per case with the exact properties it
+parses to — is pinned in `Doc/Examples/comments-spec.md`, the canonical spec.
+This section summarizes it.
+
+A comment is a footnote whose label matches `^comment-\w+$`. Its definition
+body is, in order:
+
+1. an **optional leading blockquote** — the **quotation** (the document text
+   the comment refers to). With no blockquote the comment is **general**
+   (unanchored).
+2. one or more **messages**. A message is introduced by a paragraph beginning
+   with `💬`; its body is everything up to the next `💬`-paragraph (so a message
+   may span several blocks — paragraphs, blockquotes, lists). A thread is just
+   more than one message. A message's first paragraph may open with
+   `💬 <author> (<timestamp>):` — `💬` and the trailing colon optional, timestamp
+   `YYYY-MM-DD HH:MM[:SS]`. Everything after is the **commentary** (arbitrary
+   Markdown).
+
+The fully-attributed, threaded case (spec example `comment-d`):
 
 ```markdown
-  The benchmark shows a 3x speedup on the hot path.[^mud-a]
+  The quick brown fox[^comment-d] jumped over the lazy dog.
 
-  …
+  [^comment-d]: > quick brown fox
 
-  [^mud-a]: <q data-mud-comment="2026-05-31T14:02:09Z"
-      data-mud-author="Joseph Pearson">a 3x speedup on the hot path</q>
-      This number is from the synthetic suite — quote the production
-      figure instead.
+      💬 JP (2026-06-01 18:33):
+
+      First comment in thread.
+
+      💬 Claude Opus 4.8 (2026-06-01 18:33:13):
+
+      > First comment in thread.
+
+      Second comment — a reply that quotes JP, as a blockquote in its own body.
 ```
 
-Mud emits the definition **line-wrapped** to keep it readable: the marker and
-the opening `<q …>` tag start the first line, and the tag's remaining
-attributes, the quote, and the body soft-wrap onto four-space-indented
-footnote-continuation lines (breaks collapse to spaces on parse, matching the
-whitespace-collapsed `quote`, so it round-trips). This keeps every line under
-~80; if cmark won't accept an inline open tag spanning continuation lines (see
-the build-time risk), the fallback keeps the whole `<q …>` tag on the marker
-line — one ~85-char line, everything else still wrapped.
+The marker `[^comment-d]` sits in the document at the **end** of the quoted
+range (see _Anchoring_). The leading blockquote (`> quick brown fox`) is the
+**root quotation**; a blockquote that appears **after** a `💬` (Claude's
+`> First comment in thread.`) is part of that message's commentary, not the
+document anchor — the always-present `💬` header is exactly what disambiguates
+the two.
+
+Three things the format gives up by construction — no microformat, nothing to
+escape, nothing whitespace-fragile:
+
+- **General = no blockquote.** There is no `…` sentinel; absence of a quotation
+  _is_ "general."
+- **Attribution is visible Markdown** (`💬 Author (timestamp):`), not a hidden
+  `title` attribute.
+- **Messages are blank-line-separated blocks.** No hard breaks, no trailing
+  whitespace — so the codec is immune to Markdown reflow (see _Risks C10_).
 
 Core model (new `Core/Sources/Comments/Comment.swift`):
 
 ```swift
   public struct Comment: Sendable, Equatable, Identifiable {
-      public var id: String { label }   // stable identity — never renumbered/reused
-      public let label: String          // alpha join-key, e.g. "a", "za"; ref is "[^mud-\(label)]"
-      public let ordinal: Int           // 1-based document-order position; display only
-      public let created: Date?         // nil when the stamp is missing/malformed
-      public let author: String?        // author label
-      public let quote: String          // rendered plain text of the selection
-      public let body: String           // comment Markdown (leading <q> split off)
-      public let isOrphaned: Bool        // quote not locatable at render time
+      public var id: String { label }       // stable identity — the footnote label
+      public let label: String              // e.g. "comment-a"; ref is "[^\(label)]"
+      public let ordinal: Int               // 1-based document-order position; display only
+      public let quotation: String?         // root blockquote, whitespace-collapsed; nil = general
+      public let messages: [CommentMessage] // one per 💬 header (or one author-less message)
+  }
+
+  public struct CommentMessage: Sendable, Equatable {
+      public let author: String?  // header text before " ("; nil if unattributed
+      public let created: Date?   // parsed from "(YYYY-MM-DD HH:MM[:SS])"; nil if absent/unparseable
+      public let body: String     // commentary as Markdown (may itself contain blockquotes, lists, …)
   }
 ```
 
-The `<q>` carrier (a single inline element at the head of the definition body):
+There is no `isOrphaned` field and no stored anchor: a comment is general when
+it has no `quotation`, and an anchored comment is "anchored or not" purely as a
+render-time DOM question (see _Anchoring_). The label is the footnote label,
+allocated in insertion order and used purely as a stable join-key.
 
-| Part               | Carrier            | Purpose                                                                                                                            |
-| ------------------ | ------------------ | ---------------------------------------------------------------------------------------------------------------------------------- |
-| quote              | `<q>` text content | What's commented on. Visible everywhere; anchor seed.                                                                              |
-| `data-mud-comment` | attribute          | Its presence classifies the `<q>` as a Mud comment; its value is the ISO-8601 created stamp when parseable, else `created` is nil. |
-| `data-mud-author`  | attribute          | Author label. Best-effort; may be omitted.                                                                                         |
-
-The label is **not** a count stored in the markup — it is the footnote label,
-allocated in insertion order and used purely as a stable join-key. The quote is
-escaped as ordinary HTML text content (`<`, `&`); the short attribute values
-are attribute-escaped (`"`, `&`). Because `<q>` is on GitHub's tag allowlist,
-the quote renders (with quotation marks) and the `data-mud-*` attributes are
-stripped — so the metadata stays invisible — while Mud styles
-`q[data-mud-comment]` as a block quote where it controls the CSS. The
-parse/serialize helpers live in `Core/Sources/Comments/CommentMetadata.swift`.
+`parse`/ `serialize` and the attribution/timestamp grammar live in
+`Core/Sources/Comments/CommentSerialization.swift`; the round-trip invariant is
+`parse(serialize(quotation, messages)) == (quotation, messages)`.
 
 
 ## Architecture
@@ -169,12 +239,13 @@ parse/serialize helpers live in `Core/Sources/Comments/CommentMetadata.swift`.
 Two concerns, kept separate:
 
 1. **Read path** — extend `FootnoteProcessor` to _classify_ comment definitions
-   apart from authorial footnotes, render each comment reference as a `[⋯]`
-   marker (instead of a numbered superscript), and surface a `[Comment]` list
-   alongside the existing footnote list. Pure, testable, shared by app and
-   export.
+   (label `^comment-\w+$`) apart from authorial footnotes, render each comment
+   reference as a `[⋯]` marker (instead of a numbered superscript), parse each
+   definition body into a `quotation` plus an ordered `[CommentMessage]`, and
+   surface a `[Comment]` list alongside the existing footnote list. Pure,
+   testable, shared by app and export.
 2. **Write path** — a pure Core `CommentEditor` that rewrites a source `String`
-   (insert / update / delete) by byte range, plus an app-side
+   (insert / rewrite-body / delete) by byte range, plus an app-side
    `CommentController` that orchestrates re-read, atomic write, and watcher
    suppression.
 
@@ -182,18 +253,18 @@ Two concerns, kept separate:
 flowchart TD
     subgraph Read
       SRC[Raw Markdown] --> FP[FootnoteProcessor<br/>cmark + FOOTNOTES + SOURCEPOS]
-      FP -->|refs→markers / comment refs→⋯-markers<br/>defs removed| PM[swift-markdown pipeline]
-      FP -->|footnotes| FN[bottom Footnotes section]
-      FP -->|comments: label/created/quote/body| CM[Comments map + bottom Comments section]
+      FP -->|authorial refs→numbered markers<br/>comment refs→⋯-markers / defs removed| PM[swift-markdown pipeline]
+      FP -->|authorial footnotes| FN[bottom Footnotes section]
+      FP -->|comments: label/ordinal/quotation/messages| CM[Comments map + bottom Comments section]
       PM --> BODY[Up-mode body HTML]
       FN --> DOC[Full HTML document]
       CM --> DOC
       DOC --> WV[WKWebView]
-      WV -->|on load: quote→Range→mark| HL[Hover-revealed highlights]
-      WV -->|click highlight| ED[Comment editor popover / sidebar]
+      WV -->|on load: walk back from marker→mark| HL[Hover-revealed highlights]
+      WV -->|click ⋯ marker| ED[Comment editor popover / sidebar]
     end
     subgraph Write
-      ED -->|add / edit / delete| CC[CommentController]
+      ED -->|add / reply / edit / delete| CC[CommentController]
       CC -->|re-read disk| DISK[(file)]
       DISK --> CE[CommentEditor<br/>byte-surgical edit + label alloc]
       CE -->|new source| AW[atomic write + suppress watcher]
@@ -204,65 +275,71 @@ flowchart TD
 
 ## Anchoring
 
-The user selects in the **rendered DOM**; the marker must be written into the
-**source**. A full DOM-offset → source-byte mapping is hard (inline syntax
-makes rendered offsets diverge from source offsets within a block). Both the
-highlight and the marker are driven by **the quote as the universal anchor**,
-matched against a **whitespace-normalized, flattened text** of the content —
-which makes element boundaries (inline _and_ block) disappear: re-anchoring is
-always just "find this string in the flat text," with no special-casing.
+The model has one anchor — **the marker position** — and one extent — **the
+quotation**. A comment's marker is written into the source at exactly the point
+where the quoted text ends, so on render the highlight is simply "the
+`quotation.length` characters immediately **before** the marker." Re-anchoring
+is therefore a short **backward walk** from the marker, not a search of the
+document: no scour, no ambiguity when the quoted text repeats elsewhere, no
+nearest-occurrence tiebreak. Matching runs against a **whitespace-normalized,
+flattened text**, so inline _and_ block element boundaries disappear. The only
+place a DOM-position → source-byte mapping is needed is **insert**, and only
+for the single selection-end point (below).
 
 - **Capture.** Take the selection text via `Selection.toString()` (block-aware,
   so a cross-paragraph selection reads `…event. Cover…` rather than jamming
   `…event.Cover…`), collapse runs of whitespace to single spaces, and store
-  that as `quote`. The collapsed form keeps the `<q>` on a single source line,
-  renders cleanly everywhere, and makes matching insensitive to the exact break
-  representation.
-- **On create.** Re-read the file, fresh-parse with cmark, match the quote
-  against the flattened source text, and insert `[^mud-<label>]` just before
-  the terminating newline of the block containing the **selection's end**
-  (sourcepos gives the byte range). The marker is a single point at block
-  granularity; the highlight extent comes from the quote, so the marker can sit
-  in one block even when the selection spans several.
+  that as the comment's `quotation`. Written as a leading blockquote, the
+  collapsed form renders cleanly everywhere and makes matching insensitive to
+  the exact break representation. The selection's **end** is the marker's
+  insertion point.
+- **On create.** Re-read the file and fresh-parse with cmark. Insert
+  `[^comment-<label>]` at the **exact source byte of the selection's end** —
+  mid-block, right where the quotation ends — by walking the anchor block's
+  inline nodes, accumulating their rendered text up to the selection-end
+  offset, and reading that node's **per-node sourcepos** for the byte. This is
+  the one DOM→source mapping the design needs, and end-anchoring confines it to
+  a single point. The highlight extent is recovered on render from the
+  quotation, so the marker sits at the quotation's end even when the selection
+  spans several blocks.
 - **On render.** Each comment reference becomes a visible `[⋯]` marker —
   `<a class="mud-comment-marker" data-mud-label="LABEL" href="#cmt-LABEL">⋯</a>`
   (swift-markdown passes inline HTML through, exactly as for footnote markers),
   baked into the static HTML so it shows even without JS. `mud-comments.js`
-  then builds a flat text of the body with a position → (text node, offset)
-  index, locates the quote (preferring the occurrence nearest the marker when
-  the text repeats), maps the match back to a `Range`, and wraps **each
-  intersected text-node slice** in its own
-  `<mark class="mud-comment-highlight" data-mud-label="LABEL">`. Per-slice
-  wrapping is required because `Range.surroundContents()` throws across element
-  boundaries; the shared `data-mud-label` ties the slices to the marker. The
-  marks are **transparent by default** — hovering the marker toggles
-  `.is-active` (bright yellow) on the slices with the matching
+  builds a flat text of the body with a position → (text node, offset) index,
+  then for each marker walks **backward** `quotation.length` characters from
+  the marker and checks that run equals the `quotation`. On a match it maps
+  that range back to a `Range` and wraps **each intersected text-node slice**
+  in its own `<mark class="mud-comment-highlight" data-mud-label="LABEL">`.
+  Per-slice wrapping is required because `Range.surroundContents()` throws
+  across element boundaries; the shared `data-mud-label` ties the slices to the
+  marker. The marks are **transparent by default** — hovering the marker
+  toggles `.is-active` (bright yellow) on the slices with the matching
   `data-mud-label`, and clears it on leave.
-- **Orphan fallback.** If the quote can't be located (the agent rewrote it),
-  the `[⋯]` marker still renders but reveals nothing on hover; if the marker is
+- **Unanchored fallback.** If the run immediately before the marker doesn't
+  equal the quotation (a general comment, or the agent rewrote the text), the
+  `[⋯]` marker still renders but reveals nothing on hover; if the reference is
   gone entirely (a dangling definition), there is no icon. Either way the
-  comment is flagged `isOrphaned` and appears in the sidebar with its quote and
-  body.
+  comment still appears in the sidebar and the bottom section with its
+  quotation and messages — there is simply no document highlight. No badge, no
+  separate state.
 
-The flat-text indexing and per-slice wrapping are the main JS complexity;
+The backward flat-text walk and per-slice wrapping are the main JS complexity;
 `mud-changes.js`'s zoom-normalized rect handling and span walking are the
 closest prior art to follow.
 
-_Known v1 limitations / deferred edges:_ the marker sits at block end rather
-than exactly at the selection point (acceptable for review comments).
-**Overlapping highlights** from two comments on overlapping ranges (a slice
-belonging to more than one comment) are out of scope — v1 may render the later
-one atop the earlier; nesting or multi-id slices is a future refinement. A long
-or cross-block quote is **more orphan-prone** (one agent edit anywhere in the
-span breaks the exact match); it degrades to an orphan gracefully, and
-prefix/suffix endpoint anchoring (re-anchoring the two ends independently and
-filling between) is the planned robustness upgrade. **Bounding the displayed
-quote** is a deferred refinement: v1 stores the full collapsed quote (so the
-highlight extent is exact), but a long cross-block quote renders as a clumsy
-inline run on foreign renderers like GitHub, where we can't restyle `<q>` to a
-block. The fix is to cap the _visible_ quote (a leading slice with an ellipsis,
-or `prefix … suffix`) — better UX in every renderer and a natural fit with the
-endpoint-anchoring upgrade — rather than switching the carrier element.
+_Known v1 limitations / deferred edges:_ **Reply highlighting** applies only to
+the root **quotation**, which has a marker to walk back from; a reply that
+quotes the prior message (a blockquote in its own body) has no positional
+marker, so highlighting it would require a search within that (short) message.
+Replies are parsed and stored but their quotes are **not** highlighted in v1 —
+the thread renders as a flat sequence of messages — so that search is deferred
+with them. Overlapping highlights need no handling: a highlight is revealed
+only on marker hover, one marker at a time, so two never show at once. A long
+or cross-block quotation is **more likely to go unanchored** (one agent edit
+anywhere in the run breaks the exact backward match); it degrades to a general
+comment gracefully, and endpoint anchoring (re-anchoring the run's two ends
+independently) is the planned robustness upgrade.
 
 
 ## Implementation
@@ -272,72 +349,108 @@ endpoint-anchoring upgrade — rather than switching the carrier element.
 **`Core/Sources/Rendering/FootnoteProcessor.swift`** — extend the existing
 processor (from the Footnotes plan):
 
-- When collecting definitions, classify each as a **comment** when its label
-  matches `mud-[a-z]+` _and_ its body begins with a `<q>` carrying a
-  `data-mud-comment` attribute (any value); otherwise it stays an authorial
-  footnote. The value becomes `created` when it parses as ISO-8601, else
-  `created` is nil.
-- **Classify before numbering.** Footnote display numbers are assigned in
-  first-reference order over **authorial** references only; comment references
-  are diverted to the `[⋯]` marker path and never increment the footnote
-  counter. So `[^1]`, `[^mud-a]`, `[^2]` renders in Mud as footnotes 1 and 2
-  (the comment occupying no number, leaving no gap) — even though a foreign
-  renderer like GitHub, which numbers every reference by appearance, would show
-  1, 2, 3.
+- **Classify before numbering.** A definition is a **comment** iff its label
+  matches `^comment-\w+$`; otherwise it's an authorial footnote. Footnote
+  display numbers are assigned in first-reference order over **authorial**
+  references only; comment references are diverted to the `[⋯]` marker path and
+  never increment the footnote counter. So `[^1]`, `[^comment-a]`, `[^2]`
+  renders in Mud as footnotes 1 and 2 (the comment occupying no number, leaving
+  no gap) — even though a foreign renderer like GitHub, which numbers every
+  reference by appearance, would show 1, 2, 3.
 - Comment references emit the `[⋯]` marker (above) instead of the `<sup>`
   footnote marker; comment definitions are removed from the body like footnote
-  definitions.
-- The result type gains a `comments: [Comment]` field beside `footnotes`. The
-  leading `<q>` is split off — its text content becomes `quote`, its
-  `data-mud-comment` value becomes `created` (nil if absent/malformed) and
-  `data-mud-author` becomes `author`, the remaining Markdown becomes `body` —
-  the `mud-` suffix becomes `label`, and `ordinal` is the document-order index.
+  definitions. Only **defined** comment labels become markers; a dangling
+  `[^comment-x]` stays literal, exactly as for dangling footnotes.
+- For each comment definition, parse the body into a `quotation` plus an
+  ordered `[CommentMessage]` via `CommentSerialization.parse` and build a
+  `Comment` (`label`, `ordinal` = document-order index, `quotation`,
+  `messages`). The result type gains a `comments: [Comment]` field beside
+  `footnotes`.
 
-**`Core/Sources/Comments/CommentEditor.swift`** (new) — pure source rewriting,
-no IO. Each entry point takes the current source and returns a new source plus
-the affected comment:
+**`Core/Sources/Comments/CommentSerialization.swift`** (new) — the read/write
+codec for definition bodies, no IO:
 
 ```swift
-  enum CommentEditor {
-      static func insert(into source: String, quote: String, body: String,
-                         created: Date, author: String?) -> (source: String, comment: Comment)?
-      static func update(_ source: String, label: String, body: String) -> String
-      static func delete(_ source: String, label: String) -> String
-      static func nextLabel(in source: String) -> String   // lex-max existing label, incremented
+  enum CommentSerialization {
+      // Read: structure a comment definition's body blocks into the root
+      // quotation and ordered messages.
+      static func parse(_ blocks: [Block]) -> (quotation: String?, messages: [CommentMessage])
+      // Write: render quotation + messages into Mud's strict canonical body
+      // (leading blockquote for the quotation; one "💬 Author (timestamp):"
+      // header per message, alone on its line; commentary in a following block).
+      static func serialize(quotation: String?, _ messages: [CommentMessage]) -> String
+      // Attribution grammar: peel a leading "[💬 ]Author (timestamp)[:]" from a
+      // message's first paragraph (💬 and colon optional).
+      static func parseAttribution(_ paragraphText: String)
+          -> (author: String?, created: Date?, inlineBody: Substring)
+      // Timestamp grammar: "YYYY-MM-DD HH:MM[:SS]" (space-separated, seconds
+      // optional) ↔ Date.
+      static func parseTimestamp(_ s: Substring) -> Date?
+      static func formatTimestamp(_ date: Date) -> String
   }
 ```
 
-- `insert` allocates the next label via `nextLabel`, locates the anchor block
-  by quote match (fresh cmark parse), inserts the `[^mud-<label>]` marker at
-  block end, and appends the definition to the bottom Comments group (creating
-  it after any footnote definitions, with one blank line of separation). No
-  renumbering: existing markers and definitions are left untouched. Returns
-  `nil` if the quote can't be located (caller decides whether to create an
-  orphan-only definition or abort).
-- `update` / `delete` find the definition by `label` (an exact `[^mud-<label>]`
-  match) and rewrite or remove it (and, for delete, its marker). Delete leaves
-  the label gap rather than reflowing later labels.
+- `parse` consumes the definition's child blocks (from the shared cmark parse):
+  (1) a **leading blockquote**, if present, becomes `quotation` (flattened,
+  whitespace-collapsed); otherwise `quotation` is nil. (2) The remaining blocks
+  are split into messages at each **paragraph whose first character is `💬`**; a
+  message owns its blocks up to the next `💬`-paragraph. If the first remaining
+  block isn't a `💬`-paragraph, an implicit author-less message opens (the
+  single-comment, no- `💬` case). (3) Each message's first paragraph is run
+  through `parseAttribution`; `author`/ `created` come from the header and the
+  remaining text + blocks become `body` (Markdown). A `💬` that is not
+  paragraph-initial is ordinary prose and never splits.
+- `serialize` is the strict inverse used on write;
+  `parse(serialize(q, xs)) == (q, xs)` is the round-trip invariant. Because the
+  output is plain block structure (no hard breaks), it survives Markdown reflow
+  unchanged.
+
+**`Core/Sources/Comments/CommentEditor.swift`** (new) — pure source rewriting,
+no IO:
+
+```swift
+  enum CommentEditor {
+      // New comment with the given quotation, anchored at the selection end;
+      // allocates the next label.
+      static func insert(into source: String, quotation: String?, message: CommentMessage)
+          -> (source: String, comment: Comment)?
+      // Replace the body of an existing definition (covers edit, reply, and
+      // delete-a-message — the caller supplies the quotation + new message list).
+      static func rewrite(_ source: String, label: String,
+                          quotation: String?, messages: [CommentMessage]) -> String
+      // Remove a whole comment: its marker and its definition.
+      static func delete(_ source: String, label: String) -> String
+      // "comment-" + lex-max scheme-valid suffix, incremented.
+      static func nextLabel(in source: String) -> String
+  }
+```
+
+- `insert` allocates the next label via `nextLabel`, maps the selection-end DOM
+  point to a source byte (walk the anchor block's inline nodes to the
+  selection-end offset, read that node's per-node sourcepos; fresh cmark
+  parse), inserts the `[^comment-<label>]` marker at **exactly that byte** —
+  where the quotation ends — and appends `serialize(quotation, [message])` to
+  the bottom Comments group (creating it after any footnote definitions, with
+  one blank line of separation). Returns `nil` if the selection-end can't be
+  mapped (caller decides whether to fall back to the block end, or abort).
+- `rewrite` finds the definition by `label` (an exact `[^comment-<label>]`
+  match) and replaces its body with `serialize(quotation, messages)`. A reply
+  is `rewrite(label, quotation, existing + [newMessage])`; an edit is `rewrite`
+  with one message's body changed; removing one message in a thread is
+  `rewrite` with it dropped. The quotation and the marker are untouched.
+- `delete` removes both the definition and its marker, leaving the label gap
+  rather than reflowing later labels.
 - `nextLabel` takes the lexicographically greatest existing **scheme-valid**
-  `mud-` label — one matching `^(z*[a-y]|z+)$`, the form the scheme itself
-  produces — and increments it (if the last letter is `z`, append `a`;
-  otherwise bump the last letter), starting at `a` when there is no
-  scheme-valid label. Labels the scheme could never have generated (`az`, `aa`,
-  `ya`, …) are ignored as the basis, so they neither lengthen nor misdirect the
-  next label. Because the basis is always scheme-valid the increment is
-  unambiguous (such a label ends in `z` only when it is all- `z`) and the
-  result exceeds every scheme-valid label while differing from every anomaly —
-  so it can never collide with an existing label.
+  suffix — one matching `^(z*[a-y]|z+)$`, the form the scheme itself produces —
+  and increments it (if the last letter is `z`, append `a`; otherwise bump the
+  last letter), starting at `a` when there is none. Anomalous suffixes (`az`,
+  `aa`, `comment-1`, `comment-foo`) are ignored as the basis, so they neither
+  lengthen nor misdirect the next label; the result exceeds every scheme-valid
+  label and differs from every anomaly, so it can't collide.
 - All edits are **byte-surgical**: every untouched byte of the source is
   preserved exactly (line endings, trailing-newline state, indentation), so
   diffs stay minimal and concurrent agent edits aren't clobbered beyond the
-  edited spans. Because labels are never reflowed, an add/delete diff is
-  exactly the one marker and one definition that changed.
-
-**`Core/Sources/Comments/CommentMetadata.swift`** (new) — build and parse the
-leading `<q data-mud-comment …>QUOTE</q>` wrapper: serialize a comment's quote
-(HTML-escaped text content) and its `created` (the `data-mud-comment` value) /
-`author` (attribute-escaped) into the element, and split it back out of a
-definition body into `quote` plus the remaining `body` Markdown.
+  edited spans.
 
 **`Core/Sources/RenderOptions.swift`** — add
 `public var commentMode: CommentMode = .section` (parallel to `footnoteMode`),
@@ -350,13 +463,14 @@ export paths (visible bottom section).
 point to also return comments:
 
 - `RenderedUpDocument` gains `comments: [Comment]` (and a per-comment rendered
-  HTML body for the editor/sidebar, mirroring the footnote popover map).
+  HTML thread for the editor/sidebar, mirroring the footnote popover map).
 - The bottom-section renderer emits, after the optional Footnotes section, a
   `<section class="comments" data-comments><h2>Comments</h2><ol>…</ol></section>`
   — given `is-print-only` when `commentMode == .interactive`. Each item is
-  `<li id="cmt-LABEL">` containing the quote as a styled `<q data-mud-comment>`
-  block, the body rendered via the shared `renderUpBody`, the `created`
-  attribution, and a back-link to its anchor.
+  `<li id="cmt-LABEL">` rendering the comment: the `quotation` as a styled
+  quote block, then each message with its attribution (`author` · `created`)
+  and its `body` rendered as Markdown via the shared `renderUpBody`, plus a
+  back-link to the anchor.
 - The String export entry points (`renderUpModeDocument`, `renderUpToHTML`) run
   the same preprocessing and get the visible Comments section for free.
 
@@ -373,9 +487,10 @@ before relying on the feature there.
 
 **`App/CommentController.swift`** (new) — owns the write path for a document:
 
-- On add/edit/delete: **re-read the file from disk**, call the `CommentEditor`
-  against that fresh content (never the possibly-stale in-memory render), write
-  atomically (temp file + rename), and **suppress the self-write reload**.
+- On add/reply/edit/delete: **re-read the file from disk**, call the
+  `CommentEditor` against that fresh content (never the possibly-stale
+  in-memory render), write atomically (temp file + rename), and **suppress the
+  self-write reload**.
 - Self-write suppression: record the expected post-write mtime/size (or content
   hash) and have `FileWatcher` ignore the next change event that matches,
   rather than blindly pausing the watcher (so a near-simultaneous _external_
@@ -384,19 +499,22 @@ before relying on the feature there.
   highlight and sidebar entry appear.
 
 **`App/CommentEditorPopover.swift`** (new) — an `NSPopover` (`.transient`)
-hosting an editable body (SwiftUI `TextEditor`) with Save and Delete, anchored
-at the highlight rect (same web→AppKit rect conversion as the footnote
-popover). Creating a comment shows the same editor anchored at the live
-selection.
+hosting an editable body (SwiftUI `TextEditor`) with Save, Reply, and Delete,
+anchored at the highlight rect (same web→AppKit rect conversion as the footnote
+popover). It shows the full thread (read), lets the user edit the body, append
+a reply, or delete the comment. Creating a comment shows the same editor
+anchored at the live selection.
 
 **`App/WebView.swift`** — register handlers alongside `mudOpen`/ `mudFootnote`:
 
-- `mudCommentDraft` — JS posts the current selection's `quote`, block info, and
-  rect when the user invokes "Add Comment"; the controller opens the editor.
+- `mudCommentDraft` — JS posts the current selection's collapsed `quotation`,
+  block info, and rect when the user invokes "Add Comment"; the controller
+  opens the editor.
 - `mudCommentOpen` — JS posts a comment label + rect on `[⋯]` marker click; the
   controller opens the editor for that comment.
-- Thread a `commentData` parameter (label → quote/created/body HTML) into the
-  coordinator in `updateNSView`, beside the footnote map.
+- Thread a `commentData` parameter (label → rendered thread HTML, plus the
+  quotation for re-anchoring) into the coordinator in `updateNSView`, beside
+  the footnote map.
 
 **`App/DocumentContentView.swift`** — the live Up path computes one
 `RenderedUpDocument` with `commentMode: .interactive` and feeds the comments
@@ -410,39 +528,39 @@ selection (and the document is writable). Hidden where writing can't work.
 
 **Sidebar** — add a `comments` case to `Preferences/SidebarPane.swift` and a
 new **`App/CommentsSidebarView.swift`** (mirroring `ChangesSidebarView`)
-listing comments in document order with quote snippet, body, `created`, and an
-**Orphaned** badge. Hovering or selecting a row activates the same
-bright-yellow highlight that marker hover does and scrolls to the `[⋯]` marker;
-clicking opens the editor (orphaned rows open it without scrolling). Wire it
-into `SidebarView.swift`'s pane container.
+listing comments in document order with a quotation snippet, the thread, and
+`created`. Hovering or selecting a row activates the same bright-yellow
+highlight that marker hover does and scrolls to the `[⋯]` marker; clicking
+opens the editor (unanchored rows open it without scrolling). Wire it into
+`SidebarView.swift`'s pane container.
 
 **Author identity** — a `comment-author` preference (new key in
-`MudPreferences`), defaulting to `NSFullUserName()`, written into each
-comment's `author`. Surface it in a settings pane (a small "Comments" pane, or
-a field under General).
+`MudPreferences`), defaulting to `NSFullUserName()`, written as the `<author>`
+in each new message's `💬 <author> (<timestamp>):` header. Surface it in a
+settings pane (a small "Comments" pane, or a field under General).
 
 
 ### Resources
 
 **`Core/Sources/Resources/mud-comments.js`** (new) — selection capture
 (`Selection.toString()`, whitespace-collapsed) for the draft message; highlight
-re-anchoring (flat-text index → quote match → `Range` → per-slice `<mark>`,
-across inline _and_ block boundaries, zoom-normalized like `mud-changes.js`),
-with the slices left **transparent until the matching `[⋯]` marker is hovered**
-(toggle `.is-active`); `[⋯]` marker click → post `mudCommentOpen` in-app (the
-`href="#cmt-LABEL"` jump is the no-handler fallback in exports); orphan
-handling (skip drawing, report to the sidebar). Injected as a `WKUserScript`
-in-app **and inlined in full-document exports**, so the marker and hover work
-there too; with no JS (fragment, print) the static marker and bottom section
-remain.
+re-anchoring of the **root** quotation (flat-text index → match → `Range` →
+per-slice `<mark>`, across inline _and_ block boundaries, zoom-normalized like
+`mud-changes.js`), with the slices left **transparent until the matching `[⋯]`
+marker is hovered** (toggle `.is-active`); `[⋯]` marker click → post
+`mudCommentOpen` in-app (the `href="#cmt-LABEL"` jump is the no-handler
+fallback in exports); unanchored handling (skip drawing). Injected as a
+`WKUserScript` in-app **and inlined in full-document exports**, so the marker
+and hover work there too; with no JS (fragment, print) the static marker and
+bottom section remain.
 
 **`Core/Sources/Resources/mud-up.css`** — `.mud-comment-marker` styled as a
 grayish square chip carrying a black middot-ellipsis (`⋯`) glyph
 (theme/lighting-variable-aware); `.mud-comment-highlight` transparent by
 default with `.mud-comment-highlight.is-active` a bright-yellow background (a
-lighting-aware variable so it still reads in dark mode); `q[data-mud-comment]`
-styled as a block quote (optionally surfacing `data-mud-author`/
-`data-mud-comment` via CSS `attr()`); the `.comments` section (reusing the
+lighting-aware variable so it still reads in dark mode); the styling for Mud's
+rendered Comments section and sidebar (the quotation block, the per-message
+attribution, and the threaded messages); the `.comments` section (reusing the
 footnotes section styling); and the print-only rule:
 
 ```css
@@ -450,13 +568,17 @@ footnotes section styling); and the print-only rule:
   @media print { .comments.is-print-only { display: block; } }
 ```
 
+Mud renders the thread from the parsed `Comment` model with its **own** markup
+and classes, so the styling never depends on the on-disk form; the raw
+blockquote-and- `💬` source is what Down mode and foreign renderers show.
+
 
 ### Down mode, Quick Look, CLI
 
-- **Down mode** is unchanged: it shows raw source, so `[^mud-a]` and the
-  definition (including the `<q data-mud-comment …>` wrapper) are displayed
-  literally and honestly. _Limitation:_ the `<q>` wrapper is visible in raw
-  view; dimming it is a possible later refinement.
+- **Down mode** is unchanged: it shows raw source, so `[^comment-a]` and the
+  definition (the `> quotation` blockquote and the `💬 <author> (<timestamp>):`
+  headers) are displayed literally and honestly — already clean Markdown, with
+  no wrapper element to dim.
 - **Quick Look** and the **CLI** use the String export API (`.section`), so
   comments appear as the bottom Comments section automatically. Neither writes
   comments — authoring is GUI-only.
@@ -465,52 +587,71 @@ footnotes section styling); and the print-only rule:
 ### Docs
 
 Update `Doc/AGENTS.md` file quick reference: add `Comments/Comment.swift`,
-`Comments/CommentEditor.swift`, `Comments/CommentMetadata.swift` (Core),
+`Comments/CommentEditor.swift`, `Comments/CommentSerialization.swift` (Core),
 `CommentController.swift`, `CommentEditorPopover.swift`,
 `CommentsSidebarView.swift` (App), and `mud-comments.js`; note the `comments`
 case on `SidebarPane`, the `commentMode` field on `RenderOptions`, the
 `comment-author` preference, the new read-write entitlement, and the comment
-classification step in the rendering-pipeline section. Add a `Doc/Examples/`
-fixture (below) reference.
+classification step in the rendering-pipeline section. Reference the grammar
+spec `Doc/Examples/comments-spec.md`.
 
 
 ## Risks to verify at build time
 
-- **C1 — footnote-label portability.** The label prefix is `mud-` (hyphen), not
-  `mud:` — testing showed GitHub/Gist percent-encode the colon into the anchor
-  id and break the footnote's link. Hyphens are unreservedly valid in footnote
-  labels everywhere, as are lowercase alpha suffixes; pin `[^mud-a]` with a
-  fixture.
+- **C1 — footnote-label portability.** The label prefix is `comment-` (hyphen
+  before an alpha suffix). Hyphens and lowercase alpha are unreservedly valid
+  in footnote labels everywhere; pin `[^comment-a]` with a fixture and confirm
+  GitHub/Gist don't mangle the anchor id (the colon-encoding bug that ruled out
+  `mud:` doesn't apply to a hyphen).
 - **C2 — sandbox write access.** The read-write entitlement plus
   security-scoped access actually permit writing the user-opened file in a
   sandboxed build.
 - **C3 — self-write vs. external edit.** Watcher suppression ignores _our_
   write but still catches a near-simultaneous agent edit (no missed reloads, no
   flicker).
-- **C4 — byte-surgical fidelity.** Insert/update/delete preserve line endings,
+- **C4 — byte-surgical fidelity.** Insert/rewrite/delete preserve line endings,
   trailing-newline state, and all untouched bytes; diffs stay minimal.
-- **C5 — DOM re-anchoring.** Flat-text quote matching → `Range` → per-slice
-  `<mark>` is correct across inline elements (bold/links/code spans) **and**
-  block boundaries (a cross-paragraph selection highlights both runs), under
-  zoom; the wrong span is never highlighted and the slices read as one
-  highlight.
+- **C5 — DOM re-anchoring.** The backward walk of `quotation.length` chars from
+  the marker → `Range` → per-slice `<mark>` is correct across inline elements
+  (bold/links/code spans) **and** block boundaries (a cross-paragraph selection
+  highlights both runs), under zoom; a non-matching run yields no highlight
+  (never the wrong one), and the slices read as one highlight.
+- **C5b — insert-time inline sourcepos.** cmark reports usable **per-node**
+  source positions for inline nodes under `CMARK_OPT_SOURCEPOS`, so the
+  selection-end DOM point maps to the correct source byte (mid-paragraph,
+  through emphasis/links/code spans). If inline sourcepos proves unreliable,
+  fall back to inserting the marker at the block end (degrading the highlight
+  to block granularity for that comment).
 - **C6 — concurrent agent edit during authoring.** A file change between
-  selection and save routes to the orphan path rather than corrupting the file
-  or clobbering the agent's edit.
-- **C7 — `<q>` portability + escaping.** A quote containing `"`, `<`, `&`, or
-  `</q>` round-trips intact, and `<q>` plus its quote text survive GitHub's
-  sanitizer (tag allowlisted, `data-mud-*` stripped) so the quote shows and the
-  metadata stays hidden.
+  selection and save routes to the unanchored path rather than corrupting the
+  file or clobbering the agent's edit.
+- **C7 — codec renders in a basic footnote viewer.** Pin the `comments-spec.md`
+  examples in a GitHub Gist and confirm: the leading blockquote shows the
+  quotation, each `💬 <author> (<timestamp>):` line shows attribution, the
+  commentary (any Markdown) renders, and the footnote back-links work. There
+  are no HTML tags to be stripped; the only non-ASCII is the `💬` glyph, which
+  renders as an emoji everywhere.
 - **C8 — comment/footnote numbering interplay.** In a document mixing authorial
   footnotes and comments, Mud's footnote display numbers count only authorial
   references (comments occupy no number and leave no gap); the Comments and
   Footnotes sections number independently.
-- **C9 — wrapped definition parses.** cmark accepts the line-wrapped definition
-  — an inline `<q>` open tag whose attributes span four-space-indented
-  footnote-continuation lines (one newline between attributes, no blank line),
-  with the quote and body soft-wrapping after it — and the round-tripped
-  `quote` is unchanged. If it doesn't, fall back to keeping the whole `<q …>`
-  tag on the marker line.
+- **C9 — attribution + timestamp grammar.** `parseAttribution` peels
+  `[💬 ]<author> (<timestamp>)[:]` from a message's first paragraph only when
+  the parenthetical parses as `YYYY-MM-DD HH:MM[:SS]` (space-separated, seconds
+  optional): `JP (2026-06-01 18:33):` → author + created; the no-colon variant
+  (`comment-g`) parses the same; `A quoted comment, no properties.` → no
+  author/created, whole text is body. A bare `Author (timestamp):` line **not**
+  preceded by `💬` does not start a new message (`comment-e`).
+- **C10 — `💬`/blockquote codec parses + is formatter-safe.** The root quotation
+  is the leading blockquote; messages split at **paragraph-initial** `💬`; a `💬`
+  in running prose never splits (it isn't paragraph-initial, and reflow can't
+  promote it — `comment-f`).
+  `parse(serialize(quotation, messages)) == (quotation, messages)` round-trips
+  quotation, authors, createds, and bodies (including a reply whose body is
+  itself a blockquote). Because the codec is **pure block structure with no
+  hard breaks**, `odmarkdown -w` is idempotent on the fixtures under both the
+  previous and current formatter — **no exemption needed**. The worked examples
+  and their expected properties are pinned in `Doc/Examples/comments-spec.md`.
 
 
 ## Verification
@@ -518,58 +659,84 @@ fixture (below) reference.
 Build (user runs in the macOS VM): `cd Core && swift build`, then `swift test`;
 then open `Mud.xcodeproj`, re-resolve packages, build the app.
 
-A fixture document `Doc/Examples/comments.md` (new) holds hand-written comment
-footnotes for parsing/render/orphan tests and manual E2E — including a normal
-comment, two comments on the same block, an authorial footnote alongside a
-comment (to test classification and the numbering interplay), and one
-**orphaned** comment whose `quote` does not occur in the body. Comment labels
-use the alpha scheme (`mud-a`, `mud-b`, …).
+The grammar spec `Doc/Examples/comments-spec.md` holds one worked example per
+case with the exact properties it must parse to: a bare comment (`comment-a`),
+a quoted comment (`comment-b`), an attributed comment (`comment-c`), a thread
+with a reply that quotes the prior message (`comment-d`), a "looks threaded but
+isn't" single comment (`comment-e`), a `💬`-in-prose decoy (`comment-f`), a
+no-colon header (`comment-g`), and a general-and-threaded comment
+(`comment-h`). The unit tests below assert each example parses to its stated
+properties. **Extend the matrix** with: an authorial `[^1]` footnote alongside
+a comment (numbering interplay), two comments on the same block, and a comment
+whose quotation does **not** occur in the document (general/unanchored at
+render).
 
 **Core unit tests** (`Core/Tests/CommentTests.swift`, new):
 
-- classification: `mud-a` + a leading `data-mud-comment` `<q>` → comment;
-  `mud-a` without the `<q>`, or such a `<q>` on a non- `mud-` label → authorial
-  footnote. A `data-mud-comment` with an empty/garbage value → still a comment,
-  `created == nil`.
-- numbering interplay: a document with `[^1]`, `[^mud-a]`, `[^2]` → authorial
+- classification: any `^comment-\w+$` label → comment (with or without a
+  leading blockquote or `💬`); the same body on a non- `comment-` label →
+  authorial footnote.
+- quotation: a leading blockquote → `quotation`; no leading blockquote → nil
+  (general); a blockquote **after** a `💬` belongs to that message's body, not
+  the quotation (`comment-d`).
+- attribution + timestamp grammar (C9): `comment-c`/ `comment-g`/ `comment-e`
+  cases; no-colon header; a parenthetical that isn't a timestamp → no author,
+  whole paragraph is body.
+- message splitting: a `💬`-initial paragraph opens a message; a `💬` in running
+  prose does **not** (`comment-f`); a bare `Author (ts):` without `💬` does
+  **not** (`comment-e`); no `💬` at all → one author-less message.
+- numbering interplay (C8): `[^1]`, `[^comment-a]`, `[^2]` → authorial
   footnotes render as 1 and 2 (comment occupies no number, no gap).
-- markup codec: round-trip a quote containing `"`, `<`, `&`, and `</q>`; the
-  quote and attributes split back out of the body cleanly. A **line-wrapped**
-  definition (attributes/quote/body across four-space continuation lines)
-  parses to the same `quote`, `created`, `author`, and `body` as its
-  single-line form.
-- `nextLabel`: empty source → `a`; `a`… `z` → `za`; `zz` → `zza`; gapped /
-  out-of-order scheme-valid labels → greatest incremented; anomalous
-  hand-authored labels ignored as the basis (`{a, b, ya}` → `c`; `{a, aa}` →
-  `b`); a document of only anomalies → `a`.
-- `insert`: marker lands at the right block end; definition appended to the
-  Comments group; the new label comes from `nextLabel`; existing markers and
-  definitions are byte-for-byte untouched (no renumber).
-- `update` / `delete` by `label`; delete removes both marker and definition and
-  leaves the label gap; other comments untouched.
-- orphan: a definition whose quote is absent parses with `isOrphaned == true`.
+- codec round-trip (C10):
+  `parse(serialize(quotation, messages)) == (quotation, messages)` for the
+  general, quoted, attributed, threaded, and reply-with-a-blockquote cases; a
+  reflowed (`odmarkdown`-formatted) body parses identically to the canonical
+  one.
+- spec conformance: a table-driven test mirroring `comments-spec.md`'s examples
+  asserts each parses to its declared properties.
+- `nextLabel`: empty source → `comment-a`; `…a … z` → `comment-za`; `zz` →
+  `comment-zza`; gapped / out-of-order scheme-valid labels → greatest
+  incremented; anomalous labels ignored as basis (`{a, b, ya}` → `c`; `{a, aa}`
+  → `b`; only `comment-1`/ `comment-foo` present → `a`).
+- `insert`: marker lands at the **selection-end byte** (mid-paragraph, right
+  where the quotation ends — not the block end), including a selection ending
+  inside inline markup; definition appended to the Comments group; the new
+  label comes from `nextLabel`; existing markers and definitions are
+  byte-for-byte untouched (no renumber).
+- `rewrite` (edit/reply) and `delete` by `label`: reply appends a `💬` message;
+  edit changes one body; delete removes both marker and definition and leaves
+  the label gap; quotation and other comments untouched.
+- general/unanchored: a comment with no quotation, and a comment whose
+  quotation is absent from the document, both parse normally and produce no
+  document highlight in render.
 - export render (`renderUpModeDocument`, `.section`): output has
   `<section class="comments"` _after_ any footnotes section, with
-  `<li id="cmt-a"`.
+  `<li id="cmt-comment-a"`.
 
-**End-to-end** (open `Doc/Examples/comments.md`, then a scratch file, in Mud,
-Up mode):
+**End-to-end** (open `Doc/Examples/comments-spec.md`, then a scratch file, in
+Mud, Up mode):
 
 - select text → "Add Comment…" → editor → save → a `[⋯]` marker appears
   (highlight only on hover), a sidebar row appears, and the file gains a
-  `[^mud-<label>]` marker + definition (minimal diff: only the new marker and
-  definition change).
-- edit a comment → body updates, single-definition diff; delete → marker and
-  definition removed, other comments' labels untouched (gap left).
+  `[^comment-<label>]` marker + definition (minimal diff: only the new marker
+  and definition change).
+- reply in the editor → a second `💬` message appends to the same definition
+  (single-definition diff); edit a body → single-definition diff; delete →
+  marker and definition removed, other comments' labels untouched (gap left).
 - with the document open, edit the underlying text externally (simulating the
-  agent) to break a quote → on reload the comment shows as orphaned, no data
-  lost; break it back → it re-anchors.
+  agent) to break a quotation → on reload the comment shows unanchored (in the
+  sidebar and section, no document highlight), no data lost; restore the text →
+  it re-anchors.
 - the highlight is hidden until the `[⋯]` marker is hovered, then reveals as a
-  bright-yellow background that lands correctly when the quote spans
+  bright-yellow background that lands correctly when the quotation spans
   bold/links/code spans, and when the selection crosses a paragraph break (both
   runs highlighted, marker in the end block).
+- the `comment-d` thread renders as a flat sequence of messages with
+  per-message attribution; the reply that quotes JP shows its quote as a
+  blockquote, not a document highlight.
 - Cmd+P / Save-PDF → Comments section appears last in the PDF.
-- toggle to Down mode → raw `[^mud-a]` + metadata shown, unchanged.
+- toggle to Down mode → raw `[^comment-a]` + `> quotation` +
+  `💬 author (timestamp):` shown, unchanged.
 
 **Export:**
 

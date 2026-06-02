@@ -148,6 +148,10 @@ html:not(.has-word-wrap) .down-lines {
 .md-footnote-def  { color: var(--link-color); }
 .md-image     { color: var(--syntax-constant); }
 .md-blockquote  { color: var(--syntax-comment); font-style: italic; }
+.md-strikethrough {
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, currentColor 30%, transparent);
+}
 
 /* Alert tag colorization */
 .md-alert-note .md-alert-tag    { color: var(--alert-note-border);    font-style: normal; font-weight: bold; }

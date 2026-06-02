@@ -22,8 +22,8 @@ So comments are stored **inside the Markdown file, as standard GFM footnotes**.
 The key idea is deliberately small and **not Mud-specific** — it's a convention
 any tool (or human, or agent) can read and write by hand:
 
-> A footnote is a comment **iff its label matches `^comment-\w+$`**. Its body
-> may open with a **blockquote** holding the quoted text; each message is
+> A footnote is a comment **iff its label matches `^comment-[\w-]+$`**. Its
+> body may open with a **blockquote** holding the quoted text; each message is
 > introduced by `💬 <author> (<timestamp>)`. No blockquote ⇒ a "general"
 > (unanchored) comment; more than one `💬` message ⇒ a thread.
 
@@ -67,7 +67,7 @@ that plan's `FootnoteProcessor`, cmark glue, and export-section machinery.
 These were settled during design; the implementation below assumes them.
 
 - **Classifier is the label alone.** A footnote is a comment iff its label
-  matches `^comment-\w+$`. No secondary signal is required — the `comment-`
+  matches `^comment-[\w-]+$`. No secondary signal is required — the `comment-`
   prefix _is_ the statement of intent. Everything else is **optional**: a bare
   `[^comment-a]: just an observation.` (no quotation, no attribution) is a
   perfectly valid comment (spec example `comment-a`).
@@ -86,7 +86,10 @@ These were settled during design; the implementation below assumes them.
   no attribution and the whole paragraph is commentary. So
   `JP (2026-06-01 18:33): …` → author `JP`, created set;
   `A quoted comment, no properties.` → no author, no created. Attribution is
-  peeled only from a message's **first** paragraph.
+  peeled only from a message's **first** paragraph. Timestamps are **local
+  wall-clock** (formatted and parsed in the local zone, no offset stored);
+  `created` is an absolute `Date`, so a reader in another time zone sees the
+  shifted wall-clock — acceptable for v1.
 
 - **Threads are `💬`-delimited messages.** A new message opens at every
   **paragraph that begins with `💬`**; its body runs to the next such paragraph
@@ -111,14 +114,12 @@ These were settled during design; the implementation below assumes them.
   even a single one), alone on its line, with the commentary starting in a
   **new block** below it; four-space-indented continuation; lines under 79
   characters — but Mud _accepts_ anything the convention allows: any
-  `^comment-\w+$` label, any whitespace, a missing `💬`/author/timestamp/colon,
-  inline commentary on the header line, the blockquote on the marker line or
-  below it. Two consequences of the "new block" rule: a message's commentary
-  may be **any** Markdown (a blockquote, list, code block — it isn't trapped
-  inline after the colon), and the whole codec is **pure block structure with
-  no hard breaks**, so a Markdown formatter (`odmarkdown`) can reflow the body
-  freely and round-trips it idempotently (no exemption needed — see _Risks
-  C10_).
+  `^comment-[\w-]+$` label, any whitespace, a missing
+  `💬`/author/timestamp/colon, inline commentary on the header line, the
+  blockquote on the marker line or below it. Two consequences of the "new
+  block" rule: a message's commentary may be **any** Markdown (a blockquote,
+  list, code block — it isn't trapped inline after the colon), and the whole
+  codec is **pure block structure with no hard breaks**.
 
 - **Labelling.** The label suffix is an **alpha token allocated in insertion
   order** — the next label is the lexicographically greatest existing
@@ -157,7 +158,7 @@ The on-disk grammar — one worked example per case with the exact properties it
 parses to — is pinned in `Doc/Examples/comments-spec.md`, the canonical spec.
 This section summarizes it.
 
-A comment is a footnote whose label matches `^comment-\w+$`. Its definition
+A comment is a footnote whose label matches `^comment-[\w-]+$`. Its definition
 body is, in order:
 
 1. an **optional leading blockquote** — the **quotation** (the document text
@@ -200,11 +201,16 @@ Three things the format gives up by construction — no microformat, nothing to
 escape, nothing whitespace-fragile:
 
 - **General = no blockquote.** There is no `…` sentinel; absence of a quotation
-  _is_ "general."
+  _is_ "general." Corollary: a leading blockquote is **always** read as the
+  quotation, so a hand-authored general comment whose body opens with a
+  blockquote (and carries no `💬`) reads as anchored, not general. Mud's strict
+  write avoids this by always emitting the `💬` header first; the tie-break is
+  deliberate.
 - **Attribution is visible Markdown** (`💬 Author (timestamp):`), not a hidden
   `title` attribute.
 - **Messages are blank-line-separated blocks.** No hard breaks, no trailing
-  whitespace — so the codec is immune to Markdown reflow (see _Risks C10_).
+  whitespace, no microformat — just paragraphs and blockquotes (see _Risks
+  C10_).
 
 Core model (new `Core/Sources/Comments/Comment.swift`):
 
@@ -239,11 +245,11 @@ allocated in insertion order and used purely as a stable join-key.
 Two concerns, kept separate:
 
 1. **Read path** — extend `FootnoteProcessor` to _classify_ comment definitions
-   (label `^comment-\w+$`) apart from authorial footnotes, render each comment
-   reference as a `[⋯]` marker (instead of a numbered superscript), parse each
-   definition body into a `quotation` plus an ordered `[CommentMessage]`, and
-   surface a `[Comment]` list alongside the existing footnote list. Pure,
-   testable, shared by app and export.
+   (label `^comment-[\w-]+$`) apart from authorial footnotes, render each
+   comment reference as a `[⋯]` marker (instead of a numbered superscript),
+   parse each definition body into a `quotation` plus an ordered
+   `[CommentMessage]`, and surface a `[Comment]` list alongside the existing
+   footnote list. Pure, testable, shared by app and export.
 2. **Write path** — a pure Core `CommentEditor` that rewrites a source `String`
    (insert / rewrite-body / delete) by byte range, plus an app-side
    `CommentController` that orchestrates re-read, atomic write, and watcher
@@ -350,17 +356,28 @@ independently) is the planned robustness upgrade.
 processor (from the Footnotes plan):
 
 - **Classify before numbering.** A definition is a **comment** iff its label
-  matches `^comment-\w+$`; otherwise it's an authorial footnote. Footnote
+  matches `^comment-[\w-]+$`; otherwise it's an authorial footnote. Footnote
   display numbers are assigned in first-reference order over **authorial**
   references only; comment references are diverted to the `[⋯]` marker path and
   never increment the footnote counter. So `[^1]`, `[^comment-a]`, `[^2]`
   renders in Mud as footnotes 1 and 2 (the comment occupying no number, leaving
   no gap) — even though a foreign renderer like GitHub, which numbers every
   reference by appearance, would show 1, 2, 3.
+
+  - **This means abandoning cmark's reference numbers.** The current `process`
+    reads each marker's display number straight from
+    `cmark_node_get_literal(refNode)`, but cmark numbers **every** footnote
+    reference — comments included — so `[^1] [^comment-a] [^2]` arrives as
+    1/2/3 and `[^2]` would render as 3. Replace that read with a Mud-assigned
+    counter incremented in first-reference order over **authorial** refs only
+    (comment refs skipped). The per-occurrence back-reference id
+    (`id="fnref-N-K"`) re-keys off this Mud number, not cmark's.
+
 - Comment references emit the `[⋯]` marker (above) instead of the `<sup>`
   footnote marker; comment definitions are removed from the body like footnote
   definitions. Only **defined** comment labels become markers; a dangling
   `[^comment-x]` stays literal, exactly as for dangling footnotes.
+
 - For each comment definition, parse the body into a `quotation` plus an
   ordered `[CommentMessage]` via `CommentSerialization.parse` and build a
   `Comment` (`label`, `ordinal` = document-order index, `quotation`,
@@ -373,8 +390,9 @@ codec for definition bodies, no IO:
 ```swift
   enum CommentSerialization {
       // Read: structure a comment definition's body blocks into the root
-      // quotation and ordered messages.
-      static func parse(_ blocks: [Block]) -> (quotation: String?, messages: [CommentMessage])
+      // quotation and ordered messages. `blocks` are swift-markdown `BlockMarkup`
+      // from re-parsing the definition's de-indented `bodyMarkdown` (see below).
+      static func parse(_ blocks: [BlockMarkup]) -> (quotation: String?, messages: [CommentMessage])
       // Write: render quotation + messages into Mud's strict canonical body
       // (leading blockquote for the quotation; one "💬 Author (timestamp):"
       // header per message, alone on its line; commentary in a following block).
@@ -390,7 +408,13 @@ codec for definition bodies, no IO:
   }
 ```
 
-- `parse` consumes the definition's child blocks (from the shared cmark parse):
+- `parse` consumes the definition's body blocks. These come from re-parsing the
+  footnote definition's **de-indented `bodyMarkdown`** (the clean CommonMark
+  the shared cmark parse already produces via `renderDefinitionBody`) with
+  **swift-markdown** into `[BlockMarkup]`. This is safe precisely because the
+  body is already de-indented: the swift-markdown multi-paragraph misparse that
+  forced cmark for _footnote_ bodies doesn't bite a pre-normalized string, so
+  the codec stays pure, testable Swift with no C-interop. From those blocks:
   (1) a **leading blockquote**, if present, becomes `quotation` (flattened,
   whitespace-collapsed); otherwise `quotation` is nil. (2) The remaining blocks
   are split into messages at each **paragraph whose first character is `💬`**; a
@@ -401,9 +425,8 @@ codec for definition bodies, no IO:
   remaining text + blocks become `body` (Markdown). A `💬` that is not
   paragraph-initial is ordinary prose and never splits.
 - `serialize` is the strict inverse used on write;
-  `parse(serialize(q, xs)) == (q, xs)` is the round-trip invariant. Because the
-  output is plain block structure (no hard breaks), it survives Markdown reflow
-  unchanged.
+  `parse(serialize(q, xs)) == (q, xs)` is the round-trip invariant. The output
+  is plain block structure (no hard breaks): just paragraphs and blockquotes.
 
 **`Core/Sources/Comments/CommentEditor.swift`** (new) — pure source rewriting,
 no IO:
@@ -575,10 +598,14 @@ blockquote-and- `💬` source is what Down mode and foreign renderers show.
 
 ### Down mode, Quick Look, CLI
 
-- **Down mode** is unchanged: it shows raw source, so `[^comment-a]` and the
-  definition (the `> quotation` blockquote and the `💬 <author> (<timestamp>):`
-  headers) are displayed literally and honestly — already clean Markdown, with
-  no wrapper element to dim.
+- **Down mode** needs no comment-specific code, because comment definitions
+  _are_ footnotes: `scan` already classifies `[^comment-a]` references and
+  their definition blocks (the `> quotation` blockquote and the
+  `💬 <author> (<timestamp>):` headers) by cmark footnote node, so they pick up
+  the existing `md-footnote-ref` / `md-footnote-def` highlighting and body
+  re-parse for free. v1 styles them **identically to authorial footnotes** (no
+  distinct comment treatment in Down mode); the raw source is displayed
+  literally and honestly, with no wrapper element to dim.
 - **Quick Look** and the **CLI** use the String export API (`.section`), so
   comments appear as the bottom Comments section automatically. Neither writes
   comments — authoring is GUI-only.
@@ -597,6 +624,15 @@ spec `Doc/Examples/comments-spec.md`.
 
 
 ## Risks to verify at build time
+
+**Spike C2 and C5b first — they gate the rest.** Sandbox write access (C2) and
+the selection-DOM → source-byte mapping (C5b) are the two long poles; prototype
+both before building the editor UI or sidebar. If sandbox writes fail,
+authoring on the MAS build can't work as designed; if inline sourcepos can't
+place the marker mid-paragraph, comments fall back to block-granularity
+anchoring. The processor already proves usable inline sourcepos exists — it
+reads and validates each footnote reference's source columns today
+(`delimitsFootnoteRef`) — so C5b is mapping work, not a capability unknown.
 
 - **C1 — footnote-label portability.** The label prefix is `comment-` (hyphen
   before an alpha suffix). Hyphens and lowercase alpha are unreservedly valid
@@ -642,16 +678,13 @@ spec `Doc/Examples/comments-spec.md`.
   (`comment-g`) parses the same; `A quoted comment, no properties.` → no
   author/created, whole text is body. A bare `Author (timestamp):` line **not**
   preceded by `💬` does not start a new message (`comment-e`).
-- **C10 — `💬`/blockquote codec parses + is formatter-safe.** The root quotation
-  is the leading blockquote; messages split at **paragraph-initial** `💬`; a `💬`
-  in running prose never splits (it isn't paragraph-initial, and reflow can't
-  promote it — `comment-f`).
+- **C10 — `💬`/blockquote codec parses.** The root quotation is the leading
+  blockquote; messages split at **paragraph-initial** `💬`; a `💬` in running
+  prose never splits (it isn't paragraph-initial — `comment-f`).
   `parse(serialize(quotation, messages)) == (quotation, messages)` round-trips
   quotation, authors, createds, and bodies (including a reply whose body is
-  itself a blockquote). Because the codec is **pure block structure with no
-  hard breaks**, `odmarkdown -w` is idempotent on the fixtures under both the
-  previous and current formatter — **no exemption needed**. The worked examples
-  and their expected properties are pinned in `Doc/Examples/comments-spec.md`.
+  itself a blockquote). The worked examples and their expected properties are
+  pinned in `Doc/Examples/comments-spec.md`.
 
 
 ## Verification
@@ -673,7 +706,7 @@ render).
 
 **Core unit tests** (`Core/Tests/CommentTests.swift`, new):
 
-- classification: any `^comment-\w+$` label → comment (with or without a
+- classification: any `^comment-[\w-]+$` label → comment (with or without a
   leading blockquote or `💬`); the same body on a non- `comment-` label →
   authorial footnote.
 - quotation: a leading blockquote → `quotation`; no leading blockquote → nil
@@ -689,9 +722,7 @@ render).
   footnotes render as 1 and 2 (comment occupies no number, no gap).
 - codec round-trip (C10):
   `parse(serialize(quotation, messages)) == (quotation, messages)` for the
-  general, quoted, attributed, threaded, and reply-with-a-blockquote cases; a
-  reflowed (`odmarkdown`-formatted) body parses identically to the canonical
-  one.
+  general, quoted, attributed, threaded, and reply-with-a-blockquote cases.
 - spec conformance: a table-driven test mirroring `comments-spec.md`'s examples
   asserts each parses to its declared properties.
 - `nextLabel`: empty source → `comment-a`; `…a … z` → `comment-za`; `zz` →

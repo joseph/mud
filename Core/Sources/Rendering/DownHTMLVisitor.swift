@@ -71,12 +71,34 @@ public struct DownHTMLVisitor: Sendable {
             separator: "\n", omittingEmptySubsequences: false
         ).map { Array($0.utf8) }
 
+        // swift-markdown is footnote-unaware: it misreads definition bodies as
+        // indented code blocks and leaves references / markers unhighlighted.
+        // A `cmark-gfm` scan supplies the structure Down mode needs.
+        let layout = FootnoteProcessor.scan(markdown)
+
         var alertDetector = AlertDetector()
         alertDetector.docCAlertMode = docCAlertMode
         var collector = EventCollector(sourceLines: sourceLines)
         collector.alertDetector = alertDetector
+        collector.footnoteDefRanges =
+            layout.defs.map { $0.startLine...$0.endLine }
         collector.visit(doc)
         var events = collector.events
+
+        // Footnote markers, references, and re-parsed definition bodies.
+        for ref in layout.refs {
+            events += Self.footnoteSpan(
+                "md-footnote-ref", line: ref.line,
+                openColumn: ref.startColumn, closeColumn: ref.endColumn + 1)
+        }
+        for def in layout.defs {
+            events += Self.footnoteSpan(
+                "md-footnote-def", line: def.startLine,
+                openColumn: def.startColumn, closeColumn: def.markerEndColumn)
+            events += subParseDefBody(
+                def, sourceLines: sourceLines, docCAlertMode: docCAlertMode)
+        }
+
         events.sort()
 
         // Phase 2: Render per-line HTML content strings.
@@ -91,6 +113,89 @@ public struct DownHTMLVisitor: Sendable {
 
         return HighlightResult(
             rendered: rendered, codeBlocks: collector.codeBlocks)
+    }
+
+    // MARK: - Footnotes
+
+    /// An open/close `SpanEvent` pair for a footnote marker or reference at an
+    /// explicit position. The high depth keeps it outermost; footnote spans
+    /// never share a column with a document span, so ordering is unaffected.
+    private static func footnoteSpan(
+        _ cssClass: String, line: Int,
+        openColumn: Int, closeColumn: Int
+    ) -> [SpanEvent] {
+        let depth: Int32 = 1_000
+        return [
+            SpanEvent(line: Int32(line), column: Int32(openColumn),
+                      isClose: false, depth: depth, cssClass: cssClass),
+            SpanEvent(line: Int32(line), column: Int32(closeColumn),
+                      isClose: true, depth: depth, cssClass: cssClass),
+        ]
+    }
+
+    /// Re-parses a footnote definition body as ordinary Markdown so its inline
+    /// and block constructs highlight like the rest of the document, returning
+    /// the span events translated back into original-source coordinates.
+    ///
+    /// The body is recovered by stripping the `[^label]:` marker from the
+    /// opener line and the shared continuation indent from the rest; each
+    /// stripped width is remembered per line so columns map back exactly.
+    /// Only the *events* are used — rendering still happens against the raw
+    /// source lines, so the verbatim indentation is preserved (and a fenced
+    /// code block inside a body is span-colored but not highlight.js-rendered).
+    private func subParseDefBody(
+        _ def: FootnoteLayout.Def,
+        sourceLines: [[UInt8]],
+        docCAlertMode: DocCAlertMode
+    ) -> [SpanEvent] {
+        var bodyLines: [[UInt8]] = []
+        var origLine: [Int] = []
+        var colOffset: [Int] = []
+
+        for line in def.startLine...def.endLine {
+            let idx = line - 1
+            guard idx >= 0, idx < sourceLines.count else { continue }
+            let bytes = sourceLines[idx]
+            let drop = line == def.startLine
+                ? min(def.contentStartColumn - 1, bytes.count)
+                : Self.leadingWhitespace(bytes, max: def.contentIndent)
+            bodyLines.append(Array(bytes[drop...]))
+            origLine.append(line)
+            colOffset.append(drop)
+        }
+        guard !bodyLines.isEmpty else { return [] }
+
+        let body = bodyLines
+            .map { String(decoding: $0, as: UTF8.self) }
+            .joined(separator: "\n")
+        let doc = MarkdownParser.parse(body)
+        var alertDetector = AlertDetector()
+        alertDetector.docCAlertMode = docCAlertMode
+        var collector = EventCollector(sourceLines: bodyLines)
+        collector.alertDetector = alertDetector
+        collector.visit(doc)
+
+        return collector.events.compactMap { ev in
+            let i = Int(ev.line) - 1
+            guard i >= 0, i < origLine.count else { return nil }
+            return SpanEvent(
+                line: Int32(origLine[i]),
+                column: ev.column + Int32(colOffset[i]),
+                isClose: ev.isClose, depth: ev.depth,
+                cssClass: ev.cssClass)
+        }
+    }
+
+    /// Count of leading whitespace bytes — space or tab, each one byte —
+    /// capped at `max`. Byte-counted (never exceeds the line length) so the
+    /// stripped width maps cleanly back to source columns.
+    private static func leadingWhitespace(_ bytes: [UInt8], max cap: Int) -> Int {
+        var n = 0
+        for b in bytes {
+            if n >= cap || (b != 0x20 && b != 0x09) { break }
+            n += 1
+        }
+        return n
     }
 
     // MARK: - SpanEvent
@@ -133,6 +238,15 @@ public struct DownHTMLVisitor: Sendable {
         var codeBlocks: [CodeBlockInfo] = []
         var alertDetector = AlertDetector()
 
+        /// Inclusive source-line ranges of footnote definition blocks. The main
+        /// parse misreads their bodies, so all events inside are suppressed and
+        /// replaced by a dedicated body re-parse (see `subParseDefBody`).
+        var footnoteDefRanges: [ClosedRange<Int>] = []
+
+        private func inFootnoteDef(_ line: Int) -> Bool {
+            footnoteDefRanges.contains { $0.contains(line) }
+        }
+
         // -- Container nodes --
 
         mutating func visitHeading(_ heading: Heading) {
@@ -140,6 +254,8 @@ public struct DownHTMLVisitor: Sendable {
         }
 
         mutating func visitBlockQuote(_ blockQuote: BlockQuote) {
+            if let range = blockQuote.range,
+               inFootnoteDef(range.lowerBound.line) { return }
             let depth = Self.nodeDepth(blockQuote)
             if let (category, _) = alertDetector.detectGFMAlert(blockQuote) {
                 emitContainer(blockQuote,
@@ -219,6 +335,8 @@ public struct DownHTMLVisitor: Sendable {
         }
 
         mutating func visitListItem(_ listItem: ListItem) {
+            if let range = listItem.range,
+               inFootnoteDef(range.lowerBound.line) { return }
             if listItem.checkbox != nil {
                 emitContainer(listItem, cssClass: "md-task")
             } else {
@@ -230,6 +348,9 @@ public struct DownHTMLVisitor: Sendable {
 
         mutating func visitCodeBlock(_ codeBlock: CodeBlock) {
             guard let range = codeBlock.range else { return }
+            // Suppress definition-body code blocks (the indented continuation
+            // misread) so they aren't styled or laid out as code.
+            if inFootnoteDef(range.lowerBound.line) { return }
             let depth = Self.nodeDepth(codeBlock)
             let fenceLen = measureFence(at: range.lowerBound)
 
@@ -336,6 +457,7 @@ public struct DownHTMLVisitor: Sendable {
                 descendInto(node)
                 return
             }
+            if inFootnoteDef(range.lowerBound.line) { return }
             let depth = Self.nodeDepth(node)
             events.append(SpanEvent(
                 line: Int32(range.lowerBound.line),
@@ -377,6 +499,7 @@ public struct DownHTMLVisitor: Sendable {
             _ node: some Markup, cssClass: String
         ) {
             guard let range = node.range else { return }
+            if inFootnoteDef(range.lowerBound.line) { return }
             let depth = Self.nodeDepth(node)
             events.append(SpanEvent(
                 line: Int32(range.lowerBound.line),

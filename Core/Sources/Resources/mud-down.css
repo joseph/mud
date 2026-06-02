@@ -144,6 +144,8 @@ html:not(.has-word-wrap) .down-lines {
 .md-emphasis  { font-style: italic; }
 .md-strong    { font-weight: bold; }
 .md-link    { color: var(--link-color); }
+.md-footnote-ref,
+.md-footnote-def  { color: var(--link-color); }
 .md-image     { color: var(--syntax-constant); }
 .md-blockquote  { color: var(--syntax-comment); font-style: italic; }
 .md-strikethrough {

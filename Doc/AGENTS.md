@@ -77,7 +77,14 @@ MVP plan.
 
 - `DocumentContentView.swift` — Main SwiftUI view for a document
 
-- `WebView.swift` — WKWebView wrapper, JS bridge
+- `WebView.swift` — WKWebView wrapper, JS bridge. Routes `mudOpen` (links) and
+  `mudFootnote` (footnote marker clicks → popover) messages; threads the
+  footnote popover map (label → HTML) into the coordinator
+
+- `FootnotePopover.swift` — `FootnotePopoverController`: a transient
+  `NSPopover` hosting a `WKWebView` that renders a footnote body as Up-mode
+  HTML, anchored at the clicked marker. Links inside route through the shared
+  `openURL` handler
 
 - `OutlineSidebarView.swift` — Table of contents sidebar
 
@@ -216,7 +223,8 @@ MVP plan.
 
 - `ParsedMarkdown.swift` — Parse-once handle: AST, headings, and title
 - `RenderExtension.swift` — Client-side rendering extension type and registry
-- `RenderOptions.swift` — Rendering configuration value type
+- `RenderOptions.swift` — Rendering configuration value type (includes
+  `footnoteMode`: `.section` for export, `.popover` for the live app)
 - `MudCore.swift` — Public API: rendering functions (String and ParsedMarkdown
   overloads), extractHeadings convenience
 - `Rendering/UpHTMLVisitor.swift` — AST → rendered HTML
@@ -224,6 +232,10 @@ MVP plan.
 - `Rendering/HTMLDocument.swift` — Structured HTML document builder
 - `Rendering/HTMLTemplate.swift` — Document wrapping and resource loading
 - `Rendering/MarkdownParser.swift` — swift-cmark wrapper
+- `Rendering/FootnoteProcessor.swift` — Parses raw source with `cmark-gfm`
+  (`CMARK_OPT_FOOTNOTES | CMARK_OPT_SOURCEPOS`) and rewrites it for the
+  swift-markdown pipeline: `[^ref]` → inline-HTML marker, definitions removed,
+  bodies returned as clean Markdown
 - `Rendering/SlugGenerator.swift` — Heading ID generation
 - `Rendering/HeadingExtractor.swift` — Heading extraction for sidebar
 - `Rendering/CodeHighlighter.swift` — Syntax highlighting via highlight.js
@@ -301,11 +313,13 @@ MVP plan.
 **Resources:**
 
 - `mud.css` — Shared styles and lighting variables
-- `mud-up.css` — Up mode styles
+- `mud-up.css` — Up mode styles (incl. footnote ref/section/backref styling and
+  the `is-print-only` rule)
 - `mud-down.css` — Down mode styles
 - `mud.js` — Shared JS: find, scroll, lighting, zoom
 - `mud-changes.js` — Change tracking JS: overlays, expand/collapse, navigation
-- `mud-up.js` — Up-mode JS
+- `mud-up.js` — Up-mode JS (incl. the footnote-marker click handler that posts
+  to `mudFootnote`)
 - `mud-down.js` — Down-mode JS
 - `emoji.json` — GitHub gemoji shortcode database
 - `alert-*.svg` — Octicon alert icons (note, tip, important, warning, caution,
@@ -366,7 +380,15 @@ field on the struct.
 
 MudCore exposes: `renderUpToHTML(_:options:)`, `renderDownToHTML(_:options:)`,
 `renderUpModeDocument(_:options:)`, `renderDownModeDocument(_:options:)`,
-`extractHeadings(_:)`.
+`renderUpModeDocumentWithFootnotes(_:options:)`, `extractHeadings(_:)`.
+
+Footnotes are preprocessed at the **String** boundary (sourcepos needs raw
+bytes): `FootnoteProcessor` rewrites `[^ref]` to inline-HTML markers and strips
+definitions before `ParsedMarkdown` parsing. The bottom
+`<section class="footnotes">` is always emitted; in `.popover` mode it is
+hidden on screen (`is-print-only`, shown under `@media print`) and
+`renderUpModeDocumentWithFootnotes` additionally returns each footnote body as
+a self-contained document for the in-app `NSPopover`.
 
 
 ## State management

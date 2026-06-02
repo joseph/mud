@@ -111,6 +111,7 @@ struct WebView: NSViewRepresentable {
     var reloadID: UUID?
     var printID: UUID?
     var extensions: Set<String> = []
+    var footnoteHTML: [String: String] = [:]
     var onSearchResult: ((MatchInfo?) -> Void)?
 
     func makeNSView(context: Context) -> WKWebView {
@@ -136,6 +137,7 @@ struct WebView: NSViewRepresentable {
         }
 
         config.userContentController.add(context.coordinator, name: "mudOpen")
+        config.userContentController.add(context.coordinator, name: "mudFootnote")
 
         let webView = MudWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
@@ -150,6 +152,7 @@ struct WebView: NSViewRepresentable {
 
     func updateNSView(_ webView: WKWebView, context: Context) {
         context.coordinator.onSearchResult = onSearchResult
+        context.coordinator.footnoteHTML = footnoteHTML
 
         // Handle search
         if let query = searchQuery,
@@ -274,9 +277,11 @@ struct WebView: NSViewRepresentable {
         var lastReloadID: UUID?
         var activeExtensions: [RenderExtension] = []
         var onSearchResult: ((MatchInfo?) -> Void)?
+        var footnoteHTML: [String: String] = [:]
         weak var webView: WKWebView?
         private var savedFraction: CGFloat?
         private let baseURL: URL?
+        private lazy var footnotePopover = FootnotePopoverController()
 
         init(baseURL: URL?) {
             self.baseURL = baseURL
@@ -341,16 +346,28 @@ struct WebView: NSViewRepresentable {
             }
         }
 
-        // MARK: WKScriptMessageHandler — link routing from JS
+        // MARK: WKScriptMessageHandler — link routing and footnotes from JS
 
         func userContentController(
             _ controller: WKUserContentController,
             didReceive message: WKScriptMessage
         ) {
-            guard message.name == "mudOpen",
-                  let urlString = message.body as? String,
-                  let url = URL(string: urlString) else { return }
+            switch message.name {
+            case "mudOpen":
+                if let urlString = message.body as? String,
+                   let url = URL(string: urlString) {
+                    openURL(url)
+                }
+            case "mudFootnote":
+                presentFootnote(message.body)
+            default:
+                break
+            }
+        }
 
+        /// Routes a link: local `.md`/`.markdown` open a new Mud document;
+        /// everything else goes to the system handler (browser, etc.).
+        func openURL(_ url: URL) {
             let mdExtensions = ["md", "markdown"]
             if url.isFileURL, mdExtensions.contains(url.pathExtension.lowercased()) {
                 NSDocumentController.shared.openDocument(
@@ -359,6 +376,34 @@ struct WebView: NSViewRepresentable {
             } else {
                 NSWorkspace.shared.open(url)
             }
+        }
+
+        /// Shows the footnote popover anchored at the clicked marker. `body` is
+        /// the JS payload `{label, num, rect:{x,y,width,height}}` where the rect
+        /// is in zoom-normalized CSS pixels with a top-left origin.
+        private func presentFootnote(_ body: Any) {
+            guard let dict = body as? [String: Any],
+                  let label = dict["label"] as? String,
+                  let rectDict = dict["rect"] as? [String: Any],
+                  let html = footnoteHTML[label.lowercased()],
+                  let webView = webView else { return }
+
+            func value(_ key: String) -> CGFloat {
+                CGFloat((rectDict[key] as? Double) ?? 0)
+            }
+            let x = value("x"), y = value("y")
+            let w = value("width"), h = value("height")
+            // Web coords are top-left origin; flip into the WKWebView's AppKit
+            // space unless the view is already flipped.
+            let appKitY = webView.isFlipped
+                ? y
+                : webView.bounds.height - (y + h)
+            let anchor = NSRect(x: x, y: appKitY, width: w, height: h)
+
+            footnotePopover.show(
+                html: html, baseURL: baseURL,
+                relativeTo: anchor, of: webView,
+                onOpenURL: { [weak self] url in self?.openURL(url) })
         }
 
         // MARK: WKNavigationDelegate

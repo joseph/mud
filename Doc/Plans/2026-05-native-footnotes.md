@@ -1,7 +1,7 @@
 Plan: Native Footnotes
 ===============================================================================
 
-> Status: Planning
+> Status: Underway
 
 
 ## Context

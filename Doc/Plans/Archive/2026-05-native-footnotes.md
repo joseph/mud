@@ -1,7 +1,7 @@
 Plan: Native Footnotes
 ===============================================================================
 
-> Status: Underway
+> Status: Complete
 
 
 ## Context
@@ -97,14 +97,9 @@ works (browser / CLI / Quick Look).
 
 ### Core
 
-**`Core/Package.swift`** — add the dependency and link the C product:
-
-```swift
-.package(url: "https://github.com/swiftlang/swift-cmark.git", from: "0.7.0"),
-// MudCore target dependencies:
-.product(name: "cmark-gfm", package: "swift-cmark"),
-.product(name: "cmark-gfm-extensions", package: "swift-cmark"),
-```
+**`Core/Package.swift`** declares a direct dependency on
+`swiftlang/swift-cmark` and links two of its products into the `MudCore`
+target: `cmark-gfm` and `cmark-gfm-extensions`.
 
 Import in Swift as `import cmark_gfm` (modulemap module name). Footnotes
 themselves are a core _option flag_ (`CMARK_OPT_FOOTNOTES`), but footnote
@@ -128,19 +123,10 @@ later break when swift-markdown bumps cmark. The frozen version lives in the
 committed `Package.resolved` (currently 0.8.0) and only moves on a deliberate
 `swift package update`.
 
-**`Core/Sources/Rendering/FootnoteProcessor.swift`** (new). Public value types
-
-- an `enum FootnoteProcessor` with one entry point:
-
-```swift
-public struct FootnoteEntry: Sendable, Equatable {
-    public let label: String        // "1", "named", "long-name", …
-    public let number: Int          // 1-based, first-reference order
-    public let bodyMarkdown: String // clean, de-indented
-}
-struct FootnoteProcessingResult { let transformedMarkdown: String; let footnotes: [FootnoteEntry] }
-static func process(_ source: String, mode: FootnoteMode) -> FootnoteProcessingResult
-```
+**`Core/Sources/Rendering/FootnoteProcessor.swift`** (new) — an
+`enum FootnoteProcessor` whose `process(_:mode:)` entry point returns the
+transformed source plus the collected footnotes. Each footnote carries a label,
+a 1-based first-reference number, and the clean, de-indented body Markdown.
 
 Algorithm:
 
@@ -167,25 +153,18 @@ Algorithm:
    the range over the trailing newline / surrounding blank lines so no empty
    paragraph is left behind).
 
-Marker HTML (same in both modes so print/export anchors always resolve):
-
-```html
-<sup class="footnote-ref" id="fnref-N"><a href="#fn-N"
-  data-footnote-ref data-fn-label="LABEL" data-fn-num="N">N</a></sup>
-```
-
-(For the Kth>1 reference of a label use `id="fnref-N-K"` so back-references can
-target a specific occurrence.)
+Each defined reference becomes an inline-HTML `<sup class="footnote-ref">`
+marker carrying both a real `#fn-N` anchor (for print/export jumps) and
+`data-footnote-ref` / `data-fn-label` / `data-fn-num` attributes (for the
+in-app popover). The same marker serves both modes so print/export anchors
+always resolve; the Kth>1 reference of a label gets `id="fnref-N-K"` so
+back-references can target a specific occurrence.
 
 Memory: `cmark_node_get_literal` returns a node-owned pointer — copy into a
 Swift `String`, do **not** free. `cmark_render_commonmark` returns a malloc'd
 buffer the caller **must** `free()`.
 
-Add `FootnoteMode` (here or beside `RenderOptions`):
-
-```swift
-public enum FootnoteMode: String, Sendable, Equatable { case popover, section }
-```
+A `FootnoteMode` enum (`.popover` / `.section`) selects the output shape.
 
 **`Core/Sources/RenderOptions.swift`** — add
 `public var footnoteMode: FootnoteMode = .section` under "Markdown processing",
@@ -201,22 +180,14 @@ view opts into `.popover`.
   `renderUpBody(parsed:options:resolveImageSource:)` (visitor + frontmatter
   prefix) so it can be reused for footnote bodies.
 
-- New public type and entry point used by the app:
-
-  ```swift
-  public struct RenderedUpDocument: Sendable {
-      public let html: String
-      public let footnotes: [RenderedFootnote]   // label, number, popover html
-  }
-  public static func renderUpModeDocumentWithFootnotes(
-      _ source: String, options: RenderOptions = .init(),
-      resolveImageSource: ...) -> RenderedUpDocument
-  ```
-
-  It runs `FootnoteProcessor.process(source, mode: options.footnoteMode)`,
-  parses the transformed Markdown into a fresh `ParsedMarkdown`, renders the
-  body, **always** appends `renderFootnotesSection(entries, options)` (the
-  bottom `<section>`; given `is-print-only` when `mode == .popover`), wraps via
+- A new public
+  `renderUpModeDocumentWithFootnotes(_:options:resolveImageSource:)` entry
+  point returns a `RenderedUpDocument`: the wrapped HTML plus a
+  `[RenderedFootnote]` map (label → popover HTML) for the app. It runs
+  `FootnoteProcessor.process(source, mode: options.footnoteMode)`, parses the
+  transformed Markdown into a fresh `ParsedMarkdown`, renders the body,
+  **always** appends `renderFootnotesSection(entries, options)` (the bottom
+  `<section>`; given `is-print-only` when `mode == .popover`), wraps via
   `HTMLTemplate.wrapUp`, and — in `.popover` mode — renders each
   `entry.bodyMarkdown` to a self-contained themed document
   (`renderPopoverDocument`) for the popover WebView.
@@ -277,15 +248,12 @@ is a full Up-mode page, so register `mudOpen` on its configuration (reusing
 
 ### Resources
 
-**`Core/Sources/Resources/mud-up.css`** — add a theme-variable-aware footnote
+**`Core/Sources/Resources/mud-up.css`** — adds a theme-variable-aware footnote
 block (mirroring the alerts block; `--link-color`, `--border-color`,
 `--text-color` are available): `.footnote-ref` superscript styling,
-`.footnotes` section styling, `.footnote-backref`, and the print-only rule:
-
-```css
-.footnotes.is-print-only { display: none; }
-@media print { .footnotes.is-print-only { display: block; } }
-```
+`.footnotes` section styling, `.footnote-backref`, and a print-only rule —
+`.footnotes.is-print-only` is hidden on screen and shown under `@media print`,
+so `.popover` mode keeps the on-screen section hidden but still prints it.
 
 The popover body reuses the same `mud-up.css` (it's a full Up-mode document),
 so no separate stylesheet is needed.

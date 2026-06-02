@@ -166,6 +166,45 @@ struct FootnoteProcessorTests {
     #expect(result.transformedMarkdown.contains("id=\"fnref-1-3\""))
   }
 
+  // MARK: - GFM extensions in bodies (round-trip faithfully)
+
+  @Test func strikethroughInBodyIsPreservedUnescaped() {
+    let md = "Text.[^s]\n\n[^s]: A ~~struck~~ word.\n"
+    let result = FootnoteProcessor.process(md, mode: .section)
+    #expect(result.footnotes.count == 1)
+    let body = result.footnotes[0].bodyMarkdown
+    // The tildes survive unescaped (no `\~\~`), so swift-markdown can render
+    // them as a real strikethrough rather than literal text.
+    #expect(body.contains("~~struck~~"))
+    #expect(!body.contains("\\~"))
+  }
+
+  @Test func strikethroughInBodyRendersAsStrikeElement() {
+    let md = "Text.[^s]\n\n[^s]: A ~~struck~~ word.\n"
+    let html = MudCore.renderUpModeDocument(md)  // .section default
+    #expect(html.contains("<s>struck</s>"))
+  }
+
+  @Test func tableInBodyIsPreserved() {
+    let md = """
+    Text.[^t]
+
+    [^t]: A table:
+
+        | A | B |
+        | - | - |
+        | 1 | 2 |
+    """
+    let result = FootnoteProcessor.process(md, mode: .section)
+    #expect(result.footnotes.count == 1)
+    // The pipe table round-trips as Markdown (the extension renders it back as
+    // a table rather than the body losing its structure).
+    let body = result.footnotes[0].bodyMarkdown
+    #expect(body.contains("|"))
+    let html = MudCore.renderUpModeDocument(md)
+    #expect(html.contains("<table>"))
+  }
+
   // MARK: - Document-level rendering (.section default)
 
   @Test func sectionModeEmitsVisibleFootnotesSection() {

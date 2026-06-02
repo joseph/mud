@@ -66,7 +66,6 @@ public struct DownHTMLVisitor: Sendable {
         docCAlertMode: DocCAlertMode
     ) -> HighlightResult {
         // Phase 1: Collect span events and code block info.
-        let doc = MarkdownParser.parse(markdown)
         let sourceLines = markdown.split(
             separator: "\n", omittingEmptySubsequences: false
         ).map { Array($0.utf8) }
@@ -76,12 +75,20 @@ public struct DownHTMLVisitor: Sendable {
         // A `cmark-gfm` scan supplies the structure Down mode needs.
         let layout = FootnoteProcessor.scan(markdown)
 
+        // Feed the main parse a copy with every footnote-definition line
+        // blanked (each byte → a space, newlines and all positions preserved)
+        // so swift-markdown emits nothing for the bodies it would misread. The
+        // marker / reference spans and the re-parsed definition bodies are
+        // layered on below; Phase 2 still renders the original verbatim lines,
+        // so the source text is untouched on screen.
+        let doc = MarkdownParser.parse(
+            Self.blankingDefinitions(layout.defs, in: sourceLines,
+                                     original: markdown))
+
         var alertDetector = AlertDetector()
         alertDetector.docCAlertMode = docCAlertMode
         var collector = EventCollector(sourceLines: sourceLines)
         collector.alertDetector = alertDetector
-        collector.footnoteDefRanges =
-            layout.defs.map { $0.startLine...$0.endLine }
         collector.visit(doc)
         var events = collector.events
 
@@ -198,6 +205,29 @@ public struct DownHTMLVisitor: Sendable {
         return n
     }
 
+    /// Returns `original` with every line covered by a footnote definition
+    /// replaced by spaces — one per byte, newlines untouched. Byte lengths and
+    /// line offsets are preserved, so the source positions swift-markdown
+    /// reports for the surviving content still map onto the original lines
+    /// exactly. Returns `original` unchanged when there are no definitions.
+    private static func blankingDefinitions(
+        _ defs: [FootnoteLayout.Def], in sourceLines: [[UInt8]],
+        original: String
+    ) -> String {
+        guard !defs.isEmpty else { return original }
+        var lines = sourceLines
+        for def in defs {
+            for line in def.startLine...def.endLine {
+                let idx = line - 1
+                guard idx >= 0, idx < lines.count else { continue }
+                lines[idx] = Array(repeating: 0x20, count: lines[idx].count)
+            }
+        }
+        return lines
+            .map { String(decoding: $0, as: UTF8.self) }
+            .joined(separator: "\n")
+    }
+
     // MARK: - SpanEvent
 
     private struct SpanEvent: Comparable {
@@ -238,14 +268,9 @@ public struct DownHTMLVisitor: Sendable {
         var codeBlocks: [CodeBlockInfo] = []
         var alertDetector = AlertDetector()
 
-        /// Inclusive source-line ranges of footnote definition blocks. The main
-        /// parse misreads their bodies, so all events inside are suppressed and
-        /// replaced by a dedicated body re-parse (see `subParseDefBody`).
-        var footnoteDefRanges: [ClosedRange<Int>] = []
-
-        private func inFootnoteDef(_ line: Int) -> Bool {
-            footnoteDefRanges.contains { $0.contains(line) }
-        }
+        // Footnote-definition lines are blanked out of the parser input (see
+        // `blankingDefinitions`), so the main parse never produces events for
+        // them and no per-visitor suppression is needed here.
 
         // -- Container nodes --
 
@@ -254,8 +279,6 @@ public struct DownHTMLVisitor: Sendable {
         }
 
         mutating func visitBlockQuote(_ blockQuote: BlockQuote) {
-            if let range = blockQuote.range,
-               inFootnoteDef(range.lowerBound.line) { return }
             let depth = Self.nodeDepth(blockQuote)
             if let (category, _) = alertDetector.detectGFMAlert(blockQuote) {
                 emitContainer(blockQuote,
@@ -335,8 +358,6 @@ public struct DownHTMLVisitor: Sendable {
         }
 
         mutating func visitListItem(_ listItem: ListItem) {
-            if let range = listItem.range,
-               inFootnoteDef(range.lowerBound.line) { return }
             if listItem.checkbox != nil {
                 emitContainer(listItem, cssClass: "md-task")
             } else {
@@ -348,9 +369,6 @@ public struct DownHTMLVisitor: Sendable {
 
         mutating func visitCodeBlock(_ codeBlock: CodeBlock) {
             guard let range = codeBlock.range else { return }
-            // Suppress definition-body code blocks (the indented continuation
-            // misread) so they aren't styled or laid out as code.
-            if inFootnoteDef(range.lowerBound.line) { return }
             let depth = Self.nodeDepth(codeBlock)
             let fenceLen = measureFence(at: range.lowerBound)
 
@@ -457,7 +475,6 @@ public struct DownHTMLVisitor: Sendable {
                 descendInto(node)
                 return
             }
-            if inFootnoteDef(range.lowerBound.line) { return }
             let depth = Self.nodeDepth(node)
             events.append(SpanEvent(
                 line: Int32(range.lowerBound.line),
@@ -499,7 +516,6 @@ public struct DownHTMLVisitor: Sendable {
             _ node: some Markup, cssClass: String
         ) {
             guard let range = node.range else { return }
-            if inFootnoteDef(range.lowerBound.line) { return }
             let depth = Self.nodeDepth(node)
             events.append(SpanEvent(
                 line: Int32(range.lowerBound.line),

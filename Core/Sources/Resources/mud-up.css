@@ -261,6 +261,55 @@ blockquote > :last-child {
 }
 
 
+/* -- Footnotes ------------------------------------------------------------ */
+
+.footnote-ref {
+  font-size: 0.75em;
+  line-height: 0;
+  white-space: nowrap;
+}
+
+.footnote-ref a {
+  text-decoration: none;
+  padding: 0 0.15em;
+  cursor: pointer;
+}
+
+.footnote-ref a:hover {
+  text-decoration: underline;
+}
+
+.footnotes {
+  margin-top: 2em;
+  padding-top: 1em;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.9em;
+  color: var(--blockquote-color);
+}
+
+.footnotes ol {
+  padding-left: 1.5em;
+}
+
+.footnotes li {
+  margin-bottom: 0.5em;
+}
+
+.footnotes li:target {
+  background-color: var(--code-bg);
+}
+
+.footnote-backref {
+  text-decoration: none;
+  margin-left: 0.4em;
+}
+
+/* In `.popover` mode the section is hidden on screen (footnotes show in a
+   native popover) but reappears for Print / Save-PDF. */
+.footnotes.is-print-only { display: none; }
+@media print { .footnotes.is-print-only { display: block; } }
+
+
 /* -- Horizontal rules ----------------------------------------------------- */
 
 hr {
@@ -388,4 +437,15 @@ img {
   font: inherit;
   background: transparent;
   color: var(--syntax-string);
+}
+
+
+/* -- Footnote popover ----------------------------------------------------- */
+
+.footnote-popover .up-mode-output {
+  padding: 1.5em;
+}
+
+.footnote-popover .up-mode-output > :last-child {
+  margin-bottom: 0;
 }

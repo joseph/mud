@@ -15,6 +15,7 @@ public struct RenderOptions: Sendable, Equatable {
 
     // Markdown processing
     public var docCAlertMode: DocCAlertMode = .extended
+    public var footnoteMode: FootnoteMode = .section
 
     // Display state (baked into initial HTML for first-paint correctness;
     // also applied at runtime via JS for live updates without reload)
@@ -35,6 +36,6 @@ public struct RenderOptions: Sendable, Equatable {
         let waypointHash = waypoint.map {
             String($0.markdown.hashValue)
         } ?? ""
-        return "\(theme)\(blockRemoteContent)\(docCAlertMode.rawValue)\(extensions.sorted())\(waypointHash)\(showInlineDeletions)\(wordDiffThreshold)"
+        return "\(theme)\(blockRemoteContent)\(docCAlertMode.rawValue)\(footnoteMode.rawValue)\(extensions.sorted())\(waypointHash)\(showInlineDeletions)\(wordDiffThreshold)"
     }
 }

@@ -77,7 +77,10 @@ MVP plan.
 
 - `DocumentContentView.swift` — Main SwiftUI view for a document
 
-- `WebView.swift` — WKWebView wrapper, JS bridge
+- `WebView.swift` — WKWebView wrapper, JS bridge.
+
+- `FootnotePopover.swift` — `FootnotePopoverController`: a transient
+  `NSPopover` hosting a `WKWebView` that renders a footnote body
 
 - `OutlineSidebarView.swift` — Table of contents sidebar
 
@@ -224,6 +227,7 @@ MVP plan.
 - `Rendering/HTMLDocument.swift` — Structured HTML document builder
 - `Rendering/HTMLTemplate.swift` — Document wrapping and resource loading
 - `Rendering/MarkdownParser.swift` — swift-cmark wrapper
+- `Rendering/FootnoteProcessor.swift` — Pre-parses footnotes via cmark
 - `Rendering/SlugGenerator.swift` — Heading ID generation
 - `Rendering/HeadingExtractor.swift` — Heading extraction for sidebar
 - `Rendering/CodeHighlighter.swift` — Syntax highlighting via highlight.js
@@ -366,7 +370,15 @@ field on the struct.
 
 MudCore exposes: `renderUpToHTML(_:options:)`, `renderDownToHTML(_:options:)`,
 `renderUpModeDocument(_:options:)`, `renderDownModeDocument(_:options:)`,
-`extractHeadings(_:)`.
+`renderUpModeDocumentWithFootnotes(_:options:)`, `extractHeadings(_:)`.
+
+Footnotes are preprocessed at the **String** boundary (sourcepos needs raw
+bytes): `FootnoteProcessor` rewrites `[^ref]` to inline-HTML markers and strips
+definitions before `ParsedMarkdown` parsing. The bottom
+`<section class="footnotes">` is always emitted; in `.popover` mode it is
+hidden on screen (`is-print-only`, shown under `@media print`) and
+`renderUpModeDocumentWithFootnotes` additionally returns each footnote body as
+a self-contained document for the in-app `NSPopover`.
 
 
 ## State management

@@ -21,10 +21,34 @@ struct DocumentContentView: View {
     @FocusState private var contentFocused: Bool
     @Environment(\.colorScheme) private var environmentColorScheme
 
-    private var displayHTML: String {
+    /// The HTML to display plus the footnote popover map (label → popover
+    /// document HTML). Up mode renders via the footnote API in `.popover` mode
+    /// so a single render yields both the page and the popover bodies.
+    private struct RenderedDisplay {
+        let html: String
+        let footnoteHTML: [String: String]
+    }
+
+    private var renderedDisplay: RenderedDisplay {
         switch content {
-        case .parsed:          return modeHTML
-        case .error(let html): return html
+        case .error(let html):
+            return RenderedDisplay(html: html, footnoteHTML: [:])
+        case .parsed(let parsed):
+            if state.mode == .down {
+                return RenderedDisplay(
+                    html: MudCore.renderDownModeDocument(parsed, options: renderOptions),
+                    footnoteHTML: [:])
+            }
+            var opts = renderOptions
+            opts.footnoteMode = .popover
+            let document = MudCore.renderUpModeDocumentWithFootnotes(
+                parsed.markdown, options: opts,
+                resolveImageSource: Self.mudAssetResolver)
+            var map: [String: String] = [:]
+            for footnote in document.footnotes {
+                map[footnote.label.lowercased()] = footnote.html
+            }
+            return RenderedDisplay(html: document.html, footnoteHTML: map)
         }
     }
 
@@ -57,15 +81,6 @@ struct DocumentContentView: View {
         }
     }
 
-    private var modeHTML: String {
-        guard case .parsed(let parsed) = content else { return "" }
-        if state.mode == .down {
-            return MudCore.renderDownModeDocument(parsed, options: renderOptions)
-        }
-        return MudCore.renderUpModeDocument(parsed, options: renderOptions,
-            resolveImageSource: Self.mudAssetResolver)
-    }
-
     /// Rewrites local image paths to `mud-asset:` URLs for WKWebView.
     private nonisolated static func mudAssetResolver(
         source: String, baseURL: URL
@@ -92,8 +107,9 @@ struct DocumentContentView: View {
     }
 
     var body: some View {
-        WebView(
-            html: displayHTML,
+        let display = renderedDisplay
+        return WebView(
+            html: display.html,
             baseURL: fileURL,
             contentID: displayContentID,
             mode: state.mode,
@@ -106,6 +122,7 @@ struct DocumentContentView: View {
             reloadID: state.reloadID,
             printID: state.printID,
             extensions: appState.enabledExtensions,
+            footnoteHTML: display.footnoteHTML,
             onSearchResult: { info in
                 findState.matchInfo = info
             }

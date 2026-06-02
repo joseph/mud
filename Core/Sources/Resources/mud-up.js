@@ -25,4 +25,33 @@
     var resolved = new URL(href, document.baseURI).href;
     handlers.mudOpen.postMessage(resolved);
   });
+
+  // Footnote markers: when the mudFootnote handler is present (the live app),
+  // intercept the click and show a native popover anchored at the marker.
+  // Otherwise (browser / CLI / Quick Look) fall through to the native #fn-N
+  // anchor jump to the visible footnotes section. Capture phase so we win
+  // before the link-routing listener above.
+  document.addEventListener("click", function (e) {
+    var anchor = e.target.closest("a[data-footnote-ref]");
+    if (!anchor) return;
+
+    var handlers = window.webkit && window.webkit.messageHandlers;
+    if (!handlers || !handlers.mudFootnote) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    var zoom = parseFloat(document.documentElement.style.zoom) || 1;
+    var r = anchor.getBoundingClientRect();
+    handlers.mudFootnote.postMessage({
+      label: anchor.getAttribute("data-fn-label"),
+      num: anchor.getAttribute("data-fn-num"),
+      rect: {
+        x: r.left / zoom,
+        y: r.top / zoom,
+        width: r.width / zoom,
+        height: r.height / zoom,
+      },
+    });
+  }, true);
 })();

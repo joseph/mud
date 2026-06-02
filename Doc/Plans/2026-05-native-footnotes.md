@@ -103,10 +103,19 @@ works (browser / CLI / Quick Look).
 .package(url: "https://github.com/swiftlang/swift-cmark.git", from: "0.7.0"),
 // MudCore target dependencies:
 .product(name: "cmark-gfm", package: "swift-cmark"),
+.product(name: "cmark-gfm-extensions", package: "swift-cmark"),
 ```
 
-Import in Swift as `import cmark_gfm` (modulemap module name). Footnotes are an
-_option flag_, not a syntax extension, so `cmark-gfm-extensions` is not needed.
+Import in Swift as `import cmark_gfm` (modulemap module name). Footnotes
+themselves are a core _option flag_ (`CMARK_OPT_FOOTNOTES`), but footnote
+**bodies** must round-trip GFM constructs — `~~strikethrough~~`, tables,
+tasklists, autolinks — which are syntax _extensions_. So the parse also imports
+`cmark_gfm_extensions`, calls `cmark_gfm_core_extensions_ensure_registered()`
+exactly once (gated behind a lazily-initialized `static let` — run-once and
+thread-safe, since render is driven from app / Quick Look / CLI threads), and
+attaches the four extensions to the parser before feeding. Without this,
+`cmark_render_commonmark` serializes an unrecognized `~~strike~~` as escaped
+`\~\~…`, which then renders as literal tildes.
 
 Use the **identical URL and version range** that `swift-markdown` declares
 (`https://github.com/swiftlang/swift-cmark.git`, `from: "0.7.0"`). SwiftPM
@@ -140,8 +149,11 @@ Algorithm:
 2. Build a UTF-8 byte buffer and a 1-based line-start offset table so cmark
    sourcepos `(line, column)` → byte offset. Columns are **byte** offsets
    within the line (validate with a multibyte fixture).
-3. `cmark_parse_document(bytes, len, CMARK_OPT_FOOTNOTES | CMARK_OPT_SOURCEPOS)`;
-   `defer { cmark_node_free(root) }`.
+3. Parse via `cmark_parser_new(CMARK_OPT_FOOTNOTES | CMARK_OPT_SOURCEPOS)` with
+   the GFM extensions attached (see above), then `feed` / `finish`;
+   `defer { cmark_node_free(root) }`. A shared `makeFootnoteParser()` helper
+   owns this setup so both `process` and the Down-mode `scan` (below) parse
+   identically.
 4. Walk with `cmark_iter`, collecting **definitions** (label via
    `cmark_node_get_literal`; body via `cmark_render_commonmark(defNode, 0, 0)`;
    source byte range) and **references** (label, source byte range from
@@ -219,8 +231,10 @@ view opts into `.popover`.
   `<li id="fn-N">… <a class="footnote-backref" href="#fnref-N">↩</a></li>`
   inside `<section class="footnotes" data-footnotes><ol>…</ol></section>`.
 
-- Down-mode functions are unchanged: Down shows raw source, where literal
-  `[^1]` is the correct display.
+- Down-mode functions were initially left unchanged (Down shows raw source,
+  where literal `[^1]` is the correct display). A later pass made Down mode
+  footnote-aware so definition bodies highlight as Markdown rather than as
+  misparsed code blocks — see **Down mode footnotes** below.
 
 _Known limitation:_ a footnote body that itself contains `[^x]` references is
 not recursively processed in v1 (rare; note and defer).
@@ -295,6 +309,56 @@ note `footnoteMode` on the `RenderOptions` bullet, mention the footnote
 preprocessing step + the `renderUpModeDocumentWithFootnotes` entry point in the
 rendering-pipeline section, and note the footnote styles/handler now in
 `mud-up.css` / `mud-up.js`.
+
+
+## Down mode footnotes
+
+Down mode (the raw, syntax-highlighted source view) renders `parsed.body`
+through `DownHTMLVisitor`, which parses with **swift-markdown** — footnote-
+unaware. Three defects resulted:
+
+- multi-paragraph definition bodies (continuation lines indented four spaces)
+  were misread as indented code blocks (gray `.dc-code`, `.dc-scroll`);
+- even a single-line `[^1]: **bold**` lost its inline formatting, because
+  swift-markdown consumes it as a failed link-reference definition (no nodes);
+- `[^1]` references and `[^label]:` markers got no highlighting.
+
+The fix keeps swift-markdown as the primary parser but makes it footnote-aware
+via the **same** cmark parse `FootnoteProcessor` already runs — Down mode can't
+rewrite the source (it must display the raw bytes verbatim), so it only learns
+_where_ the footnotes are:
+
+- `FootnoteProcessor.scan(_:) -> FootnoteLayout` returns reference and
+  definition positions (line/column) without rewriting anything. It shares the
+  parser setup with `process` via the private `makeFootnoteParser()` helper.
+- `DownHTMLVisitor` suppresses the main parse's (wrong) events inside
+  definition line ranges, then **re-parses each de-indented body through the
+  same event collector**, translating the resulting `(line, column)` events
+  back to source coordinates. Reusing the collector means a body's bold / links
+  / lists / blockquotes highlight identically to the same constructs elsewhere
+  — no second node→class mapping to maintain.
+- Marker and reference spans (`md-footnote-def` / `md-footnote-ref`,
+  link-colored in `mud-down.css`) are emitted directly from the layout. The
+  body's four-space indentation is shown verbatim — it delimits the body
+  visually, so no code box is needed.
+
+The change-tracking path (`highlightWithChanges`) routes through the same
+`highlightLines`, so it inherits footnote awareness for free.
+
+**Gotcha (resolved):** cmark's footnote- _definition_ `start_column` points at
+the body content, not the `[` of the marker; the marker's start column must be
+recovered as the opener line's first non-whitespace byte. (The footnote-
+_reference_ node's `start_column` is correct.) Indentation counts must be done
+in **bytes** to stay consistent with the byte-based column model the visitor
+uses.
+
+**Known limitations (v1):**
+
+- A fenced code block inside a footnote body is span-colored but not
+  highlight.js-rendered, because rendering uses the raw source lines, not the
+  sub-parse's highlighted output.
+- Nested `[^x]` references inside a body aren't specially highlighted (parity
+  with the `process` limitation noted above).
 
 
 ## Risks to verify at build time

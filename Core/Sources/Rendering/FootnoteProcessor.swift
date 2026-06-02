@@ -44,6 +44,42 @@ struct FootnoteProcessingResult {
     let footnotes: [FootnoteEntry]
 }
 
+/// Structural footnote positions for Down-mode syntax highlighting. Unlike
+/// ``FootnoteProcessor/process(_:mode:)``, this rewrites nothing — Down mode
+/// shows the raw source verbatim and only needs to know *where* the references
+/// and definitions live (by line and 1-based column) to drive highlighting.
+struct FootnoteLayout {
+    /// A `[^label]` reference occurrence. `endColumn` is the column of the
+    /// closing `]`.
+    struct Ref {
+        let line: Int
+        let startColumn: Int
+        let endColumn: Int
+    }
+
+    /// A `[^label]:` definition block.
+    struct Def {
+        let startLine: Int
+        let endLine: Int
+        /// Column of the opening `[`.
+        let startColumn: Int
+        /// Column one past the `:` that closes the marker.
+        let markerEndColumn: Int
+        /// First body byte on the opener line (equals `markerEndColumn` when
+        /// the opener carries no inline content).
+        let contentStartColumn: Int
+        /// Leading whitespace shared by the continuation lines — the indent
+        /// `cmark` strips from the body, re-stripped before re-parsing. Capped
+        /// at the GFM footnote content indent (4).
+        let contentIndent: Int
+    }
+
+    let refs: [Ref]
+    let defs: [Def]
+
+    static let empty = FootnoteLayout(refs: [], defs: [])
+}
+
 /// Detects GFM footnotes by parsing the raw source with `cmark-gfm`
 /// (`CMARK_OPT_FOOTNOTES | CMARK_OPT_SOURCEPOS`), then **rewrites the source**
 /// for the `swift-markdown` pipeline rather than teaching that pipeline about
@@ -61,6 +97,24 @@ struct FootnoteProcessingResult {
 /// whitespace labels) and every dangling `[^missing]` is handled for free:
 /// they never become reference nodes, so their literal text survives untouched.
 enum FootnoteProcessor {
+    /// Creates a `cmark-gfm` parser configured for footnote detection
+    /// (`CMARK_OPT_FOOTNOTES | CMARK_OPT_SOURCEPOS`) with the GFM syntax
+    /// extensions attached. The caller owns the lifecycle
+    /// (`cmark_parser_free`).
+    private static func makeFootnoteParser()
+        -> UnsafeMutablePointer<cmark_parser>?
+    {
+        _ = registerGFMExtensions
+        let options = CMARK_OPT_FOOTNOTES | CMARK_OPT_SOURCEPOS
+        guard let parser = cmark_parser_new(options) else { return nil }
+        for name in ["strikethrough", "table", "tasklist", "autolink"] {
+            if let ext = cmark_find_syntax_extension(name) {
+                cmark_parser_attach_syntax_extension(parser, ext)
+            }
+        }
+        return parser
+    }
+
     static func process(
         _ source: String, mode: FootnoteMode
     ) -> FootnoteProcessingResult {
@@ -74,18 +128,11 @@ enum FootnoteProcessor {
 
         // Parse with the GFM syntax extensions attached so footnote bodies
         // round-trip faithfully through `cmark_render_commonmark`.
-        _ = registerGFMExtensions
-        let options = CMARK_OPT_FOOTNOTES | CMARK_OPT_SOURCEPOS
-        guard let parser = cmark_parser_new(options) else {
+        guard let parser = makeFootnoteParser() else {
             return FootnoteProcessingResult(
                 transformedMarkdown: source, footnotes: [])
         }
         defer { cmark_parser_free(parser) }
-        for name in ["strikethrough", "table", "tasklist", "autolink"] {
-            if let ext = cmark_find_syntax_extension(name) {
-                cmark_parser_attach_syntax_extension(parser, ext)
-            }
-        }
         bytes.withUnsafeBytes { raw in
             cmark_parser_feed(
                 parser, raw.bindMemory(to: CChar.self).baseAddress, bytes.count)
@@ -279,6 +326,180 @@ enum FootnoteProcessor {
 
         return FootnoteProcessingResult(
             transformedMarkdown: transformed, footnotes: footnotes)
+    }
+
+    /// Scans `source` for footnote references and definition blocks, returning
+    /// their positions for Down-mode highlighting. Shares the `cmark-gfm`
+    /// footnote parse used by ``process(_:mode:)`` but rewrites nothing.
+    static func scan(_ source: String) -> FootnoteLayout {
+        // Fast path: no possible footnote syntax → skip the cmark parse.
+        guard source.contains("[^") else { return .empty }
+
+        let bytes = Array(source.utf8)
+        guard let parser = makeFootnoteParser() else { return .empty }
+        defer { cmark_parser_free(parser) }
+        bytes.withUnsafeBytes { raw in
+            cmark_parser_feed(
+                parser, raw.bindMemory(to: CChar.self).baseAddress, bytes.count)
+        }
+        guard let root = cmark_parser_finish(parser) else { return .empty }
+        defer { cmark_node_free(root) }
+
+        // 1-based byte offset of the start of each source line.
+        var lineStart = [0, 0]
+        for i in bytes.indices where bytes[i] == 0x0A {
+            lineStart.append(i + 1)
+        }
+        let lastLine = lineStart.count - 1
+        func lineEnd(_ line: Int) -> Int {
+            line + 1 <= lastLine ? lineStart[line + 1] : bytes.count
+        }
+
+        struct DefRange { let startLine: Int; let endLine: Int }
+        var refHits: [(line: Int, startCol: Int, endCol: Int)] = []
+        var defs: [FootnoteLayout.Def] = []
+        var defRanges: [DefRange] = []
+
+        let iter = cmark_iter_new(root)
+        defer { cmark_iter_free(iter) }
+        while true {
+            let ev = cmark_iter_next(iter)
+            if ev == CMARK_EVENT_DONE { break }
+            guard ev == CMARK_EVENT_ENTER else { continue }
+            let node = cmark_iter_get_node(iter)
+
+            switch cmark_node_get_type(node) {
+            case CMARK_NODE_FOOTNOTE_REFERENCE:
+                let line = Int(cmark_node_get_start_line(node))
+                let startCol = Int(cmark_node_get_start_column(node))
+                let endCol = Int(cmark_node_get_end_column(node))
+                guard line >= 1, line <= lastLine,
+                      startCol >= 1, endCol >= startCol else { continue }
+                // Sanity: the range must actually delimit `[^…]`.
+                let s = lineStart[line] + startCol - 1
+                let e = lineStart[line] + endCol - 1
+                guard s >= 0, e < bytes.count, s + 1 <= e,
+                      bytes[s] == 0x5B, bytes[s + 1] == 0x5E,
+                      bytes[e] == 0x5D
+                else { continue }
+                refHits.append((line, startCol, endCol))
+
+            case CMARK_NODE_FOOTNOTE_DEFINITION:
+                guard let labelCStr = cmark_node_get_literal(node)
+                else { continue }
+                let label = String(cString: labelCStr)
+                let startLine = Int(cmark_node_get_start_line(node))
+                let endLine = Int(cmark_node_get_end_line(node))
+                guard startLine >= 1, endLine <= lastLine,
+                      endLine >= startLine else { continue }
+                defRanges.append(
+                    DefRange(startLine: startLine, endLine: endLine))
+                // cmark's definition start_column points at the *body*, not
+                // the marker, so locate the `[` as the opener line's first
+                // non-whitespace byte.
+                let startColumn = firstNonSpaceColumn(
+                    line: startLine, bytes: bytes, lineStart: lineStart,
+                    lineEnd: lineEnd(startLine))
+                // `[^` + label + `]:` → label.utf8.count + 4 chars.
+                let markerEndColumn = startColumn + label.utf8.count + 4
+                let contentStartColumn = firstContentColumn(
+                    line: startLine, from: markerEndColumn,
+                    bytes: bytes, lineStart: lineStart,
+                    lineEnd: lineEnd(startLine))
+                let contentIndent = continuationIndent(
+                    startLine: startLine, endLine: endLine,
+                    bytes: bytes, lineStart: lineStart, lineEnd: lineEnd)
+                defs.append(FootnoteLayout.Def(
+                    startLine: startLine, endLine: endLine,
+                    startColumn: startColumn,
+                    markerEndColumn: markerEndColumn,
+                    contentStartColumn: contentStartColumn,
+                    contentIndent: contentIndent))
+
+            default:
+                break
+            }
+        }
+
+        // Drop references that live inside a definition body — those are
+        // handled by re-parsing the body, not as standalone markers.
+        let refs = refHits
+            .filter { hit in
+                !defRanges.contains {
+                    hit.line >= $0.startLine && hit.line <= $0.endLine
+                }
+            }
+            .map {
+                FootnoteLayout.Ref(
+                    line: $0.line, startColumn: $0.startCol,
+                    endColumn: $0.endCol)
+            }
+
+        return FootnoteLayout(refs: refs, defs: defs)
+    }
+
+    /// Column (1-based) of the first non-whitespace byte on `line` — the `[`
+    /// of a definition opener, after any leading indent.
+    private static func firstNonSpaceColumn(
+        line: Int, bytes: [UInt8], lineStart: [Int], lineEnd: Int
+    ) -> Int {
+        var col = 1
+        var i = lineStart[line]
+        while i < lineEnd {
+            let c = bytes[i]
+            if c == 0x0A || c == 0x0D { break }
+            if c != 0x20 && c != 0x09 { return col }
+            col += 1
+            i += 1
+        }
+        return col
+    }
+
+    /// First non-whitespace column on `line` at or after `from` (1-based);
+    /// returns `from` when the rest of the line is blank.
+    private static func firstContentColumn(
+        line: Int, from: Int, bytes: [UInt8],
+        lineStart: [Int], lineEnd: Int
+    ) -> Int {
+        var col = from
+        var i = lineStart[line] + from - 1
+        while i < lineEnd {
+            let c = bytes[i]
+            if c == 0x0A || c == 0x0D { break }
+            if c != 0x20 && c != 0x09 { return col }
+            col += 1
+            i += 1
+        }
+        return from
+    }
+
+    /// The leading-whitespace *byte* count common to a definition's
+    /// continuation lines (those after the opener), capped at 4 — the indent
+    /// to strip before re-parsing the body. Counted in bytes (space or tab,
+    /// each one byte) so it stays consistent with the byte-based column model;
+    /// blank lines are ignored.
+    private static func continuationIndent(
+        startLine: Int, endLine: Int, bytes: [UInt8],
+        lineStart: [Int], lineEnd: (Int) -> Int
+    ) -> Int {
+        guard endLine > startLine else { return 0 }
+        var minIndent = Int.max
+        for line in (startLine + 1)...endLine {
+            let end = lineEnd(line)
+            var indent = 0
+            var blank = true
+            var i = lineStart[line]
+            loop: while i < end {
+                switch bytes[i] {
+                case 0x20, 0x09: indent += 1; i += 1   // space or tab
+                case 0x0A, 0x0D: break loop             // blank line
+                default: blank = false; break loop
+                }
+            }
+            if blank { continue }
+            minIndent = min(minIndent, indent)
+        }
+        return minIndent == Int.max ? 0 : min(minIndent, 4)
     }
 
     /// Renders each child block of a footnote definition to CommonMark and

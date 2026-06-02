@@ -247,4 +247,92 @@ struct DownHTMLVisitorTests {
         #expect(html.hasPrefix("<div class=\"down-lines\">"))
         #expect(html.hasSuffix("</div>"))
     }
+
+    // MARK: - Footnotes
+
+    /// Isolates the `.lc` content of the Nth (1-based) source line.
+    private func lineContent(_ html: String, line n: Int) -> String {
+        let parts = html.components(separatedBy: "<span class=\"lc\">")
+        guard n < parts.count else { return "" }
+        return parts[n].components(separatedBy: "</span></div>").first ?? ""
+    }
+
+    @Test func footnoteReferenceHighlighted() {
+        let html = visitor.highlight("A claim.[^1]\n\n[^1]: A note.\n")
+        #expect(html.contains("md-footnote-ref"))
+        // The reference marker spans `[^1]` on the first line.
+        let first = lineContent(html, line: 1)
+        #expect(first.contains("<span class=\"md-footnote-ref\">[^1]</span>"))
+    }
+
+    @Test func footnoteDefinitionMarkerHighlighted() {
+        let html = visitor.highlight("Text.[^1]\n\n[^1]: A note.\n")
+        #expect(html.contains("md-footnote-def"))
+        let def = lineContent(html, line: 3)
+        #expect(def.contains("<span class=\"md-footnote-def\">[^1]:</span>"))
+    }
+
+    @Test func singleLineDefinitionBodyHighlightsInline() {
+        // Even a one-line definition: swift-markdown would consume
+        // `[^1]: **bold**` as a failed link-ref-def, losing the bold.
+        let html = visitor.highlight("Text.[^1]\n\n[^1]: a **bold** note.\n")
+        let def = lineContent(html, line: 3)
+        #expect(def.contains("md-footnote-def"))
+        #expect(def.contains("<span class=\"md-strong\">**bold**</span>"))
+    }
+
+    @Test func multiParagraphDefinitionBodyIsNotCode() {
+        let md = """
+        Text.[^1]
+
+        [^1]: First paragraph.
+
+            Second paragraph.
+        """ + "\n"
+        let html = visitor.highlight(md)
+        // The indented continuation must NOT be treated as a code block.
+        #expect(!html.contains("dc-code"))
+        #expect(!html.contains("md-code-block"))
+        // Indentation is retained verbatim in the source line.
+        #expect(html.contains("    Second paragraph."))
+    }
+
+    @Test func definitionBodyInlineConstructsHighlight() {
+        let md = """
+        Text.[^1]
+
+        [^1]: A note with **bold**, _em_, and a [link](https://e.com).
+        """ + "\n"
+        let html = visitor.highlight(md)
+        let def = lineContent(html, line: 3)
+        #expect(def.contains("md-strong"))
+        #expect(def.contains("md-emphasis"))
+        #expect(def.contains("md-link"))
+    }
+
+    @Test func definitionBodyBlockquoteHighlights() {
+        let md = """
+        Text.[^1]
+
+        [^1]: A note.
+
+            > a quote
+        """ + "\n"
+        let html = visitor.highlight(md)
+        #expect(html.contains("md-blockquote"))
+        #expect(!html.contains("dc-code"))
+    }
+
+    @Test func footnoteRefInCodeBlockNotHighlighted() {
+        // cmark never treats `[^1]` inside a fence as a footnote, so the
+        // scan yields no reference there.
+        let md = "```\n[^1]\n```\n"
+        let html = visitor.highlight(md)
+        #expect(!html.contains("md-footnote-ref"))
+    }
+
+    @Test func documentWithoutFootnotesUnaffected() {
+        let html = visitor.highlight("# Title\n\nA paragraph.\n")
+        #expect(!html.contains("md-footnote"))
+    }
 }

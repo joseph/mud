@@ -19,6 +19,11 @@ final class FootnotePopoverController: NSObject, WKNavigationDelegate, WKScriptM
     /// The view the popover is anchored to, used to tell host-content scrolls
     /// (which should dismiss) from scrolls inside the popover (which shouldn't).
     private weak var anchorView: NSView?
+    /// Accumulated host-content scroll distance since showing. Small jitters
+    /// (trackpad rest, a nudge) shouldn't dismiss; only a deliberate scroll
+    /// past `scrollDismissThreshold` does.
+    private var accumulatedScroll: CGFloat = 0
+    private static let scrollDismissThreshold: CGFloat = 16
 
     /// Fixed content width; height grows to fit the body, clamped.
     private static let width: CGFloat = 360
@@ -64,6 +69,7 @@ final class FootnotePopoverController: NSObject, WKNavigationDelegate, WKScriptM
     ) {
         self.onOpenURL = onOpenURL
         self.anchorView = view
+        accumulatedScroll = 0
         popover.contentSize = NSSize(width: Self.width, height: Self.minHeight)
         webView.loadHTMLString(html, baseURL: baseURL)
         popover.show(relativeTo: rect, of: view, preferredEdge: .maxY)
@@ -79,7 +85,11 @@ final class FootnotePopoverController: NSObject, WKNavigationDelegate, WKScriptM
             [weak self] event in
             guard let self else { return event }
             if event.window === self.anchorView?.window {
-                self.popover.performClose(nil)
+                self.accumulatedScroll += abs(event.scrollingDeltaY)
+                    + abs(event.scrollingDeltaX)
+                if self.accumulatedScroll > Self.scrollDismissThreshold {
+                    self.popover.performClose(nil)
+                }
             }
             return event
         }

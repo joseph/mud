@@ -166,6 +166,14 @@ text[^in-strong]** should still resolve cleanly.
 [^in-strong]: Reference inside strong.
 
 
+## Empty definition body
+
+A definition with no body[^empty-body] — the colon is present but nothing
+follows.
+
+[^empty-body]:
+
+
 ## Dangling reference
 
 This sentence references a footnote that has no definition.[^missing] A
@@ -197,8 +205,3 @@ A definition must start at column zero. A line that begins indented under a
 paragraph is treated as continuation text, not a definition — so a renderer
 should not pick `[^buried]` out of a paragraph just because the line beneath it
 reads like `    [^buried]: ...`.
-
-A definition with no body[^empty-body] — the colon is present but nothing
-follows.
-
-[^empty-body]:

@@ -1,5 +1,14 @@
 import Foundation
 import cmark_gfm
+import cmark_gfm_extensions
+
+/// Registers the GFM core syntax extensions exactly once. `ensure_registered`
+/// is idempotent but not guaranteed thread-safe on its first call, so we gate
+/// it behind a lazily-initialized `let` (run-once, thread-safe in Swift).
+/// Render can be driven from multiple threads (app, Quick Look, CLI).
+private let registerGFMExtensions: Void = {
+    cmark_gfm_core_extensions_ensure_registered()
+}()
 
 /// Where footnotes go in the rendered output.
 ///
@@ -62,12 +71,26 @@ enum FootnoteProcessor {
         }
 
         let bytes = Array(source.utf8)
+
+        // Parse with the GFM syntax extensions attached so footnote bodies
+        // round-trip faithfully through `cmark_render_commonmark`.
+        _ = registerGFMExtensions
         let options = CMARK_OPT_FOOTNOTES | CMARK_OPT_SOURCEPOS
-        guard let root = bytes.withUnsafeBytes({ raw -> UnsafeMutablePointer<cmark_node>? in
-            cmark_parse_document(
-                raw.bindMemory(to: CChar.self).baseAddress,
-                bytes.count, options)
-        }) else {
+        guard let parser = cmark_parser_new(options) else {
+            return FootnoteProcessingResult(
+                transformedMarkdown: source, footnotes: [])
+        }
+        defer { cmark_parser_free(parser) }
+        for name in ["strikethrough", "table", "tasklist", "autolink"] {
+            if let ext = cmark_find_syntax_extension(name) {
+                cmark_parser_attach_syntax_extension(parser, ext)
+            }
+        }
+        bytes.withUnsafeBytes { raw in
+            cmark_parser_feed(
+                parser, raw.bindMemory(to: CChar.self).baseAddress, bytes.count)
+        }
+        guard let root = cmark_parser_finish(parser) else {
             return FootnoteProcessingResult(
                 transformedMarkdown: source, footnotes: [])
         }

@@ -7,10 +7,9 @@ Mud (Mark Up & Down) is a macOS Markdown preview app targeting macOS Sonoma
 (14.0+). Built with SwiftUI and AppKit. Opens .md files and offers two views:
 "Mark Up" (rendered GFM with syntax highlighting) and "Mark Down"
 (syntax-highlighted raw source with line numbers). Auto-reloads on file change.
-Includes a CLI tool for HTML output. The user-facing `mud` command is a shell
-script (`mud.sh`) bundled in the app that dispatches to a standalone `mud`
-Swift executable (also bundled) for rendering, or to `open -a Mud.app` for GUI
-use.
+The user-facing `mud` command is a shell script (`mud.sh`) bundled in the app
+that dispatches to a standalone `mud` Swift executable (also bundled) for
+rendering, or to `open -a Mud.app` for GUI use.
 
 See [Doc/Plans/2026-02-mud-app.md](./Plans/2026-02-mud-app.md) for the original
 MVP plan.
@@ -28,15 +27,18 @@ MVP plan.
 - Zoom In/Out/Actual Size (per-mode, persisted)
 - Readable Column, Line Numbers, Word Wrap toggles
 - Table of contents sidebar
+- Comments: select text and attach threaded comments, stored in-file as GFM
+  footnotes (`^comment-[\w-]+$`); hover-revealed highlights and a Comments
+  Column (Up mode only; GUI authoring writes the `.md` file)
 - Find (Cmd+F), Find Next/Previous (Cmd+G, Cmd+Shift+G)
 - Print / Save as PDF (Cmd+P)
 - Open In Browser (Cmd+Shift+B) with image data-URI embedding
-- Local images via custom `mud-asset:` URL scheme
-- Remote images allowed
+- Local images via custom `mud-asset:` URL scheme; remote images allowed
 - Link handling: anchors, local .md, external URLs
 - Quit on last window close
 - CLI tool: `mud -u` / `-d` for HTML output, `-f` for fragment output, stdin
-  support, theme and view-option flags
+  support, theme and view-option flags, `--primer` for the agent authoring
+  guide
 
 
 ## Targets
@@ -54,8 +56,7 @@ MVP plan.
   preferences from the app-group mirror via MudPreferences.
 - **Thumbnail** (Thumbnail/) -- `.appex` Quick Look thumbnail extension,
   bundled in `Mud.app/Contents/PlugIns/`. Renders a portrait thumbnail from the
-  file's first heading. Sandboxed; no app-group entitlement (so no
-  MudPreferences access).
+  file's first heading. Sandboxed; no app-group entitlement.
 
 
 ## File quick reference
@@ -63,265 +64,207 @@ MVP plan.
 **App/ key files:**
 
 - `MudApp.swift` — @main, menu commands
-
 - `AppState.swift` — Singleton observable state; persistence delegated to
   `MudPreferences.shared`
-
 - `AppDelegate.swift` — Lifecycle and document handling
-
 - `DocumentController.swift` — NSDocumentController subclass
-
 - `DocumentWindowController.swift` — Per-window state, toolbar, zoom, lighting
-
 - `DocumentState.swift` — Per-window observable state
-
 - `DocumentContentView.swift` — Main SwiftUI view for a document
-
-- `WebView.swift` — WKWebView wrapper, JS bridge.
-
-- `FootnotePopover.swift` — `FootnotePopoverController`: a transient
-  `NSPopover` hosting a `WKWebView` that renders a footnote body
-
+- `WebView.swift` — WKWebView wrapper, JS bridge
+- `FootnotePopover.swift` — Transient `NSPopover` hosting a `WKWebView` that
+  renders a footnote body
+- `CommentController.swift` — `CommentDraft` model plus `CommentController`:
+  the comment write path (re-read from disk, byte-surgical edit via
+  `CommentEditor`, atomic security-scoped write). Add / reply / edit-last /
+  delete
 - `OutlineSidebarView.swift` — Table of contents sidebar
-
 - `OutlineNode.swift` — Sidebar data model
-
 - `FindFeature.swift` — Search state and UI
-
 - `ChangesFeature.swift` — Floating Changes bar and overlay
-
 - `GitProvider.swift` — Git history queries for external waypoints
   (`#if GIT_PROVIDER`)
-
 - `FileWatcher.swift` — DispatchSource file monitoring
-
 - `CommandLineInstaller.swift` — CLI symlink creation with elevation support
-
 - `LocalFileSchemeHandler.swift` — `mud-asset:` URL scheme for local images
-
 - `DeferMutation.swift` — Run-loop deferred state mutation helper
-
-- `Lighting+AppKit.swift` — AppKit/SwiftUI behavior (`appearance`,
-  `colorScheme`, `toggled()`, `systemIsDark`) on the bare `Lighting` enum that
-  lives in MudPreferences
-
-- `ErrorPage.swift` — Error-page HTML generator (renders Markdown via MudCore)
-
+- `Lighting+AppKit.swift` — AppKit/SwiftUI behavior on the bare `Lighting` enum
+  (which lives in MudPreferences)
+- `ErrorPage.swift` — Error-page HTML generator
 - `ChangesSidebarView.swift` — Changes pane listing tracked changes
-
-- `SidebarView.swift` — Sidebar tab container (outline vs changes panes)
-
-- `ReselectMonitor.swift` — NSViewRepresentable that detects clicks on
-  already-selected List rows
-
-- `TabReloadBadgeView.swift` — Small brown-dot NSView attached to
-  `NSWindowTab.accessoryView` when a tab's document reloaded while the window
-  was not key; cleared when the tab becomes key
-
+- `SidebarView.swift` — Sidebar tab container (outline / changes)
+- `ReselectMonitor.swift` — Detects clicks on already-selected List rows
+- `TabReloadBadgeView.swift` — Brown-dot badge on a tab whose document reloaded
+  while the window was not key
 - `View+Modify.swift` — SwiftUI `modify(_:)` view modifier helper
-
 - `Date+Formatting.swift` — `shortTimestamp` formatting extension
-
-- `CheckForUpdatesView.swift` — SparkleController (static updater owner),
-  CheckForUpdatesViewModel (KVO observer), and menu button (`#if SPARKLE`)
-
-- `OpenInEditor.swift` — `RegisteredMarkdownHandler` model plus
-  `EditorLaunchRequest` and `OpenInMenuModel` (`ObservableObject`) backing the
-  File menu's "Open In…" submenu (and the equivalent submenu on `MudWebView`'s
-  context menu). Owns the menu actions and the `NSOpenPanel` chooser with its
-  markdown/HTML accessory; the actual launch is fired by writing to
-  `DocumentState.openInEditorRequest`. Refreshes on launch and whenever
-  `open-in.*` prefs change
+- `CheckForUpdatesView.swift` — Sparkle updater owner, KVO observer, and menu
+  button (`#if SPARKLE`)
+- `OpenInEditor.swift` — Backs the "Open In…" submenu: registered-handler
+  model, `NSOpenPanel` chooser, launch via `DocumentState.openInEditorRequest`
 
 **App/CLI/ key files:**
 
-- `main.swift` — `mud` CLI: argument parsing, rendering via MudCore, stdout and
-  browser output. No AppKit or SwiftUI.
-
-- `mud.sh` — Shell dispatcher: routes to the bundled `mud` CLI when rendering
-  flags are present, otherwise opens files in the Mud GUI via `open -a`.
-  Bundled in `Contents/Resources/mud.sh`; the installed `mud` symlink points
-  here. The `mud` CLI binary lives at `Contents/Helpers/mud` (not `MacOS/`, to
-  avoid a case-insensitive filename collision with the `Mud` app executable).
+- `main.swift` — `mud` CLI: argument parsing, rendering via MudCore,
+  stdout/browser output. No AppKit or SwiftUI.
+- `mud.sh` — Shell dispatcher: routes to the bundled `mud` CLI for rendering
+  flags, else opens the GUI via `open -a`. The CLI binary lives at
+  `Contents/Helpers/mud` (not `MacOS/`, to avoid a case-insensitive collision
+  with the `Mud` app executable).
 
 **App/Settings/ key files:**
 
 - `SettingsView.swift` — Settings window root with NavigationSplitView sidebar
-
 - `GeneralSettingsView.swift` — General settings pane
-
 - `ThemeSettingsView.swift` — Theme selection pane with preview cards
-
 - `ThemePreviewCard.swift` — Theme color constants and preview card view
-
 - `MarkdownSettingsView.swift` — Markdown settings pane (DocC alert mode)
-
-- `UpModeSettingsView.swift` — Up Mode settings pane (Allow Remote Content,
-  Mermaid Diagrams)
-
+- `UpModeSettingsView.swift` — Up Mode settings pane (remote content, Mermaid)
 - `DownModeSettingsView.swift` — Down Mode settings pane
-
 - `ChangesSettingsView.swift` — Changes settings pane (inline deletions, git
-  waypoints toggle)
-
+  waypoints)
+- `CommentsSettingsView.swift` — Comments settings pane (`comment-author`,
+  `comment-return-saves`, and `comments-include-in-export` preferences)
 - `CommandLineSettingsView.swift` — Command Line settings pane
-
-- `UpdateSettingsView.swift` — Updates pane: auto-update radio group, Check
-  Now, release notes link (`#if SPARKLE`)
-
-- `SettingsWindowController.swift` — Settings window lifecycle (singleton
-  NSWindowController)
-
+- `UpdateSettingsView.swift` — Updates pane (`#if SPARKLE`)
+- `SettingsWindowController.swift` — Settings window lifecycle (singleton)
 - `CSSColors.swift` — CSS hex color parsing extension on `Color`
-
 - `LightingPreviewCard.swift` — Lighting selection preview card
-
-- `DebuggingSettingsView.swift` — Debugging pane (debug builds only; reset
-  preferences)
+- `DebuggingSettingsView.swift` — Debugging pane (debug builds only)
 
 **Preferences/ key files:**
 
 - `MudPreferences.swift` — Struct with `.shared`. Source of truth is
-  `UserDefaults.standard`; every write is mirrored into the Team-ID-prefixed
-  app-group suite `XVL2AFNXH5.org.josephpearson.Mud` so the Quick Look
-  extension can read a snapshot. Holds the `Keys` enum, per-key read/write
-  methods, and `reset()`.
-
-- `MudPreferencesObserver.swift` — `syncMirror()` fans every current `defaults`
-  value into the mirror (so `defaults write` changes made while the app was not
-  running get picked up); called once at launch.
-  `startObservingExternalChanges` then watches `defaults` via KVO and updates
-  the mirror plus fires an `onChange` callback for in-process changes.
-
-- `MudPreferencesSnapshot.swift` — Value-type snapshot of the prefs that flow
-  into `RenderOptions`, plus derived `upModeHTMLClasses`. Consumed by the Quick
-  Look extension.
-
+  `UserDefaults.standard`, mirrored into the Team-ID-prefixed app-group suite
+  `XVL2AFNXH5.org.josephpearson.Mud` so the Quick Look extension can read a
+  snapshot. Holds `Keys`, per-key accessors, `reset()`.
+- `MudPreferencesObserver.swift` — Syncs `defaults` into the app-group mirror
+  at launch and watches them via KVO thereafter.
+- `MudPreferencesSnapshot.swift` — Value-type prefs snapshot feeding
+  `RenderOptions`; consumed by the Quick Look extension.
 - `Theme.swift` — austere/blues/earthy/riot enum
-
 - `Lighting.swift` — auto/bright/dark enum (bare; AppKit behavior in
   `App/Lighting+AppKit.swift`)
-
 - `Mode.swift` — up/down enum
-
 - `ViewToggle.swift` — readableColumn/lineNumbers/wordWrap/codeHeader/
-  autoExpandChanges toggles; `isEnabled`/ `save(_:)` delegate to
-  `MudPreferences.shared`
-
+  autoExpandChanges toggles
 - `SidebarPane.swift` — outline/changes enum
-
-- `FloatingControlsPosition.swift` — Top right / bottom right / bottom center
-  enum for floating bar placement
-
+- `FloatingControlsPosition.swift` — Floating-bar placement enum
 - `EditorFormat.swift` — markdown/html enum for the "Open In" handoff
 
 **Core/ key files:**
 
-- `ParsedMarkdown.swift` — Parse-once handle: AST, headings, and title
+- `ParsedMarkdown.swift` — Parse-once handle: AST, headings, title
 - `RenderExtension.swift` — Client-side rendering extension type and registry
 - `RenderOptions.swift` — Rendering configuration value type
 - `MudCore.swift` — Public API: rendering functions (String and ParsedMarkdown
-  overloads), extractHeadings convenience
+  overloads), extractHeadings and parseComments convenience, comment thread /
+  bottom-section rendering
 - `Rendering/UpHTMLVisitor.swift` — AST → rendered HTML
 - `Rendering/DownHTMLVisitor.swift` — AST → syntax-highlighted raw HTML
 - `Rendering/HTMLDocument.swift` — Structured HTML document builder
 - `Rendering/HTMLTemplate.swift` — Document wrapping and resource loading
 - `Rendering/MarkdownParser.swift` — swift-cmark wrapper
-- `Rendering/FootnoteProcessor.swift` — Pre-parses footnotes via cmark
+- `Rendering/FootnoteProcessor.swift` — Pre-parses footnotes; classifies
+  `^comment-[\w-]+$` labels as comments
+- `Rendering/FootnoteProcessor.swift` — Pre-parses footnotes via cmark;
+  classifies `^comment-[\w-]+$` labels as comments (diverted to `[⋯]` markers,
+  authorial footnotes renumbered to skip them)
 - `Rendering/SlugGenerator.swift` — Heading ID generation
 - `Rendering/HeadingExtractor.swift` — Heading extraction for sidebar
 - `Rendering/CodeHighlighter.swift` — Syntax highlighting via highlight.js
 - `Rendering/EmojiShortcodes.swift` — `:shortcode:` → emoji replacement
-- `Rendering/AlertDetector.swift` — GFM alert and DocC aside detection and
-  rendering
-- `Rendering/HTMLEscaping.swift` — Shared HTML entity escaping utilities
-- `Rendering/HTMLLineSplitter.swift` — Splits HTML by line while preserving
-  `<span>` tag balance (for diff display)
+- `Rendering/AlertDetector.swift` — GFM alert and DocC aside detection
+- `Rendering/HTMLEscaping.swift` — Shared HTML entity escaping
+- `Rendering/HTMLLineSplitter.swift` — Splits HTML by line preserving `<span>`
+  balance (for diff display)
 - `Rendering/ImageDataURI.swift` — Image encoding for browser export
 - `OutlineHeading.swift` — Heading model shared between Core and App
-- `Diff/BlockMatcher.swift` — Block-level diff: leaf block collection,
-  fingerprinting, `CollectionDifference` matching
-- `Diff/LineLevelDiff.swift` — Shared line-level diff algorithm used by both
-  `CodeBlockDiff` and `LineDiffMap`
-- `Diff/LineDiffMap.swift` — Down mode change tracking: line-level annotations,
-  deletion groups, per-line word data (separate del/ins maps)
+- `Comments/Comment.swift` — `Comment` / `CommentMessage` models and the
+  `CommentMode` enum
+- `Comments/CommentSerialization.swift` — Read/write codec for a comment body
+- `Comments/CommentEditor.swift` — Pure source rewriting (no IO):
+  insert/rewrite/delete with stable, never-renumbered alpha labels
+- `Comments/CommentAnchor.swift` — Maps a rendered-DOM selection end to a
+  source UTF-8 byte (via the cmark footnote AST) so the marker lands where the
+  quotation ends
+- `Diff/BlockMatcher.swift` — Block-level diff: leaf collection,
+- `Diff/LineLevelDiff.swift` — Shared line-level diff algorithm
+- `Diff/LineDiffMap.swift` — Down mode change tracking
 - `Diff/CodeBlockDiff.swift` — Line-level diff within paired code blocks (Up
-  mode): highlighted HTML, change IDs, group IDs, word markers
-- `Diff/DiffContext.swift` — Up mode change tracking: block annotations,
-  rendered deletions, group info, code block diffs, word spans
+  mode)
+- `Diff/DiffContext.swift` — Up mode change tracking
 - `Diff/WordDiff.swift` — Word-level diff and inline text extraction
-- `Diff/WordPairing.swift` — Best-match pairing of deleted/inserted lines by
-  word overlap (greedy algorithm)
+- `Diff/WordPairing.swift` — Greedy best-match pairing of deleted/inserted
+  lines
 - `Diff/ChangeList.swift` — Sidebar change list computed from `DiffContext`
-- `Diff/ChangeGroup.swift` — Group consecutive changes by `groupID` for
-  navigation and counts
-- `ChangeTracker.swift` — Waypoint history, active waypoint selection, menu
-  item computation with caching
+- `Diff/ChangeGroup.swift` — Groups consecutive changes by `groupID`
+- `ChangeTracker.swift` — Waypoint history and active-waypoint selection
 
 **QuickLook/ key files:**
 
-- `PreviewProvider.swift` — `MudPreviewProvider`, an `NSViewController`
-  subclass conforming to `QLPreviewingController` (view-based, not data-based —
-  required for Finder's column-view preview pane to live-render our output).
-  Hosts a `WKWebView`. Reads the shared configuration snapshot from the
-  app-group `UserDefaults` suite and renders the preview as self-contained HTML
-  via `MudCore.renderUpModeDocument`. Inlines local images as data URIs via
-  `ImageDataURI.encode`.
-- `Info.plist` — `NSExtensionPointIdentifier = com.apple.quicklook.preview`,
-  `NSExtensionPrincipalClass = MudPreviewProvider`,
-  `QLSupportedContentTypes = [net.daringfireball.markdown]`.
-- `QuickLook.entitlements` / `QuickLookDirect.entitlements` — sandboxed
-  extension. MAS variant carries app-sandbox, network.client, and the app-group
-  entitlement. Direct variant adds a read-only absolute-path temporary
-  exception so the extension can inline sibling images into previews. Selected
-  per build config via `CODE_SIGN_ENTITLEMENTS`, same pattern as
-  `App/Mud.entitlements` / `App/MudDirect.entitlements`.
+- `PreviewProvider.swift` — `MudPreviewProvider`, a view-based
+  `QLPreviewingController` (not data-based — required for Finder's column-view
+  pane to live-render) hosting a `WKWebView`. Renders self-contained HTML via
+  MudCore, inlining local images as data URIs.
+- `Info.plist` — Quick Look preview extension point; principal class
+  `MudPreviewProvider`; supports `net.daringfireball.markdown`.
+- `QuickLook.entitlements` / `QuickLookDirect.entitlements` — Sandboxed; MAS
+  variant carries app-group, Direct variant adds a temporary read exception for
+  inlining sibling images. Selected per build config via
+  `CODE_SIGN_ENTITLEMENTS`.
 
 **Thumbnail/ key files:**
 
-- `ThumbnailProvider.swift` — `MudThumbnailProvider`, a `QLThumbnailProvider`
-  subclass. Returns the largest 3:4-portrait size that fits inside
-  `QLFileThumbnailRequest.maximumSize`, fills it flat with the card grey, draws
-  the file's first heading (via `MudCore.extractHeadings`, falling back to the
-  filename), then composites the bundled `thumbnail-dynamic.png` drip on top.
-  No explicit clipping: the drip overlay visually swallows headings that wrap
-  into its territory. Finder wraps the reply in its own paper chrome at the
-  reply's aspect.
-- `Info.plist` — `NSExtensionPointIdentifier = com.apple.quicklook.thumbnail`,
-  `NSExtensionPrincipalClass = MudThumbnailProvider`,
-  `QLSupportedContentTypes = [net.daringfireball.markdown]`,
-  `QLThumbnailMinimumDimension = 64` (smaller requests fall through to the
-  static `.icns`).
-- `Thumbnail.entitlements` / `ThumbnailDirect.entitlements` — sandbox only. No
-  network, no app-group, no temporary exceptions: the extension reads the file
-  URL the system hands it and its own bundled overlay image.
-- `Resources/thumbnail-dynamic.png` — 768×1024 drip overlay: muddy drip with a
-  transparent top and sides, exported directly from the design tool. Drawn on
-  top of the heading so any wrapped text flowing into the drip's region gets
-  visually absorbed.
-- `Resources/thumbnail-static.svg` — source for the static `.icns` document
-  icon; rasterized by `.claude/tmp/build-document-icon`.
+- `ThumbnailProvider.swift` — `MudThumbnailProvider`, a `QLThumbnailProvider`.
+  Draws the file's first heading (via `MudCore.extractHeadings`) on the card
+  grey, then composites the bundled drip overlay on top.
+- `Info.plist` — Quick Look thumbnail extension point; principal class
+  `MudThumbnailProvider`; `QLThumbnailMinimumDimension = 64`.
+- `Thumbnail.entitlements` / `ThumbnailDirect.entitlements` — Sandbox only; no
+  network, app-group, or temporary exceptions.
+- `Resources/thumbnail-dynamic.png` — 768×1024 drip overlay drawn over the
+  heading.
+- `Resources/thumbnail-static.svg` — Source for the static `.icns` document
+  icon.
 
 **Resources:**
 
 - `mud.css` — Shared styles and lighting variables
 - `mud-up.css` — Up mode styles
 - `mud-down.css` — Down mode styles
+- `mud-comments.css` — Comments column styles (read side, bundled everywhere):
+  markers, quotation highlights, the bottom Comments section, and the projected
+  column (capsules, header, threads). Inlined into every Up document via
+  `wrapUp`, exports included.
+- `mud-comments-edit.css` — Comments column styles (write side, app only): the
+  compose box and the add / reply / edit / delete controls, plus the delete
+  puff. Embedded only when `RenderOptions.commentsEditable` is set, so exports
+  omit it. Mirrors the `mud-comments.js` / `mud-comments-edit.js` split.
+- `mud-print.css` — Print styles: every `@media print` rule, gathered out of
+  the mode and comments stylesheets. Included last in both Up and Down
+  documents so its rules win over the on-screen defaults.
 - `mud.js` — Shared JS: find, scroll, lighting, zoom
 - `mud-changes.js` — Change tracking JS: overlays, expand/collapse, navigation
+- `mud-comments.js` — Comments column (read side, bundled everywhere): projects
+  a capsule per comment from the hidden bottom section, anchors quotation
+  highlights off the hidden markers, runs the slot solver, and on `setData`
+  rebuilds the section + syncs body markers + reprojects in place (no reload)
+- `mud-comments-edit.js` — Comments column (write side, app only): the Add
+  Comment button on a commentable selection, the compose box, and the
+  submit/reply/edit/delete bridge (`mudCommentSubmit`)
 - `mud-up.js` — Up-mode JS
 - `mud-down.js` — Down-mode JS
 - `emoji.json` — GitHub gemoji shortcode database
-- `alert-*.svg` — Octicon alert icons (note, tip, important, warning, caution,
-  status)
+- `alert-*.svg` — Octicon alert icons
 - `theme-*.css` — Four user-selectable theme files (austere, blues, earthy,
   riot)
-- `theme-system.css` — System theme (internal; not user-selectable; used for
-  error pages)
+- `theme-system.css` — System theme (internal; used for error pages)
 - `mermaid.min.js` — Mermaid diagram library (v11, UMD build)
 - `mermaid-init.js` — Mermaid init script for Up mode rendering
-- `Doc/Guides/command-line.md` — Bundled guide: CLI usage for App Store and
-  direct distribution builds
+- `Doc/Guides/command-line.md` — Bundled guide: CLI usage
+- `Doc/Guides/primer.md` — Bundled guide: dense Markdown authoring primer for
+  coding agents, printed by `mud --primer`
 
 **Scripts and CI:**
 
@@ -329,18 +272,16 @@ MVP plan.
   to `Vendor/Sparkle/`
 - `.github/scripts/build-appcast` — Sign DMG and generate single-item
   `appcast.xml`
-- `.github/scripts/build-release-notes` — Ruby script: extract per-version
-  sections from `Doc/RELEASES.md` and render HTML via Mud CLI
+- `.github/scripts/build-release-notes` — Ruby: extract per-version sections
+  from `Doc/RELEASES.md` and render HTML via Mud CLI
 
 **Doc:**
 
-- `Doc/RELEASES.md` — User-facing release notes (hand-written, per-version
-  sections)
+- `Doc/RELEASES.md` — User-facing release notes (hand-written, per-version)
 - `Site/releases/` — Pre-rendered release notes HTML (generated by
   `build-release-notes`)
 
-**Important** — Make sure to update this section of `Doc/AGENTS.md` if you add
-or remove key files.
+**Important** — Keep this section in sync when you add or remove key files.
 
 
 ## Rendering pipeline
@@ -361,16 +302,9 @@ Markdown string (down mode)
 ```
 
 Both modes render into the same WKWebView; toggling mode swaps the HTML
-document.
-
-All public rendering functions accept a `RenderOptions` value that bundles
-configuration (theme, baseURL, docCAlertMode, etc.). Call sites build a
-`RenderOptions` and pass it through; adding new options requires only a new
-field on the struct.
-
-MudCore exposes: `renderUpToHTML(_:options:)`, `renderDownToHTML(_:options:)`,
-`renderUpModeDocument(_:options:)`, `renderDownModeDocument(_:options:)`,
-`renderUpModeDocumentWithFootnotes(_:options:)`, `extractHeadings(_:)`.
+document. All public rendering functions accept a `RenderOptions` value
+bundling configuration (theme, baseURL, docCAlertMode, commentMode, etc.);
+adding an option means adding a field on the struct.
 
 Footnotes are preprocessed at the **String** boundary (sourcepos needs raw
 bytes): `FootnoteProcessor` rewrites `[^ref]` to inline-HTML markers and strips
@@ -379,6 +313,28 @@ definitions before `ParsedMarkdown` parsing. The bottom
 hidden on screen (`is-print-only`, shown under `@media print`) and
 `renderUpModeDocumentWithFootnotes` additionally returns each footnote body as
 a self-contained document for the in-app `NSPopover`.
+
+Comments ride the same preprocessing pass. A footnote whose label matches
+`^comment-[\w-]+$` is classified as a comment: its reference renders as a `[⋯]`
+marker (consuming no footnote number) and its definition is parsed into a
+quotation + threaded messages. `RenderOptions.commentMode` (added to
+`contentIdentity`) selects the output: `.section` emits a visible bottom
+`<section class="comments">` for every export path, while `.interactive` (the
+live app) keeps that section `is-print-only` and instead draws hover-revealed
+highlights and feeds the Comments Column. The bottom section always follows
+any footnotes section.
+
+Comments are **invisible to change tracking**: `BlockMatcher.collectLeafBlocks`
+excludes comment-definition blocks (via
+`FootnoteProcessor.commentDefinitionLineRanges`) and strips comment tokens from
+block fingerprints (`stripCommentTokens`), so a comment-only edit produces zero
+changes and no new waypoint across all three diff consumers (sidebar, Up
+overlay, Down highlighting). Both are gated to a strict no-op on comment-free
+input. Correspondingly, the Up-mode `contentID` is **comment-invariant**
+(`DocumentContentView.displayContentID` hashes `MudCore.removeComments(...)`),
+so a comment add/remove updates the live Up view in place (`mud-comments.js`
+marker sync) with no reload; Down mode keeps the full markdown so its raw
+source stays current.
 
 
 ## State management
@@ -395,8 +351,8 @@ Three ObservableObject classes, no nesting:
 
 State flows outward via `@ObservedObject`. Combine sinks in
 `DocumentWindowController` bridge state → AppKit (window appearance, toolbar
-icons). `AppState`'s `@Published` `didSet` observers persist each change by
-assigning to the corresponding `MudPreferences.shared.<pref>` property.
+icons). `AppState`'s `@Published` `didSet` observers persist each change to the
+corresponding `MudPreferences.shared` property.
 
 
 ## Communication patterns
@@ -420,54 +376,48 @@ multi-window conflicts). Toolbar actions use the responder chain reaching
 - **No NSDocument subclass.** `DocumentController` creates
   `DocumentWindowController` instances directly. Documents are just URLs +
   window controllers.
-- **Single WebView, HTML swap.** Mode toggle replaces the HTML document (up vs
-  down template). Both modes share one `WKWebView` instance.
+- **Single WebView, HTML swap.** Mode toggle replaces the HTML document; both
+  modes share one `WKWebView`.
 - **Content identity via string hash.** `WebView` compares content to avoid
   unnecessary reloads.
-- **JavaScript namespace.** All JS functions are under `Mud.*` (find, scroll,
-  lighting, zoom). Shared code in `mud.js`; mode-specific code in `mud-up.js` /
-  `mud-down.js`. Injected as WKUserScript.
+- **JavaScript namespace.** All JS functions live under `Mud.*`. Shared code in
+  `mud.js`; mode-specific code in `mud-up.js` / `mud-down.js`. Injected as
+  WKUserScript.
 - **Lighting = CSS + AppKit.** CSS variables for web content;
   `NSWindow.appearance` for AppKit chrome. Both set from a single Combine sink.
-- **Themes.** Four theme files (`theme-*.css`); active theme selected via
-  `AppState.theme` and applied as a CSS class.
-- **ViewToggle.** Persisted boolean preferences (readable column, line numbers,
-  word wrap) mapped to CSS classes on the body element via `bodyClasses`.
+- **Themes.** Four theme files (`theme-*.css`); active theme applied as a CSS
+  class.
+- **ViewToggle.** Persisted boolean preferences mapped to CSS classes on the
+  body element via `bodyClasses`.
 - **Extension principal classes.** Quick Look and Thumbnail providers use
-  `@objc(ClassName)` so `NSExtensionPrincipalClass` in each `Info.plist`
-  resolves without Swift module-name mangling.
+  `@objc(ClassName)` so `NSExtensionPrincipalClass` resolves without Swift
+  module-name mangling.
 
 
 ### Sandbox-aware features
 
 The app detects sandboxing at runtime via `isSandboxed` (checks
-`APP_SANDBOX_CONTAINER_ID`). When sandboxed (Mac App Store build), certain
-features are hidden or adapted:
+`APP_SANDBOX_CONTAINER_ID`). When sandboxed (Mac App Store build),
+`if !isSandboxed` guards in menus, context menus, and settings adapt two
+features — no build-time flags, one binary for both channels:
 
-- **CLI installer** — The Command Line settings pane shows manual `ln -s`
-  instructions instead of the automatic Install button.
-- **Open In Browser** — Hidden entirely. The feature writes a temp HTML file
-  for the default browser to open, but sandboxed temp locations aren't readable
-  by other apps, so the handoff can't work.
+- **CLI installer** — shows manual `ln -s` instructions instead of the Install
+  button.
+- **Open In Browser** — hidden entirely (sandboxed temp files aren't readable
+  by other apps).
 
-These features use `if !isSandboxed` guards in menus, context menus, and
-settings views. No build-time flags are needed — a single binary supports both
-distribution channels.
+Comment authoring is the one **write** path (the app is otherwise read-only)
+and is **not** hidden under sandboxing. The MAS build writes the user-opened
+`.md` file via the read-write file entitlement (`App/Mud.entitlements`) plus
+security-scoped access (start/stop around an atomic write); the direct build is
+unsandboxed and writes freely (`CommentController`).
 
 
 ### Deferred mutations in SwiftUI
 
-SwiftUI event handlers (`onKeyPress`, `onChange`, `updateNSView`, Combine sinks
-triggered during view updates, etc.) run inside the view-update pipeline.
-Setting an `@Published` property there causes:
-
-```
-Publishing changes from within view updates is not allowed,
-this will cause undefined behavior.
-```
-
-Use `deferMutation` (defined in `App/DeferMutation.swift`) to push the mutation
-to the next run-loop iteration. Applies to any code path that mutates
-`@Published` state and can be reached from a SwiftUI view-update context. Do
-**not** use `deferMutation` for unrelated async dispatch such as thread-hopping
-from background callbacks or intentional delays.
+Setting an `@Published` property from inside the view-update pipeline
+(`onKeyPress`, `onChange`, `updateNSView`, Combine sinks fired during updates)
+triggers SwiftUI's "Publishing changes from within view updates is not allowed"
+warning and undefined behavior. Use `deferMutation` (`App/DeferMutation.swift`)
+to push the mutation to the next run-loop iteration. Don't use it for unrelated
+async dispatch such as background thread-hops or intentional delays.

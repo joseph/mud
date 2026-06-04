@@ -8,7 +8,7 @@ description: >
 Feature showcase
 ===============================================================================
 
-Mud renders GitHub-Flavoured Markdown with a set of extended features beyond
+Mud renders GitHub-Flavored Markdown with a set of extended features beyond
 the CommonMark baseline. This document demonstrates all of them in one place.
 
 

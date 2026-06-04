@@ -63,6 +63,7 @@ class DocumentWindowController: NSWindowController {
         let sidebarView = SidebarView(
             state: state,
             changeTracker: state.changeTracker,
+            fileURL: fileURL,
             onSelectHeading: { [weak self] heading in
                 self?.state.scrollTarget = ScrollTarget(id: UUID(), heading: heading)
             },
@@ -124,6 +125,17 @@ class DocumentWindowController: NSWindowController {
                 if self?.window?.isKeyWindow == true {
                     deferMutation {
                         AppState.shared.modeInActiveTab = mode
+                    }
+                }
+            }
+            .store(in: &cancellables)
+
+        state.$hasUpSelection
+            .dropFirst()
+            .sink { [weak self] hasSelection in
+                if self?.window?.isKeyWindow == true {
+                    deferMutation {
+                        AppState.shared.activeHasUpSelection = hasSelection
                     }
                 }
             }
@@ -248,6 +260,21 @@ class DocumentWindowController: NSWindowController {
         state.openInBrowserID = UUID()
     }
 
+    @objc func addComment(_ sender: Any?) {
+        state.draftCommentID = UUID()
+    }
+
+    /// Expands the sidebar (if collapsed) and switches it to `pane`. Used when a
+    /// `[⋯]` marker is clicked or a comment draft is captured, so the relevant
+    /// thread is visible without a separate toggle.
+    func revealSidebar(_ pane: SidebarPane) {
+        AppState.shared.sidebarPane = pane
+        if let sidebarItem = splitVC?.splitViewItems.first,
+           sidebarItem.isCollapsed {
+            sidebarItem.animator().isCollapsed = false
+        }
+    }
+
     @objc func zoomIn(_ sender: Any?) {
         adjustZoom(by: 0.1)
     }
@@ -343,6 +370,8 @@ class DocumentWindowController: NSWindowController {
 extension DocumentWindowController: NSWindowDelegate {
     func windowDidBecomeKey(_ notification: Notification) {
         AppState.shared.modeInActiveTab = state.mode
+        AppState.shared.activeHasUpSelection = state.hasUpSelection
+        AppState.shared.activeDocumentEditable = !fileURL.isBundleResource
         state.hasBackgroundReload = false
     }
 

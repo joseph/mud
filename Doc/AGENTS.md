@@ -28,6 +28,9 @@ MVP plan.
 - Zoom In/Out/Actual Size (per-mode, persisted)
 - Readable Column, Line Numbers, Word Wrap toggles
 - Table of contents sidebar
+- Comments: select text and attach threaded comments, stored in-file as GFM
+  footnotes (`^comment-[\w-]+$`); hover-revealed highlights and a Comments
+  sidebar pane (Up mode only; GUI authoring writes the `.md` file)
 - Find (Cmd+F), Find Next/Previous (Cmd+G, Cmd+Shift+G)
 - Print / Save as PDF (Cmd+P)
 - Open In Browser (Cmd+Shift+B) with image data-URI embedding
@@ -82,6 +85,19 @@ MVP plan.
 - `FootnotePopover.swift` — `FootnotePopoverController`: a transient
   `NSPopover` hosting a `WKWebView` that renders a footnote body
 
+- `CommentController.swift` — `CommentDraft` model plus `CommentController`:
+  the comment write path (re-read from disk, byte-surgical edit via
+  `CommentEditor`, atomic security-scoped write). Add / reply / edit-last /
+  delete
+
+- `CommentsSidebarView.swift` — Comments sidebar pane: a list of the document's
+  comments that swaps to a per-thread view (read-only `WKWebView`-rendered
+  messages + a native SwiftUI `TextEditor` compose box). Create mode at a
+  pending selection (Add); edit mode for a selected comment (Reply, Edit last,
+  Delete). Writes via `CommentController`. Reading and editing both live here —
+  there is no editor popover (an `NSPopover` can't take key/text input as a
+  child of the document window; see the Footnote Comments plan)
+
 - `OutlineSidebarView.swift` — Table of contents sidebar
 
 - `OutlineNode.swift` — Sidebar data model
@@ -109,7 +125,8 @@ MVP plan.
 
 - `ChangesSidebarView.swift` — Changes pane listing tracked changes
 
-- `SidebarView.swift` — Sidebar tab container (outline vs changes panes)
+- `SidebarView.swift` — Sidebar tab container (outline / changes / comments
+  panes)
 
 - `ReselectMonitor.swift` — NSViewRepresentable that detects clicks on
   already-selected List rows
@@ -164,6 +181,9 @@ MVP plan.
 - `ChangesSettingsView.swift` — Changes settings pane (inline deletions, git
   waypoints toggle)
 
+- `CommentsSettingsView.swift` — Comments settings pane (comment author name,
+  backing the `comment-author` preference)
+
 - `CommandLineSettingsView.swift` — Command Line settings pane
 
 - `UpdateSettingsView.swift` — Updates pane: auto-update radio group, Check
@@ -208,7 +228,7 @@ MVP plan.
   autoExpandChanges toggles; `isEnabled`/ `save(_:)` delegate to
   `MudPreferences.shared`
 
-- `SidebarPane.swift` — outline/changes enum
+- `SidebarPane.swift` — outline/changes/comments enum
 
 - `FloatingControlsPosition.swift` — Top right / bottom right / bottom center
   enum for floating bar placement
@@ -221,13 +241,16 @@ MVP plan.
 - `RenderExtension.swift` — Client-side rendering extension type and registry
 - `RenderOptions.swift` — Rendering configuration value type
 - `MudCore.swift` — Public API: rendering functions (String and ParsedMarkdown
-  overloads), extractHeadings convenience
+  overloads), extractHeadings and parseComments convenience, comment thread /
+  bottom-section rendering
 - `Rendering/UpHTMLVisitor.swift` — AST → rendered HTML
 - `Rendering/DownHTMLVisitor.swift` — AST → syntax-highlighted raw HTML
 - `Rendering/HTMLDocument.swift` — Structured HTML document builder
 - `Rendering/HTMLTemplate.swift` — Document wrapping and resource loading
 - `Rendering/MarkdownParser.swift` — swift-cmark wrapper
-- `Rendering/FootnoteProcessor.swift` — Pre-parses footnotes via cmark
+- `Rendering/FootnoteProcessor.swift` — Pre-parses footnotes via cmark;
+  classifies `^comment-[\w-]+$` labels as comments (diverted to `[⋯]` markers,
+  authorial footnotes renumbered to skip them)
 - `Rendering/SlugGenerator.swift` — Heading ID generation
 - `Rendering/HeadingExtractor.swift` — Heading extraction for sidebar
 - `Rendering/CodeHighlighter.swift` — Syntax highlighting via highlight.js
@@ -239,6 +262,17 @@ MVP plan.
   `<span>` tag balance (for diff display)
 - `Rendering/ImageDataURI.swift` — Image encoding for browser export
 - `OutlineHeading.swift` — Heading model shared between Core and App
+- `Comments/Comment.swift` — `Comment` / `CommentMessage` models plus the
+  `CommentMode` enum (interactive / section)
+- `Comments/CommentSerialization.swift` — Read/write codec for a comment
+  definition's body: leading-blockquote quotation + `💬`-delimited messages, and
+  the attribution / timestamp grammar. `parse(serialize(…))` round-trips
+- `Comments/CommentEditor.swift` — Pure source rewriting (no IO): `nextLabel`,
+  `insert`, `rewrite`, `delete` — byte-surgical, alpha labels allocated in
+  insertion order, never renumbered
+- `Comments/CommentAnchor.swift` — Maps a rendered-DOM selection end to a
+  source UTF-8 byte (via the cmark footnote AST) so the marker lands exactly
+  where the quotation ends — the one DOM→source mapping `insert` needs
 - `Diff/BlockMatcher.swift` — Block-level diff: leaf block collection,
   fingerprinting, `CollectionDifference` matching
 - `Diff/LineLevelDiff.swift` — Shared line-level diff algorithm used by both
@@ -309,6 +343,9 @@ MVP plan.
 - `mud-down.css` — Down mode styles
 - `mud.js` — Shared JS: find, scroll, lighting, zoom
 - `mud-changes.js` — Change tracking JS: overlays, expand/collapse, navigation
+- `mud-comments.js` — Comments JS: selection capture for drafts, `[⋯]`
+  marker-click routing, and hover-revealed quotation highlights (backward
+  flat-text DOM walk → per-slice `<mark>`)
 - `mud-up.js` — Up-mode JS
 - `mud-down.js` — Down-mode JS
 - `emoji.json` — GitHub gemoji shortcode database
@@ -370,7 +407,9 @@ field on the struct.
 
 MudCore exposes: `renderUpToHTML(_:options:)`, `renderDownToHTML(_:options:)`,
 `renderUpModeDocument(_:options:)`, `renderDownModeDocument(_:options:)`,
-`renderUpModeDocumentWithFootnotes(_:options:)`, `extractHeadings(_:)`.
+`renderUpModeDocumentWithFootnotes(_:options:)`,
+`renderCommentThreadDocument(_:options:)`, `parseComments(_:)`,
+`extractHeadings(_:)`.
 
 Footnotes are preprocessed at the **String** boundary (sourcepos needs raw
 bytes): `FootnoteProcessor` rewrites `[^ref]` to inline-HTML markers and strips
@@ -379,6 +418,16 @@ definitions before `ParsedMarkdown` parsing. The bottom
 hidden on screen (`is-print-only`, shown under `@media print`) and
 `renderUpModeDocumentWithFootnotes` additionally returns each footnote body as
 a self-contained document for the in-app `NSPopover`.
+
+Comments ride the same preprocessing pass. A footnote whose label matches
+`^comment-[\w-]+$` is classified as a comment: its reference renders as a `[⋯]`
+marker (consuming no footnote number) and its definition is parsed into a
+quotation + threaded messages. `RenderOptions.commentMode` (added to
+`contentIdentity`) selects the output: `.section` emits a visible bottom
+`<section class="comments">` for every export path, while `.interactive` (the
+live app) keeps that section `is-print-only` and instead draws hover-revealed
+highlights and feeds the Comments sidebar. The bottom section always follows
+any footnotes section.
 
 
 ## State management
@@ -453,6 +502,12 @@ features are hidden or adapted:
 These features use `if !isSandboxed` guards in menus, context menus, and
 settings views. No build-time flags are needed — a single binary supports both
 distribution channels.
+
+Comment authoring is the one **write** path (the app is otherwise read-only)
+and is **not** hidden under sandboxing. The MAS build writes the user-opened
+`.md` file via the read-write file entitlement (`App/Mud.entitlements`) plus
+security-scoped access (start/stop around an atomic write); the direct build is
+unsandboxed and writes freely (`CommentController`).
 
 
 ### Deferred mutations in SwiftUI

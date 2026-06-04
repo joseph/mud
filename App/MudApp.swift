@@ -199,6 +199,21 @@ struct MudApp: App {
             }
 
             CommandGroup(replacing: .textEditing) {
+                Button {
+                    NSApp.sendAction(#selector(DocumentWindowController.addComment(_:)), to: nil, from: nil)
+                } label: {
+                    Label("Add Comment…", systemImage: "plus.bubble")
+                }
+                .keyboardShortcut("k", modifiers: [.command, .shift])
+                // Comments anchor in a selection in the rendered (Up-mode) view of
+                // a writable document.
+                .disabled(
+                    appState.modeInActiveTab != .up
+                    || !appState.activeHasUpSelection
+                    || !appState.activeDocumentEditable)
+
+                Divider()
+
                 Button("Find...") {
                     NSApp.sendAction(#selector(DocumentWindowController.performFindAction(_:)), to: nil, from: nil)
                 }

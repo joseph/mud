@@ -6,6 +6,10 @@ import MudCore
 class AppState: ObservableObject {
     static let shared = AppState()
     @Published var modeInActiveTab: Mode = .up
+    /// Transient (not persisted) mirrors of the key window's state, for app-level
+    /// menu gating — updated on key-window change like `modeInActiveTab`.
+    @Published var activeHasUpSelection: Bool = false
+    @Published var activeDocumentEditable: Bool = false
     @Published var lighting: Lighting {
         didSet { MudPreferences.shared.lighting = lighting }
     }
@@ -57,6 +61,9 @@ class AppState: ObservableObject {
     @Published var enabledExtensions: Set<String> {
         didSet { MudPreferences.shared.writeEnabledExtensions(enabledExtensions) }
     }
+    @Published var commentAuthor: String {
+        didSet { MudPreferences.shared.commentAuthor = commentAuthor }
+    }
 
     private init() {
         // Fan the current `defaults` values out to the app-group mirror so the
@@ -84,6 +91,7 @@ class AppState: ObservableObject {
         self.enabledExtensions = config.readEnabledExtensions(
             defaultValue: Set(RenderExtension.registry.keys)
         )
+        self.commentAuthor = config.commentAuthor
 
         // Pick up `defaults write org.josephpearson.Mud …` made while the app
         // is running. The callback's `didSet` writes idempotently update the
@@ -119,6 +127,7 @@ class AppState: ObservableObject {
         case .markdownDocCAlertMode:      self.markdownDocCAlertMode = c.markdownDocCAlertMode
         case .uiUseHeadingAsTitle:        self.uiUseHeadingAsTitle = c.uiUseHeadingAsTitle
         case .uiFloatingControlsPosition: self.uiFloatingControlsPosition = c.uiFloatingControlsPosition
+        case .commentAuthor:              self.commentAuthor = c.commentAuthor
         case .openInDefaultBundleID, .openInDefaultFormat:
             OpenInMenuModel.shared.refresh()
         // Every ViewToggle-backed key reloads the whole set — cheaper than

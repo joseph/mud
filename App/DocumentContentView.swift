@@ -22,11 +22,14 @@ struct DocumentContentView: View {
     @Environment(\.colorScheme) private var environmentColorScheme
 
     /// The HTML to display plus the footnote popover map (label → popover
-    /// document HTML). Up mode renders via the footnote API in `.popover` mode
-    /// so a single render yields both the page and the popover bodies.
+    /// document HTML) and the parsed comments (for live highlights, sidebar, and
+    /// editor). Up mode renders via the footnote API in `.popover` /
+    /// `.interactive` modes so a single render yields the page, the popover
+    /// bodies, and the comment model.
     private struct RenderedDisplay {
         let html: String
         let footnoteHTML: [String: String]
+        var comments: [Comment] = []
     }
 
     private var renderedDisplay: RenderedDisplay {
@@ -41,6 +44,7 @@ struct DocumentContentView: View {
             }
             var opts = renderOptions
             opts.footnoteMode = .popover
+            opts.commentMode = .interactive
             let document = MudCore.renderUpModeDocumentWithFootnotes(
                 parsed.markdown, options: opts,
                 resolveImageSource: Self.mudAssetResolver)
@@ -48,7 +52,9 @@ struct DocumentContentView: View {
             for footnote in document.footnotes {
                 map[footnote.label.lowercased()] = footnote.html
             }
-            return RenderedDisplay(html: document.html, footnoteHTML: map)
+            return RenderedDisplay(
+                html: document.html, footnoteHTML: map,
+                comments: document.comments)
         }
     }
 
@@ -81,8 +87,9 @@ struct DocumentContentView: View {
         }
     }
 
-    /// Rewrites local image paths to `mud-asset:` URLs for WKWebView.
-    private nonisolated static func mudAssetResolver(
+    /// Rewrites local image paths to `mud-asset:` URLs for WKWebView. Shared
+    /// with `CommentsSidebarView`, which renders comment threads the same way.
+    nonisolated static func mudAssetResolver(
         source: String, baseURL: URL
     ) -> String? {
         guard !ImageDataURI.isExternal(source) else { return nil }
@@ -123,6 +130,22 @@ struct DocumentContentView: View {
             printID: state.printID,
             extensions: appState.enabledExtensions,
             footnoteHTML: display.footnoteHTML,
+            comments: display.comments,
+            draftCommentID: state.draftCommentID,
+            revealCommentLabel: state.pendingDraft == nil ? state.activeCommentLabel : nil,
+            onOpenComment: { label in
+                state.pendingDraft = nil
+                state.activeCommentLabel = label
+                state.windowController?.revealSidebar(.comments)
+            },
+            onCommentDraft: { draft in
+                state.activeCommentLabel = nil
+                state.pendingDraft = draft
+                state.windowController?.revealSidebar(.comments)
+            },
+            onSelectionChange: { has in
+                state.hasUpSelection = has
+            },
             onSearchResult: { info in
                 findState.matchInfo = info
             }
@@ -161,8 +184,16 @@ struct DocumentContentView: View {
         .onChange(of: state.mode) { _, _ in
             if findState.isVisible { findState.close() }
         }
+        .onChange(of: state.isComposingComment) { _, composing in
+            // When the compose box closes, take keyboard focus back so document
+            // shortcuts resume.
+            if !composing { contentFocused = true }
+        }
         .onChange(of: contentFocused) { _, focused in
-            if !focused && !findState.isVisible {
+            // Reclaim focus so document keyboard shortcuts (space, `/`) keep
+            // working — but not while Find or the Comments compose box legitimately
+            // owns first responder, or it could never be typed into.
+            if !focused && !findState.isVisible && !state.isComposingComment {
                 contentFocused = true
             }
         }
@@ -204,32 +235,44 @@ struct DocumentContentView: View {
     private func setupFileWatcher() {
         guard !fileURL.isBundleResource else { return }
         fileWatcher = FileWatcher(url: fileURL) {
-            loadFromDisk()
-            if state.windowController?.window?.isKeyWindow != true {
+            let text = loadFromDisk()
+            // A reload echoing one of our own comment writes isn't an external
+            // change: refresh the render (the new marker appears) but don't raise
+            // the background-reload badge. A genuine external edit still does.
+            let isSelfWrite = text.map { state.consumeSelfWrite($0) } ?? false
+            if !isSelfWrite, state.windowController?.window?.isKeyWindow != true {
                 state.hasBackgroundReload = true
             }
         }
     }
 
-    private func loadFromDisk() {
+    /// Reads the file, parses, and refreshes per-document state. Returns the
+    /// loaded source text (nil on a read/decoding failure) so the file-watcher
+    /// echo can match it against a pending self-write; other callers discard it.
+    @discardableResult
+    private func loadFromDisk() -> String? {
         do {
             let data = try Data(contentsOf: fileURL)
             guard let text = String(data: data, encoding: .utf8) else {
                 content = .error(ErrorPage.fileEncodingError())
-                return
+                return nil
             }
             let parsed = ParsedMarkdown(text)
             content = .parsed(parsed)
             state.outlineHeadings = parsed.headings
+            state.comments = MudCore.parseComments(text)
             state.contentTitle = parsed.title
             changeTracker.update(parsed)
             #if GIT_PROVIDER
             refreshGitWaypoints(for: text)
             #endif
+            return text
         } catch let cocoaError as CocoaError where cocoaError.code == .fileReadNoSuchFile {
             content = .error(ErrorPage.fileNotFound(error: cocoaError))
+            return nil
         } catch {
             content = .error(ErrorPage.filePermissionDenied(path: fileURL.path, error: error))
+            return nil
         }
     }
 

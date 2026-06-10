@@ -240,37 +240,67 @@ struct FloatingBarsOverlay: ViewModifier {
     @ObservedObject var changeTracker: ChangeTracker
     @ObservedObject private var appState = AppState.shared
     @FocusState private var isFindFocused: Bool
+    @State private var containerWidth: CGFloat = 0
     var onSelectChange: ([String]) -> Void
+
+    /// Side-by-side bars need roughly this much room (FindBar caps at 320pt
+    /// plus the Changes bar); below it, bottom center stacks vertically.
+    private static let sideBySideMinWidth: CGFloat = 700
 
     private var changesBarVisible: Bool {
         appState.changesEnabled
     }
 
-    private var overlayAlignment: Alignment {
-        switch appState.uiFloatingControlsPosition {
-        case .topRight: return .topTrailing
-        case .bottomRight: return .bottomTrailing
-        case .bottomCenter: return .bottom
+    private enum BarLayout: Equatable {
+        case topRightColumn
+        case bottomRightColumn
+        case bottomCenterColumn   // bottom center, narrow window
+        case bottomCenterRow      // bottom center, room for side-by-side
+
+        var overlayAlignment: Alignment {
+            switch self {
+            case .topRightColumn: .topTrailing
+            case .bottomRightColumn: .bottomTrailing
+            case .bottomCenterColumn, .bottomCenterRow: .bottom
+            }
+        }
+
+        var stack: AnyLayout {
+            switch self {
+            case .topRightColumn, .bottomRightColumn:
+                AnyLayout(VStackLayout(alignment: .trailing, spacing: 10))
+            case .bottomCenterColumn:
+                AnyLayout(VStackLayout(alignment: .center, spacing: 10))
+            case .bottomCenterRow:
+                AnyLayout(HStackLayout(spacing: 10))
+            }
         }
     }
 
-    private var isTop: Bool {
-        appState.uiFloatingControlsPosition == .topRight
-    }
-
-    private var isRight: Bool {
-        appState.uiFloatingControlsPosition != .bottomCenter
+    private var barLayout: BarLayout {
+        switch appState.uiFloatingControlsPosition {
+        case .topRight: .topRightColumn
+        case .bottomRight: .bottomRightColumn
+        case .bottomCenter:
+            containerWidth >= Self.sideBySideMinWidth
+                ? .bottomCenterRow : .bottomCenterColumn
+        }
     }
 
     func body(content: Content) -> some View {
         content
-            .overlay(alignment: overlayAlignment) {
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.size.width
+            } action: { width in
+                containerWidth = width
+            }
+            .overlay(alignment: barLayout.overlayAlignment) {
                 floatingBars
                     .padding(12)
             }
             .animation(.easeOut(duration: 0.15), value: findState.isVisible)
             .animation(.easeOut(duration: 0.15), value: changesBarVisible)
-            .animation(.easeOut(duration: 0.15), value: appState.uiFloatingControlsPosition)
+            .animation(.easeOut(duration: 0.15), value: barLayout)
             .onChange(of: findState.isVisible) { _, isVisible in
                 if isVisible { isFindFocused = true }
             }
@@ -287,14 +317,9 @@ struct FloatingBarsOverlay: ViewModifier {
 
     @ViewBuilder
     private func floatingBarStack(showFind: Bool, showChanges: Bool) -> some View {
-        VStack(alignment: isRight ? .trailing : .center, spacing: 10) {
-            if isTop {
-                findBarIfVisible(showFind)
-                changesBarIfVisible(showChanges)
-            } else {
-                changesBarIfVisible(showChanges)
-                findBarIfVisible(showFind)
-            }
+        barLayout.stack {
+            findBarIfVisible(showFind)
+            changesBarIfVisible(showChanges)
         }
     }
 

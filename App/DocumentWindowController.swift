@@ -141,6 +141,12 @@ class DocumentWindowController: NSWindowController {
             }
             .store(in: &cancellables)
 
+        state.find.$isVisible
+            .sink { [weak self] visible in
+                self?.updateFindButton(visible)
+            }
+            .store(in: &cancellables)
+
         state.$contentTitle
             .combineLatest(AppState.shared.$uiUseHeadingAsTitle)
             .sink { [weak self] title, useHeading in
@@ -204,7 +210,14 @@ class DocumentWindowController: NSWindowController {
     }
 
     private func updateChangesButton(_ enabled: Bool) {
+        let symbol = enabled ? "clock.fill" : "clock"
+        changesButton?.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
         changesButton?.toolTip = enabled ? "Hide Changes" : "Show Changes"
+    }
+
+    private func updateFindButton(_ visible: Bool) {
+        let symbol = visible ? "magnifyingglass.circle.fill" : "magnifyingglass.circle"
+        findButton?.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
     }
 
     private func updateToggleButton(_ button: NSButton?, on: Bool) {
@@ -407,7 +420,7 @@ extension DocumentWindowController: NSToolbarDelegate {
             return item
 
         case .toggleChanges:
-            let button = makeToolbarButton(symbolName: "document.badge.clock", action: #selector(toggleChangesBar(_:)))
+            let button = makeToolbarButton(symbolName: "clock", action: #selector(toggleChangesBar(_:)))
             changesButton = button
             updateChangesButton(AppState.shared.changesEnabled)
             item.view = button
@@ -415,7 +428,7 @@ extension DocumentWindowController: NSToolbarDelegate {
             return item
 
         case .toggleFind:
-            let button = makeToolbarButton(symbolName: "text.page.badge.magnifyingglass", action: #selector(performFindAction(_:)))
+            let button = makeToolbarButton(symbolName: "magnifyingglass.circle", action: #selector(performFindAction(_:)))
             findButton = button
             button.toolTip = "Find…"
             item.view = button

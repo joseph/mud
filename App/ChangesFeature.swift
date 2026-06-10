@@ -44,13 +44,14 @@ struct ChangesBar: View {
             Button { showMenu.toggle() } label: {
                 HStack(spacing: 6) {
                     ChangesBadge(count: groups.count, color: badgeColor)
-                    Text(statusText)
+                    Text(statusText).font(.body.weight(.medium))
                     Spacer(minLength: 0)
 
                     if !hasChanges {
-                        Image(systemName: "document.badge.clock")
+                        Image(systemName: "clock")
+                            .imageScale(.large)
                             .padding(.leading, 2)
-                            .padding(.trailing, 5)
+                            .padding(.trailing, 2)
                     }
                 }
                 .padding(6)

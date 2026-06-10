@@ -82,7 +82,15 @@ struct DocumentContentView: View {
 
     private var displayContentID: String {
         switch content {
-        case .parsed(let parsed): return "\(parsed.markdown)\(renderOptions.contentIdentity)"
+        case .parsed(let parsed):
+            // Up mode is comment-invariant: a comment add/remove leaves the ID
+            // unchanged, so the WebView doesn't reload — `mud-comments.js` syncs
+            // the marker in place. Down mode keeps the full markdown so its raw
+            // source reflects the comment (un-highlighted, via the diff fix).
+            let body = state.mode == .up
+                ? MudCore.removeComments(parsed.markdown)
+                : parsed.markdown
+            return "\(body)\(renderOptions.contentIdentity)"
         case .error:              return "load-error"
         }
     }
@@ -131,6 +139,7 @@ struct DocumentContentView: View {
             extensions: appState.enabledExtensions,
             footnoteHTML: display.footnoteHTML,
             comments: display.comments,
+            commentLocators: state.pendingCommentLocators,
             draftCommentID: state.draftCommentID,
             revealCommentLabel: state.pendingDraft == nil ? state.activeCommentLabel : nil,
             onOpenComment: { label in
@@ -261,6 +270,11 @@ struct DocumentContentView: View {
             content = .parsed(parsed)
             state.outlineHeadings = parsed.headings
             state.comments = MudCore.parseComments(text)
+            // Drop locators for comments that no longer exist (e.g. deleted), so
+            // a never-reused label can't misdirect a future live insert.
+            let liveLabels = Set(state.comments.map(\.label))
+            state.pendingCommentLocators = state.pendingCommentLocators
+                .filter { liveLabels.contains($0.key) }
             state.contentTitle = parsed.title
             changeTracker.update(parsed)
             #if GIT_PROVIDER

@@ -257,7 +257,12 @@ private struct CommentThreadView: View {
 
     private func add() {
         guard case .create(let draft) = mode else { return }
-        if controller.addComment(draft, author: author, body: trimmed) {
+        if let label = controller.addComment(draft, author: author, body: trimmed) {
+            // Stash the DOM-derived locator so the live `[⋯]` marker lands
+            // byte-exactly when the watcher echo refreshes the comment set.
+            state.pendingCommentLocators[label] = CommentLocator(
+                blockText: draft.blockText, offset: draft.offsetInBlock,
+                occurrence: draft.occurrence)
             close()
         } else {
             errorMessage = "Couldn't anchor this selection. Try selecting plain "

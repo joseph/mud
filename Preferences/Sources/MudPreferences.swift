@@ -200,7 +200,7 @@ extension MudPreferences {
     }
 
     public var changesEnabled: Bool {
-        get { read(.changesEnabled, default: true) }
+        get { read(.changesEnabled, default: false) }
         nonmutating set { write(newValue, forKey: .changesEnabled) }
     }
 

@@ -163,12 +163,14 @@ struct FindBar: View {
     var body: some View {
         HStack(spacing: 8) {
             HStack(spacing: 6) {
-                Image(systemName: "text.page.badge.magnifyingglass")
-                    .padding(.leading, 5)
-                    .padding(.trailing, 2)
+                Image(systemName: "magnifyingglass.circle")
+                    .imageScale(.large)
+                    .padding(.leading, 2)
 
                 TextField("Find…", text: $state.searchText)
                     .textFieldStyle(.plain)
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(.primary)
                     .focused(isFocused)
                     .onSubmit { state.performFind() }
                     .onKeyPress(.escape) {

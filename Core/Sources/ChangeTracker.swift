@@ -281,7 +281,7 @@ public class ChangeTracker: ObservableObject {
             usedWaypointIDs.insert(wp.id)
         }
 
-        // 2. Gap-based "since X minutes ago" entries. Walk consecutive
+        // 2. Gap-based "since X minutes/hours/… ago" entries. Walk consecutive
         //    pairs of non-external waypoints (sorted by timestamp). Each
         //    gap (W_old, W_new) yields one menu entry whose diff is
         //    (W_old → current) and whose label uses W_new's absolute
@@ -305,9 +305,7 @@ public class ChangeTracker: ObservableObject {
                 // when the file has been reverted to an earlier state.
                 guard diff.groupCount > 0 else { continue }
 
-                let minutes = Self.minutesAgoLabel(
-                    for: newWP.timestamp, at: now)
-                let label = "since \(minutes) minute\(minutes == 1 ? "" : "s") ago"
+                let label = "since \(Self.timeAgoPhrase(for: newWP.timestamp, at: now)) ago"
                 items.append(ChangeMenuItem(
                     id: oldWP.id, label: label, timestamp: newWP.timestamp,
                     changeCount: diff.groupCount,
@@ -389,6 +387,22 @@ public class ChangeTracker: ObservableObject {
         let nowMin = absoluteMinute(now)
         let secsIntoNowMin = Int(now.timeIntervalSinceReferenceDate) % 60
         return max(1, (nowMin - anchorMin) + (secsIntoNowMin > 0 ? 1 : 0))
+    }
+
+    /// Formats a gap-entry time distance as a human phrase: exact minutes
+    /// under an hour, then whole hours, days, and weeks — rounded down,
+    /// matching how people describe elapsed time.
+    static func timeAgoPhrase(for anchorTime: Date, at now: Date) -> String {
+        let minutes = minutesAgoLabel(for: anchorTime, at: now)
+        func phrase(_ count: Int, _ unit: String) -> String {
+            "\(count) \(unit)\(count == 1 ? "" : "s")"
+        }
+        if minutes < 60 { return phrase(minutes, "minute") }
+        let hours = minutes / 60
+        if hours < 24 { return phrase(hours, "hour") }
+        let days = hours / 24
+        if days < 7 { return phrase(days, "day") }
+        return phrase(days / 7, "week")
     }
 
     private func isActiveWaypoint(_ waypoint: Waypoint) -> Bool {

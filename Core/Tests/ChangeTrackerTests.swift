@@ -428,6 +428,26 @@ struct ChangeTrackerTests {
         #expect(ChangeTracker.minutesAgoLabel(for: base, at: base) == 1)
     }
 
+    @Test func timeAgoPhraseTiers() {
+        // Exact minutes under an hour, then floored hours, days, weeks.
+        let now = Date(timeIntervalSinceReferenceDate: 10000 * 60)
+        func phrase(minutesAgo: Int) -> String {
+            ChangeTracker.timeAgoPhrase(
+                for: now.addingTimeInterval(-Double(minutesAgo) * 60), at: now)
+        }
+
+        #expect(phrase(minutesAgo: 1) == "1 minute")
+        #expect(phrase(minutesAgo: 59) == "59 minutes")
+        #expect(phrase(minutesAgo: 60) == "1 hour")
+        #expect(phrase(minutesAgo: 119) == "1 hour")
+        #expect(phrase(minutesAgo: 120) == "2 hours")
+        #expect(phrase(minutesAgo: 1135) == "18 hours")
+        #expect(phrase(minutesAgo: 24 * 60) == "1 day")
+        #expect(phrase(minutesAgo: 3 * 24 * 60 + 90) == "3 days")
+        #expect(phrase(minutesAgo: 7 * 24 * 60) == "1 week")
+        #expect(phrase(minutesAgo: 30 * 24 * 60) == "4 weeks")
+    }
+
     @Test func menuGapLabelUsesNewerWaypointMinute() {
         // A gap (V_old, V_new) labels itself with W_new's absolute minute,
         // not W_old's.

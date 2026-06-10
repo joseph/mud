@@ -188,10 +188,10 @@ private struct ChangesSincePopover: View {
         }
     }
 
-    /// Time-bucketed reload waypoints.
+    /// Time-bucketed reload waypoints ("since N minutes/hours/… ago").
     private var recentItems: [ChangeMenuItem] {
         let nonExternal = items.filter { !$0.isExternal }
-        return nonExternal.filter { $0.label.contains("minute") }
+        return nonExternal.filter { $0.label.hasSuffix(" ago") }
     }
 
     /// External waypoints (e.g. git history).

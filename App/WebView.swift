@@ -143,6 +143,9 @@ struct WebView: NSViewRepresentable {
     var extensions: Set<String> = []
     var footnoteHTML: [String: String] = [:]
     var comments: [Comment] = []
+    /// DOM-derived locators for just-added comments, keyed by label, merged into
+    /// the `setData` payload so a live marker insert lands byte-exactly.
+    var commentLocators: [String: CommentLocator] = [:]
     var draftCommentID: UUID?
     /// The comment thread to reveal in the document (scroll to its `[⋯]` marker
     /// and light its highlight); `nil` clears. Driven by the sidebar selection.
@@ -199,6 +202,7 @@ struct WebView: NSViewRepresentable {
         context.coordinator.onSearchResult = onSearchResult
         context.coordinator.footnoteHTML = footnoteHTML
         context.coordinator.comments = comments
+        context.coordinator.commentLocators = commentLocators
         context.coordinator.onOpenComment = onOpenComment
         context.coordinator.onCommentDraft = onCommentDraft
         context.coordinator.onSelectionChange = onSelectionChange
@@ -304,6 +308,14 @@ struct WebView: NSViewRepresentable {
             context.coordinator.applyTheme(to: webView, theme: theme)
             context.coordinator.applyBodyClasses(to: webView, classes: bodyClasses)
             context.coordinator.applyZoom(to: webView, level: zoomLevel)
+            // A comment add/remove changes the comment set but not the (Up-mode
+            // comment-invariant) contentID, so no reload fires. Re-push the
+            // comment data so `mud-comments.js` inserts/removes the marker and
+            // re-anchors the highlight in place.
+            if context.coordinator.lastCommentSignature
+                != Coordinator.commentSignature(comments) {
+                context.coordinator.applyComments(to: webView)
+            }
             return
         }
 
@@ -344,6 +356,10 @@ struct WebView: NSViewRepresentable {
         var onSearchResult: ((MatchInfo?) -> Void)?
         var footnoteHTML: [String: String] = [:]
         var comments: [Comment] = []
+        var commentLocators: [String: CommentLocator] = [:]
+        /// Signature (label + quotation per comment) of the last `setData` push,
+        /// so a comment-only change re-anchors without a reload.
+        var lastCommentSignature: [String] = []
         var onOpenComment: ((String) -> Void)?
         var onCommentDraft: ((CommentDraft) -> Void)?
         var onSelectionChange: ((Bool) -> Void)?
@@ -407,12 +423,32 @@ struct WebView: NSViewRepresentable {
             }
         }
 
-        /// Hands the parsed comments (label + quotation) to `mud-comments.js`,
-        /// which (re-)anchors the hover-revealed highlights.
-        private func applyComments(to webView: WKWebView) {
-            struct Payload: Encodable { let label: String; let quotation: String }
-            let payload = comments.map {
-                Payload(label: $0.label, quotation: $0.quotation ?? "")
+        /// A label+quotation fingerprint of a comment list — the change unit for
+        /// the no-reload re-anchor (reply/body edits keep this stable, so they do
+        /// no DOM work).
+        static func commentSignature(_ comments: [Comment]) -> [String] {
+            comments.map { "\($0.label)\u{1}\($0.quotation ?? "")" }
+        }
+
+        /// Hands the parsed comments to `mud-comments.js`, which inserts/removes
+        /// the `[⋯]` markers and (re-)anchors the hover-revealed highlights. Each
+        /// entry carries its quotation plus, for a just-added comment, the
+        /// DOM-derived locator so the live marker lands byte-exactly.
+        fileprivate func applyComments(to webView: WKWebView) {
+            lastCommentSignature = Self.commentSignature(comments)
+            struct Payload: Encodable {
+                let label: String
+                let quotation: String
+                let blockText: String?
+                let offset: Int?
+                let occurrence: Int?
+            }
+            let payload = comments.map { comment -> Payload in
+                let locator = commentLocators[comment.label]
+                return Payload(
+                    label: comment.label, quotation: comment.quotation ?? "",
+                    blockText: locator?.blockText, offset: locator?.offset,
+                    occurrence: locator?.occurrence)
             }
             guard let data = try? JSONEncoder().encode(payload),
                   let json = String(data: data, encoding: .utf8) else { return }

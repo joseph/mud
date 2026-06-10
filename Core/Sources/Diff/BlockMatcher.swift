@@ -99,11 +99,17 @@ extension BlockMatcher {
 private struct LeafBlockCollector: MarkupWalker {
     let markdown: String
     private let lines: [Substring]
+    /// Source lines occupied by comment-definition blocks. Their leaf blocks are
+    /// excluded so comments stay invisible to change tracking; empty (and free)
+    /// on comment-free input.
+    private let commentDefLines: Set<Int>
     var blocks: [LeafBlock] = []
 
     init(markdown: String) {
         self.markdown = markdown
         self.lines = markdown.split(separator: "\n", omittingEmptySubsequences: false)
+        self.commentDefLines = Set(
+            FootnoteProcessor.commentDefinitionLineRanges(markdown).flatMap { $0 })
     }
 
     mutating func visitParagraph(_ paragraph: Paragraph) {
@@ -173,19 +179,23 @@ private struct LeafBlockCollector: MarkupWalker {
     // MARK: - Helpers
 
     private mutating func appendBlock(_ node: Markup) {
-        let sourceText = extractSourceText(for: node)
         let line = node.range?.lowerBound.line ?? 0
+        guard !commentDefLines.contains(line) else { return }
+        let sourceText = extractSourceText(for: node)
         blocks.append(LeafBlock(
-            markup: node, fingerprint: sourceText,
+            markup: node,
+            fingerprint: FootnoteProcessor.stripCommentTokens(sourceText),
             sourceLine: line, sourceText: sourceText
         ))
     }
 
     private mutating func appendBlock(_ node: Markup, fingerprint: String) {
-        let sourceText = extractSourceText(for: node)
         let line = node.range?.lowerBound.line ?? 0
+        guard !commentDefLines.contains(line) else { return }
+        let sourceText = extractSourceText(for: node)
         blocks.append(LeafBlock(
-            markup: node, fingerprint: fingerprint,
+            markup: node,
+            fingerprint: FootnoteProcessor.stripCommentTokens(fingerprint),
             sourceLine: line, sourceText: sourceText
         ))
     }

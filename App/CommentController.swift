@@ -36,26 +36,26 @@ final class CommentController {
 
     /// Inserts a new comment anchored at the draft's selection end, carrying
     /// `body` as its first message. The marker lands at the quotation's end via
-    /// `CommentAnchor`. Returns false (so the caller can signal the user) when the
-    /// selection can't be anchored — e.g. a code block, or a structure the
-    /// mapping doesn't yet handle — or the write fails. v1 has no general-comment
-    /// fallback.
+    /// `CommentAnchor`. Returns the new comment's label on success — the caller
+    /// uses it to place the live `[⋯]` marker — or nil when the selection can't
+    /// be anchored (e.g. a code block, or a structure the mapping doesn't yet
+    /// handle) or the write fails. v1 has no general-comment fallback.
     @discardableResult
-    func addComment(_ draft: CommentDraft, author: String, body: String) -> Bool {
-        guard let source = readSource() else { return false }
+    func addComment(_ draft: CommentDraft, author: String, body: String) -> String? {
+        guard let source = readSource() else { return nil }
         guard let byteOffset = CommentAnchor.insertionOffset(
             in: source, blockText: draft.blockText,
             offsetInBlock: draft.offsetInBlock,
             occurrenceIndex: draft.occurrence)
         else {
             NSLog("Mud: could not anchor comment; skipping.")
-            return false
+            return nil
         }
         let message = CommentMessage(author: author, created: Date(), body: body)
         let result = CommentEditor.insert(
             into: source, markerByteOffset: byteOffset,
             quotation: draft.quotation, message: message)
-        return write(result.source)
+        return write(result.source) ? result.comment.label : nil
     }
 
     /// Appends a reply message to the `label` comment's thread, preserving its

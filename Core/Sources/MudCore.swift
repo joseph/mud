@@ -363,6 +363,15 @@ public enum MudCore {
         FootnoteProcessor.process(source, mode: .popover).comments
     }
 
+    /// Removes every comment (all `[^comment-x]` references and definition
+    /// blocks) from a Markdown source, leaving the rest byte-for-byte. Powers
+    /// the comment-invariant content identity that lets a comment add/remove
+    /// update the live view in place without a WebView reload. Comment-free
+    /// input is returned unchanged.
+    public static func removeComments(_ source: String) -> String {
+        FootnoteProcessor.removeComments(source)
+    }
+
     /// The `author · timestamp` attribution line for a message, HTML-escaped;
     /// empty when the message carries neither.
     private static func formatAttribution(_ message: CommentMessage) -> String {

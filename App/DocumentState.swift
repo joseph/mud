@@ -15,6 +15,16 @@ struct ChangeScrollTarget: Equatable {
     let changeIDs: [String]
 }
 
+/// A DOM-derived anchor for placing a comment's `[⋯]` marker live, without a
+/// reload. Captured from the rendered selection (`endLocator`), so it matches
+/// the DOM exactly — `mud-comments.js` replays the same walk to place the
+/// marker byte-accurately.
+struct CommentLocator: Equatable {
+    let blockText: String
+    let offset: Int
+    let occurrence: Int
+}
+
 // MARK: - Document State
 
 class DocumentState: ObservableObject {
@@ -26,6 +36,11 @@ class DocumentState: ObservableObject {
     @Published var draftCommentID: UUID?
     /// Parsed comments for the Comments sidebar, refreshed on load.
     @Published var comments: [Comment] = []
+    /// DOM-derived locators for just-added comments, keyed by label, so the live
+    /// `[⋯]` marker lands byte-exactly without a reload. Pruned to live labels on
+    /// each load; a stale entry is harmless (the JS skips insert when the marker
+    /// already exists). Plain bookkeeping, read during the view's render.
+    var pendingCommentLocators: [String: CommentLocator] = [:]
     /// The comment thread currently open in the Comments sidebar (and revealed
     /// in the document). `nil` shows the list.
     @Published var activeCommentLabel: String?

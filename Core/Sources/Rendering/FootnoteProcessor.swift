@@ -667,6 +667,87 @@ enum FootnoteProcessor {
         } ?? []
     }
 
+    /// The 1-based line ranges (`startLine...endLine`) of every comment
+    /// definition block in `source`, for diff consumers that need to exclude
+    /// those lines from change tracking. Shares the `cmark-gfm` footnote parse
+    /// with ``process(_:mode:)`` and ``locateComments(_:)`` but rewrites
+    /// nothing. Empty when the source contains no comments.
+    static func commentDefinitionLineRanges(
+        _ source: String
+    ) -> [ClosedRange<Int>] {
+        guard source.contains("[^") else { return [] }
+        let geo = SourceGeometry(Array(source.utf8))
+        let lastLine = geo.lastLine
+
+        return withFootnoteAST(geo.bytes) { root in
+            var ranges: [ClosedRange<Int>] = []
+            let iter = cmark_iter_new(root)
+            defer { cmark_iter_free(iter) }
+            while true {
+                let ev = cmark_iter_next(iter)
+                if ev == CMARK_EVENT_DONE { break }
+                guard ev == CMARK_EVENT_ENTER else { continue }
+                let node = cmark_iter_get_node(iter)
+                guard cmark_node_get_type(node) == CMARK_NODE_FOOTNOTE_DEFINITION,
+                      let labelCStr = cmark_node_get_literal(node) else { continue }
+                let label = String(cString: labelCStr)
+                guard isCommentLabel(label) else { continue }
+                let startLine = Int(cmark_node_get_start_line(node))
+                let endLine = Int(cmark_node_get_end_line(node))
+                guard startLine >= 1, endLine >= startLine,
+                      endLine <= lastLine else { continue }
+                ranges.append(startLine...endLine)
+            }
+            return ranges
+        } ?? []
+    }
+
+    /// Removes every comment from `source` — all `[^comment-x]` references and
+    /// every comment-definition block (with its trailing blanks) — by byte
+    /// range, reusing ``locateComments(_:)``. The result renders identically to
+    /// `source` minus its comments, so it is a stable, comment-invariant content
+    /// identity. A comment-free source is returned unchanged.
+    static func removeComments(_ source: String) -> String {
+        let locations = locateComments(source)
+        guard !locations.isEmpty else { return source }
+        var ranges: [Range<Int>] = []
+        for loc in locations {
+            ranges.append(contentsOf: loc.refRanges)
+            ranges.append(loc.defStart..<loc.defDeleteEnd)
+        }
+        var bytes = Array(source.utf8)
+        for range in ranges.sorted(by: { $0.lowerBound > $1.lowerBound }) {
+            bytes.removeSubrange(range)
+        }
+        return String(decoding: bytes, as: UTF8.self)
+    }
+
+    /// Comment-only regex precompiled once: the raw reference form
+    /// `[^comment-x]` and the baked marker HTML `<a class="mud-comment-marker"
+    /// …>⋯</a>`. Used by ``stripCommentTokens(_:)``.
+    private static let commentTokenRegexes: [NSRegularExpression] = {
+        let patterns = [
+            #"\[\^comment-[\w-]+\]"#,
+            #"<a class="mud-comment-marker"[^>]*>⋯</a>"#,
+        ]
+        return patterns.compactMap { try? NSRegularExpression(pattern: $0) }
+    }()
+
+    /// Strips comment tokens (raw refs and baked marker HTML) from a block
+    /// fingerprint so a block that only gained a comment fingerprints
+    /// identically to its pre-comment baseline. Self-gated to a strict no-op on
+    /// comment-free input (the diff suite's hot path).
+    static func stripCommentTokens(_ s: String) -> String {
+        guard s.contains("[^") || s.contains("mud-comment-marker") else { return s }
+        var result = s
+        for regex in commentTokenRegexes {
+            let range = NSRange(result.startIndex..., in: result)
+            result = regex.stringByReplacingMatches(
+                in: result, range: range, withTemplate: "")
+        }
+        return result
+    }
+
     /// Renders each child block of a footnote definition to CommonMark and
     /// joins them with a blank line. Rendering children individually avoids
     /// the `[^label]:` prefix and continuation indentation that

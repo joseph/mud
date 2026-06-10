@@ -355,15 +355,173 @@
   document.addEventListener("selectionchange", reportSelection);
   reportSelection();
 
+  // -- Live marker sync ----------------------------------------------------
+
+  // Reconcile the DOM's `[⋯]` markers against the incoming comment list, so a
+  // comment add/remove updates the live view with no reload. On baked content
+  // (first load, exports) every label already has its marker and none are
+  // stale, so this is a no-op.
+
+  function cssEsc(s) {
+    return window.CSS && CSS.escape ? CSS.escape(s) : s;
+  }
+
+  function hasMarker(label) {
+    return !!container.querySelector(
+      '.mud-comment-marker[data-mud-label="' + cssEsc(label) + '"]'
+    );
+  }
+
+  function makeMarker(label) {
+    var a = document.createElement("a");
+    a.className = "mud-comment-marker";
+    a.id = "cmtref-" + label;
+    a.setAttribute("data-mud-label", label);
+    a.setAttribute("href", "#cmt-" + label);
+    a.textContent = "⋯"; // ⋯
+    return a;
+  }
+
+  function syncMarkers(list) {
+    var labelSet = {};
+    list.forEach(function (c) { labelSet[c.label] = true; });
+
+    // Remove markers whose comment is gone.
+    var markers = container.querySelectorAll(".mud-comment-marker");
+    for (var i = 0; i < markers.length; i++) {
+      var l = markers[i].getAttribute("data-mud-label");
+      if (!labelSet[l] && markers[i].parentNode) {
+        markers[i].parentNode.removeChild(markers[i]);
+      }
+    }
+    container.normalize();
+
+    // Insert markers for comments that have no marker yet.
+    list.forEach(function (c) {
+      if (hasMarker(c.label)) return;
+      var quote = normalizeWS(c.quotation || "").trim();
+      if (!quote) return;
+      var placed = false;
+      if (c.blockText != null && c.offset != null) {
+        placed = insertMarkerExact(
+          c.label, c.blockText, c.offset, c.occurrence || 0);
+      }
+      if (!placed) insertMarkerBySearch(c.label, quote);
+    });
+    container.normalize();
+  }
+
+  // Byte-exact insert from a DOM-derived locator (the just-added comment): find
+  // the `occurrence`-th innermost leaf whose marker-free text matches
+  // `blockText`, then insert at char `offset` — the inverse of `endLocator`.
+  function findBlockByOccurrence(blockText, occurrence) {
+    var target = normalizeWS(blockText).trim();
+    var count = 0;
+    var result = null;
+    (function walk(node) {
+      if (result || node.nodeType !== Node.ELEMENT_NODE) return;
+      if (node.classList && (node.classList.contains("comments") ||
+          node.classList.contains("footnotes"))) return;
+      if (isInnermostLeaf(node)) {
+        if (normalizeWS(markerFreeText(node)).trim() === target) {
+          if (count === occurrence) { result = node; return; }
+          count++;
+        }
+        return;
+      }
+      for (var c = node.firstChild; c && !result; c = c.nextSibling) walk(c);
+    })(container);
+    return result;
+  }
+
+  // The block's marker-free text with a parallel char → (textNode, offset) map.
+  // Mirrors `endLocator`'s text accumulation (raw, marker subtrees skipped).
+  function blockTextMap(block) {
+    var text = "";
+    var map = [];
+    (function walk(n) {
+      if (n.nodeType === Node.TEXT_NODE) {
+        var v = n.nodeValue;
+        for (var i = 0; i < v.length; i++) {
+          text += v[i];
+          map.push({ node: n, offset: i });
+        }
+        return;
+      }
+      if (n.nodeType !== Node.ELEMENT_NODE || isMarkerElement(n)) return;
+      for (var c = n.firstChild; c; c = c.nextSibling) walk(c);
+    })(block);
+    return { text: text, map: map };
+  }
+
+  function insertMarkerExact(label, blockText, offset, occurrence) {
+    var block = findBlockByOccurrence(blockText, occurrence);
+    if (!block) return false;
+    var bm = blockTextMap(block);
+    // `endLocator` pulls the offset back over a synthetic leading space (e.g. a
+    // task-list checkbox); re-add that lead to map back into untrimmed coords.
+    var lead = bm.text.length - bm.text.replace(/^\s+/, "").length;
+    var k = offset + lead;
+    if (k < 0) k = 0;
+    var marker = makeMarker(label);
+    try {
+      if (k >= bm.map.length) {
+        block.appendChild(marker);
+      } else {
+        var pos = bm.map[k];
+        var after = pos.offset > 0 ? pos.node.splitText(pos.offset) : pos.node;
+        after.parentNode.insertBefore(marker, after);
+      }
+    } catch (e) {
+      return false;
+    }
+    return true;
+  }
+
+  // Fallback when no locator is available (a second window / external add):
+  // place the marker at the first unclaimed occurrence of the quotation text.
+  function insertMarkerBySearch(label, quote) {
+    var idx = buildIndex();
+    var claimed = {};
+    Object.keys(idx.markerAt).forEach(function (l) {
+      claimed[idx.markerAt[l]] = true;
+    });
+    var from = 0, pos, end = -1;
+    while ((pos = idx.flat.indexOf(quote, from)) !== -1) {
+      var e = pos + quote.length;
+      if (!claimed[e]) { end = e; break; }
+      from = pos + 1;
+    }
+    if (end < 0) return false;
+    var ref = idx.map[end - 1];
+    if (!ref) return false;
+    var marker = makeMarker(label);
+    try {
+      var node = ref.node;
+      var splitAt = ref.offset + 1;
+      if (splitAt < node.nodeValue.length) {
+        var after = node.splitText(splitAt);
+        after.parentNode.insertBefore(marker, after);
+      } else {
+        node.parentNode.insertBefore(marker, node.nextSibling);
+      }
+    } catch (e2) {
+      return false;
+    }
+    return true;
+  }
+
   // -- Public API ----------------------------------------------------------
 
   window.Mud = window.Mud || {};
   window.Mud.comments = {
     setData: function (list) {
+      list = list || [];
       quotationByLabel = {};
-      (list || []).forEach(function (c) {
+      list.forEach(function (c) {
         quotationByLabel[c.label] = c.quotation || "";
       });
+      syncMarkers(list);
       anchorAll();
     },
     reanchor: anchorAll,

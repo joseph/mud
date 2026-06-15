@@ -3,7 +3,7 @@ import Testing
 
 @testable import MudCore
 
-/// Mirrors the worked examples in `Doc/Examples/comments-spec.md`. Each `parse`
+/// Mirrors the worked examples in `Doc/Spec/comments.md`. Each `parse`
 /// test feeds the **de-indented** definition body (what
 /// `FootnoteProcessor.renderDefinitionBody` produces) and asserts the declared
 /// properties; the round-trip tests assert
@@ -30,18 +30,18 @@ struct CommentSerializationTests {
       == "The simplest comment. No quotation, no author, no timestamp.")
   }
 
-  @Test func commentB_quotedNoProperties() {
+  @Test func commentB_quotedNoAttributes() {
     let (quotation, messages) = CommentSerialization.parse(
       """
       > fox
 
-      A quoted comment, no properties.
+      A quoted comment, no attributes.
       """)
     #expect(quotation == "fox")
     #expect(messages.count == 1)
     #expect(messages[0].author == nil)
     #expect(messages[0].created == nil)
-    #expect(messages[0].body == "A quoted comment, no properties.")
+    #expect(messages[0].body == "A quoted comment, no attributes.")
   }
 
   @Test func commentC_attributedInlineBody() {
@@ -49,13 +49,13 @@ struct CommentSerializationTests {
       """
       > brown fox
 
-      JP (2026-06-01 18:33): A comment with author and timestamp.
+      {JP @ 2026-06-01 18:33}: A message with author and timestamp.
       """)
     #expect(quotation == "brown fox")
     #expect(messages.count == 1)
     #expect(messages[0].author == "JP")
     #expect(messages[0].created == ts("2026-06-01 18:33"))
-    #expect(messages[0].body == "A comment with author and timestamp.")
+    #expect(messages[0].body == "A message with author and timestamp.")
   }
 
   @Test func commentD_threadWithReplyBlockquote() {
@@ -63,50 +63,52 @@ struct CommentSerializationTests {
       """
       > quick brown fox
 
-      💬 JP (2026-06-01 18:33):
+      💬 {JP @ 2026-06-01 18:33}:
 
-      First comment in thread.
+      First message in the thread.
 
-      💬 Claude Opus 4.8 (2026-06-01 18:33:13):
+      💬 {Claude Opus 4.8 @ 2026-06-01 18:33:13}:
 
-      > First comment in thread.
+      > First message in the thread.
 
-      Second comment in thread.
+      Second message in the thread.
       """)
     #expect(quotation == "quick brown fox")
     #expect(messages.count == 2)
     #expect(messages[0].author == "JP")
     #expect(messages[0].created == ts("2026-06-01 18:33"))
-    #expect(messages[0].body == "First comment in thread.")
+    #expect(messages[0].body == "First message in the thread.")
     #expect(messages[1].author == "Claude Opus 4.8")
     #expect(messages[1].created == ts("2026-06-01 18:33:13"))
     // The reply's own blockquote stays in its body, not the root quotation.
-    #expect(messages[1].body.contains("First comment in thread."))
-    #expect(messages[1].body.contains("Second comment in thread."))
+    #expect(messages[1].body.contains("First message in the thread."))
+    #expect(messages[1].body.contains("Second message in the thread."))
     #expect(messages[1].body.hasPrefix(">"))
   }
 
-  @Test func commentE_looksThreadedButIsnt() {
-    // Bare `Author (ts):` lines without `💬` do NOT split messages.
+  @Test func commentE_braceHeaderSplitsWithoutEmoji() {
+    // A `{…}:` block with no leading `💬` still begins a new message, so this
+    // parses as two messages (reverses the original "only 💬 splits" rule).
     let (quotation, messages) = CommentSerialization.parse(
       """
       > The quick brown fox
 
-      JP (2026-06-01 18:33):
+      {JP @ 2026-06-01 18:33}:
 
-      First comment in thread.
+      First message in the thread.
 
-      Claude Opus 4.8 (2026-06-01 18:33:13):
+      {Claude Opus 4.8 @ 2026-06-01 18:33:13}:
 
-      Second comment in thread.
+      Second message in the thread.
       """)
     #expect(quotation == "The quick brown fox")
-    #expect(messages.count == 1)
+    #expect(messages.count == 2)
     #expect(messages[0].author == "JP")
     #expect(messages[0].created == ts("2026-06-01 18:33"))
-    // The second author line survives verbatim in the single message's body.
-    #expect(messages[0].body.contains("Claude Opus 4.8 (2026-06-01 18:33:13):"))
-    #expect(messages[0].body.contains("Second comment in thread."))
+    #expect(messages[0].body == "First message in the thread.")
+    #expect(messages[1].author == "Claude Opus 4.8")
+    #expect(messages[1].created == ts("2026-06-01 18:33:13"))
+    #expect(messages[1].body == "Second message in the thread.")
   }
 
   @Test func commentF_emojiInProseDoesNotSplit() {
@@ -114,9 +116,9 @@ struct CommentSerializationTests {
       """
       > fox
 
-      💬 JP (2026-06-01 18:33):
+      💬 {JP @ 2026-06-01 18:33}:
 
-      A single comment. The body mentions a 💬 mid-sentence, which must not split.
+      A single message. The body mentions a 💬 mid-sentence, which must not split.
       """)
     #expect(quotation == "fox")
     #expect(messages.count == 1)
@@ -127,28 +129,28 @@ struct CommentSerializationTests {
   @Test func commentG_headerWithoutColon() {
     let (quotation, messages) = CommentSerialization.parse(
       """
-      > brown
+      > brown fox
 
-      💬 JP (2026-06-01 18:33)
+      💬 {JP @ 2026-06-01 18:33}
 
-      The colon after the timestamp is optional; this header omits it.
+      The colon after the closing brace is optional; this block omits it.
       """)
-    #expect(quotation == "brown")
+    #expect(quotation == "brown fox")
     #expect(messages.count == 1)
     #expect(messages[0].author == "JP")
     #expect(messages[0].created == ts("2026-06-01 18:33"))
     #expect(messages[0].body
-      == "The colon after the timestamp is optional; this header omits it.")
+      == "The colon after the closing brace is optional; this block omits it.")
   }
 
   @Test func commentH_generalAndThreaded() {
     let (quotation, messages) = CommentSerialization.parse(
       """
-      💬 JP (2026-06-01 18:33):
+      💬 {JP @ 2026-06-01 18:33}:
 
-      A general comment with no quotation, but with a thread.
+      A general message with no quotation, but part of a thread.
 
-      💬 Claude Opus 4.8 (2026-06-01 18:33:13):
+      💬 {Claude Opus 4.8 @ 2026-06-01 18:33:13}:
 
       A reply, also with no document quotation.
       """)
@@ -156,34 +158,166 @@ struct CommentSerializationTests {
     #expect(messages.count == 2)
     #expect(messages[0].author == "JP")
     #expect(messages[0].body
-      == "A general comment with no quotation, but with a thread.")
+      == "A general message with no quotation, but part of a thread.")
     #expect(messages[1].author == "Claude Opus 4.8")
     #expect(messages[1].body == "A reply, also with no document quotation.")
   }
 
-  // MARK: - Attribution / timestamp grammar
+  @Test func commentI_authorOnly() {
+    let (quotation, messages) = CommentSerialization.parse(
+      """
+      > fox
 
-  @Test func attribution_parsesAuthorAndTimestamp() {
-    let (author, created, body) = CommentSerialization.parseAttribution(
-      "JP (2026-06-01 18:33): the body")
+      {JP}: A message with an author but no timestamp.
+      """)
+    #expect(quotation == "fox")
+    #expect(messages.count == 1)
+    #expect(messages[0].author == "JP")
+    #expect(messages[0].created == nil)
+    #expect(messages[0].body == "A message with an author but no timestamp.")
+  }
+
+  @Test func commentJ_dateOnlyNoAuthor() {
+    let (quotation, messages) = CommentSerialization.parse(
+      """
+      > fox
+
+      {@ 2026-06-01}: A message with a timestamp but no author.
+      """)
+    #expect(quotation == "fox")
+    #expect(messages.count == 1)
+    #expect(messages[0].author == nil)
+    #expect(messages[0].created == ts("2026-06-01"))
+    #expect(messages[0].body == "A message with a timestamp but no author.")
+  }
+
+  @Test func commentK_authorContainingAt() {
+    // The only `@` is followed by `jp`, which is not a timestamp, so nothing
+    // splits and the whole interior is the author.
+    let (quotation, messages) = CommentSerialization.parse(
+      """
+      > fox
+
+      {@jp}: An author that is an @-handle.
+      """)
+    #expect(quotation == "fox")
+    #expect(messages.count == 1)
+    #expect(messages[0].author == "@jp")
+    #expect(messages[0].created == nil)
+    #expect(messages[0].body == "An author that is an @-handle.")
+  }
+
+  @Test func commentL_emptyBraces() {
+    let (quotation, messages) = CommentSerialization.parse(
+      """
+      > fox
+
+      {}: Empty braces carry no attributes.
+      """)
+    #expect(quotation == "fox")
+    #expect(messages.count == 1)
+    #expect(messages[0].author == nil)
+    #expect(messages[0].created == nil)
+    #expect(messages[0].body == "Empty braces carry no attributes.")
+  }
+
+  @Test func commentM_bareEmojiUnattributedThread() {
+    let (quotation, messages) = CommentSerialization.parse(
+      """
+      > fox
+
+      💬
+
+      A threaded message with no author or timestamp.
+
+      💬
+
+      A reply, also unattributed.
+      """)
+    #expect(quotation == "fox")
+    #expect(messages.count == 2)
+    #expect(messages[0].author == nil)
+    #expect(messages[0].created == nil)
+    #expect(messages[0].body == "A threaded message with no author or timestamp.")
+    #expect(messages[1].author == nil)
+    #expect(messages[1].body == "A reply, also unattributed.")
+  }
+
+  // MARK: - Attributes / timestamp grammar
+
+  @Test func attribution_braceAuthorAndTimestamp() {
+    let (author, created, body, isHeader) = CommentSerialization.parseAttribution(
+      "{JP @ 2026-06-01 18:33}: the body")
+    #expect(isHeader)
     #expect(author == "JP")
     #expect(created == ts("2026-06-01 18:33"))
     #expect(body == "the body")
   }
 
-  @Test func attribution_nonTimestampParenthetical_isAllBody() {
-    let (author, created, body) = CommentSerialization.parseAttribution(
-      "A quoted comment, no properties.")
-    #expect(author == nil)
-    #expect(created == nil)
-    #expect(body == "A quoted comment, no properties.")
+  @Test func attribution_lastAtSplits_authorMayContainAt() {
+    let (author, created, body, isHeader) = CommentSerialization.parseAttribution(
+      "{jp@example.com @ 2026-06-01 18:33}: hi")
+    #expect(isHeader)
+    #expect(author == "jp@example.com")
+    #expect(created == ts("2026-06-01 18:33"))
+    #expect(body == "hi")
   }
 
-  @Test func timestamp_secondsOptional() {
+  @Test func attribution_authorOnly() {
+    let (author, created, _, isHeader) = CommentSerialization.parseAttribution("{JP}:")
+    #expect(isHeader)
+    #expect(author == "JP")
+    #expect(created == nil)
+  }
+
+  @Test func attribution_dateOnlyNoAuthor() {
+    let (author, created, _, isHeader) = CommentSerialization.parseAttribution(
+      "{@ 2026-06-01}")
+    #expect(isHeader)
+    #expect(author == nil)
+    #expect(created == ts("2026-06-01"))
+  }
+
+  @Test func attribution_emptyBracesIsHeaderNoAttributes() {
+    let (author, created, body, isHeader) = CommentSerialization.parseAttribution(
+      "{}: body")
+    #expect(isHeader)
+    #expect(author == nil)
+    #expect(created == nil)
+    #expect(body == "body")
+  }
+
+  @Test func attribution_spaceBeforeColonMakesItContent() {
+    let (author, _, body, isHeader) = CommentSerialization.parseAttribution(
+      "{JP} : the body")
+    #expect(isHeader)
+    #expect(author == "JP")
+    #expect(body == ": the body")
+  }
+
+  @Test func attribution_bareEmojiIsHeader() {
+    let (author, created, body, isHeader) = CommentSerialization.parseAttribution(
+      "💬 hello")
+    #expect(isHeader)
+    #expect(author == nil)
+    #expect(created == nil)
+    #expect(body == "hello")
+  }
+
+  @Test func attribution_noHeader_isAllBody() {
+    let (author, created, body, isHeader) = CommentSerialization.parseAttribution(
+      "A quoted comment, no attributes.")
+    #expect(!isHeader)
+    #expect(author == nil)
+    #expect(created == nil)
+    #expect(body == "A quoted comment, no attributes.")
+  }
+
+  @Test func timestamp_formsAndDateOnly() {
     #expect(ts("2026-06-01 18:33") != nil)
     #expect(ts("2026-06-01 18:33:13") != nil)
+    #expect(ts("2026-06-01") != nil)  // date-only is accepted
     #expect(ts("not a timestamp") == nil)
-    #expect(ts("2026-06-01") == nil)
   }
 
   // MARK: - Round trip
@@ -212,6 +346,19 @@ struct CommentSerializationTests {
       quotation: "brown fox",
       [CommentMessage(
         author: "JP", created: ts("2026-06-01 18:33:00"), body: "A comment.")])
+  }
+
+  @Test func roundTrip_authorOnly() {
+    roundTrip(
+      quotation: "fox",
+      [CommentMessage(author: "JP", created: nil, body: "A note.")])
+  }
+
+  @Test func roundTrip_timestampOnly() {
+    roundTrip(
+      quotation: nil,
+      [CommentMessage(
+        author: nil, created: ts("2026-06-01 18:33:00"), body: "A note.")])
   }
 
   @Test func roundTrip_thread() {

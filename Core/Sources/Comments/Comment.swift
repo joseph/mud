@@ -15,7 +15,7 @@ public enum CommentMode: String, Sendable, Equatable {
 /// A comment stored in a Markdown document as a GFM footnote whose label
 /// matches `^comment-[\w-]+$`. The on-disk grammar (one worked example per case
 /// with the exact properties it parses to) is pinned in
-/// `Doc/Examples/comments-spec.md`.
+/// `Doc/Spec/comments.md`.
 ///
 /// A comment carries an optional **quotation** (a leading blockquote echoing the
 /// document text the comment refers to; `nil` ⇒ a *general*, unanchored comment)
@@ -38,8 +38,8 @@ public struct Comment: Sendable, Equatable, Identifiable {
     /// (unanchored) comment.
     public let quotation: String?
 
-    /// One message per `💬` header (or a single author-less message when the
-    /// body carries no header).
+    /// One message per attributes block (or a single author-less message when
+    /// the body carries no header).
     public let messages: [CommentMessage]
 
     public init(
@@ -53,13 +53,16 @@ public struct Comment: Sendable, Equatable, Identifiable {
     }
 }
 
-/// One message in a comment thread, introduced on disk by a `💬` header.
+/// One message in a comment thread, introduced on disk by a `💬 {author @
+/// timestamp}:` attributes block.
 public struct CommentMessage: Sendable, Equatable {
-    /// Header text before ` (`; `nil` if the message is unattributed.
+    /// The brace text before the timestamp's `@`; `nil` if the message is
+    /// unattributed.
     public let author: String?
 
-    /// Parsed from `(YYYY-MM-DD HH:MM[:SS])` as local wall-clock; `nil` if the
-    /// header carries no parseable timestamp.
+    /// Parsed from the brace's `@ <timestamp>` (`YYYY-MM-DD`, optionally with
+    /// `HH:MM[:SS]`) as local wall-clock; `nil` if the header carries no
+    /// parseable timestamp.
     public let created: Date?
 
     /// The commentary as Markdown (may itself contain blockquotes, lists, code

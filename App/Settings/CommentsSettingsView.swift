@@ -17,8 +17,7 @@ struct CommentsSettingsView: View {
             Section {
                 TextField("Author", text: $appState.commentAuthor,
                           prompt: Text(NSFullUserName()))
-                Text("The name written into each comment you add — its "
-                     + "attribution reads “💬 \(effectiveAuthor) (date):”. "
+                Text("The name associated with your comments. "
                      + "Leave blank to use your system full name.")
                     .font(.callout)
                     .foregroundStyle(.secondary)

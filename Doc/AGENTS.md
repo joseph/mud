@@ -178,7 +178,6 @@ MVP plan.
 - `Comments/Comment.swift` — `Comment` / `CommentMessage` models and the
   `CommentMode` enum
 - `Comments/CommentSerialization.swift` — Read/write codec for a comment body
-  (quotation + `💬`-delimited messages); `parse(serialize(…))` round-trips
 - `Comments/CommentEditor.swift` — Pure source rewriting (no IO):
   insert/rewrite/delete with stable, never-renumbered alpha labels
 - `Comments/CommentAnchor.swift` — Maps a rendered-DOM selection end to a
@@ -233,7 +232,9 @@ MVP plan.
 - `mud.js` — Shared JS: find, scroll, lighting, zoom
 - `mud-changes.js` — Change tracking JS: overlays, expand/collapse, navigation
 - `mud-comments.js` — Comments JS: selection capture, `[⋯]` marker-click
-  routing, hover-revealed quotation highlights
+  routing, hover-revealed quotation highlights, and live marker sync (`setData`
+  inserts/removes the `[⋯]` marker in place on a comment add/remove, so no
+  reload is needed)
 - `mud-up.js` — Up-mode JS
 - `mud-down.js` — Down-mode JS
 - `emoji.json` — GitHub gemoji shortcode database
@@ -293,6 +294,18 @@ and parsed into a quotation + threaded messages; `RenderOptions.commentMode`
 selects whether the bottom comments section is visible (`.section`, for export)
 or hidden in favor of live highlights and the Comments sidebar
 (`.interactive`).
+
+Comments are **invisible to change tracking**: `BlockMatcher.collectLeafBlocks`
+excludes comment-definition blocks (via
+`FootnoteProcessor.commentDefinitionLineRanges`) and strips comment tokens from
+block fingerprints (`stripCommentTokens`), so a comment-only edit produces zero
+changes and no new waypoint across all three diff consumers (sidebar, Up
+overlay, Down highlighting). Both are gated to a strict no-op on comment-free
+input. Correspondingly, the Up-mode `contentID` is **comment-invariant**
+(`DocumentContentView.displayContentID` hashes `MudCore.removeComments(...)`),
+so a comment add/remove updates the live Up view in place (`mud-comments.js`
+marker sync) with no reload; Down mode keeps the full markdown so its raw
+source stays current.
 
 
 ## State management

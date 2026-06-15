@@ -122,7 +122,7 @@ struct CommentAnchorTests {
 
       [^comment-a]: > Hidden quote text
 
-          💬 JP (2026-06-01 18:33):
+          💬 {JP @ 2026-06-01 18:33}:
       """
     #expect(
       CommentAnchor.insertionOffset(

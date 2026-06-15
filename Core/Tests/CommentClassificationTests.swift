@@ -15,7 +15,7 @@ struct CommentClassificationTests {
 
       [^comment-a]: > brown fox
 
-          JP (2026-06-01 18:33): Nice.
+          {JP @ 2026-06-01 18:33}: Nice.
       """
     let result = FootnoteProcessor.process(md, mode: .section)
 

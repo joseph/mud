@@ -1,7 +1,7 @@
 Plan: Footnote Comments
 ===============================================================================
 
-> Status: Planning
+> Status: Underway
 
 
 ## Context
@@ -23,15 +23,17 @@ The key idea is deliberately small and **not Mud-specific** — it's a conventio
 any tool (or human, or agent) can read and write by hand:
 
 > A footnote is a comment **iff its label matches `^comment-[\w-]+$`**. Its
-> body may open with a **blockquote** holding the quoted text; each message is
-> introduced by `💬 <author> (<timestamp>)`. No blockquote ⇒ a "general"
-> (unanchored) comment; more than one `💬` message ⇒ a thread.
+> body may open with a **blockquote** holding the quoted text (the
+> **quotation**), followed by one or more **messages**, each optionally
+> introduced by a **message attributes** block — `{author @ timestamp}` with an
+> optional leading `💬` and trailing `:`. No blockquote ⇒ a "general"
+> (unanchored) comment; more than one message ⇒ a thread.
 
 That's the whole format — ordinary blockquotes, the `💬` emoji, and footnotes,
 all of which render in any Markdown viewer with footnote support, with nothing
 to strip and no proprietary namespace to learn. The canonical grammar, with a
 worked example per case and the exact properties it parses to, is pinned in
-`Doc/Examples/comments-spec.md`.
+`Doc/Spec/comments.md`.
 
 This makes Mud a _writer_ for the first time: it modifies the `.md` file when
 (and only when) a user adds, edits, replies to, or removes a comment. Every
@@ -62,6 +64,55 @@ This plan depends on Native Footnotes landing first (or alongside): it reuses
 that plan's `FootnoteProcessor`, cmark glue, and export-section machinery.
 
 
+## 2026-06 update — brace attribute syntax
+
+Comments were first built (pre-release, never shipped) with message attributes
+written as a **parenthetical** — `💬 JP (2026-06-01 18:33):`. That form had two
+limits: attribution was recognized only when the parenthetical parsed as a
+date, so an author **without** a timestamp was inexpressible; and a
+colon-terminated header was ambiguous with ordinary prose. We move the
+attributes into **braces** — `💬 {JP @ 2026-06-01 18:33}:` — so a
+paragraph-leading `{` is the unambiguous signal, and author and timestamp each
+become independently optional. Because the paren form never shipped, there is
+no on-disk data to migrate: the reader accepts braces only. The canonical spec,
+rewritten around this form, is `Doc/Spec/comments.md`; the sections below are
+updated to match.
+
+**Nomenclature** (used throughout): a **comment** (the footnote) holds an
+optional **quotation** and one or more **messages**; a message may open with a
+**message attributes** block — `{…}`, optional leading `💬`, optional trailing
+`:`.
+
+**Codec changes** (`CommentSerialization.swift`) beyond the inline descriptions
+below — the migration work this update folds in:
+
+1. **Delimiter parens → braces.** `parseAttribution` recognizes a paragraph
+   that begins (after an optional `💬`) with `{…}`, not `author (timestamp)`.
+2. **Brace presence alone is the signal.** `{JP}` (author, no timestamp) and a
+   bare `{}` (no attributes, discouraged) are now recognized; attribution no
+   longer requires a parseable timestamp.
+3. **Last- `@` split.** Inside the braces, the **last** `@` whose trailing text
+   parses as a timestamp splits author from timestamp; otherwise the whole
+   interior is the author (so an author may contain `@` — an `@`-handle or
+   email).
+4. **Date-only timestamps.** `parseTimestamp` gains `YYYY-MM-DD`, tried after
+   the date-time forms so it can't swallow them.
+5. **A `{…}` block demarcates a message — not just `💬`.** `isMessageStart` (and
+   `parse`'s split) now also fires on a paragraph-initial `{`. This
+   **reverses** the original `comment-e` decision: two `{…}:` blocks with no
+   `💬` are now **two messages**, not one.
+6. **Bare markers are consumed.** A message whose leading paragraph is just `💬`
+   (or `{}`) with no attributes still has that marker peeled (`comment-m`),
+   where the original `buildMessage` left it in the body.
+7. **Strict write emits braces.** `serialize`/ `headerLine` write
+   `{author @ timestamp}` / `{author}` / `{@ timestamp}`, preserving
+   `parse(serialize(…)) == …`. New round-trip + parse cases: spec examples i–m.
+
+**Whitespace** picks up one hard rule: there must be **no** whitespace between
+the closing `}` and the optional `:` (otherwise the `:` is the first character
+of the message content). See the spec's Whitespace section.
+
+
 ## Confirmed decisions
 
 These were settled during design; the implementation below assumes them.
@@ -72,33 +123,36 @@ These were settled during design; the implementation below assumes them.
   `[^comment-a]: just an observation.` (no quotation, no attribution) is a
   perfectly valid comment (spec example `comment-a`).
 
-- **Quotation is a leading blockquote; attribution is a `💬` header.** When
+- **Quotation is a leading blockquote; attributes are a braced header.** When
   present, the definition body opens with a blockquote whose text is the quoted
-  range. Each message is introduced by `💬 <author> (<timestamp>):` (a plain
+  range. A message may open with a **message attributes** block —
+  `{author @ timestamp}`, optional leading `💬`, optional trailing `:` (a plain
   paragraph). Nothing Mud-proprietary and nothing hidden: a basic viewer shows
-  the quotation as a blockquote and the attribution as visible text.
+  the quotation as a blockquote and the attributes as visible `{…}` text.
 
-- **Attribution grammar is forgiving.** A message's first paragraph may open
-  with `[💬 ]<author> (<timestamp>)[:]` — the `💬` and the trailing colon both
-  optional. The parenthetical is read as `created` **iff** it parses as
-  `YYYY-MM-DD HH:MM[:SS]` (space-separated, seconds optional); `author` is the
-  text before ` (`. If the parenthetical doesn't parse as a timestamp, there is
-  no attribution and the whole paragraph is commentary. So
-  `JP (2026-06-01 18:33): …` → author `JP`, created set;
-  `A quoted comment, no properties.` → no author, no created. Attribution is
+- **Attributes grammar is forgiving.** A message's first paragraph may open
+  with `[💬 ]{author @ timestamp}[:]` — the `💬` and the trailing colon both
+  optional, and the braces are the signal (a paragraph-leading `{` is always
+  read as attributes). Inside, the **last** `@` whose trailing text parses as a
+  timestamp splits `author` from `created`; with no such `@` the whole interior
+  is the `author` (so an author may contain `@` — an `@`-handle or email).
+  Either field may be absent: `{JP}` → author only; `{@ 2026-06-01 18:33}` →
+  timestamp only; `{}` → neither (tolerated, discouraged). A timestamp parses
+  as `YYYY-MM-DD`, `YYYY-MM-DD HH:MM`, or `YYYY-MM-DD HH:MM:SS`. Attributes are
   peeled only from a message's **first** paragraph. Timestamps are **local
-  wall-clock** (formatted and parsed in the local zone, no offset stored);
-  `created` is an absolute `Date`, so a reader in another time zone sees the
-  shifted wall-clock — acceptable for v1.
+  wall-clock** (no offset stored); `created` is an absolute `Date`, so a reader
+  in another time zone sees the shifted wall-clock — acceptable for v1.
 
-- **Threads are `💬`-delimited messages.** A new message opens at every
-  **paragraph that begins with `💬`**; its body runs to the next such paragraph
-  (or the end), so a message may span several blocks. With **no** `💬` the whole
-  post-quotation body is one message. Only `💬` splits messages — a bare
-  `Author (timestamp):` line never starts a new one (spec example `comment-e`).
-  The root **quotation** anchors in the **document**; a reply that quotes the
-  prior message does so with a blockquote in its own body (parsed, not anchored
-  in v1).
+- **Messages are demarcated by a paragraph-initial attributes block.** A new
+  message opens at every **paragraph that begins with `💬` or `{`**; its body
+  runs to the next such paragraph (or the end), so a message may span several
+  blocks. With no such block the whole post-quotation body is one message. A
+  `{…}:` header with **no** `💬` therefore also starts a message — so two bare
+  `{…}:` blocks are **two messages** (spec example `comment-e`; this reverses
+  the original "only `💬` splits" rule). A `💬` or `{` mid-paragraph is ordinary
+  prose and never splits (`comment-f`). The root **quotation** anchors in the
+  **document**; a reply that quotes the prior message does so with a blockquote
+  in its own body (parsed, not anchored in v1).
 
 - **Anchoring by verbatim echo; no orphan state.** A comment with **no
   quotation** (no leading blockquote) is **general** by construction. A comment
@@ -110,16 +164,16 @@ These were settled during design; the implementation below assumes them.
 
 - **Strict write, forgiving read.** Mud _generates_ a strict canonical form —
   alpha labels (`comment-a`, `comment-b`, …); a leading blockquote for the
-  quotation; one `💬 <author> (<timestamp>):` header **per message** (always,
-  even a single one), alone on its line, with the commentary starting in a
-  **new block** below it; four-space-indented continuation; lines under 79
-  characters — but Mud _accepts_ anything the convention allows: any
-  `^comment-[\w-]+$` label, any whitespace, a missing
-  `💬`/author/timestamp/colon, inline commentary on the header line, the
-  blockquote on the marker line or below it. Two consequences of the "new
-  block" rule: a message's commentary may be **any** Markdown (a blockquote,
-  list, code block — it isn't trapped inline after the colon), and the whole
-  codec is **pure block structure with no hard breaks**.
+  quotation; one `💬 {author @ timestamp}:` header **per message** (always, even
+  a single one), alone on its line, with the commentary starting in a **new
+  block** below it; four-space-indented continuation; lines under 79 characters
+  — but Mud _accepts_ anything the convention allows: any `^comment-[\w-]+$`
+  label, any whitespace **except between `}` and `:`**, a missing
+  `💬`/author/timestamp/colon or even empty `{}`, inline commentary on the
+  header line, the blockquote on the marker line or below it. Two consequences
+  of the "new block" rule: a message's commentary may be **any** Markdown (a
+  blockquote, list, code block — it isn't trapped inline after the colon), and
+  the whole codec is **pure block structure with no hard breaks**.
 
 - **Labelling.** The label suffix is an **alpha token allocated in insertion
   order** — the next label is the lexicographically greatest existing
@@ -155,8 +209,8 @@ These were settled during design; the implementation below assumes them.
 ## Data model
 
 The on-disk grammar[^comment-y] — one worked example per case with the exact
-properties it parses to — is pinned in `Doc/Examples/comments-spec.md`, the
-canonical spec. This section summarizes it.
+properties it parses to — is pinned in `Doc/Spec/comments.md`, the canonical
+spec. This section summarizes it.
 
 A comment is a footnote[^comment-z] whose label matches `^comment-[\w-]+$`. Its
 definition body is, in order[^comment-za]:
@@ -165,11 +219,12 @@ definition body is, in order[^comment-za]:
    the comment refers to). With no blockquote the comment is **general**
    (unanchored).
 2. one or more **messages**. A message is introduced by a paragraph beginning
-   with `💬`; its body is everything up to the next `💬`-paragraph (so a message
-   may span several blocks — paragraphs, blockquotes, lists). A thread is just
-   more than one message. A message's first paragraph may open with
-   `💬 <author> (<timestamp>):` — `💬` and the trailing colon optional, timestamp
-   `YYYY-MM-DD HH:MM[:SS]`. Everything after is the **commentary** (arbitrary
+   with a **message attributes** block (`💬` and/or `{…}`); its body is
+   everything up to the next such paragraph (so a message may span several
+   blocks — paragraphs, blockquotes, lists). A thread is just more than one
+   message. A message's first paragraph may open with `💬 {author @ timestamp}:`
+   — `💬`, both fields, and the trailing colon all optional, timestamp
+   `YYYY-MM-DD[ HH:MM[:SS]]`. Everything after is the **commentary** (arbitrary
    Markdown).
 
 The fully-attributed, threaded case (spec example `comment-d`):
@@ -179,11 +234,11 @@ The fully-attributed, threaded case (spec example `comment-d`):
 
   [^comment-d]: > quick brown fox
 
-      💬 JP (2026-06-01 18:33):
+      💬 {JP @ 2026-06-01 18:33}:
 
       First comment in thread.
 
-      💬 Claude Opus 4.8 (2026-06-01 18:33:13):
+      💬 {Claude Opus 4.8 @ 2026-06-01 18:33:13}:
 
       > First comment in thread.
 
@@ -206,7 +261,7 @@ escape, nothing whitespace-fragile:
   blockquote (and carries no `💬`) reads as anchored, not general. Mud's strict
   write avoids this by always emitting the `💬` header first; the tie-break is
   deliberate.
-- **Attribution is visible Markdown** (`💬 Author (timestamp):`), not a hidden
+- **Attributes are visible Markdown** (`💬 {author @ timestamp}:`), not a hidden
   `title` attribute.
 - **Messages are blank-line-separated blocks.** No hard breaks, no trailing
   whitespace, no microformat — just paragraphs and blockquotes (see _Risks
@@ -220,12 +275,12 @@ Core model (new `Core/Sources/Comments/Comment.swift`):
       public let label: String              // e.g. "comment-a"; ref is "[^\(label)]"
       public let ordinal: Int               // 1-based document-order position; display only
       public let quotation: String?         // root blockquote, whitespace-collapsed; nil = general
-      public let messages: [CommentMessage] // one per 💬 header (or one author-less message)
+      public let messages: [CommentMessage] // one per message (attributed or author-less)
   }
 
   public struct CommentMessage: Sendable, Equatable {
-      public let author: String?  // header text before " ("; nil if unattributed
-      public let created: Date?   // parsed from "(YYYY-MM-DD HH:MM[:SS])"; nil if absent/unparseable
+      public let author: String?  // brace text before the timestamp's "@"; nil if unattributed
+      public let created: Date?   // parsed from the brace's "@ <timestamp>"; nil if absent/unparseable
       public let body: String     // commentary as Markdown (may itself contain blockquotes, lists, …)
   }
 ```
@@ -399,41 +454,42 @@ codec for definition bodies, no IO:
 
 ```swift
   enum CommentSerialization {
-      // Read: structure a comment definition's body blocks into the root
-      // quotation and ordered messages. `blocks` are swift-markdown `BlockMarkup`
-      // from re-parsing the definition's de-indented `bodyMarkdown` (see below).
-      static func parse(_ blocks: [BlockMarkup]) -> (quotation: String?, messages: [CommentMessage])
+      // Read: structure a comment definition's de-indented body Markdown into the
+      // root quotation and ordered messages.
+      static func parse(_ bodyMarkdown: String) -> (quotation: String?, messages: [CommentMessage])
       // Write: render quotation + messages into Mud's strict canonical body
-      // (leading blockquote for the quotation; one "💬 Author (timestamp):"
+      // (leading blockquote for the quotation; one "💬 {author @ timestamp}:"
       // header per message, alone on its line; commentary in a following block).
       static func serialize(quotation: String?, _ messages: [CommentMessage]) -> String
-      // Attribution grammar: peel a leading "[💬 ]Author (timestamp)[:]" from a
-      // message's first paragraph (💬 and colon optional).
+      // Attributes grammar: peel a leading "[💬 ]{author @ timestamp}[:]" from a
+      // message's first paragraph (💬, both fields, and colon all optional).
       static func parseAttribution(_ paragraphText: String)
-          -> (author: String?, created: Date?, inlineBody: Substring)
-      // Timestamp grammar: "YYYY-MM-DD HH:MM[:SS]" (space-separated, seconds
-      // optional) ↔ Date.
+          -> (author: String?, created: Date?, inlineBody: String)
+      // Timestamp grammar: "YYYY-MM-DD", "YYYY-MM-DD HH:MM", or
+      // "YYYY-MM-DD HH:MM:SS" (local wall-clock) ↔ Date.
       static func parseTimestamp(_ s: Substring) -> Date?
       static func formatTimestamp(_ date: Date) -> String
   }
 ```
 
-- `parse` consumes the definition's body blocks. These come from re-parsing the
-  footnote definition's **de-indented `bodyMarkdown`** (the clean CommonMark
-  the shared cmark parse already produces via `renderDefinitionBody`) with
+- `parse` consumes the definition's body. It re-parses the footnote
+  definition's **de-indented `bodyMarkdown`** (the clean CommonMark the shared
+  cmark parse already produces via `renderDefinitionBody`) with
   **swift-markdown** into `[BlockMarkup]`. This is safe precisely because the
   body is already de-indented: the swift-markdown multi-paragraph misparse that
   forced cmark for _footnote_ bodies doesn't bite a pre-normalized string, so
   the codec stays pure, testable Swift with no C-interop. From those blocks:
   (1) a **leading blockquote**, if present, becomes `quotation` (flattened,
   whitespace-collapsed); otherwise `quotation` is nil. (2) The remaining blocks
-  are split into messages at each **paragraph whose first character is `💬`**; a
-  message owns its blocks up to the next `💬`-paragraph. If the first remaining
-  block isn't a `💬`-paragraph, an implicit author-less message opens (the
-  single-comment, no- `💬` case). (3) Each message's first paragraph is run
-  through `parseAttribution`; `author`/ `created` come from the header and the
-  remaining text + blocks become `body` (Markdown). A `💬` that is not
-  paragraph-initial is ordinary prose and never splits.
+  are split into messages at each **paragraph that begins with `💬` or `{`** (a
+  message attributes block); a message owns its blocks up to the next such
+  paragraph. If the first remaining block isn't one, an implicit author-less
+  message opens (the single-message, no-attributes case). (3) Each message's
+  first paragraph is run through `parseAttribution`; the leading `💬` and `{…}`
+  are peeled (even when they carry no author/timestamp, as in a bare `💬`
+  reply), `author`/ `created` come from the braces, and the remaining text +
+  blocks become `body` (Markdown). A `💬` or `{` that is not paragraph-initial
+  is ordinary prose and never splits.
 - `serialize` is the strict inverse used on write;
   `parse(serialize(q, xs)) == (q, xs)` is the round-trip invariant. The output
   is plain block structure (no hard breaks): just paragraphs and blockquotes.
@@ -609,9 +665,9 @@ box focused. The window controller exposes `revealSidebar(.comments)` to expand
 the split and switch panes. Wire it into `SidebarView.swift`'s pane container.
 
 **Author identity** — a `comment-author` preference (new key in
-`MudPreferences`), defaulting to `NSFullUserName()`, written as the `<author>`
-in each new message's `💬 <author> (<timestamp>):` header. Surface it in a
-settings pane (a small "Comments" pane, or a field under General).
+`MudPreferences`), defaulting to `NSFullUserName()`, written as the `author` in
+each new message's `💬 {author @ timestamp}:` header. Surface it in a settings
+pane (a small "Comments" pane, or a field under General).
 
 
 ### Resources
@@ -652,7 +708,7 @@ blockquote-and- `💬` source is what Down mode and foreign renderers show.
 - **Down mode** needs no comment-specific code, because comment definitions
   _are_ footnotes: `scan` already classifies `[^comment-a]` references and
   their definition blocks (the `> quotation` blockquote and the
-  `💬 <author> (<timestamp>):` headers) by cmark footnote node, so they pick up
+  `💬 {author @ timestamp}:` headers) by cmark footnote node, so they pick up
   the existing `md-footnote-ref` / `md-footnote-def` highlighting and body
   re-parse for free. v1 styles them **identically to authorial footnotes** (no
   distinct comment treatment in Down mode); the raw source is displayed
@@ -671,7 +727,7 @@ Update `Doc/AGENTS.md` file quick reference: add `Comments/Comment.swift`,
 case on `SidebarPane`, the `commentMode` field on `RenderOptions`, the
 `comment-author` preference, the new read-write entitlement, and the comment
 classification step in the rendering-pipeline section. Reference the grammar
-spec `Doc/Examples/comments-spec.md`.
+spec `Doc/Spec/comments.md`.
 
 
 ## Risks to verify at build time
@@ -716,30 +772,33 @@ reads and validates each footnote reference's source columns today
 - **C6 — concurrent agent edit during authoring.** A file change between
   selection and save routes to the unanchored path rather than corrupting the
   file or clobbering the agent's edit.
-- **C7 — codec renders in a basic footnote viewer.** Pin the `comments-spec.md`
-  examples in a GitHub Gist and confirm: the leading blockquote shows the
-  quotation, each `💬 <author> (<timestamp>):` line shows attribution, the
-  commentary (any Markdown) renders, and the footnote back-links work. There
-  are no HTML tags to be stripped; the only non-ASCII is the `💬` glyph, which
-  renders as an emoji everywhere.
+- **C7 — codec renders in a basic footnote viewer.** Pin the
+  `Doc/Spec/comments.md` examples in a GitHub Gist and confirm: the leading
+  blockquote shows the quotation, each `💬 {author @ timestamp}:` line shows
+  attribution, the commentary (any Markdown) renders, and the footnote
+  back-links work. There are no HTML tags to be stripped; the only non-ASCII is
+  the `💬` glyph, which renders as an emoji everywhere.
 - **C8 — comment/footnote numbering interplay.** In a document mixing authorial
   footnotes and comments, Mud's footnote display numbers count only authorial
   references (comments occupy no number and leave no gap); the Comments and
   Footnotes sections number independently.
-- **C9 — attribution + timestamp grammar.** `parseAttribution` peels
-  `[💬 ]<author> (<timestamp>)[:]` from a message's first paragraph only when
-  the parenthetical parses as `YYYY-MM-DD HH:MM[:SS]` (space-separated, seconds
-  optional): `JP (2026-06-01 18:33):` → author + created; the no-colon variant
-  (`comment-g`) parses the same; `A quoted comment, no properties.` → no
-  author/created, whole text is body. A bare `Author (timestamp):` line **not**
-  preceded by `💬` does not start a new message (`comment-e`).
-- **C10 — `💬`/blockquote codec parses.** The root quotation is the leading
-  blockquote; messages split at **paragraph-initial** `💬`; a `💬` in running
-  prose never splits (it isn't paragraph-initial — `comment-f`).
+- **C9 — attributes + timestamp grammar.** `parseAttribution` peels
+  `[💬 ]{author @ timestamp}[:]` from a message's first paragraph:
+  `{JP @ 2026-06-01 18:33}:` → author + created; `{JP}` → author only;
+  `{@ 2026-06-01 18:33}` → timestamp only; `{}` → neither; the no-colon variant
+  (`comment-g`) parses the same. The **last** `@` whose suffix parses as a
+  timestamp splits the fields; `{@jp}` → author `@jp`, no timestamp
+  (`comment-k`). Date-only `YYYY-MM-DD` parses (`comment-j`). Content with no
+  leading `{`/ `💬` is all body.
+- **C10 — attributes/blockquote codec parses.** The root quotation is the
+  leading blockquote; messages split at a **paragraph-initial** `💬` **or** `{`
+  — so two `{…}:` blocks are two messages (`comment-e`) and a bare `💬` is a
+  message with no attributes (`comment-m`) — while a `💬` or `{` in running
+  prose never splits (`comment-f`).
   `parse(serialize(quotation, messages)) == (quotation, messages)` round-trips
   quotation, authors, createds, and bodies (including a reply whose body is
   itself a blockquote). The worked examples and their expected properties are
-  pinned in `Doc/Examples/comments-spec.md`.
+  pinned in `Doc/Spec/comments.md`.
 
 
 ## Verification
@@ -747,17 +806,19 @@ reads and validates each footnote reference's source columns today
 Build (user runs in the macOS VM): `cd Core && swift build`, then `swift test`;
 then open `Mud.xcodeproj`, re-resolve packages, build the app.
 
-The grammar spec `Doc/Examples/comments-spec.md` holds one worked example per
-case with the exact properties it must parse to: a bare comment (`comment-a`),
-a quoted comment (`comment-b`), an attributed comment (`comment-c`), a thread
-with a reply that quotes the prior message (`comment-d`), a "looks threaded but
-isn't" single comment (`comment-e`), a `💬`-in-prose decoy (`comment-f`), a
-no-colon header (`comment-g`), and a general-and-threaded comment
-(`comment-h`). The unit tests below assert each example parses to its stated
-properties. **Extend the matrix** with: an authorial `[^1]` footnote alongside
-a comment (numbering interplay), two comments on the same block, and a comment
-whose quotation does **not** occur in the document (general/unanchored at
-render).
+The grammar spec `Doc/Spec/comments.md` holds one worked example per case with
+the exact properties it must parse to: a bare comment (`comment-a`), a quoted
+comment (`comment-b`), an attributed comment (`comment-c`), a thread with a
+reply that quotes the prior message (`comment-d`), a two-message thread whose
+headers omit the `💬` (`comment-e`), a `💬`-in-prose decoy (`comment-f`), a
+no-colon header (`comment-g`), a general-and-threaded comment (`comment-h`),
+author-only (`comment-i`), date-only with no author (`comment-j`), an
+`@`-in-author handle (`comment-k`), empty braces (`comment-l`), and a bare- `💬`
+unattributed thread (`comment-m`). The unit tests below assert each example
+parses to its stated properties. **Extend the matrix** with: an authorial
+`[^1]` footnote alongside a comment (numbering interplay), two comments on the
+same block, and a comment whose quotation does **not** occur in the document
+(general/unanchored at render).
 
 **Core unit tests** (`Core/Tests/CommentTests.swift`, new):
 
@@ -767,19 +828,21 @@ render).
 - quotation: a leading blockquote → `quotation`; no leading blockquote → nil
   (general); a blockquote **after** a `💬` belongs to that message's body, not
   the quotation (`comment-d`).
-- attribution + timestamp grammar (C9): `comment-c`/ `comment-g`/ `comment-e`
-  cases; no-colon header; a parenthetical that isn't a timestamp → no author,
-  whole paragraph is body.
-- message splitting: a `💬`-initial paragraph opens a message; a `💬` in running
-  prose does **not** (`comment-f`); a bare `Author (ts):` without `💬` does
-  **not** (`comment-e`); no `💬` at all → one author-less message.
+- attributes + timestamp grammar (C9): `comment-c`/ `comment-g` (full),
+  `comment-i` (author only), `comment-j` (date-only, no author), `comment-k`
+  (`@`-handle author, no split), `comment-l` (empty braces); the last-
+  `@`-parses split; content with no leading `{`/ `💬` is all body.
+- message splitting: a paragraph beginning with `💬` or `{` opens a message —
+  including two `{…}:` blocks with no `💬` (`comment-e`, two messages) and a
+  bare `💬` (`comment-m`); a `💬` or `{` in running prose does **not**
+  (`comment-f`); no attributes block at all → one author-less message.
 - numbering interplay (C8): `[^1]`, `[^comment-a]`, `[^2]` → authorial
   footnotes render as 1 and 2 (comment occupies no number, no gap).
 - codec round-trip (C10):
   `parse(serialize(quotation, messages)) == (quotation, messages)` for the
   general, quoted, attributed, threaded, and reply-with-a-blockquote cases.
-- spec conformance: a table-driven test mirroring `comments-spec.md`'s examples
-  asserts each parses to its declared properties.
+- spec conformance: a table-driven test mirroring `Doc/Spec/comments.md`'s
+  examples asserts each parses to its declared properties.
 - `nextLabel`: empty source → `comment-a`; `…a … z` → `comment-za`; `zz` →
   `comment-zza`; gapped / out-of-order scheme-valid labels → greatest
   incremented; anomalous labels ignored as basis (`{a, b, ya}` → `c`; `{a, aa}`
@@ -799,8 +862,8 @@ render).
   `<section class="comments"` _after_ any footnotes section, with
   `<li id="cmt-comment-a"`.
 
-**End-to-end** (open `Doc/Examples/comments-spec.md`, then a scratch file, in
-Mud, Up mode):
+**End-to-end** (open `Doc/Spec/comments.md`, then a scratch file, in Mud, Up
+mode):
 
 - select text → "Add Comment…" → editor → save → a `[⋯]` marker appears
   (highlight only on hover), a sidebar row appears, and the file gains a
@@ -822,7 +885,7 @@ Mud, Up mode):
   blockquote, not a document highlight.
 - Cmd+P / Save-PDF → Comments section appears last in the PDF.
 - toggle to Down mode → raw `[^comment-a]` + `> quotation` +
-  `💬 author (timestamp):` shown, unchanged.
+  `💬 {author @ timestamp}:` shown, unchanged.
 
 **Export:**
 
@@ -832,12 +895,12 @@ Mud, Up mode):
 
 [^comment-y]: > on-disk grammar
 
-    💬 JP (2026-06-03 08:17:31):
+    💬 {JP @ 2026-06-03 08:17:31}:
 
 [^comment-z]: > footnote
 
-    💬 JP (2026-06-03 08:18:17):
+    💬 {JP @ 2026-06-03 08:18:17}:
 
 [^comment-za]: > order
 
-    💬 JP (2026-06-03 08:18:25):
+    💬 {JP @ 2026-06-03 08:18:25}:

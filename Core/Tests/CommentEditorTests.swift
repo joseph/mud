@@ -82,7 +82,7 @@ struct CommentEditorTests {
 
     #expect(result.source.contains("brown fox[^comment-a]."))
     #expect(result.source.contains("[^comment-a]:\n    > quick brown"))
-    #expect(result.source.contains("💬 JP (2026-06-01 18:33:00):"))
+    #expect(result.source.contains("💬 {JP @ 2026-06-01 18:33:00}:"))
     #expect(result.source.contains("Nice."))
   }
 
@@ -103,8 +103,8 @@ struct CommentEditorTests {
       ])
 
     #expect(rewritten.contains("Hello world[^comment-a]."))  // marker intact
-    #expect(rewritten.contains("💬 JP (2026-06-01 18:33:00):"))
-    #expect(rewritten.contains("💬 Claude (2026-06-01 18:34:00):"))
+    #expect(rewritten.contains("💬 {JP @ 2026-06-01 18:33:00}:"))
+    #expect(rewritten.contains("💬 {Claude @ 2026-06-01 18:34:00}:"))
     #expect(rewritten.contains("First."))
     #expect(rewritten.contains("Second."))
     #expect(!rewritten.contains("Note."))  // old body replaced

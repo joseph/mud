@@ -529,8 +529,9 @@ struct WebView: NSViewRepresentable {
             onCommentDraft?(draft)
         }
 
-        /// Converts a JS `{x,y,width,height}` rect (top-left origin, zoom-
-        /// normalized CSS pixels) into an `NSRect` in the WebView's AppKit space.
+        /// Converts a JS `{x,y,width,height}` rect (top-left origin, viewport
+        /// coordinates in the visual/zoomed space, which map 1:1 to AppKit
+        /// points) into an `NSRect` in the WebView's AppKit space.
         private func anchorRect(
             from rectDict: [String: Any], in webView: WKWebView
         ) -> NSRect {
@@ -558,7 +559,7 @@ struct WebView: NSViewRepresentable {
 
         /// Shows the footnote popover anchored at the clicked marker. `body` is
         /// the JS payload `{label, num, rect:{x,y,width,height}}` where the rect
-        /// is in zoom-normalized CSS pixels with a top-left origin.
+        /// is in visual (zoomed) viewport coordinates with a top-left origin.
         private func presentFootnote(_ body: Any) {
             guard let dict = body as? [String: Any],
                   let label = dict["label"] as? String,

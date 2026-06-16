@@ -264,19 +264,26 @@ blockquote > :last-child {
 /* -- Footnotes ------------------------------------------------------------ */
 
 .footnote-ref {
-  font-size: 0.75em;
+  font-size: 0.667rem;
+  font-weight: initial;
+  font-style: initial;
+  text-decoration: initial;
   line-height: 0;
   white-space: nowrap;
 }
 
 .footnote-ref a {
   text-decoration: none;
-  padding: 0 0.15em;
   cursor: pointer;
+  padding: 0.175em 0.6em;
+  border-radius: 2em;
+  background-color: var(--code-bg);
+  transition: all 200ms;
 }
 
 .footnote-ref a:hover {
-  text-decoration: underline;
+  background-color: var(--link-color);
+  color: var(--bg-color);
 }
 
 .footnotes {

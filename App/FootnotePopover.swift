@@ -107,7 +107,13 @@ final class FootnotePopoverController: NSObject, WKNavigationDelegate, WKScriptM
     // MARK: WKNavigationDelegate
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-        webView.evaluateJavaScript("document.body.scrollHeight") { [weak self] result, _ in
+        // `scrollHeight` is in unzoomed layout pixels; multiply by the document
+        // zoom baked into the HTML so we get the visual height (points) the
+        // content actually occupies.
+        let measureHeight =
+            "document.body.scrollHeight"
+            + " * (parseFloat(document.documentElement.style.zoom) || 1)"
+        webView.evaluateJavaScript(measureHeight) { [weak self] result, _ in
             guard let self, let raw = result as? CGFloat else { return }
             let height = min(max(raw + Self.heightPadding, Self.minHeight),
                              Self.maxHeight)

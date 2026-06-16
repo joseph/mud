@@ -380,7 +380,7 @@ struct WebView: NSViewRepresentable {
 
         /// Shows the footnote popover anchored at the clicked marker. `body` is
         /// the JS payload `{label, num, rect:{x,y,width,height}}` where the rect
-        /// is in zoom-normalized CSS pixels with a top-left origin.
+        /// is in visual (zoomed) viewport coordinates with a top-left origin.
         private func presentFootnote(_ body: Any) {
             guard let dict = body as? [String: Any],
                   let label = dict["label"] as? String,

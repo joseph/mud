@@ -41,16 +41,19 @@
     e.preventDefault();
     e.stopPropagation();
 
-    var zoom = parseFloat(document.documentElement.style.zoom) || 1;
+    // `getBoundingClientRect()` already reflects the CSS `zoom` on
+    // `documentElement`, returning viewport coordinates in the visual (zoomed)
+    // space. The WKWebView's AppKit bounds are the viewport in points and are
+    // zoom-independent, so these values map 1:1 to AppKit points — no scaling.
     var r = anchor.getBoundingClientRect();
     handlers.mudFootnote.postMessage({
       label: anchor.getAttribute("data-fn-label"),
       num: anchor.getAttribute("data-fn-num"),
       rect: {
-        x: r.left / zoom,
-        y: r.top / zoom,
-        width: r.width / zoom,
-        height: r.height / zoom,
+        x: r.left,
+        y: r.top,
+        width: r.width,
+        height: r.height,
       },
     });
   }, true);

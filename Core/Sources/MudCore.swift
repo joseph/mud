@@ -251,6 +251,22 @@ public enum MudCore {
         return html
     }
 
+    /// Strips the host document's comments-column state for a self-contained
+    /// popover document. A footnote or comment-thread popover is its own tiny
+    /// page in a separate WebView: it must not reserve the 324px column gutter
+    /// or carry the write-side editing styles, whatever the host document was
+    /// showing. The read-side comment styles and the bottom section are left
+    /// alone, so a comment-thread popover still renders its quotation and
+    /// messages.
+    private static func withoutCommentsColumn(_ options: RenderOptions) -> RenderOptions {
+        var o = options
+        o.commentMode = .section
+        o.commentsEditable = false
+        o.htmlClasses.remove("is-comments-column")
+        o.htmlClasses.remove("comment-return-saves")
+        return o
+    }
+
     /// Renders a single footnote body as a self-contained themed Up-mode
     /// document for display in an `NSPopover`'s WebView.
     private static func renderPopoverDocument(
@@ -258,7 +274,7 @@ public enum MudCore {
         options: RenderOptions,
         resolveImageSource: ((_ source: String, _ baseURL: URL) -> String?)?
     ) -> String {
-        var popoverOptions = options
+        var popoverOptions = withoutCommentsColumn(options)
         popoverOptions.waypoint = nil
         popoverOptions.title = ""
         // Trims the page's generous padding (esp. the 6em bottom reserved for
@@ -379,7 +395,7 @@ public enum MudCore {
         options: RenderOptions = .init(),
         resolveImageSource: ((_ source: String, _ baseURL: URL) -> String?)? = nil
     ) -> String {
-        var docOptions = options
+        var docOptions = withoutCommentsColumn(options)
         docOptions.waypoint = nil
         docOptions.title = ""
         // Reuse the footnote popover's trimmed padding.

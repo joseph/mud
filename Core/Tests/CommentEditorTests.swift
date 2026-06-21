@@ -73,6 +73,28 @@ struct CommentEditorTests {
     #expect(result.source.contains("[^comment-a]:\n    Note."))
   }
 
+  @Test func insert_atEndOfFileEndsWithSingleNewline() {
+    let result = CommentEditor.insert(
+      into: "Hello world.\n", markerByteOffset: 11, quotation: nil,
+      message: CommentMessage(author: nil, created: nil, body: "Note."))
+
+    #expect(result.source.hasSuffix("    Note.\n"))
+    #expect(!result.source.hasSuffix("\n\n"))
+  }
+
+  @Test func insertThenDelete_restoresOriginal() {
+    // The README round-trip: adding then removing a comment must leave the file
+    // byte-for-byte unchanged, trailing newline and all.
+    let original = "# Title\n\nBody text.\n"
+    let inserted = CommentEditor.insert(
+      into: original, markerByteOffset: 18, quotation: nil,
+      message: CommentMessage(author: nil, created: nil, body: "Note."))
+    let restored = CommentEditor.delete(
+      inserted.source, label: inserted.comment.label)
+
+    #expect(restored == original)
+  }
+
   @Test func insert_withQuotationWritesLeadingBlockquote() {
     let result = CommentEditor.insert(
       into: "The quick brown fox.\n", markerByteOffset: 19,
@@ -110,6 +132,48 @@ struct CommentEditorTests {
     #expect(!rewritten.contains("Note."))  // old body replaced
   }
 
+  @Test func rewrite_keepsBlankLineBeforeFollowingBlock() {
+    // A comment definition mid-document, with a following paragraph. Rewriting
+    // its body must not swallow the blank line that separates the two.
+    let source = """
+      Text[^comment-a] here.
+
+      [^comment-a]: > here
+
+          A note.
+
+      Following paragraph.
+      """
+
+    let rewritten = CommentEditor.rewrite(
+      source, label: "comment-a", quotation: "here",
+      messages: [
+        CommentMessage(author: nil, created: nil, body: "A note."),
+        CommentMessage(author: nil, created: nil, body: "A reply."),
+      ])
+
+    // The reply is a distinct message (bare `💬`), and the following paragraph
+    // stays separated by a blank line rather than merging into the definition.
+    #expect(rewritten.contains("    💬 A reply."))
+    #expect(rewritten.contains("    💬 A reply.\n\nFollowing paragraph."))
+  }
+
+  @Test func rewrite_atEndOfFileEndsWithSingleNewline() {
+    let inserted = CommentEditor.insert(
+      into: "Hello world.\n", markerByteOffset: 11, quotation: nil,
+      message: CommentMessage(author: nil, created: nil, body: "Note."))
+
+    let rewritten = CommentEditor.rewrite(
+      inserted.source, label: "comment-a", quotation: nil,
+      messages: [
+        CommentMessage(author: nil, created: nil, body: "Note."),
+        CommentMessage(author: nil, created: nil, body: "Reply."),
+      ])
+
+    #expect(rewritten.hasSuffix("    💬 Reply.\n"))
+    #expect(!rewritten.hasSuffix("\n\n"))
+  }
+
   // MARK: - delete
 
   @Test func delete_removesOneCommentLeavesOthers() {
@@ -127,5 +191,36 @@ struct CommentEditorTests {
     #expect(after.contains("beta[^comment-b]."))  // other marker intact
     #expect(after.contains("[^comment-b]: Second comment."))  // other def intact
     #expect(after.contains("Alpha and beta"))  // surrounding text intact
+  }
+
+  @Test func delete_collapsesTrailingNewlinesToOne() {
+    let source = """
+      Body[^comment-a] text.
+
+      [^comment-a]: A trailing comment.
+      """ + "\n\n\n"
+
+    let after = CommentEditor.delete(source, label: "comment-a")
+
+    #expect(after.hasSuffix("Body text.\n"))
+    #expect(!after.hasSuffix("\n\n"))
+  }
+
+  @Test func delete_keepsTrailingNewlineWhenCommentNotLast() {
+    // The definition is followed by more content, so its removal does not reach
+    // end-of-file: the file's own trailing newline must survive.
+    let source = """
+      Body[^comment-a] text.
+
+      [^comment-a]: A comment.
+
+      More content.
+      """ + "\n"
+
+    let after = CommentEditor.delete(source, label: "comment-a")
+
+    #expect(!after.contains("comment-a"))
+    #expect(after.contains("Body text."))
+    #expect(after.hasSuffix("More content.\n"))
   }
 }

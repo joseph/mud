@@ -105,9 +105,21 @@ enum CommentSerialization {
         if let quotation, !quotation.isEmpty {
             blocks.append("> " + quotation)
         }
-        for message in messages {
-            if let header = headerLine(message) { blocks.append(header) }
-            if !message.body.isEmpty { blocks.append(message.body) }
+        for (index, message) in messages.enumerated() {
+            if let header = headerLine(message) {
+                blocks.append(header)
+                if !message.body.isEmpty { blocks.append(message.body) }
+            } else if index > 0 {
+                // A new message with no attribution still needs a bare `💬` to
+                // mark it — without one, re-parsing would merge it into the
+                // previous message. The marker rides on the body, matching the
+                // spec's bare-`💬` form; the first message needs no marker.
+                blocks.append(message.body.isEmpty
+                    ? commentEmoji
+                    : "\(commentEmoji) \(message.body)")
+            } else if !message.body.isEmpty {
+                blocks.append(message.body)
+            }
         }
         return blocks.joined(separator: "\n\n")
     }

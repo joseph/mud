@@ -657,10 +657,19 @@ enum FootnoteProcessor {
                 var stop = def.endLine + 1
                 while stop <= lastLine, geo.lineIsBlank(stop) { stop += 1 }
                 let deleteEnd = stop <= lastLine ? geo.lineStart[stop] : geo.bytes.count
+                // cmark can fold a trailing blank line into the definition's end
+                // line. Back up to the last non-blank line so `defContentEnd` is
+                // the true end of content (before its newline); otherwise a
+                // rewrite would swallow the blank line separating the definition
+                // from the block after it.
+                var contentLine = def.endLine
+                while contentLine > def.startLine, geo.lineIsBlank(contentLine) {
+                    contentLine -= 1
+                }
                 return CommentLocation(
                     label: def.label,
                     defStart: geo.lineStart[def.startLine],
-                    defContentEnd: geo.contentEnd(def.endLine),
+                    defContentEnd: geo.contentEnd(contentLine),
                     defDeleteEnd: deleteEnd,
                     refRanges: refsByLabel[def.label] ?? [])
             }

@@ -6,9 +6,8 @@ import MudCore
 class AppState: ObservableObject {
     static let shared = AppState()
     @Published var modeInActiveTab: Mode = .up
-    /// Transient (not persisted) mirrors of the key window's state, for app-level
+    /// Transient (not persisted) mirror of the key window's state, for app-level
     /// menu gating — updated on key-window change like `modeInActiveTab`.
-    @Published var activeHasUpSelection: Bool = false
     @Published var activeDocumentEditable: Bool = false
     @Published var lighting: Lighting {
         didSet { MudPreferences.shared.lighting = lighting }
@@ -137,7 +136,8 @@ class AppState: ObservableObject {
              .upModeShowCodeHeader,
              .downModeShowLineNumbers,
              .downModeWrapLines,
-             .uiShowReadableColumn:
+             .uiShowReadableColumn,
+             .uiShowCommentsColumn:
             self.viewToggles = c.viewToggles
         // internal.* — not exposed on AppState; mirror already updated.
         case .hasLaunched, .windowFrame, .cliInstalled, .cliSymlinkPath:

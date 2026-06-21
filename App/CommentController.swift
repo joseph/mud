@@ -1,8 +1,8 @@
 import Foundation
 import MudCore
 
-/// A pending comment draft captured from a Up-mode selection by
-/// `mud-comments.js` and posted over the `mudCommentDraft` bridge.
+/// A pending comment draft: the Up-mode selection captured by the column write
+/// JS and posted (inside a `.add` submission) over the `mudCommentSubmit` bridge.
 struct CommentDraft {
     /// The selected text, whitespace-collapsed — the quotation.
     let quotation: String
@@ -14,6 +14,17 @@ struct CommentDraft {
     /// Which same-text block in document order the selection is in (disambiguates
     /// identical-text blocks).
     let occurrence: Int
+}
+
+/// A column edit posted from the page over the `mudCommentSubmit` bridge,
+/// dispatched to `CommentController` by `DocumentContentView`. `.add` carries the
+/// anchored `draft`; the others identify the comment by `label`.
+struct CommentSubmission {
+    enum Action: String { case add, reply, edit, delete }
+    let action: Action
+    let label: String?
+    let body: String?
+    let draft: CommentDraft?
 }
 
 /// Owns the document write path for comments: re-read from disk, byte-surgical
@@ -96,6 +107,24 @@ final class CommentController {
     func delete(label: String) -> Bool {
         guard let source = readSource() else { return false }
         return write(CommentEditor.delete(source, label: label))
+    }
+
+    /// Removes the most recent message from the `label` comment's thread. When it
+    /// was the only message, the whole comment goes (a comment can't be empty).
+    @discardableResult
+    func deleteLastMessage(label: String) -> Bool {
+        guard let source = readSource(),
+              let comment = MudCore.parseComments(source)
+                .first(where: { $0.label == label })
+        else { return false }
+        guard comment.messages.count > 1 else {
+            return write(CommentEditor.delete(source, label: label))
+        }
+        var messages = comment.messages
+        messages.removeLast()
+        return write(CommentEditor.rewrite(
+            source, label: label, quotation: comment.quotation,
+            messages: messages))
     }
 
     // MARK: - IO

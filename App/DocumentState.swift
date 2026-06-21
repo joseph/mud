@@ -33,23 +33,17 @@ class DocumentState: ObservableObject {
     @Published var openInBrowserID: UUID?
     @Published var openInEditorRequest: EditorLaunchRequest?
     @Published var reloadID: UUID?
-    @Published var draftCommentID: UUID?
-    /// Parsed comments for the Comments sidebar, refreshed on load.
+    /// Parsed comments, refreshed on load; drive the Comments column.
     @Published var comments: [Comment] = []
     /// DOM-derived locators for just-added comments, keyed by label, so the live
     /// `[⋯]` marker lands byte-exactly without a reload. Pruned to live labels on
     /// each load; a stale entry is harmless (the JS skips insert when the marker
     /// already exists). Plain bookkeeping, read during the view's render.
     var pendingCommentLocators: [String: CommentLocator] = [:]
-    /// The comment thread currently open in the Comments sidebar (and revealed
-    /// in the document). `nil` shows the list.
-    @Published var activeCommentLabel: String?
-    /// A captured selection awaiting a first message in the sidebar's create
-    /// flow. Non-`nil` opens the sidebar's thread view in create mode.
-    @Published var pendingDraft: CommentDraft?
-    /// Whether the rendered (Up-mode) body currently has a non-empty selection.
-    /// Mirrored to `AppState` for the Edit-menu "Add Comment" gate.
-    @Published var hasUpSelection: Bool = false
+    /// True while an in-column compose box (new comment, reply, or edit) owns the
+    /// keyboard. Set from the page over the `mudComposing` bridge; folded into
+    /// `isComposingComment` so the focus trap leaves the textarea alone.
+    @Published var isColumnComposing: Bool = false
     @Published var outlineHeadings: [OutlineHeading] = []
     @Published var scrollTarget: ScrollTarget?
     @Published var changeScrollTarget: ChangeScrollTarget?
@@ -85,12 +79,10 @@ class DocumentState: ObservableObject {
         return false
     }
 
-    /// True while the Comments sidebar is showing a thread or a create compose
-    /// (its `TextEditor` should hold first responder). `DocumentContentView`'s
-    /// focus trap exempts this so the sidebar can be typed into.
-    var isComposingComment: Bool {
-        pendingDraft != nil || activeCommentLabel != nil
-    }
+    /// True while an in-column compose box owns first responder.
+    /// `DocumentContentView`'s focus trap exempts this so the textarea can be
+    /// typed into.
+    var isComposingComment: Bool { isColumnComposing }
 
     func toggleMode() {
         mode = mode.toggled()

@@ -24,38 +24,8 @@ class MudWebView: WKWebView {
                          action: #selector(postReloadDocument),
                          keyEquivalent: "")
             for item in menu.items where item.action != nil { item.target = self }
-        } else if canAddComment(in: menu) {
-            // Selection menu (Copy etc.): offer "Add Comment…" at the top.
-            let item = NSMenuItem(title: "Add Comment\u{2026}",
-                                  action: #selector(postAddComment),
-                                  keyEquivalent: "")
-            item.target = self
-            item.image = NSImage(systemSymbolName: "plus.bubble",
-                                 accessibilityDescription: nil)
-            menu.insertItem(item, at: 0)
-            menu.insertItem(.separator(), at: 1)
         }
         super.willOpenMenu(menu, with: event)
-    }
-
-    /// The opened document's URL, via the AppKit window controller.
-    private var documentURL: URL? {
-        (window?.windowController as? DocumentWindowController)?.fileURL
-    }
-
-    /// "Add Comment…" applies only to a text selection in the rendered (Up-mode)
-    /// view of a writable document. A WKWebView selection menu carries a Copy
-    /// item (`WKMenuItemIdentifierCopy`); its presence is our selection signal.
-    private func canAddComment(in menu: NSMenu) -> Bool {
-        guard AppState.shared.modeInActiveTab == .up,
-              let url = documentURL, !url.isBundleResource else { return false }
-        return menu.items.contains {
-            $0.identifier?.rawValue == "WKMenuItemIdentifierCopy"
-        }
-    }
-
-    @objc private func postAddComment() {
-        sendActionToController(#selector(DocumentWindowController.addComment(_:)))
     }
 
     private func buildOpenInSubmenu() -> NSMenu {
@@ -146,16 +116,10 @@ struct WebView: NSViewRepresentable {
     /// DOM-derived locators for just-added comments, keyed by label, merged into
     /// the `setData` payload so a live marker insert lands byte-exactly.
     var commentLocators: [String: CommentLocator] = [:]
-    var draftCommentID: UUID?
-    /// The comment thread to reveal in the document (scroll to its `[⋯]` marker
-    /// and light its highlight); `nil` clears. Driven by the sidebar selection.
-    var revealCommentLabel: String?
-    /// `[⋯]` marker click → open this comment's thread in the sidebar.
-    var onOpenComment: ((String) -> Void)?
-    /// "Add Comment" selection captured → start a new comment in the sidebar.
-    var onCommentDraft: ((CommentDraft) -> Void)?
-    /// Whether the rendered body has a non-empty selection (gates "Add Comment").
-    var onSelectionChange: ((Bool) -> Void)?
+    /// A column edit (add/reply/edit/delete) to write through `CommentController`.
+    var onCommentSubmit: ((CommentSubmission) -> Void)?
+    /// Whether the in-column compose box currently owns the keyboard.
+    var onComposing: ((Bool) -> Void)?
     var onSearchResult: ((MatchInfo?) -> Void)?
 
     func makeNSView(context: Context) -> WKWebView {
@@ -171,6 +135,7 @@ struct WebView: NSViewRepresentable {
             HTMLTemplate.mudUpJS,
             HTMLTemplate.mudDownJS,
             HTMLTemplate.mudCommentsJS,
+            HTMLTemplate.mudCommentsEditJS,
         ]
         for source in scripts {
             let script = WKUserScript(
@@ -183,9 +148,8 @@ struct WebView: NSViewRepresentable {
 
         config.userContentController.add(context.coordinator, name: "mudOpen")
         config.userContentController.add(context.coordinator, name: "mudFootnote")
-        config.userContentController.add(context.coordinator, name: "mudCommentDraft")
-        config.userContentController.add(context.coordinator, name: "mudCommentOpen")
-        config.userContentController.add(context.coordinator, name: "mudSelection")
+        config.userContentController.add(context.coordinator, name: "mudCommentSubmit")
+        config.userContentController.add(context.coordinator, name: "mudComposing")
 
         let webView = MudWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
@@ -203,25 +167,9 @@ struct WebView: NSViewRepresentable {
         context.coordinator.footnoteHTML = footnoteHTML
         context.coordinator.comments = comments
         context.coordinator.commentLocators = commentLocators
-        context.coordinator.onOpenComment = onOpenComment
-        context.coordinator.onCommentDraft = onCommentDraft
-        context.coordinator.onSelectionChange = onSelectionChange
-
-        // Reveal a comment in the document when the sidebar selection changes.
-        if context.coordinator.revealCommentLabel != revealCommentLabel {
-            context.coordinator.revealCommentLabel = revealCommentLabel
-            context.coordinator.applyCommentReveal(to: webView)
-        }
-
-        // "Add Comment" fires draft capture in the page (Up mode only — the
-        // selection and `Mud.comments` live there).
-        if let draftCommentID,
-           context.coordinator.lastDraftCommentID != draftCommentID {
-            context.coordinator.lastDraftCommentID = draftCommentID
-            if mode == .up {
-                webView.evaluateJavaScript("Mud.comments.draft()")
-            }
-        }
+        context.coordinator.onCommentSubmit = onCommentSubmit
+        context.coordinator.onComposing = onComposing
+        context.coordinator.commentTheme = theme.rawValue
 
         // Handle search
         if let query = searchQuery,
@@ -360,11 +308,9 @@ struct WebView: NSViewRepresentable {
         /// Signature (label + quotation per comment) of the last `setData` push,
         /// so a comment-only change re-anchors without a reload.
         var lastCommentSignature: [String] = []
-        var onOpenComment: ((String) -> Void)?
-        var onCommentDraft: ((CommentDraft) -> Void)?
-        var onSelectionChange: ((Bool) -> Void)?
-        var revealCommentLabel: String?
-        var lastDraftCommentID: UUID?
+        var onCommentSubmit: ((CommentSubmission) -> Void)?
+        var onComposing: ((Bool) -> Void)?
+        var commentTheme: String = "earthy"
         weak var webView: WKWebView?
         private var savedFraction: CGFloat?
         private let baseURL: URL?
@@ -414,7 +360,6 @@ struct WebView: NSViewRepresentable {
             lastSearchID = nil
             restoreScrollPosition(to: webView)
             applyComments(to: webView)
-            applyCommentReveal(to: webView)
             for ext in activeExtensions {
                 injectExtension(ext, into: webView)
             }
@@ -423,11 +368,17 @@ struct WebView: NSViewRepresentable {
             }
         }
 
-        /// A label+quotation fingerprint of a comment list — the change unit for
-        /// the no-reload re-anchor (reply/body edits keep this stable, so they do
-        /// no DOM work).
+        /// A content fingerprint of a comment list — the change unit for the
+        /// no-reload column refresh. Covers label, quotation, and every message
+        /// (author, time, body) so a reply or edit re-pushes; an unrelated body
+        /// edit elsewhere keeps it stable and does no DOM work.
         static func commentSignature(_ comments: [Comment]) -> [String] {
-            comments.map { "\($0.label)\u{1}\($0.quotation ?? "")" }
+            comments.map { comment in
+                let messages = comment.messages.map {
+                    "\($0.author ?? "")\u{2}\($0.created?.timeIntervalSince1970 ?? 0)\u{2}\($0.body)"
+                }.joined(separator: "\u{3}")
+                return "\(comment.label)\u{1}\(comment.quotation ?? "")\u{1}\(messages)"
+            }
         }
 
         /// Hands the parsed comments to `mud-comments.js`, which inserts/removes
@@ -439,14 +390,21 @@ struct WebView: NSViewRepresentable {
             struct Payload: Encodable {
                 let label: String
                 let quotation: String
+                let html: String
                 let blockText: String?
                 let offset: Int?
                 let occurrence: Int?
             }
+            var opts = RenderOptions()
+            opts.baseURL = baseURL
+            opts.theme = commentTheme
             let payload = comments.map { comment -> Payload in
                 let locator = commentLocators[comment.label]
                 return Payload(
                     label: comment.label, quotation: comment.quotation ?? "",
+                    html: MudCore.renderCommentItem(
+                        comment, options: opts,
+                        resolveImageSource: DocumentContentView.mudAssetResolver),
                     blockText: locator?.blockText, offset: locator?.offset,
                     occurrence: locator?.occurrence)
             }
@@ -456,21 +414,6 @@ struct WebView: NSViewRepresentable {
             // in Down mode), so guard before calling.
             webView.evaluateJavaScript(
                 "window.Mud && Mud.comments && Mud.comments.setData(\(json))")
-        }
-
-        /// Reveals (or clears) the sidebar-selected comment in the document.
-        func applyCommentReveal(to webView: WKWebView) {
-            let arg: String
-            if let label = revealCommentLabel {
-                let escaped = label
-                    .replacingOccurrences(of: "\\", with: "\\\\")
-                    .replacingOccurrences(of: "'", with: "\\'")
-                arg = "'\(escaped)'"
-            } else {
-                arg = "null"
-            }
-            webView.evaluateJavaScript(
-                "window.Mud && Mud.comments && Mud.comments.reveal(\(arg))")
         }
 
         private func injectExtension(_ ext: RenderExtension, into webView: WKWebView) {
@@ -499,34 +442,39 @@ struct WebView: NSViewRepresentable {
                 }
             case "mudFootnote":
                 presentFootnote(message.body)
-            case "mudCommentDraft":
-                handleCommentDraft(message.body)
-            case "mudCommentOpen":
-                if let dict = message.body as? [String: Any],
-                   let label = dict["label"] as? String {
-                    onOpenComment?(label)
-                }
-            case "mudSelection":
-                onSelectionChange?((message.body as? Bool) ?? false)
+            case "mudCommentSubmit":
+                handleCommentSubmit(message.body)
+            case "mudComposing":
+                onComposing?((message.body as? Bool) ?? false)
             default:
                 break
             }
         }
 
-        /// Parses the `mudCommentDraft` payload `{quotation, locator:{…}}` into a
-        /// `CommentDraft` and hands it to the sidebar's create flow. Nothing is
-        /// written until the user adds a message there.
-        private func handleCommentDraft(_ body: Any) {
+        /// Parses the `mudCommentSubmit` payload into a `CommentSubmission` and
+        /// hands it to the write path. `.add` carries `quotation` + a `locator`;
+        /// reply/edit/delete carry only `label`.
+        private func handleCommentSubmit(_ body: Any) {
             guard let dict = body as? [String: Any],
-                  let quotation = dict["quotation"] as? String,
-                  let locator = dict["locator"] as? [String: Any],
-                  let blockText = locator["blockText"] as? String,
-                  let offset = locator["offset"] as? Int else { return }
-            let draft = CommentDraft(
-                quotation: quotation, blockText: blockText,
-                offsetInBlock: offset,
-                occurrence: locator["occurrence"] as? Int ?? 0)
-            onCommentDraft?(draft)
+                  let actionRaw = dict["action"] as? String,
+                  let action = CommentSubmission.Action(rawValue: actionRaw)
+            else { return }
+            var draft: CommentDraft?
+            if action == .add,
+               let quotation = dict["quotation"] as? String,
+               let locator = dict["locator"] as? [String: Any],
+               let blockText = locator["blockText"] as? String,
+               let offset = locator["offset"] as? Int {
+                draft = CommentDraft(
+                    quotation: quotation, blockText: blockText,
+                    offsetInBlock: offset,
+                    occurrence: locator["occurrence"] as? Int ?? 0)
+            }
+            onCommentSubmit?(CommentSubmission(
+                action: action,
+                label: dict["label"] as? String,
+                body: dict["body"] as? String,
+                draft: draft))
         }
 
         /// Converts a JS `{x,y,width,height}` rect (top-left origin, viewport

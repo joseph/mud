@@ -2,11 +2,13 @@ import Foundation
 
 /// Where comments go in the rendered output (parallel to `FootnoteMode`).
 ///
-/// - `.section`: emit a visible bottom `<section class="comments">` (every
-///   export path — browser, CLI, Quick Look, print).
-/// - `.interactive`: the live app draws hover-revealed highlights and a
-///   sidebar; the bottom section is still emitted but marked `is-print-only`
-///   so it stays hidden on screen and reappears under `@media print`.
+/// - `.section`: emit a visible bottom `<section class="comments">` with
+///   visible quote markers (Quick Look, and any static render).
+/// - `.interactive`: column mode. The bottom section is still emitted as the
+///   single source of comment HTML, but marked `is-print-only` (hidden on
+///   screen, shown under `@media print`); the `comments-column` class is set so
+///   the JS projects the Comments column from it and the quote markers are
+///   hidden on screen. Used by the live app and by HTML exports.
 public enum CommentMode: String, Sendable, Equatable {
     case interactive
     case section

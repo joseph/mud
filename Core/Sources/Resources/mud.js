@@ -221,6 +221,9 @@
     if (name === "is-auto-expand-changes" && Mud.applyAutoExpandChanges) {
       Mud.applyAutoExpandChanges(enabled);
     }
+    if (name === "is-comments-column" && Mud.comments && Mud.comments.setVisible) {
+      Mud.comments.setVisible(enabled);
+    }
   }
 
   // -- Theme ----------------------------------------------------------------

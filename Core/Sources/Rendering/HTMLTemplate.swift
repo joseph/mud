@@ -12,6 +12,13 @@ public enum HTMLTemplate {
             : ["mud-asset:", "data:", "https:"]
         doc.bodyContent = "    <article class=\"up-mode-output\">\n\(body)\n    </article>"
 
+        // Column mode hides the bottom section and the quote markers on screen
+        // and draws the Comments column instead; the JS keys off this class to
+        // decide whether to project the column.
+        if options.commentMode == .interactive {
+            doc.htmlClasses.append("comments-column")
+        }
+
         if options.standalone {
             for name in options.extensions {
                 guard let ext = RenderExtension.registry[name],
@@ -80,11 +87,18 @@ public enum HTMLTemplate {
         loadResource("mud-up", type: "js") ?? ""
     }
 
-    /// Comment JavaScript (highlights, marker routing, selection capture)
-    /// injected at runtime by WKWebView. In-app only; exports rely on the static
-    /// marker, its `#cmt-LABEL` anchor, and the bottom Comments section.
+    /// Comment column (read side): projection from the hidden section, highlight
+    /// anchoring, the slot solver, hover/activate. Injected at runtime by
+    /// WKWebView; also the file inlined into HTML exports for a read-only column.
     public static var mudCommentsJS: String {
         loadResource("mud-comments", type: "js") ?? ""
+    }
+
+    /// Comment column (write side): the Add button, compose box, and
+    /// submit/reply/edit/delete bridge. Injected by the app only — exports load
+    /// just `mudCommentsJS` and are read-only.
+    public static var mudCommentsEditJS: String {
+        loadResource("mud-comments-edit", type: "js") ?? ""
     }
 
     /// Down-mode JavaScript injected at runtime by WKWebView.

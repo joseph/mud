@@ -344,16 +344,19 @@
     setComposing(false);
   }
 
-  // The last message's body text, read from the hidden section (for Edit).
+  // The last message's raw Markdown body, read from the hidden section (for
+  // Edit). MudCore stashes the original source on the message div as
+  // data-mud-body; the rendered .mud-comment-body would be lossy (it has the
+  // markdown syntax stripped), so the textarea must use the raw attribute.
   function lastMessageText(label) {
     var sec = col.section();
     if (!sec) return "";
     var safe = window.CSS && CSS.escape ? CSS.escape(label) : label;
     var li = sec.querySelector('li[data-mud-label="' + safe + '"]');
     if (!li) return "";
-    var msgs = li.querySelectorAll(".mud-comment-message .mud-comment-body");
+    var msgs = li.querySelectorAll(".mud-comment-message");
     var last = msgs[msgs.length - 1];
-    return last ? last.textContent.trim() : "";
+    return last ? (last.getAttribute("data-mud-body") || "") : "";
   }
 
   // Reply / edit: a compose form on its own row below the thread. The capsule

@@ -453,6 +453,10 @@ struct WebView: NSViewRepresentable {
             var opts = RenderOptions()
             opts.baseURL = baseURL
             opts.theme = commentTheme
+            // The column projects from this rebuilt section and Edit reads each
+            // message's raw Markdown off its data-mud-body — emitted only in
+            // interactive mode. Without this the live re-render drops it.
+            opts.commentMode = .interactive
             let payload = comments.map { comment -> Payload in
                 let locator = commentLocators[comment.label]
                 return Payload(

@@ -354,7 +354,7 @@ public enum MudCore {
             html += "</blockquote>\n"
         }
         for message in comment.messages {
-            html += messageOpenTag(message)
+            html += messageOpenTag(message, mode: options.commentMode)
             let attribution = formatAttribution(message)
             if !attribution.isEmpty {
                 html += "<div class=\"mud-comment-attribution\">"
@@ -411,7 +411,14 @@ public enum MudCore {
     /// epoch milliseconds plus the preformatted absolute string — so the column
     /// can show "💬 author" and a relative time without re-parsing the visible
     /// attribution line.
-    private static func messageOpenTag(_ message: CommentMessage) -> String {
+    ///
+    /// In interactive mode the tag also carries `data-mud-body`: the message's
+    /// **raw** Markdown source, so the write-side Edit action can fill the
+    /// compose textarea with the original syntax rather than the rendered, and
+    /// thus lossy, text. Export mode (`.section`) is read-only and omits it.
+    private static func messageOpenTag(
+        _ message: CommentMessage, mode: CommentMode
+    ) -> String {
         var attrs = "class=\"mud-comment-message\""
         if let author = message.author, !author.isEmpty {
             attrs += " data-mud-author=\"\(HTMLEscaping.escape(author))\""
@@ -422,6 +429,9 @@ public enum MudCore {
             attrs += " data-mud-time-abs=\""
             attrs += HTMLEscaping.escape(CommentSerialization.formatTimestamp(created))
             attrs += "\""
+        }
+        if mode == .interactive {
+            attrs += " data-mud-body=\"\(HTMLEscaping.escape(message.body))\""
         }
         return "<div \(attrs)>\n"
     }

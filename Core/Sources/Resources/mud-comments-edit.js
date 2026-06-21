@@ -19,21 +19,22 @@
   if (!window.Mud || !window.Mud.comments) return;
 
   var col = window.Mud.comments;
-  var PITCH = col.constants.PITCH;
+  var COMPOSE_H = col.constants.COMPOSE_H;
 
   // New-comment compose state.
-  var draft = null;         // { quotation, locator, slot } for the current selection
-  var composeNew = null;    // the new-comment compose element (4 slots)
-  var composeSlot = 0;
+  var draft = null;         // { quotation, locator, position } for the selection
+  var composeNew = null;    // the new-comment compose element
+  var composePosition = 0;  // its preferred position, in layout pixels
 
   function zoom() {
     return parseFloat(document.documentElement.style.zoom) || 1;
   }
 
-  function rangeSlot(range) {
+  // The selection's top, in layout pixels — the compose form's preferred
+  // position, matching the space the read-side placement pass works in.
+  function rangePosition(range) {
     var r = range.getBoundingClientRect();
-    var top = (r.top + window.scrollY) / zoom();
-    return Math.max(0, Math.round(top / PITCH));
+    return Math.max(0, (r.top + window.scrollY) / zoom());
   }
 
   function setComposing(on) {
@@ -155,7 +156,7 @@
     if (!quotation) return null;
     var locator = endLocator(range);
     if (!locator) return null;
-    return { quotation: quotation, locator: locator, slot: rangeSlot(range) };
+    return { quotation: quotation, locator: locator, position: rangePosition(range) };
   }
 
   // -- Selection reporting --------------------------------------------------
@@ -228,7 +229,7 @@
 
   function openNewCompose() {
     if (!draft) return;
-    composeSlot = draft.slot;
+    composePosition = draft.position;
     var pending = draft;
     composeNew = buildCompose("", function (body) {
       submit({ action: "add", body: body, locator: pending.locator,
@@ -285,9 +286,42 @@
     var thread = cap.querySelector(".mud-capsule-thread");
     if (!thread) return;
 
+    // Edit / delete icons go bottom-right inside the last message's box — they
+    // act on the last message, the only one that can be edited or deleted.
+    var messages = thread.querySelectorAll(".mud-comment-message");
+    var last = messages[messages.length - 1];
+    if (last && !last.querySelector(".mud-message-actions")) {
+      var msgActions = document.createElement("div");
+      msgActions.className = "mud-message-actions";
+
+      var edit = document.createElement("button");
+      edit.type = "button";
+      edit.className = "mud-icon-button mud-edit";
+      edit.title = "Edit";
+      edit.innerHTML = EDIT_SVG;
+      edit.addEventListener("click", function (e) {
+        e.stopPropagation();
+        openInlineCompose(cap, label, "edit", lastMessageText(label));
+      });
+      msgActions.appendChild(edit);
+
+      var del = document.createElement("button");
+      del.type = "button";
+      del.className = "mud-icon-button mud-delete";
+      del.title = "Delete";
+      del.innerHTML = DELETE_SVG;
+      del.addEventListener("click", function (e) {
+        e.stopPropagation();
+        removeComment(cap, label);
+      });
+      msgActions.appendChild(del);
+
+      last.appendChild(msgActions);
+    }
+
+    // Reply on its own control row below the thread.
     var actions = document.createElement("div");
     actions.className = "mud-capsule-actions";
-
     var reply = document.createElement("button");
     reply.type = "button";
     reply.className = "mud-reply";
@@ -297,35 +331,14 @@
       openInlineCompose(cap, label, "reply", "");
     });
     actions.appendChild(reply);
-
-    var edit = document.createElement("button");
-    edit.type = "button";
-    edit.className = "mud-icon-button mud-edit";
-    edit.title = "Edit";
-    edit.innerHTML = EDIT_SVG;
-    edit.addEventListener("click", function (e) {
-      e.stopPropagation();
-      openInlineCompose(cap, label, "edit", lastMessageText(label));
-    });
-    actions.appendChild(edit);
-
-    var del = document.createElement("button");
-    del.type = "button";
-    del.className = "mud-icon-button mud-delete";
-    del.title = "Delete";
-    del.innerHTML = DELETE_SVG;
-    del.addEventListener("click", function (e) {
-      e.stopPropagation();
-      removeComment(cap, label);
-    });
-    actions.appendChild(del);
-
     thread.appendChild(actions);
   }
 
   function undecorateActive(cap) {
     var actions = cap.querySelector(".mud-capsule-actions");
     if (actions) actions.parentNode.removeChild(actions);
+    var msgActions = cap.querySelector(".mud-message-actions");
+    if (msgActions) msgActions.parentNode.removeChild(msgActions);
     var inline = cap.querySelector(".mud-compose");
     if (inline) inline.parentNode.removeChild(inline);
     setComposing(false);
@@ -343,13 +356,26 @@
     return last ? last.textContent.trim() : "";
   }
 
-  // Reply / edit: a compose form inside the active capsule. The capsule grows;
-  // the read-side solver re-measures it on layout.
+  // Reply / edit: a compose form on its own row below the thread. The capsule
+  // grows; the read-side placement pass re-measures it on layout. While
+  // composing, hide the Reply row and the last message's edit/delete icons (a
+  // reply means that message is no longer the last one).
   function openInlineCompose(cap, label, action, initial) {
     var thread = cap.querySelector(".mud-capsule-thread");
     if (!thread) return;
     var actions = thread.querySelector(".mud-capsule-actions");
     if (actions) actions.style.display = "none";
+    var msgActions = cap.querySelector(".mud-message-actions");
+    if (msgActions) msgActions.style.display = "none";
+
+    // Edit replaces the last message in place: hide its box so the compose form
+    // stands in for it. (Reply leaves every message showing.)
+    var editedMsg = null;
+    if (action === "edit") {
+      var msgs = thread.querySelectorAll(".mud-comment-message");
+      editedMsg = msgs[msgs.length - 1];
+      if (editedMsg) editedMsg.style.display = "none";
+    }
 
     var box = buildCompose(initial, function (body) {
       submit({ action: action, label: label, body: body });
@@ -363,6 +389,8 @@
     function teardownInline() {
       if (box.parentNode) box.parentNode.removeChild(box);
       if (actions) actions.style.display = "";
+      if (msgActions) msgActions.style.display = "";
+      if (editedMsg) editedMsg.style.display = "";
       setComposing(false);
       col.layout();
     }
@@ -406,7 +434,9 @@
   col.hooks.decorateActive = decorateActive;
   col.hooks.undecorateActive = undecorateActive;
   col.hooks.extraItems = function () {
-    if (composeNew) return [{ el: composeNew, preferred: composeSlot, slots: 4 }];
+    if (composeNew) {
+      return [{ el: composeNew, preferred: composePosition, height: COMPOSE_H }];
+    }
     return [];
   };
   col.hooks.ownedNodes = function () {

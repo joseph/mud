@@ -398,10 +398,14 @@ blockquote > :last-child {
 }
 
 .mud-comment-attribution {
-  font-size: 0.85em;
   font-weight: 600;
-  color: var(--blockquote-color);
   margin-bottom: 0.2em;
+}
+
+.mud-comment-time {
+  font-size: 0.85;
+  font-weight: 400;
+  opacity: 0.7;
 }
 
 .comments.is-print-only { display: none; }
@@ -421,9 +425,25 @@ blockquote > :last-child {
 }
 
 /* Column mode: the inline quote markers are an export/print affordance only —
-   on screen the highlight and the column capsule stand in for them. */
-.comments-column .mud-comment-marker { display: none; }
-@media print { .comments-column .mud-comment-marker { display: inline-block; } }
+   on screen the highlight and the column capsule stand in for them. We hide the
+   marker visually rather than with `display: none`, so it stays in the
+   accessibility tree (screen readers still announce the comment) and in the
+   layout (the column reads its position to place a quote-less comment's
+   capsule). Scoped to `@media screen` so print keeps the visible chip. */
+@media screen {
+  .comments-column .mud-comment-marker {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
 
 /* With the column toggled on, reserve a 324px right gutter (12 + 300 + 12). The
    body is the scroll and positioning container; capsules are absolutely placed
@@ -431,6 +451,10 @@ blockquote > :last-child {
 html.comments-column.is-comments-column body {
   position: relative;
   padding-right: 324px;
+}
+
+html.comments-column .up-mode-output {
+  border-right: 1px solid var(--border-color);
 }
 
 #mud-comments-column {
@@ -442,8 +466,8 @@ html.comments-column.is-comments-column body {
   pointer-events: none;
 }
 
-/* A slot is 45px tall with a 15px gap above it: a pitch of 60px. The solver
-   sets each item's `top` (a slot multiple) inline. */
+/* The placement pass in mud-comments.js sets each item's `top` inline (in
+   layout pixels); the transition animates moves and resizes. */
 .mud-capsule,
 .mud-compose {
   position: absolute;
@@ -459,11 +483,14 @@ html.comments-column.is-comments-column body {
 
 /* -- A comment capsule ---------------------------------------------------- */
 
+/* Inactive, the capsule is itself one box: the collapsed "💬 Author: …" bar.
+   Active, it drops its own border and background and becomes a plain stack of
+   rows — each message its own box, plus a controls row — set 15px apart. */
 .mud-capsule {
   min-height: 45px;
   padding: 0 14px;
-  border: 1px solid var(--border-color);
-  border-radius: 22px;
+  border: 1px solid var(--blockquote-color);
+  border-radius: 23px;
   background: var(--bg-color);
   color: var(--text-color);
   cursor: pointer;
@@ -471,8 +498,10 @@ html.comments-column.is-comments-column body {
 
 .mud-capsule.is-active {
   z-index: 5;
+  padding: 0;
+  border: none;
+  background: transparent;
   cursor: default;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
 }
 
 /* Collapsed: a single 45px line — "💬 Author: message…", ellipsized. */
@@ -501,19 +530,36 @@ html.comments-column.is-comments-column body {
   transform: translateY(50%);
   padding: 0 6px;
   font-size: 0.75em;
+  font-weight: 500;
   color: var(--blockquote-color);
-  background: var(--bg-color);
+  background: var(--body-bg);
+  border-radius: 6px;
 }
 
-/* Expanded thread (only while active). */
-.mud-capsule-thread { display: none; padding: 10px 0; }
+/* Expanded thread (only while active): a column of rows, 15px apart. */
+.mud-capsule-thread { display: none; }
 .mud-capsule.is-active .mud-capsule-bar { display: none; }
 .mud-capsule.is-active .mud-capsule-replies { display: none; }
-.mud-capsule.is-active .mud-capsule-thread { display: block; }
+.mud-capsule.is-active .mud-capsule-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
 
-.mud-capsule-thread .mud-comment-quote { margin-top: 0; }
-.mud-capsule-thread .mud-comment-message { margin: 0 0 0.6em; }
-.mud-capsule-thread .mud-comment-message:last-child { margin-bottom: 0; }
+/* Each message is its own bordered box. The first (the original comment) is
+   shaded to mark the active thread; replies below it stay white. */
+.mud-capsule-thread .mud-comment-message {
+  margin: 0;
+  padding: 10px 14px;
+  border-radius: 23px;
+  border: 1px solid var(--blockquote-color);
+  background: var(--bg-color);
+}
+.mud-capsule:not(.is-active):hover,
+.mud-capsule-thread .mud-comment-message:first-child {
+  background: var(--code-bg);
+  box-shadow: 0 1px 1px var(--blockquote-border);
+}
 .mud-capsule-thread .mud-comment-attribution {
   display: flex;
   justify-content: space-between;
@@ -521,71 +567,61 @@ html.comments-column.is-comments-column body {
 }
 .mud-capsule-thread .mud-comment-time { font-weight: 400; opacity: 0.7; }
 
-/* Action row at the base of the active thread. */
-.mud-capsule-actions {
+.mud-capsule-thread .mud-comment-message p,
+.mud-capsule-thread .mud-comment-message blockquote {
+  margin: 0.5em 0;
+}
+
+/* Edit / delete icons, bottom-right inside the last message box. */
+.mud-message-actions {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 10px;
+  justify-content: flex-end;
+  gap: 1px;
+  margin: 0 -0.3rem;
 }
-.mud-capsule-actions .mud-reply {
-  margin-right: auto;
-  padding: 4px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 22px;
-  background: transparent;
-  color: var(--text-color);
-  font: inherit;
-  cursor: pointer;
-}
-.mud-capsule-actions .mud-icon-button {
-  width: 26px;
-  height: 26px;
-  padding: 4px;
+.mud-message-actions .mud-icon-button {
+  width: 2rem;
+  height: 2rem;
   border: none;
   border-radius: 6px;
   background: transparent;
   color: var(--blockquote-color);
   cursor: pointer;
 }
-.mud-capsule-actions .mud-icon-button:hover { background: var(--code-bg); }
-.mud-capsule-actions .mud-icon-button svg { width: 100%; height: 100%; }
-
-/* -- Compose box (new / reply / edit): four slots ------------------------- */
-
-.mud-compose {
-  height: 225px; /* 45 + 3*60 */
-  display: flex;
-  flex-direction: column;
+.mud-message-actions .mud-icon-button:hover { background: var(--code-bg); }
+.mud-message-actions .mud-icon-button svg {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
-.mud-compose textarea {
-  flex: 1 1 auto;
-  resize: none;
-  padding: 10px;
-  border: 1px solid var(--text-color);
-  border-radius: 10px;
-  background: var(--bg-color);
-  color: var(--text-color);
-  font: inherit;
-}
-
-.mud-compose .mud-compose-actions {
+/* The Reply control sits on its own row below the thread, right-aligned. */
+.mud-capsule-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 8px;
-  margin-top: 15px;
 }
 
-.mud-compose button {
-  padding: 5px 16px;
-  border-radius: 14px;
-  font: inherit;
+/* -- Capsule controls (Cancel / Done / Reply): 30px pills ----------------- */
+
+.mud-capsule-actions .mud-reply,
+.mud-compose .mud-cancel,
+.mud-compose .mud-done {
+  font-size: 85%;
+  line-height: 28px;
+  padding: 0 15px;
+  border-radius: 15px;
+  white-space: nowrap;
+  box-sizing: border-box;
+  font-family: inherit;
   cursor: pointer;
 }
+
+/* Outlined controls carry the higher-contrast border; the primary one is
+   filled with the accent color and has no border. */
+.mud-capsule-actions .mud-reply,
 .mud-compose .mud-cancel {
-  border: 1px solid var(--text-color);
-  background: transparent;
+  border: 1px solid var(--blockquote-color);
+  background-color: var(--bg-color);
   color: var(--text-color);
 }
 .mud-compose .mud-done {
@@ -596,13 +632,41 @@ html.comments-column.is-comments-column body {
 }
 .mud-compose .mud-done:disabled { opacity: 0.45; cursor: default; }
 
-/* Inline compose (reply / edit) flows inside the active capsule, so it grows the
-   capsule's measured height instead of floating as an absolute column item. */
+/* -- Compose box (new / reply / edit) ------------------------------------- */
+
+.mud-compose {
+  height: 225px; /* fixed; matches COMPOSE_H in mud-comments.js */
+  display: flex;
+  flex-direction: column;
+}
+
+.mud-compose textarea {
+  flex: 1 1 auto;
+  resize: none;
+  padding: 10px;
+  border: 1px solid var(--blockquote-color);
+  border-radius: 23px;
+  background: var(--bg-color);
+  color: var(--text-color);
+  font: inherit;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  outline: none !important;
+}
+
+.mud-compose .mud-compose-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+/* Inline compose (reply / edit) is a full-width row in the active thread, so the
+   placement pass measures it as part of the capsule's height. */
 .mud-compose.mud-compose-inline {
   position: static;
   right: auto;
-  width: auto;
-  margin-top: 10px;
+  width: 100%;
+  margin: 0;
 }
 
 /* Delete: a brief scale-blur-fade puff. */

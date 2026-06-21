@@ -73,6 +73,8 @@ struct DocumentContentView: View {
         opts.htmlClasses = Set(appState.viewToggles.map(\.className))
         // Column visibility is per-window state, not a persisted view toggle.
         if state.commentsColumnVisible { opts.htmlClasses.insert("is-comments-column") }
+        // Read live by the compose box's keydown handler (mud-comments-edit.js).
+        if appState.commentReturnSaves { opts.htmlClasses.insert("comment-return-saves") }
         opts.zoomLevel = modeZoomLevel
         opts.showInlineDeletions = appState.changesShowInlineDeletions
         opts.wordDiffThreshold = appState.changesWordDiffThreshold

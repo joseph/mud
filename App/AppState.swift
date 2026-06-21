@@ -71,6 +71,9 @@ class AppState: ObservableObject {
     @Published var commentAuthor: String {
         didSet { MudPreferences.shared.commentAuthor = commentAuthor }
     }
+    @Published var commentReturnSaves: Bool {
+        didSet { MudPreferences.shared.commentReturnSaves = commentReturnSaves }
+    }
 
     private init() {
         // Fan the current `defaults` values out to the app-group mirror so the
@@ -99,6 +102,7 @@ class AppState: ObservableObject {
             defaultValue: Set(RenderExtension.registry.keys)
         )
         self.commentAuthor = config.commentAuthor
+        self.commentReturnSaves = config.commentReturnSaves
 
         // Pick up `defaults write org.josephpearson.Mud …` made while the app
         // is running. The callback's `didSet` writes idempotently update the
@@ -135,6 +139,7 @@ class AppState: ObservableObject {
         case .uiUseHeadingAsTitle:        self.uiUseHeadingAsTitle = c.uiUseHeadingAsTitle
         case .uiFloatingControlsPosition: self.uiFloatingControlsPosition = c.uiFloatingControlsPosition
         case .commentAuthor:              self.commentAuthor = c.commentAuthor
+        case .commentReturnSaves:         self.commentReturnSaves = c.commentReturnSaves
         case .openInDefaultBundleID, .openInDefaultFormat:
             OpenInMenuModel.shared.refresh()
         // Every ViewToggle-backed key reloads the whole set — cheaper than

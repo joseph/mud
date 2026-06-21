@@ -400,9 +400,11 @@ struct WebView: NSViewRepresentable {
         }
 
         func applyBodyClasses(to webView: WKWebView, classes: Set<String>) {
-            // The persisted view-toggle classes, plus `is-comments-column` —
-            // per-window state, not a `ViewToggle`, but applied the same way.
-            let names = ViewToggle.allCases.map(\.className) + ["is-comments-column"]
+            // The persisted view-toggle classes, plus `is-comments-column`
+            // (per-window state) and `comment-return-saves` (a preference) —
+            // neither a `ViewToggle`, but applied the same way.
+            let names = ViewToggle.allCases.map(\.className)
+                + ["is-comments-column", "comment-return-saves"]
             for name in names {
                 let on = classes.contains(name)
                 webView.evaluateJavaScript("Mud.setClass('\(name)', \(on))")

@@ -143,8 +143,7 @@
   }
 
   // A selection is commentable when it is non-empty, lives in the body, is not
-  // inside a code block, and resolves to a source byte. (The precise predicate
-  // is still being settled; this is the working cut.)
+  // inside a code block or a Mermaid diagram, and resolves to a source byte.
   function commentableDraft() {
     var sel = window.getSelection();
     if (!sel || sel.isCollapsed || sel.rangeCount === 0) return null;
@@ -152,6 +151,10 @@
     if (!container.contains(range.commonAncestorContainer)) return null;
     var block = leafBlock(range.endContainer);
     if (!block || block.tagName === "PRE") return null;
+    // A Mermaid diagram replaces its `<pre>` with a `<div class="mermaid">`;
+    // its rendered SVG labels are HTML (a `<p>` in a foreignObject) with no
+    // source byte to anchor to, so a selection inside one is not commentable.
+    if (block.closest && block.closest(".mermaid")) return null;
     var quotation = normalizeWS(sel.toString()).trim();
     if (!quotation) return null;
     var locator = endLocator(range);

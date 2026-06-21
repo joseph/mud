@@ -351,12 +351,12 @@ blockquote > :last-child {
 }
 
 .mud-comment-highlight.is-active {
-  background-color: #fde047;
+  background-color: var(--comment-highlight, #fde047);
 }
 
 @media (prefers-color-scheme: dark) {
   .mud-comment-highlight.is-active {
-    background-color: rgba(253, 224, 71, 0.4);
+    background-color: var(--comment-highlight-dark, rgba(253, 224, 71, 0.4));
   }
 }
 
@@ -406,6 +406,234 @@ blockquote > :last-child {
 
 .comments.is-print-only { display: none; }
 @media print { .comments.is-print-only { display: block; } }
+
+
+/* -- Comments column ------------------------------------------------------ */
+
+/* Accent (macOS) for primary buttons, and the quotation highlight color. A
+   theme may override `--comment-highlight`. */
+:root {
+  --mud-accent: #0a66ff;
+  --comment-highlight: #fde047;
+}
+@supports (color: AccentColor) {
+  :root { --mud-accent: AccentColor; }
+}
+
+/* Column mode: the inline quote markers are an export/print affordance only —
+   on screen the highlight and the column capsule stand in for them. */
+.comments-column .mud-comment-marker { display: none; }
+@media print { .comments-column .mud-comment-marker { display: inline-block; } }
+
+/* With the column toggled on, reserve a 324px right gutter (12 + 300 + 12). The
+   body is the scroll and positioning container; capsules are absolutely placed
+   within it, so the column scrolls with the document. */
+html.comments-column.is-comments-column body {
+  position: relative;
+  padding-right: 324px;
+}
+
+#mud-comments-column {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 324px;
+  /* Empty gutter passes clicks through to the document; capsules re-enable. */
+  pointer-events: none;
+}
+
+/* A slot is 45px tall with a 15px gap above it: a pitch of 60px. The solver
+   sets each item's `top` (a slot multiple) inline. */
+.mud-capsule,
+.mud-add-comment,
+.mud-compose {
+  position: absolute;
+  right: 12px;
+  width: 300px;
+  box-sizing: border-box;
+  pointer-events: auto;
+  transition: top 0.22s cubic-bezier(0.2, 0.7, 0.2, 1),
+              height 0.18s ease,
+              opacity 0.18s ease,
+              transform 0.18s ease;
+}
+
+/* -- The Add Comment button (one slot, accent colored) -------------------- */
+
+.mud-add-comment {
+  height: 45px;
+  border: none;
+  border-radius: 22px;
+  background: var(--mud-accent);
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.mud-add-comment:active { filter: brightness(0.92); }
+
+/* -- A comment capsule ---------------------------------------------------- */
+
+.mud-capsule {
+  min-height: 45px;
+  padding: 0 14px;
+  border: 1px solid var(--border-color);
+  border-radius: 22px;
+  background: var(--bg-color);
+  color: var(--text-color);
+  cursor: pointer;
+}
+
+.mud-capsule.is-active {
+  z-index: 5;
+  cursor: default;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.12);
+}
+
+/* Collapsed: a single 45px line — "💬 Author: message…", ellipsized. */
+.mud-capsule-bar {
+  display: flex;
+  align-items: center;
+  height: 43px;
+  gap: 0.4em;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.mud-capsule-bar .mud-bar-author { font-weight: 600; flex: 0 0 auto; }
+.mud-capsule-bar .mud-bar-text {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--blockquote-color);
+}
+
+/* The "N replies" label cuts into the bottom border of a collapsed thread. */
+.mud-capsule-replies {
+  position: absolute;
+  right: 14px;
+  bottom: -1px;
+  transform: translateY(50%);
+  padding: 0 6px;
+  font-size: 0.75em;
+  color: var(--blockquote-color);
+  background: var(--bg-color);
+}
+
+/* Expanded thread (only while active). */
+.mud-capsule-thread { display: none; padding: 10px 0; }
+.mud-capsule.is-active .mud-capsule-bar { display: none; }
+.mud-capsule.is-active .mud-capsule-replies { display: none; }
+.mud-capsule.is-active .mud-capsule-thread { display: block; }
+
+.mud-capsule-thread .mud-comment-quote { margin-top: 0; }
+.mud-capsule-thread .mud-comment-message { margin: 0 0 0.6em; }
+.mud-capsule-thread .mud-comment-message:last-child { margin-bottom: 0; }
+.mud-capsule-thread .mud-comment-attribution {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5em;
+}
+.mud-capsule-thread .mud-comment-time { font-weight: 400; opacity: 0.7; }
+
+/* Action row at the base of the active thread. */
+.mud-capsule-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+}
+.mud-capsule-actions .mud-reply {
+  margin-right: auto;
+  padding: 4px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 22px;
+  background: transparent;
+  color: var(--text-color);
+  font: inherit;
+  cursor: pointer;
+}
+.mud-capsule-actions .mud-icon-button {
+  width: 26px;
+  height: 26px;
+  padding: 4px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--blockquote-color);
+  cursor: pointer;
+}
+.mud-capsule-actions .mud-icon-button:hover { background: var(--code-bg); }
+.mud-capsule-actions .mud-icon-button svg { width: 100%; height: 100%; }
+
+/* -- Compose box (new / reply / edit): four slots ------------------------- */
+
+.mud-compose {
+  height: 225px; /* 45 + 3*60 */
+  display: flex;
+  flex-direction: column;
+}
+
+.mud-compose textarea {
+  flex: 1 1 auto;
+  resize: none;
+  padding: 10px;
+  border: 1px solid var(--text-color);
+  border-radius: 10px;
+  background: var(--bg-color);
+  color: var(--text-color);
+  font: inherit;
+}
+
+.mud-compose .mud-compose-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 15px;
+}
+
+.mud-compose button {
+  padding: 5px 16px;
+  border-radius: 14px;
+  font: inherit;
+  cursor: pointer;
+}
+.mud-compose .mud-cancel {
+  border: 1px solid var(--text-color);
+  background: transparent;
+  color: var(--text-color);
+}
+.mud-compose .mud-done {
+  border: none;
+  background: var(--mud-accent);
+  color: #fff;
+  font-weight: 600;
+}
+.mud-compose .mud-done:disabled { opacity: 0.45; cursor: default; }
+
+/* Inline compose (reply / edit) flows inside the active capsule, so it grows the
+   capsule's measured height instead of floating as an absolute column item. */
+.mud-compose.mud-compose-inline {
+  position: static;
+  right: auto;
+  width: auto;
+  margin-top: 10px;
+}
+
+/* Delete: a brief scale-blur-fade puff. */
+.mud-capsule.is-removing {
+  pointer-events: none;
+  animation: mud-capsule-puff 0.28s ease forwards;
+}
+@keyframes mud-capsule-puff {
+  to { opacity: 0; transform: scale(1.08); filter: blur(4px); }
+}
+
+/* Items just inserted fade/scale in rather than snapping. */
+.mud-capsule.is-entering { opacity: 0; transform: scale(0.96); }
+
+@media print { #mud-comments-column { display: none; } }
 
 
 /* -- Horizontal rules ----------------------------------------------------- */

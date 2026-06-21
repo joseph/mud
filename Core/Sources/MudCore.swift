@@ -291,17 +291,51 @@ public enum MudCore {
         var html = "<section class=\"comments\(printOnly)\" data-comments>\n"
         html += "<h2>Comments</h2>\n<ol>\n"
         for comment in comments {
-            let label = HTMLEscaping.escape(comment.label)
-            html += "<li id=\"cmt-\(label)\">\n"
-            html += renderCommentThreadInner(
+            html += renderCommentListItem(
                 comment, options: bodyOptions,
                 resolveImageSource: resolveImageSource)
-            html += "<a class=\"footnote-backref\" href=\"#cmtref-\(label)\""
-            html += " aria-label=\"Back to content\">\u{21A9}</a>\n"
-            html += "</li>\n"
         }
         html += "</ol>\n</section>"
         return html
+    }
+
+    /// One comment's `<li>` for the bottom section: its thread plus a marker
+    /// back-reference, carrying the machine-readable `data-mud-*` fields the
+    /// Comments column projects a capsule from (label on the item, author and
+    /// time on each message). Shared by the section loop and the public
+    /// single-item renderer below.
+    private static func renderCommentListItem(
+        _ comment: Comment,
+        options: RenderOptions,
+        resolveImageSource: ((_ source: String, _ baseURL: URL) -> String?)?
+    ) -> String {
+        let label = HTMLEscaping.escape(comment.label)
+        var html = "<li id=\"cmt-\(label)\" data-mud-label=\"\(label)\""
+        if let quotation = comment.quotation, !quotation.isEmpty {
+            html += " data-mud-quotation=\"\(HTMLEscaping.escape(quotation))\""
+        }
+        html += ">\n"
+        html += renderCommentThreadInner(
+            comment, options: options, resolveImageSource: resolveImageSource)
+        html += "<a class=\"footnote-backref\" href=\"#cmtref-\(label)\""
+        html += " aria-label=\"Back to content\">\u{21A9}</a>\n"
+        html += "</li>\n"
+        return html
+    }
+
+    /// Renders a single comment's `<li>` exactly as it appears in the bottom
+    /// section — the unit the live no-reload sync slots into the hidden section
+    /// when a comment is added or changed, before the column reprojects it.
+    /// `options.waypoint` is cleared internally.
+    public static func renderCommentItem(
+        _ comment: Comment,
+        options: RenderOptions = .init(),
+        resolveImageSource: ((_ source: String, _ baseURL: URL) -> String?)? = nil
+    ) -> String {
+        var itemOptions = options
+        itemOptions.waypoint = nil
+        return renderCommentListItem(
+            comment, options: itemOptions, resolveImageSource: resolveImageSource)
     }
 
     /// The inner thread HTML for one comment — its quotation (if any) and the
@@ -320,7 +354,7 @@ public enum MudCore {
             html += "</blockquote>\n"
         }
         for message in comment.messages {
-            html += "<div class=\"mud-comment-message\">\n"
+            html += messageOpenTag(message)
             let attribution = formatAttribution(message)
             if !attribution.isEmpty {
                 html += "<div class=\"mud-comment-attribution\">"
@@ -370,6 +404,26 @@ public enum MudCore {
     /// input is returned unchanged.
     public static func removeComments(_ source: String) -> String {
         FootnoteProcessor.removeComments(source)
+    }
+
+    /// The opening `<div class="mud-comment-message">` tag, carrying the
+    /// message's author and time as machine-readable `data-mud-*` attributes —
+    /// epoch milliseconds plus the preformatted absolute string — so the column
+    /// can show "💬 author" and a relative time without re-parsing the visible
+    /// attribution line.
+    private static func messageOpenTag(_ message: CommentMessage) -> String {
+        var attrs = "class=\"mud-comment-message\""
+        if let author = message.author, !author.isEmpty {
+            attrs += " data-mud-author=\"\(HTMLEscaping.escape(author))\""
+        }
+        if let created = message.created {
+            let ms = Int((created.timeIntervalSince1970 * 1000).rounded())
+            attrs += " data-mud-time=\"\(ms)\""
+            attrs += " data-mud-time-abs=\""
+            attrs += HTMLEscaping.escape(CommentSerialization.formatTimestamp(created))
+            attrs += "\""
+        }
+        return "<div \(attrs)>\n"
     }
 
     /// The `author · timestamp` attribution line for a message, HTML-escaped;

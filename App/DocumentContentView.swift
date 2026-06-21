@@ -22,10 +22,9 @@ struct DocumentContentView: View {
     @Environment(\.colorScheme) private var environmentColorScheme
 
     /// The HTML to display plus the footnote popover map (label → popover
-    /// document HTML) and the parsed comments (for live highlights, sidebar, and
-    /// editor). Up mode renders via the footnote API in `.popover` /
-    /// `.interactive` modes so a single render yields the page, the popover
-    /// bodies, and the comment model.
+    /// document HTML) and the parsed comments (for the Comments column). Up mode
+    /// renders via the footnote API in `.popover` / `.interactive` modes so a
+    /// single render yields the page, the popover bodies, and the comment model.
     private struct RenderedDisplay {
         let html: String
         let footnoteHTML: [String: String]
@@ -95,8 +94,8 @@ struct DocumentContentView: View {
         }
     }
 
-    /// Rewrites local image paths to `mud-asset:` URLs for WKWebView. Shared
-    /// with `CommentsSidebarView`, which renders comment threads the same way.
+    /// Rewrites local image paths to `mud-asset:` URLs for WKWebView. Also used
+    /// by the coordinator when rendering comment items for the column.
     nonisolated static func mudAssetResolver(
         source: String, baseURL: URL
     ) -> String? {
@@ -140,20 +139,11 @@ struct DocumentContentView: View {
             footnoteHTML: display.footnoteHTML,
             comments: display.comments,
             commentLocators: state.pendingCommentLocators,
-            draftCommentID: state.draftCommentID,
-            revealCommentLabel: state.pendingDraft == nil ? state.activeCommentLabel : nil,
-            onOpenComment: { label in
-                state.pendingDraft = nil
-                state.activeCommentLabel = label
-                state.windowController?.revealSidebar(.comments)
+            onCommentSubmit: { submission in
+                handleCommentSubmit(submission)
             },
-            onCommentDraft: { draft in
-                state.activeCommentLabel = nil
-                state.pendingDraft = draft
-                state.windowController?.revealSidebar(.comments)
-            },
-            onSelectionChange: { has in
-                state.hasUpSelection = has
+            onComposing: { composing in
+                state.isColumnComposing = composing
             },
             onSearchResult: { info in
                 findState.matchInfo = info
@@ -173,7 +163,8 @@ struct DocumentContentView: View {
         .frame(minWidth: 500, minHeight: 400)
 
         .onKeyPress(.space) {
-            guard !findState.isVisible else { return .ignored }
+            // Let the keystroke reach an in-webview compose textarea.
+            guard !findState.isVisible, !state.isComposingComment else { return .ignored }
             deferMutation { state.toggleMode() }
             return .handled
         }
@@ -183,7 +174,7 @@ struct DocumentContentView: View {
             return .handled
         }
         .onKeyPress(characters: CharacterSet(charactersIn: "/")) { _ in
-            guard !findState.isVisible else { return .ignored }
+            guard !findState.isVisible, !state.isComposingComment else { return .ignored }
             NSApp.sendAction(#selector(DocumentWindowController.performFindAction(_:)), to: nil, from: nil)
             return .handled
         }
@@ -239,6 +230,33 @@ struct DocumentContentView: View {
             }
         }
         #endif
+    }
+
+    /// Dispatches a column edit to `CommentController`. The write echoes back
+    /// through the `FileWatcher`, refreshing `state.comments`, which re-pushes the
+    /// comment data so the column reprojects in place (no reload).
+    private func handleCommentSubmit(_ submission: CommentSubmission) {
+        let controller = CommentController(fileURL: fileURL) { state.registerSelfWrite($0) }
+        let author = appState.commentAuthor
+        let body = submission.body ?? ""
+        switch submission.action {
+        case .add:
+            guard let draft = submission.draft else { return }
+            if let label = controller.addComment(draft, author: author, body: body) {
+                state.pendingCommentLocators[label] = CommentLocator(
+                    blockText: draft.blockText, offset: draft.offsetInBlock,
+                    occurrence: draft.occurrence)
+            }
+        case .reply:
+            guard let label = submission.label else { return }
+            _ = controller.reply(toLabel: label, author: author, body: body)
+        case .edit:
+            guard let label = submission.label else { return }
+            _ = controller.editLastMessage(label: label, body: body)
+        case .delete:
+            guard let label = submission.label else { return }
+            _ = controller.deleteLastMessage(label: label)
+        }
     }
 
     private func setupFileWatcher() {

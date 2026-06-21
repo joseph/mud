@@ -1,45 +1,72 @@
-// Mud - Comment helpers (Up mode).
+// Mud - Comments column (read side, Up mode).
 //
-// Draws hover-revealed highlights for anchored comments, routes `[⋯]` marker
-// clicks to the native editor, and captures the selection for "Add Comment".
+// Projects a capsule per comment from the hidden bottom `<section
+// class="comments">` (the single source of comment HTML), positions the
+// capsules on the slot grid beside their quotations, and reveals a quotation's
+// highlight on hover / activate. This file is bundled everywhere, exports
+// included; the write side (selection, compose, submit, edit, delete) lives in
+// mud-comments-edit.js and is bundled in the app only.
 //
-// The Swift side calls `Mud.comments.setData([{label, quotation}, …])` after
-// load (quotations come from the parsed Comment model, not the marker HTML), at
-// which point highlights are (re-)anchored. Injected as a WKUserScript in-app
-// only: exports keep the static marker, its `#cmt-LABEL` anchor, and the bottom
-// Comments section, so no JS is required there.
+// The column is built only in column mode (`<html class="comments-column">`,
+// set by MudCore) with the toggle on (`is-comments-column`). It clones
+// already-rendered nodes out of the section — it never parses Markdown — and
+// strips their ids so the page holds no duplicates.
 
 (function () {
   "use strict";
-  if (!document.querySelector(".up-mode-output")) return;
 
   var container = document.querySelector(".up-mode-output");
-  var quotationByLabel = {};
+  if (!container) return;
+
+  var SLOT_H = 45;
+  var GAP = 15;
+  var PITCH = SLOT_H + GAP; // 60
+
+  var capsules = {};          // label -> capsule element
+  var quotationByLabel = {};  // label -> quotation text (for anchoring)
+  var activeLabel = null;
+  var rafPending = 0;
+  var lastVisible = null;     // last applied visibility (idempotent setVisible)
 
   function normalizeWS(s) {
     return s.replace(/\s+/g, " ");
   }
 
-  function zoom() {
-    return parseFloat(document.documentElement.style.zoom) || 1;
+  // The element's top in layout (pre-zoom) pixels, summed up the offsetParent
+  // chain to the body. Robust to the document `zoom`, which scales container and
+  // capsules together, so capsule `top` values stay in the same space.
+  function layoutTop(el) {
+    var y = 0;
+    while (el && el !== document.body) {
+      y += el.offsetTop;
+      el = el.offsetParent;
+    }
+    return y;
   }
 
-  function rectOf(r) {
-    var z = zoom();
-    return { x: r.left / z, y: r.top / z, width: r.width / z, height: r.height / z };
+  function section() {
+    return document.querySelector("section.comments[data-comments]");
   }
 
-  // -- Highlight re-anchoring ----------------------------------------------
+  // Visible when the render is in column mode and the column is toggled on. In
+  // an export the toggle class is force-included, so the test is uniform.
+  function enabled() {
+    var root = document.documentElement;
+    return root.classList.contains("comments-column") &&
+      root.classList.contains("is-comments-column");
+  }
 
-  // Build a whitespace-collapsed flat text of the body with a parallel
-  // char → (textNode, offset) map, plus each marker's flat-index anchor. The
-  // bottom comments/footnotes sections and the marker glyphs are skipped so a
-  // quotation never matches inside them.
+  // -- Highlight anchoring (off the hidden quote markers) -------------------
+
+  // Build a whitespace-collapsed flat text of the body with a parallel char →
+  // (textNode, offset) map, plus each marker's flat-index anchor. The bottom
+  // sections and the marker glyphs are skipped so a quotation never matches
+  // inside them.
   function buildIndex() {
     var flat = "";
     var map = [];
     var markerAt = {};
-    var prevWasSpace = true; // collapse leading whitespace
+    var prevWasSpace = true;
 
     function walk(node) {
       if (node.nodeType === Node.TEXT_NODE) {
@@ -64,7 +91,7 @@
             node.classList.contains("footnotes")) return;
         if (node.classList.contains("mud-comment-marker")) {
           markerAt[node.getAttribute("data-mud-label")] = flat.length;
-          return; // don't descend into the glyph; the marker is a boundary
+          return;
         }
       }
       for (var c = node.firstChild; c; c = c.nextSibling) walk(c);
@@ -86,11 +113,23 @@
     }
   }
 
-  // For each marker, the quotation must occupy the `quotation.length` collapsed
-  // characters immediately before it (the marker is written at the quotation's
-  // end). On a match, wrap each intersected text-node slice in its own
-  // <mark data-mud-label>. Different slices live in different text nodes, so the
-  // wraps are independent and order-free.
+  function wrapSlice(node, startOffset, endOffset, label) {
+    try {
+      var range = document.createRange();
+      range.setStart(node, startOffset);
+      range.setEnd(node, endOffset);
+      var mark = document.createElement("mark");
+      mark.className = "mud-comment-highlight";
+      mark.setAttribute("data-mud-label", label);
+      range.surroundContents(mark);
+    } catch (e) {
+      /* a slice that can't be wrapped goes un-highlighted */
+    }
+  }
+
+  // For each marker, the quotation occupies the collapsed characters
+  // immediately before it. On a match, wrap each intersected text-node slice in
+  // its own <mark data-mud-label>.
   function anchorAll() {
     clearHighlights();
     var idx = buildIndex();
@@ -104,7 +143,7 @@
       var end = idx.markerAt[label];
       var start = end - quote.length;
       if (start < 0) return;
-      if (idx.flat.slice(start, end) !== quote) return; // unanchored: no highlight
+      if (idx.flat.slice(start, end) !== quote) return;
 
       var i = start;
       while (i < end) {
@@ -122,254 +161,372 @@
     });
   }
 
-  function wrapSlice(node, startOffset, endOffset, label) {
-    try {
-      var range = document.createRange();
-      range.setStart(node, startOffset);
-      range.setEnd(node, endOffset);
-      var mark = document.createElement("mark");
-      mark.className = "mud-comment-highlight";
-      mark.setAttribute("data-mud-label", label);
-      range.surroundContents(mark);
-    } catch (e) {
-      /* a slice that can't be wrapped just goes un-highlighted */
-    }
-  }
-
-  function setActive(label, on) {
+  function setHighlight(label, on) {
     if (!label) return;
     var safe = window.CSS && CSS.escape ? CSS.escape(label) : label;
     var marks = container.querySelectorAll(
-      'mark.mud-comment-highlight[data-mud-label="' + safe + '"]'
-    );
+      'mark.mud-comment-highlight[data-mud-label="' + safe + '"]');
     for (var i = 0; i < marks.length; i++) {
       marks[i].classList.toggle("is-active", on);
     }
   }
 
-  // The label whose highlight is held active by a sidebar selection (distinct
-  // from transient marker hover). Selecting a thread in the sidebar reveals it
-  // in the document; `reveal(null)` clears.
-  var revealedLabel = null;
+  // -- Projection: build capsules from the section --------------------------
 
-  function reveal(label) {
-    if (revealedLabel && revealedLabel !== label) setActive(revealedLabel, false);
-    revealedLabel = label || null;
-    if (!revealedLabel) return;
-    setActive(revealedLabel, true);
-    var safe = window.CSS && CSS.escape ? CSS.escape(revealedLabel) : revealedLabel;
-    var marker = container.querySelector(
-      '.mud-comment-marker[data-mud-label="' + safe + '"]'
-    );
-    if (marker && marker.scrollIntoView) {
-      marker.scrollIntoView({ block: "center", inline: "nearest" });
+  function textOf(el) {
+    return el ? normalizeWS(el.textContent || "").trim() : "";
+  }
+
+  function stripIds(el) {
+    if (el.removeAttribute) el.removeAttribute("id");
+    if (!el.querySelectorAll) return;
+    var ided = el.querySelectorAll("[id]");
+    for (var i = 0; i < ided.length; i++) ided[i].removeAttribute("id");
+  }
+
+  function cloneClean(node) {
+    var c = node.cloneNode(true);
+    stripIds(c);
+    return c;
+  }
+
+  // Relative within a day ("Just now", "11 hours ago"); a locale-ordered short
+  // date ("Jun 16" / "16 Jun") beyond. Falls back to the preformatted absolute
+  // string only when the epoch is missing.
+  function formatTime(ms, abs) {
+    var t = parseInt(ms, 10);
+    if (!ms || isNaN(t)) return abs || "";
+    var diff = Date.now() - t;
+    if (diff < 0) diff = 0;
+    if (diff >= 24 * 3600 * 1000) {
+      return new Date(t).toLocaleDateString(undefined, {
+        month: "short", day: "numeric"
+      });
+    }
+    var s = Math.floor(diff / 1000);
+    if (s < 60) return "Just now";
+    var m = Math.floor(s / 60);
+    if (m < 60) return m === 1 ? "1 minute ago" : m + " minutes ago";
+    var h = Math.floor(m / 60);
+    return h === 1 ? "1 hour ago" : h + " hours ago";
+  }
+
+  function buildMessage(src) {
+    var m = document.createElement("div");
+    m.className = "mud-comment-message";
+    var author = src.getAttribute("data-mud-author") || "";
+    var ms = src.getAttribute("data-mud-time");
+    var abs = src.getAttribute("data-mud-time-abs");
+    var time = formatTime(ms, abs);
+    if (author || time) {
+      var attr = document.createElement("div");
+      attr.className = "mud-comment-attribution";
+      var a = document.createElement("span");
+      a.className = "mud-comment-author";
+      a.textContent = author ? "💬 " + author : "";
+      var tm = document.createElement("span");
+      tm.className = "mud-comment-time";
+      // Keep the raw time so the relative label can be recomputed on expand.
+      if (ms) tm.setAttribute("data-mud-time", ms);
+      if (abs) tm.setAttribute("data-mud-time-abs", abs);
+      tm.textContent = time;
+      attr.appendChild(a);
+      attr.appendChild(tm);
+      m.appendChild(attr);
+    }
+    var body = src.querySelector(".mud-comment-body");
+    if (body) m.appendChild(cloneClean(body));
+    return m;
+  }
+
+  // Recompute each message's relative time from its stored epoch — the projected
+  // label is a snapshot, so it goes stale until the thread is reopened.
+  function refreshTimes(cap) {
+    var spans = cap.querySelectorAll(".mud-comment-time[data-mud-time]");
+    for (var i = 0; i < spans.length; i++) {
+      spans[i].textContent = formatTime(
+        spans[i].getAttribute("data-mud-time"),
+        spans[i].getAttribute("data-mud-time-abs"));
     }
   }
 
-  // -- Events --------------------------------------------------------------
+  function projectCapsule(li) {
+    var label = li.getAttribute("data-mud-label");
+    var messages = li.querySelectorAll(".mud-comment-message");
+    var first = messages[0];
 
-  container.addEventListener("mouseover", function (e) {
-    var marker = e.target.closest(".mud-comment-marker");
-    if (marker) setActive(marker.getAttribute("data-mud-label"), true);
-  });
+    var cap = document.createElement("div");
+    cap.className = "mud-capsule";
+    cap.setAttribute("data-mud-label", label);
 
-  container.addEventListener("mouseout", function (e) {
-    var marker = e.target.closest(".mud-comment-marker");
-    if (!marker) return;
-    var label = marker.getAttribute("data-mud-label");
-    // Keep the highlight lit if this thread is held open by the sidebar.
-    if (label !== revealedLabel) setActive(label, false);
-  });
+    // Collapsed bar: "💬 Author: first message…".
+    var bar = document.createElement("div");
+    bar.className = "mud-capsule-bar";
+    var emoji = document.createElement("span");
+    emoji.className = "mud-bar-emoji";
+    emoji.textContent = "💬";
+    var author = document.createElement("span");
+    author.className = "mud-bar-author";
+    var firstAuthor = first ? (first.getAttribute("data-mud-author") || "") : "";
+    author.textContent = firstAuthor ? firstAuthor + ":" : "";
+    var text = document.createElement("span");
+    text.className = "mud-bar-text";
+    text.textContent = first ? textOf(first.querySelector(".mud-comment-body")) : "";
+    bar.appendChild(emoji);
+    if (firstAuthor) bar.appendChild(author);
+    bar.appendChild(text);
+    cap.appendChild(bar);
 
-  // Marker click → native editor (capture phase, ahead of link routing). When
-  // the handler is absent (exports) the native `#cmt-LABEL` jump runs instead.
-  container.addEventListener("click", function (e) {
-    var marker = e.target.closest(".mud-comment-marker");
-    if (!marker) return;
-    var handlers = window.webkit && window.webkit.messageHandlers;
-    if (!handlers || !handlers.mudCommentOpen) return;
-    e.preventDefault();
-    e.stopPropagation();
-    handlers.mudCommentOpen.postMessage({
-      label: marker.getAttribute("data-mud-label"),
-      rect: rectOf(marker.getBoundingClientRect()),
-    });
-  }, true);
+    // "N replies" label for a collapsed thread.
+    if (messages.length > 1) {
+      var rep = document.createElement("div");
+      rep.className = "mud-capsule-replies";
+      var n = messages.length - 1;
+      rep.textContent = n === 1 ? "1 reply" : n + " replies";
+      cap.appendChild(rep);
+    }
 
-  // -- Selection capture ("Add Comment") -----------------------------------
+    // Expanded thread (shown only while active). The quotation is not shown
+    // here — it is highlighted in the document instead.
+    var thread = document.createElement("div");
+    thread.className = "mud-capsule-thread";
+    for (var i = 0; i < messages.length; i++) {
+      thread.appendChild(buildMessage(messages[i]));
+    }
+    cap.appendChild(thread);
 
-  function isMarkerElement(node) {
-    return node.nodeType === Node.ELEMENT_NODE && node.classList &&
-      (node.classList.contains("mud-comment-marker") ||
-       node.classList.contains("footnote-ref"));
+    wireCapsule(cap, label);
+    return cap;
   }
 
-  // Block-level elements whose text the source represents as a single leaf block
-  // (paragraph, list item, table cell, heading, …). Matching the *innermost*
-  // such ancestor — not the top-level container — keeps the captured text free of
-  // the whitespace the DOM inserts between a container's children.
+  function ensureColumn() {
+    var col = document.getElementById("mud-comments-column");
+    if (!col) {
+      col = document.createElement("div");
+      col.id = "mud-comments-column";
+      document.body.appendChild(col);
+    }
+    return col;
+  }
+
+  function teardown() {
+    var col = document.getElementById("mud-comments-column");
+    if (col && col.parentNode) col.parentNode.removeChild(col);
+    capsules = {};
+    activeLabel = null;
+    clearHighlights();
+  }
+
+  // (Re)build every capsule from the section, then lay out.
+  function project() {
+    if (!enabled()) { teardown(); return; }
+    var sec = section();
+    var col = ensureColumn();
+    var wasActive = activeLabel;
+
+    // Keep any write-side items (Add button, compose) the hooks manage.
+    var keep = api.hooks.ownedNodes ? api.hooks.ownedNodes() : [];
+    var child = col.firstChild;
+    while (child) {
+      var next = child.nextSibling;
+      if (keep.indexOf(child) === -1) col.removeChild(child);
+      child = next;
+    }
+
+    capsules = {};
+    quotationByLabel = {};
+    activeLabel = null;
+
+    if (sec) {
+      var lis = sec.querySelectorAll("li[data-mud-label]");
+      for (var i = 0; i < lis.length; i++) {
+        var li = lis[i];
+        var label = li.getAttribute("data-mud-label");
+        var quote = li.getAttribute("data-mud-quotation");
+        if (quote) quotationByLabel[label] = quote;
+        var cap = projectCapsule(li);
+        col.appendChild(cap);
+        capsules[label] = cap;
+      }
+    }
+
+    anchorAll();
+    if (api.hooks.afterProject) api.hooks.afterProject();
+    // Keep a comment expanded across a reproject (e.g. after a reply or edit).
+    if (wasActive && capsules[wasActive]) {
+      activate(wasActive);
+    } else {
+      layout();
+    }
+  }
+
+  // -- Slot solver + layout -------------------------------------------------
+
+  function slotTop(slot) { return slot * PITCH; }
+
+  function slotCount(px) {
+    return Math.max(1, Math.ceil((px + GAP) / PITCH));
+  }
+
+  // The slot level of a comment's quotation (or 0 for a general comment with no
+  // highlight to anchor to).
+  function preferredSlot(label) {
+    var safe = window.CSS && CSS.escape ? CSS.escape(label) : label;
+    var mark = container.querySelector(
+      'mark.mud-comment-highlight[data-mud-label="' + safe + '"]');
+    if (!mark) return 0;
+    return Math.max(0, Math.round(layoutTop(mark) / PITCH));
+  }
+
+  // Size the active capsule to a whole number of slots and return that count.
+  function sizeActive(cap) {
+    cap.style.height = "auto";
+    var n = slotCount(cap.scrollHeight);
+    cap.style.height = (n * PITCH - GAP) + "px";
+    return n;
+  }
+
+  function solve(items) {
+    items.sort(function (a, b) {
+      return a.preferred - b.preferred || a.order - b.order;
+    });
+    var nextFree = 0;
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      it.slot = Math.max(it.preferred, nextFree);
+      nextFree = it.slot + it.slots;
+    }
+  }
+
+  function layout() {
+    if (!enabled()) return;
+    var items = [];
+    var order = 0;
+
+    Object.keys(capsules).forEach(function (label) {
+      var cap = capsules[label];
+      var slots;
+      if (label === activeLabel) {
+        slots = sizeActive(cap);
+      } else {
+        cap.style.height = "";
+        slots = 1;
+      }
+      items.push({
+        el: cap, preferred: preferredSlot(label), slots: slots, order: order++
+      });
+    });
+
+    if (api.hooks.extraItems) {
+      var extra = api.hooks.extraItems();
+      for (var i = 0; i < extra.length; i++) {
+        extra[i].order = order++;
+        items.push(extra[i]);
+      }
+    }
+
+    solve(items);
+    for (var k = 0; k < items.length; k++) {
+      items[k].el.style.top = slotTop(items[k].slot) + "px";
+    }
+  }
+
+  function scheduleLayout() {
+    if (rafPending) return;
+    rafPending = requestAnimationFrame(function () {
+      rafPending = 0;
+      layout();
+    });
+  }
+
+  // -- Hover / activate -----------------------------------------------------
+
+  function wireCapsule(cap, label) {
+    cap.addEventListener("mouseenter", function () {
+      if (label !== activeLabel) setHighlight(label, true);
+    });
+    cap.addEventListener("mouseleave", function () {
+      if (label !== activeLabel) setHighlight(label, false);
+    });
+    cap.addEventListener("click", function (e) {
+      if (cap.classList.contains("is-active")) return;
+      e.stopPropagation();
+      activate(label);
+    });
+  }
+
+  function activate(label) {
+    if (activeLabel && activeLabel !== label) deactivate();
+    var cap = capsules[label];
+    if (!cap) return;
+    activeLabel = label;
+    cap.classList.add("is-active");
+    setHighlight(label, true);
+    refreshTimes(cap);
+    if (api.hooks.decorateActive) api.hooks.decorateActive(cap, label);
+    layout();
+  }
+
+  function deactivate() {
+    if (!activeLabel) return;
+    var cap = capsules[activeLabel];
+    if (cap) {
+      cap.classList.remove("is-active");
+      if (api.hooks.undecorateActive) api.hooks.undecorateActive(cap, activeLabel);
+    }
+    setHighlight(activeLabel, false);
+    activeLabel = null;
+    layout();
+  }
+
+  document.addEventListener("mousedown", function (e) {
+    if (!activeLabel) return;
+    var cap = capsules[activeLabel];
+    if (cap && !cap.contains(e.target)) deactivate();
+  });
+
+  // -- Reflow ---------------------------------------------------------------
+
+  if (window.ResizeObserver) {
+    var ro = new ResizeObserver(scheduleLayout);
+    ro.observe(container);
+  }
+  window.addEventListener("resize", scheduleLayout);
+
+  // -- Live updates: rebuild the hidden section, sync body markers ----------
+
+  // The app calls setData on a comment add / reply / edit / delete (no reload).
+  // Each entry carries the rendered `<li>` HTML plus, for a just-added comment,
+  // the locator that places its body marker byte-exactly. Exports never call it.
+
   var LEAF_BLOCK_TAGS = {
     P: 1, LI: 1, TD: 1, TH: 1, H1: 1, H2: 1, H3: 1, H4: 1, H5: 1, H6: 1,
-    BLOCKQUOTE: 1, PRE: 1, DD: 1, DT: 1, FIGCAPTION: 1, CAPTION: 1, SUMMARY: 1,
+    BLOCKQUOTE: 1, PRE: 1, DD: 1, DT: 1, FIGCAPTION: 1, CAPTION: 1, SUMMARY: 1
   };
-
   var LEAF_BLOCK_SELECTOR =
     "p,li,td,th,h1,h2,h3,h4,h5,h6,blockquote,pre,dd,dt,figcaption,caption,summary";
 
-  function leafBlock(node) {
-    var el = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
-    while (el && el !== container) {
-      if (LEAF_BLOCK_TAGS[el.tagName]) return el;
-      el = el.parentNode;
-    }
-    return null;
-  }
+  function cssEsc(s) { return window.CSS && CSS.escape ? CSS.escape(s) : s; }
 
-  // An *innermost* leaf block: a leaf-block element with no leaf-block descendant
-  // (so a blockquote wrapping a paragraph is not one, but the paragraph is).
   function isInnermostLeaf(el) {
     return el.nodeType === Node.ELEMENT_NODE && LEAF_BLOCK_TAGS[el.tagName] &&
       !el.querySelector(LEAF_BLOCK_SELECTOR);
   }
 
-  // The marker-free text of an element (skipping `[⋯]` / footnote markers), to
-  // compare against the source the same way as the captured block text.
   function markerFreeText(el) {
-    var text = "";
-    (function walk(n) {
-      if (n.nodeType === Node.TEXT_NODE) { text += n.nodeValue; return; }
-      if (n.nodeType !== Node.ELEMENT_NODE || isMarkerElement(n)) return;
-      for (var c = n.firstChild; c; c = c.nextSibling) walk(c);
+    var t = "";
+    (function w(n) {
+      if (n.nodeType === Node.TEXT_NODE) { t += n.nodeValue; return; }
+      if (n.nodeType !== Node.ELEMENT_NODE) return;
+      if (n.classList && n.classList.contains("mud-comment-marker")) return;
+      for (var c = n.firstChild; c; c = c.nextSibling) w(c);
     })(el);
-    return text;
-  }
-
-  // How many innermost leaf blocks with the same collapsed text precede `block`
-  // in the rendered body (the bottom comments/footnotes sections excluded). The
-  // Swift side counts identically, so identical-text blocks (e.g. a word that
-  // appears in a table cell, a list item, and a heading) disambiguate.
-  function occurrenceOf(block, blockText) {
-    var target = normalizeWS(blockText).trim();
-    var count = 0;
-    var found = false;
-    (function walk(node) {
-      if (found || node.nodeType !== Node.ELEMENT_NODE) return;
-      if (node.classList && (node.classList.contains("comments") ||
-          node.classList.contains("footnotes"))) return;
-      if (isInnermostLeaf(node)) {
-        if (node === block) { found = true; return; }
-        if (normalizeWS(markerFreeText(node)).trim() === target) count++;
-        return;
-      }
-      for (var c = node.firstChild; c && !found; c = c.nextSibling) walk(c);
-    })(container);
-    return count;
-  }
-
-  // The selection end as a `{blockText, offset}` locator the Swift side maps to a
-  // source byte via cmark — the one DOM→source mapping the design needs. Marker
-  // glyphs (the `[⋯]` chip, footnote superscripts) are **skipped**: they have no
-  // source-text counterpart, so cmark treats the references as zero-width and
-  // this must match. `blockText` locates the source block; `offset` is the
-  // marker-free char offset of the selection end within it.
-  function endLocator(range) {
-    var endNode = range.endContainer;
-    var endOffset = range.endOffset;
-    var block = leafBlock(endNode);
-    if (!block) return null;
-
-    var text = "";
-    var offset = null;
-    (function walk(node) {
-      if (node.nodeType === Node.TEXT_NODE) {
-        if (node === endNode && offset === null) offset = text.length + endOffset;
-        text += node.nodeValue;
-        return;
-      }
-      if (node.nodeType !== Node.ELEMENT_NODE) return;
-      if (isMarkerElement(node)) {
-        if (offset === null && node.contains(endNode)) offset = text.length;
-        return;  // skip the marker subtree
-      }
-      for (var c = node.firstChild; c; c = c.nextSibling) walk(c);
-      if (node === endNode && offset === null) offset = text.length;
-    })(block);
-
-    if (offset === null) offset = text.length;
-    // A task-list item renders its checkbox as `<input …/> ` — that trailing
-    // space becomes a synthetic *leading* space on the item's text node that the
-    // Markdown source (and so cmark's block text, which strips leading
-    // whitespace) doesn't have. Drop leading whitespace and pull the offset back
-    // with it, keeping the offset in cmark's source coordinates; otherwise every
-    // task-list anchor lands one character too far.
-    var lead = text.length - text.replace(/^\s+/, "").length;
-    if (lead) { text = text.slice(lead); offset = Math.max(0, offset - lead); }
-    // The quotation is whitespace-trimmed, so the marker belongs right after the
-    // last non-whitespace character of the selection. When the selection end
-    // swept up trailing whitespace (a common drag/double-click overshoot), pull
-    // the offset back over it — otherwise the marker lands a byte too far (past
-    // the space) and the re-anchored highlight, keyed on the trimmed quotation,
-    // no longer lines up. At a block's end the stray offset also overruns the
-    // source inline text and the anchor resolves to nothing at all.
-    while (offset > 0 && /\s/.test(text[offset - 1])) offset--;
-    return { offset: offset, blockText: text, occurrence: occurrenceOf(block, text) };
-  }
-
-  function draft() {
-    var sel = window.getSelection();
-    if (!sel || sel.isCollapsed || sel.rangeCount === 0) return false;
-    var range = sel.getRangeAt(0);
-    if (!container.contains(range.commonAncestorContainer)) return false;
-    var quotation = normalizeWS(sel.toString()).trim();
-    if (!quotation) return false;
-
-    var handlers = window.webkit && window.webkit.messageHandlers;
-    if (!handlers || !handlers.mudCommentDraft) return false;
-    handlers.mudCommentDraft.postMessage({
-      quotation: quotation,
-      rect: rectOf(range.getBoundingClientRect()),
-      locator: endLocator(range),
-    });
-    return true;
-  }
-
-  // -- Selection state (drives the "Add Comment" menu item) ----------------
-
-  // Report whether a non-empty selection exists in the rendered body, so the
-  // native Edit-menu "Add Comment…" can enable/disable. Posts only on change to
-  // keep IPC quiet; an initial call reports the (empty) starting state.
-  var lastHasSelection = null;
-
-  function reportSelection() {
-    var sel = window.getSelection();
-    var has = !!(sel && !sel.isCollapsed && sel.toString().trim() &&
-      sel.anchorNode && container.contains(sel.anchorNode));
-    if (has === lastHasSelection) return;
-    lastHasSelection = has;
-    var handlers = window.webkit && window.webkit.messageHandlers;
-    if (handlers && handlers.mudSelection) {
-      handlers.mudSelection.postMessage(has);
-    }
-  }
-
-  document.addEventListener("selectionchange", reportSelection);
-  reportSelection();
-
-  // -- Live marker sync ----------------------------------------------------
-
-  // Reconcile the DOM's `[⋯]` markers against the incoming comment list, so a
-  // comment add/remove updates the live view with no reload. On baked content
-  // (first load, exports) every label already has its marker and none are
-  // stale, so this is a no-op.
-
-  function cssEsc(s) {
-    return window.CSS && CSS.escape ? CSS.escape(s) : s;
+    return t;
   }
 
   function hasMarker(label) {
     return !!container.querySelector(
-      '.mud-comment-marker[data-mud-label="' + cssEsc(label) + '"]'
-    );
+      '.mud-comment-marker[data-mud-label="' + cssEsc(label) + '"]');
   }
 
   function makeMarker(label) {
@@ -378,47 +535,13 @@
     a.id = "cmtref-" + label;
     a.setAttribute("data-mud-label", label);
     a.setAttribute("href", "#cmt-" + label);
-    a.textContent = "⋯"; // ⋯
+    a.textContent = "⋯";
     return a;
   }
 
-  function syncMarkers(list) {
-    var labelSet = {};
-    list.forEach(function (c) { labelSet[c.label] = true; });
-
-    // Remove markers whose comment is gone.
-    var markers = container.querySelectorAll(".mud-comment-marker");
-    for (var i = 0; i < markers.length; i++) {
-      var l = markers[i].getAttribute("data-mud-label");
-      if (!labelSet[l] && markers[i].parentNode) {
-        markers[i].parentNode.removeChild(markers[i]);
-      }
-    }
-    container.normalize();
-
-    // Insert markers for comments that have no marker yet.
-    list.forEach(function (c) {
-      if (hasMarker(c.label)) return;
-      var quote = normalizeWS(c.quotation || "").trim();
-      if (!quote) return;
-      var placed = false;
-      if (c.blockText != null && c.offset != null) {
-        placed = insertMarkerExact(
-          c.label, c.blockText, c.offset, c.occurrence || 0);
-      }
-      if (!placed) insertMarkerBySearch(c.label, quote);
-    });
-    container.normalize();
-  }
-
-  // Byte-exact insert from a DOM-derived locator (the just-added comment): find
-  // the `occurrence`-th innermost leaf whose marker-free text matches
-  // `blockText`, then insert at char `offset` — the inverse of `endLocator`.
   function findBlockByOccurrence(blockText, occurrence) {
-    var target = normalizeWS(blockText).trim();
-    var count = 0;
-    var result = null;
-    (function walk(node) {
+    var target = normalizeWS(blockText).trim(), count = 0, result = null;
+    (function w(node) {
       if (result || node.nodeType !== Node.ELEMENT_NODE) return;
       if (node.classList && (node.classList.contains("comments") ||
           node.classList.contains("footnotes"))) return;
@@ -429,27 +552,22 @@
         }
         return;
       }
-      for (var c = node.firstChild; c && !result; c = c.nextSibling) walk(c);
+      for (var c = node.firstChild; c && !result; c = c.nextSibling) w(c);
     })(container);
     return result;
   }
 
-  // The block's marker-free text with a parallel char → (textNode, offset) map.
-  // Mirrors `endLocator`'s text accumulation (raw, marker subtrees skipped).
   function blockTextMap(block) {
-    var text = "";
-    var map = [];
-    (function walk(n) {
+    var text = "", map = [];
+    (function w(n) {
       if (n.nodeType === Node.TEXT_NODE) {
         var v = n.nodeValue;
-        for (var i = 0; i < v.length; i++) {
-          text += v[i];
-          map.push({ node: n, offset: i });
-        }
+        for (var i = 0; i < v.length; i++) { text += v[i]; map.push({ node: n, offset: i }); }
         return;
       }
-      if (n.nodeType !== Node.ELEMENT_NODE || isMarkerElement(n)) return;
-      for (var c = n.firstChild; c; c = c.nextSibling) walk(c);
+      if (n.nodeType !== Node.ELEMENT_NODE) return;
+      if (n.classList && n.classList.contains("mud-comment-marker")) return;
+      for (var c = n.firstChild; c; c = c.nextSibling) w(c);
     })(block);
     return { text: text, map: map };
   }
@@ -458,8 +576,6 @@
     var block = findBlockByOccurrence(blockText, occurrence);
     if (!block) return false;
     var bm = blockTextMap(block);
-    // `endLocator` pulls the offset back over a synthetic leading space (e.g. a
-    // task-list checkbox); re-add that lead to map back into untrimmed coords.
     var lead = bm.text.length - bm.text.replace(/^\s+/, "").length;
     var k = offset + lead;
     if (k < 0) k = 0;
@@ -472,20 +588,13 @@
         var after = pos.offset > 0 ? pos.node.splitText(pos.offset) : pos.node;
         after.parentNode.insertBefore(marker, after);
       }
-    } catch (e) {
-      return false;
-    }
+    } catch (e) { return false; }
     return true;
   }
 
-  // Fallback when no locator is available (a second window / external add):
-  // place the marker at the first unclaimed occurrence of the quotation text.
   function insertMarkerBySearch(label, quote) {
-    var idx = buildIndex();
-    var claimed = {};
-    Object.keys(idx.markerAt).forEach(function (l) {
-      claimed[idx.markerAt[l]] = true;
-    });
+    var idx = buildIndex(), claimed = {};
+    Object.keys(idx.markerAt).forEach(function (l) { claimed[idx.markerAt[l]] = true; });
     var from = 0, pos, end = -1;
     while ((pos = idx.flat.indexOf(quote, from)) !== -1) {
       var e = pos + quote.length;
@@ -497,35 +606,112 @@
     if (!ref) return false;
     var marker = makeMarker(label);
     try {
-      var node = ref.node;
-      var splitAt = ref.offset + 1;
+      var node = ref.node, splitAt = ref.offset + 1;
       if (splitAt < node.nodeValue.length) {
         var after = node.splitText(splitAt);
         after.parentNode.insertBefore(marker, after);
       } else {
         node.parentNode.insertBefore(marker, node.nextSibling);
       }
-    } catch (e2) {
-      return false;
-    }
+    } catch (e2) { return false; }
     return true;
   }
 
-  // -- Public API ----------------------------------------------------------
+  function syncMarkers(list) {
+    var labelSet = {};
+    list.forEach(function (c) { labelSet[c.label] = true; });
+    var markers = container.querySelectorAll(".mud-comment-marker");
+    for (var i = 0; i < markers.length; i++) {
+      var l = markers[i].getAttribute("data-mud-label");
+      if (!labelSet[l] && markers[i].parentNode) {
+        markers[i].parentNode.removeChild(markers[i]);
+      }
+    }
+    container.normalize();
+    list.forEach(function (c) {
+      if (hasMarker(c.label)) return;
+      var quote = normalizeWS(c.quotation || "").trim();
+      if (!quote) return;
+      var placed = false;
+      if (c.blockText != null && c.offset != null) {
+        placed = insertMarkerExact(c.label, c.blockText, c.offset, c.occurrence || 0);
+      }
+      if (!placed) insertMarkerBySearch(c.label, quote);
+    });
+    container.normalize();
+  }
+
+  // Replace the hidden section's items with the freshly rendered `<li>`s (the
+  // single source the capsules project from), creating or removing the section
+  // as the comment count crosses zero.
+  function rebuildSection(list) {
+    var sec = section();
+    if (!list.length) {
+      if (sec && sec.parentNode) sec.parentNode.removeChild(sec);
+      return;
+    }
+    if (!sec) {
+      sec = document.createElement("section");
+      sec.className = "comments is-print-only";
+      sec.setAttribute("data-comments", "");
+      sec.innerHTML = "<h2>Comments</h2>\n<ol></ol>";
+      container.appendChild(sec);
+    }
+    var ol = sec.querySelector("ol");
+    if (ol) ol.innerHTML = list.map(function (c) { return c.html || ""; }).join("");
+  }
+
+  function setData(list) {
+    list = list || [];
+    quotationByLabel = {};
+    list.forEach(function (c) { quotationByLabel[c.label] = c.quotation || ""; });
+    rebuildSection(list);
+    syncMarkers(list);
+    project();
+  }
+
+  // -- Public API -----------------------------------------------------------
 
   window.Mud = window.Mud || {};
-  window.Mud.comments = {
-    setData: function (list) {
-      list = list || [];
-      quotationByLabel = {};
-      list.forEach(function (c) {
-        quotationByLabel[c.label] = c.quotation || "";
-      });
-      syncMarkers(list);
-      anchorAll();
+  var api = {
+    // Rebuild capsules from the section (initial load and live updates).
+    refresh: project,
+    // Geometry-only re-solve (zoom, toggle of an unrelated class, etc.).
+    relayout: scheduleLayout,
+    // Called by mud.js on every `setClass` for the toggle. Reproject only when
+    // visibility actually flips — a redundant call (same value) must not rebuild
+    // the column, or it would wipe an open inline compose box.
+    setVisible: function () {
+      var on = enabled();
+      if (on === lastVisible) return;
+      lastVisible = on;
+      project();
     },
-    reanchor: anchorAll,
-    draft: draft,
-    reveal: reveal,
+    activate: activate,
+    deactivate: deactivate,
+    isEnabled: enabled,
+    activeLabel: function () { return activeLabel; },
+    capsuleFor: function (label) { return capsules[label]; },
+    section: section,
+    column: ensureColumn,
+    layout: layout,
+    constants: { SLOT_H: SLOT_H, GAP: GAP, PITCH: PITCH },
+    layoutTop: layoutTop,
+    preferredSlot: preferredSlot,
+    slotCount: slotCount,
+    // Live update from the app: rebuild section + markers + reproject.
+    setData: setData,
+    // Seams the write side fills in (all default to no-op / empty).
+    hooks: {
+      afterProject: null,     // build the Add button machinery
+      decorateActive: null,   // add reply/edit/delete to the active capsule
+      undecorateActive: null, // remove them
+      extraItems: null,       // [{el, preferred, slots}] for Add button / compose
+      ownedNodes: null        // nodes project() must not remove
+    }
   };
+  window.Mud.comments = api;
+
+  lastVisible = enabled();
+  if (lastVisible) project();
 })();

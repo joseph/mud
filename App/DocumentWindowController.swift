@@ -14,6 +14,7 @@ class DocumentWindowController: NSWindowController {
     private var findButton: NSButton?
     private var changesButton: NSButton?
     private var readableColumnButton: NSButton?
+    private var commentsColumnButton: NSButton?
     private var zoomControl: NSSegmentedControl?
 
     private var splitVC: NSSplitViewController?
@@ -63,7 +64,6 @@ class DocumentWindowController: NSWindowController {
         let sidebarView = SidebarView(
             state: state,
             changeTracker: state.changeTracker,
-            fileURL: fileURL,
             onSelectHeading: { [weak self] heading in
                 self?.state.scrollTarget = ScrollTarget(id: UUID(), heading: heading)
             },
@@ -130,20 +130,10 @@ class DocumentWindowController: NSWindowController {
             }
             .store(in: &cancellables)
 
-        state.$hasUpSelection
-            .dropFirst()
-            .sink { [weak self] hasSelection in
-                if self?.window?.isKeyWindow == true {
-                    deferMutation {
-                        AppState.shared.activeHasUpSelection = hasSelection
-                    }
-                }
-            }
-            .store(in: &cancellables)
-
         AppState.shared.$viewToggles
             .sink { [weak self] toggles in
                 self?.updateReadableColumnButton(toggles.contains(.readableColumn))
+                self?.updateCommentsColumnButton(toggles.contains(.commentsColumn))
             }
             .store(in: &cancellables)
 
@@ -221,6 +211,12 @@ class DocumentWindowController: NSWindowController {
         readableColumnButton?.toolTip = on ? "Show document full-width" : "Show document in a readable-width column"
     }
 
+    private func updateCommentsColumnButton(_ on: Bool) {
+        let symbol = on ? "text.bubble.fill" : "text.bubble"
+        commentsColumnButton?.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+        commentsColumnButton?.toolTip = on ? "Hide Comments" : "Show Comments"
+    }
+
     private func updateChangesButton(_ enabled: Bool) {
         let symbol = enabled ? "clock.fill" : "clock"
         changesButton?.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
@@ -248,6 +244,10 @@ class DocumentWindowController: NSWindowController {
         AppState.shared.toggle(.readableColumn)
     }
 
+    @objc func toggleCommentsColumn(_ sender: Any?) {
+        AppState.shared.toggle(.commentsColumn)
+    }
+
     @objc func zoomAction(_ sender: NSSegmentedControl) {
         switch sender.selectedSegment {
         case 0: adjustZoom(by: -0.1)
@@ -271,21 +271,6 @@ class DocumentWindowController: NSWindowController {
 
     @objc func openInBrowser(_ sender: Any?) {
         state.openInBrowserID = UUID()
-    }
-
-    @objc func addComment(_ sender: Any?) {
-        state.draftCommentID = UUID()
-    }
-
-    /// Expands the sidebar (if collapsed) and switches it to `pane`. Used when a
-    /// `[⋯]` marker is clicked or a comment draft is captured, so the relevant
-    /// thread is visible without a separate toggle.
-    func revealSidebar(_ pane: SidebarPane) {
-        AppState.shared.sidebarPane = pane
-        if let sidebarItem = splitVC?.splitViewItems.first,
-           sidebarItem.isCollapsed {
-            sidebarItem.animator().isCollapsed = false
-        }
     }
 
     @objc func zoomIn(_ sender: Any?) {
@@ -383,7 +368,6 @@ class DocumentWindowController: NSWindowController {
 extension DocumentWindowController: NSWindowDelegate {
     func windowDidBecomeKey(_ notification: Notification) {
         AppState.shared.modeInActiveTab = state.mode
-        AppState.shared.activeHasUpSelection = state.hasUpSelection
         AppState.shared.activeDocumentEditable = !fileURL.isBundleResource
         state.hasBackgroundReload = false
     }
@@ -407,6 +391,7 @@ extension DocumentWindowController: NSToolbarDelegate {
             .flexibleSpace,
             .toggleFind,
             .toggleChanges,
+            .toggleCommentsColumn,
             .space,
             .toggleMode
         ]
@@ -420,6 +405,7 @@ extension DocumentWindowController: NSToolbarDelegate {
             .space,
             .zoom,
             .toggleReadableColumn,
+            .toggleCommentsColumn,
             .toggleLighting,
             .toggleFind,
             .toggleChanges,
@@ -472,6 +458,14 @@ extension DocumentWindowController: NSToolbarDelegate {
             item.label = "Column"
             return item
 
+        case .toggleCommentsColumn:
+            let button = makeToolbarButton(symbolName: "text.bubble", action: #selector(toggleCommentsColumn(_:)))
+            commentsColumnButton = button
+            updateCommentsColumnButton(AppState.shared.viewToggles.contains(.commentsColumn))
+            item.view = button
+            item.label = "Comments"
+            return item
+
         case .zoom:
             let control = NSSegmentedControl()
             control.segmentCount = 3
@@ -509,6 +503,7 @@ extension NSToolbarItem.Identifier {
     static let zoom = NSToolbarItem.Identifier("zoom")
     static let settings = NSToolbarItem.Identifier("settings")
     static let toggleReadableColumn = NSToolbarItem.Identifier("toggleReadableColumn")
+    static let toggleCommentsColumn = NSToolbarItem.Identifier("toggleCommentsColumn")
     static let toggleLighting = NSToolbarItem.Identifier("toggleLighting")
     static let toggleMode = NSToolbarItem.Identifier("toggleMode")
     static let toggleChanges = NSToolbarItem.Identifier("toggleChanges")

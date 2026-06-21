@@ -119,6 +119,7 @@ extension MudPreferences {
         case uiUseHeadingAsTitle        = "ui.use-heading-as-title"
         case uiFloatingControlsPosition = "ui.floating-controls-position"
         case uiShowReadableColumn       = "ui.show-readable-column"
+        case uiShowCommentsColumn       = "ui.show-comments-column"
 
         // internal.* — app-owned bookkeeping
         case hasLaunched                = "internal.has-launched"

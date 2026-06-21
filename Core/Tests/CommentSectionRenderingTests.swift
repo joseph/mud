@@ -78,6 +78,50 @@ struct CommentSectionRenderingTests {
     #expect(!doc.contains("class=\"mud-comment-message\""))
   }
 
+  @Test func commentItemCarriesMachineReadableFields() {
+    let comment = Comment(
+      label: "comment-a", ordinal: 1, quotation: "the quoted text",
+      messages: [CommentMessage(
+        author: "JP",
+        created: CommentSerialization.parseTimestamp("2026-06-01 18:33"[...]),
+        body: "A remark.")])
+    let li = MudCore.renderCommentItem(comment, options: RenderOptions())
+
+    // A standalone `<li>` the live sync can slot into the hidden section.
+    #expect(li.hasPrefix("<li "))
+    #expect(li.contains("data-mud-label=\"comment-a\""))
+    #expect(li.contains("data-mud-quotation=\"the quoted text\""))
+    #expect(li.contains("data-mud-author=\"JP\""))
+    #expect(li.contains("data-mud-time=\""))
+    #expect(li.contains("data-mud-time-abs=\"2026-06-01 18:33:00\""))
+  }
+
+  /// The opening `<html …>` tag, where the `comments-column` class lands. The
+  /// inlined CSS also mentions `comments-column`, so a whole-document substring
+  /// search would always match; inspect only the root element's tag.
+  private func htmlOpeningTag(_ html: String) -> Substring {
+    guard let start = html.range(of: "<html"),
+          let end = html[start.lowerBound...].firstIndex(of: ">")
+    else { return "" }
+    return html[start.lowerBound...end]
+  }
+
+  @Test func columnModeSetsHtmlClass() {
+    let md = "x[^comment-a].\n\n[^comment-a]: Note.\n"
+    var options = RenderOptions()
+    options.commentMode = .interactive
+    let html = MudCore.renderUpModeDocument(md, options: options)
+
+    #expect(htmlOpeningTag(html).contains("comments-column"))
+  }
+
+  @Test func sectionModeOmitsColumnClass() {
+    let md = "x[^comment-a].\n\n[^comment-a]: Note.\n"
+    let html = MudCore.renderUpModeDocument(md, options: RenderOptions())
+
+    #expect(!htmlOpeningTag(html).contains("comments-column"))
+  }
+
   @Test func parseCommentsReturnsModel() {
     let md = """
       Body[^comment-a].

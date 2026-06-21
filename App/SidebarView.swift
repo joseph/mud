@@ -6,7 +6,6 @@ struct SidebarView: View {
     @ObservedObject private var appState = AppState.shared
     @ObservedObject var state: DocumentState
     @ObservedObject var changeTracker: ChangeTracker
-    let fileURL: URL
     var onSelectHeading: (OutlineHeading) -> Void
     var onSelectChange: ([String]) -> Void
 
@@ -15,7 +14,6 @@ struct SidebarView: View {
             Picker("", selection: $appState.sidebarPane) {
                 Text("Outline").tag(SidebarPane.outline)
                 Text("Changes").tag(SidebarPane.changes)
-                Text("Comments").tag(SidebarPane.comments)
             }
             .pickerStyle(.segmented)
             .padding(8)
@@ -27,8 +25,6 @@ struct SidebarView: View {
                 case .changes:
                     ChangesSidebarView(changeTracker: changeTracker,
                                        onSelectChange: onSelectChange)
-                case .comments:
-                    CommentsSidebarView(fileURL: fileURL, state: state)
                 }
             }
             .animation(.none, value: appState.sidebarPane)

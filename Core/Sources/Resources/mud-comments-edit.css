@@ -1,0 +1,142 @@
+/* -- Comments (write side) ------------------------------------------------ */
+
+/* The write-side comment styles: the compose box and the add / reply / cancel /
+   done / edit / delete controls, plus the delete puff animation. The app embeds
+   these via RenderOptions.commentsEditable; exports omit them, since an exported
+   column is read-only. The read-side styles live in mud-comments.css. This
+   mirrors the mud-comments.js / mud-comments-edit.js split. */
+
+/* Accent color (macOS) for the primary "Done" button. */
+:root {
+  --mud-accent: #0a66ff;
+}
+@supports (color: AccentColor) {
+  :root { --mud-accent: AccentColor; }
+}
+
+/* The compose box is positioned in the column like a capsule (the placement
+   pass sets its `top`); inline reply / edit forms override this to sit in the
+   thread flow instead (see .mud-compose-inline). */
+.mud-compose {
+  position: absolute;
+  right: 12px;
+  width: 300px;
+  box-sizing: border-box;
+  pointer-events: auto;
+  transition: top 0.22s cubic-bezier(0.2, 0.7, 0.2, 1),
+              height 0.18s ease,
+              opacity 0.18s ease,
+              transform 0.18s ease;
+  /* No fixed height: the box shrink-wraps the textarea, which auto-grows with
+     its text (see autoGrow in mud-comments-edit.js). The layout solver reads the
+     measured offsetHeight; COMPOSE_H in mud-comments.js is only the fallback. */
+  display: flex;
+  flex-direction: column;
+}
+
+/* Edit / delete icons, bottom-right inside the last message box. */
+.mud-message-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1px;
+  margin: 0 -0.3rem;
+}
+.mud-message-actions .mud-icon-button {
+  width: 2rem;
+  height: 2rem;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--blockquote-color);
+  cursor: pointer;
+}
+.mud-message-actions .mud-icon-button:hover { background: var(--code-bg); }
+.mud-message-actions .mud-icon-button svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* The Reply control sits on its own row below the thread, right-aligned. */
+.mud-capsule-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* -- Capsule controls (Cancel / Done / Reply): 30px pills ----------------- */
+
+.mud-capsule-actions .mud-reply,
+.mud-compose .mud-cancel,
+.mud-compose .mud-done {
+  font-size: 85%;
+  line-height: 28px;
+  padding: 0 15px;
+  border-radius: 15px;
+  white-space: nowrap;
+  box-sizing: border-box;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+/* Outlined controls carry the higher-contrast border; the primary one is
+   filled with the accent color and has no border. */
+.mud-capsule-actions .mud-reply,
+.mud-compose .mud-cancel {
+  border: 1px solid var(--blockquote-color);
+  background-color: var(--bg-color);
+  color: var(--text-color);
+}
+.mud-compose .mud-done {
+  border: none;
+  background: var(--mud-accent);
+  color: #fff;
+  font-weight: 600;
+}
+.mud-compose .mud-done:disabled { opacity: 0.45; cursor: default; }
+
+/* -- Compose box (new / reply / edit) ------------------------------------- */
+
+.mud-compose textarea {
+  box-sizing: border-box;
+  resize: none;
+  /* Auto-grows from min-height to max-height as the user types; beyond the cap
+     it scrolls. JS sets the in-between height; CSS clamps the ends. */
+  min-height: 100px;
+  max-height: 400px;
+  overflow-y: auto;
+  padding: 14px;
+  border: 1px solid var(--blockquote-color);
+  border-radius: 23px;
+  background: var(--bg-color);
+  color: var(--text-color);
+  font: inherit;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  outline: none !important;
+}
+
+.mud-compose .mud-compose-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+/* Inline compose (reply / edit) is a full-width row in the active thread, so the
+   placement pass measures it as part of the capsule's height. */
+.mud-compose.mud-compose-inline {
+  position: static;
+  right: auto;
+  width: 100%;
+  margin: 0;
+}
+
+/* Delete: a brief scale-blur-fade puff — the whole capsule for the last
+   remaining message, or just one message box within a longer thread. */
+.mud-capsule.is-removing,
+.mud-capsule-thread .mud-comment-message.is-removing {
+  pointer-events: none;
+  animation: mud-capsule-puff 0.28s ease forwards;
+}
+@keyframes mud-capsule-puff {
+  to { opacity: 0; transform: scale(1.08); filter: blur(4px); }
+}

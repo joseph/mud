@@ -5,7 +5,10 @@ public enum HTMLTemplate {
     /// Wraps body HTML in an Up-mode document.
     static func wrapUp(body: String, options: RenderOptions) -> String {
         var doc = HTMLDocument(options: options)
-        doc.styles = [themeCSS(for: options.theme), sharedCSS, upCSS]
+        doc.styles = [themeCSS(for: options.theme), sharedCSS, upCSS, commentsCSS]
+        // The write-side comment styles ride along only in the app's editable
+        // view; a read-only export omits them (see commentsEditCSS).
+        if options.commentsEditable { doc.styles.append(commentsEditCSS) }
         if options.waypoint != nil { doc.styles.append(changesCSS) }
         doc.cspImgSrc = options.blockRemoteContent
             ? ["mud-asset:", "data:"]
@@ -58,6 +61,21 @@ public enum HTMLTemplate {
 
     private static var downCSS: String {
         loadResource("mud-down", type: "css") ?? ""
+    }
+
+    /// Read-side comment styles (`mud-comments.css`): the markers, the quotation
+    /// highlights, the bottom Comments section, and the projected column.
+    /// Bundled into every Up document, exports included.
+    private static var commentsCSS: String {
+        loadResource("mud-comments", type: "css") ?? ""
+    }
+
+    /// Write-side comment styles (`mud-comments-edit.css`): the compose box and
+    /// the add / reply / edit / delete controls. Embedded only when
+    /// `RenderOptions.commentsEditable` is set — the app's live view, never an
+    /// export. Mirrors the `mudCommentsJS` / `mudCommentsEditJS` split.
+    private static var commentsEditCSS: String {
+        loadResource("mud-comments-edit", type: "css") ?? ""
     }
 
     public static var changesCSS: String {

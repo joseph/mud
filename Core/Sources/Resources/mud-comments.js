@@ -21,7 +21,8 @@
 
   var GAP = 15;           // minimum vertical gap between rows
   var INACTIVE_H = 45;    // a collapsed capsule's height
-  var COMPOSE_H = 225;    // a new-comment compose form's height
+  var COMPOSE_H = 100;    // compose form's starting height (it auto-grows; the
+                          // write side measures the real height on every relayout)
 
   var capsules = {};          // label -> capsule element
   var quotationByLabel = {};  // label -> quotation text (for anchoring)

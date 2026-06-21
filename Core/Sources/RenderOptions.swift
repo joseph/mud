@@ -18,6 +18,11 @@ public struct RenderOptions: Sendable, Equatable {
     public var footnoteMode: FootnoteMode = .section
     public var commentMode: CommentMode = .section
 
+    /// Whether to embed the write-side comment styles (`mud-comments-edit.css`).
+    /// Set by the app's live, editable view; left off for read-only exports so
+    /// the compose-box and control styles don't ship with them.
+    public var commentsEditable: Bool = false
+
     // Display state (baked into initial HTML for first-paint correctness;
     // also applied at runtime via JS for live updates without reload)
     public var htmlClasses: Set<String> = []

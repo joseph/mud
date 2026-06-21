@@ -1,9 +1,10 @@
 // Mud - Comments column (read side, Up mode).
 //
 // Projects a capsule per comment from the hidden bottom `<section
-// class="comments">` (the single source of comment HTML), positions the
-// capsules on the slot grid beside their quotations, and reveals a quotation's
-// highlight on hover / activate. This file is bundled everywhere, exports
+// class="comments">` (the single source of comment HTML), positions each
+// capsule beside its quotation with the placement pass below, and reveals a
+// quotation's highlight on hover / activate. This file is bundled everywhere,
+// exports
 // included; the write side (selection, compose, submit, edit, delete) lives in
 // mud-comments-edit.js and is bundled in the app only.
 //
@@ -18,9 +19,9 @@
   var container = document.querySelector(".up-mode-output");
   if (!container) return;
 
-  var SLOT_H = 45;
-  var GAP = 15;
-  var PITCH = SLOT_H + GAP; // 60
+  var GAP = 15;           // minimum vertical gap between rows
+  var INACTIVE_H = 45;    // a collapsed capsule's height
+  var COMPOSE_H = 225;    // a new-comment compose form's height
 
   var capsules = {};          // label -> capsule element
   var quotationByLabel = {};  // label -> quotation text (for anchoring)
@@ -360,32 +361,35 @@
     }
   }
 
-  // -- Slot solver + layout -------------------------------------------------
+  // -- Placement pass -------------------------------------------------------
 
-  function slotTop(slot) { return slot * PITCH; }
-
-  function slotCount(px) {
-    return Math.max(1, Math.ceil((px + GAP) / PITCH));
-  }
-
-  // The slot level of a comment's quotation (or 0 for a general comment with no
-  // highlight to anchor to).
-  function preferredSlot(label) {
+  // A comment's preferred position, in layout pixels: the top of its quotation
+  // highlight, or — for a quote-less comment with no highlight — the position of
+  // its hidden inline marker (kept measurable by the visually-hidden CSS).
+  function preferredPosition(label) {
     var safe = window.CSS && CSS.escape ? CSS.escape(label) : label;
-    var mark = container.querySelector(
-      'mark.mud-comment-highlight[data-mud-label="' + safe + '"]');
-    if (!mark) return 0;
-    return Math.max(0, Math.round(layoutTop(mark) / PITCH));
+    var anchor = container.querySelector(
+        'mark.mud-comment-highlight[data-mud-label="' + safe + '"]') ||
+      container.querySelector(
+        '.mud-comment-marker[data-mud-label="' + safe + '"]');
+    if (!anchor) return 0;
+    return Math.max(0, layoutTop(anchor));
   }
 
-  // Size the active capsule to a whole number of slots and return that count.
+  // Let the active capsule take its natural height, pin it there (so the height
+  // transition has a pixel target to animate to), and return that height.
   function sizeActive(cap) {
     cap.style.height = "auto";
-    var n = slotCount(cap.scrollHeight);
-    cap.style.height = (n * PITCH - GAP) + "px";
-    return n;
+    var h = cap.offsetHeight;
+    cap.style.height = h + "px";
+    return h;
   }
 
+  // Lay the items out top to bottom: each sits at its preferred position, or is
+  // pushed down to clear the row above plus the minimum gap. Sort by preferred
+  // position, breaking ties by build order. Idempotent — re-running from the
+  // current heights always recomputes absolute tops, so a row pushed down by a
+  // now-shorter neighbor slides back up on the next pass.
   function solve(items) {
     items.sort(function (a, b) {
       return a.preferred - b.preferred || a.order - b.order;
@@ -393,8 +397,8 @@
     var nextFree = 0;
     for (var i = 0; i < items.length; i++) {
       var it = items[i];
-      it.slot = Math.max(it.preferred, nextFree);
-      nextFree = it.slot + it.slots;
+      it.top = Math.max(it.preferred, nextFree);
+      nextFree = it.top + it.height + GAP;
     }
   }
 
@@ -405,15 +409,16 @@
 
     Object.keys(capsules).forEach(function (label) {
       var cap = capsules[label];
-      var slots;
+      var height;
       if (label === activeLabel) {
-        slots = sizeActive(cap);
+        height = sizeActive(cap);
       } else {
         cap.style.height = "";
-        slots = 1;
+        height = INACTIVE_H;
       }
       items.push({
-        el: cap, preferred: preferredSlot(label), slots: slots, order: order++
+        el: cap, preferred: preferredPosition(label), height: height,
+        order: order++
       });
     });
 
@@ -427,7 +432,7 @@
 
     solve(items);
     for (var k = 0; k < items.length; k++) {
-      items[k].el.style.top = slotTop(items[k].slot) + "px";
+      items[k].el.style.top = items[k].top + "px";
     }
   }
 
@@ -695,10 +700,9 @@
     section: section,
     column: ensureColumn,
     layout: layout,
-    constants: { SLOT_H: SLOT_H, GAP: GAP, PITCH: PITCH },
+    constants: { GAP: GAP, INACTIVE_H: INACTIVE_H, COMPOSE_H: COMPOSE_H },
     layoutTop: layoutTop,
-    preferredSlot: preferredSlot,
-    slotCount: slotCount,
+    preferredPosition: preferredPosition,
     // Live update from the app: rebuild section + markers + reproject.
     setData: setData,
     // Seams the write side fills in (all default to no-op / empty).
@@ -706,7 +710,7 @@
       afterProject: null,     // build the Add button machinery
       decorateActive: null,   // add reply/edit/delete to the active capsule
       undecorateActive: null, // remove them
-      extraItems: null,       // [{el, preferred, slots}] for Add button / compose
+      extraItems: null,       // [{el, preferred, height}] for the compose form
       ownedNodes: null        // nodes project() must not remove
     }
   };

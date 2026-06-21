@@ -22,58 +22,97 @@ minus 324px for the Comments column.
 
 ## Visibility
 
-The column is shown or hidden with a `commentsColumn` view toggle, persisted
-like the app's other view toggles and applied as a body class. It has both a
-View-menu item and a toolbar button, and is off by default. The column is an
-Up-mode feature: in Down mode the toggle is inert and the column does not
-appear.
+The Comments column is not visible by default. It becomes visible when opening
+a document that contains comments. It also becomes visible whenever you add a
+comment (necessarily, so that you can type your comment). Its visibility can be
+toggled on or off via the View menu item (Ctrl+Cmd+K).
+
+Unlike other view toggles, the Comments column visibility is NOT persisted.
+Making it visible for one document does not make it visible for other
+documents. The column is an Up-mode feature: in Down mode the toggle is inert
+and the column does not appear.
 
 
-## Slots system
+## Rows
 
-Conceptually — but not visibly — the Comments column is a set of "slots". Each
-slot is a capsule that is 300px by 45px. There is a gap of 15px above each
-slot.
+The Comments column contains rows. A row is a comment or a set of controls.
+When a comment is expanded, each comment in the thread is a separate row. Each
+row is 300px wide. There is a gap of exactly 15px between each row.
 
-See a visual representation of this concept:
+The textarea of the comment-compose form is a row. The controls for the
+comment-compose form — Cancel and Done — are a separate row.
 
-![Conceptual slots](./2026-06-comments-column-assets/01-conceptual-slots.png)
+The Reply button for a thread is a control, thus it is on its own row below the
+rows of comments in the thread.
 
-Slots are used for stacking comments intelligently and cleanly. When a comment
-or a button occupies one or more consecutive slots, anything already in those
-slots slides down to the next available slot. They will push anything in their
-way down to the next available slot. When their preferred slots free up, they
-will slide back up. These slide transitions are animated elegantly.
+Controls are capsule-shaped, and they are exactly 30px high. A row places a set
+of controls side-by-side, right-aligned, with a gap of 10px between each
+control.
+
+A comment when inactive is always exactly 45px high, and capsule-shaped
+(meaning it has a border-radius of 23px).
+
+When active, a comment must be large enough to display the comment header ("💬
+name relative-time") plus the entire message, plus the Edit and Delete buttons
+if it is the last comment in the thread.
 
 
 ### Placement rule
 
-Concretely, the solver gives each item a preferred slot — for a comment, the
-slot level with the top of its highlighted quotation; for the Add Comment
-button, the slot level with the top of the selection. It sorts items by
-preferred slot (document order), then sweeps from the top, placing each item at
-the lower of its preferred slot or the first free slot below the previous item.
+Each comment has a **preferred position**: the top of its quotation highlight
+(the `<mark>`), measured as an `offsetTop` in the column's scroll space. A
+comment with no quote uses the position of its hidden marker instead.
 
-An item never sits above its preferred slot, so a comment never floats above
-the text it annotates. It is pushed down only when an earlier-anchored item
-already holds the space, and slides back up when that space frees. This is one
-deterministic top-to-bottom pass.
+The **placement pass** lays the comments out in one walk down the column. Sort
+the comments by preferred position; then, top to bottom, give each comment a
+top of:
 
-The Add Comment button follows the same rule: it wants the slot by the
-selection top but yields to any comment anchored earlier in the document,
-landing in the next free slot below — exactly what the sweep produces.
+```
+top = max(preferredPosition, previousBottom + 15)
+```
+
+where `previousBottom` is the previous comment's top plus its current rendered
+height. So a comment sits at its preferred position when there is room, and is
+pushed down to clear the comment above it when there is not. The 15px is a
+**minimum** gap: when a comment's preferred position already falls below the
+previous comment's bottom, it stays at its preferred position and the gap is
+simply larger.
+
+Heights are measured live, not counted in fixed units — an inactive comment is
+45px, an active one is as tall as its content, and a compose form is a fixed
+225px (textarea, a 15px gap, and the controls row). The pass reads each row's
+current height, so activating, replying, or editing a comment grows that row
+and pushes the rows below it down on the next pass.
+
+A row is anchored by its top and grows downward only; expanding a comment never
+moves its own top. The pass is also idempotent: every top is recomputed from
+`max(preferredPosition, previousBottom + 15)` each time it runs, so when
+whatever pushed a comment down goes away — a comment above it collapses or is
+deleted — the next pass returns it to its preferred position with no special
+restore step.
+
+When two comments share a preferred position (anchored to the same line), break
+the tie by source order — the order they appear in the bottom Comments section.
+
+Capsules and their controls scale-in from the top-center; any row that has to
+move to make room slides into its new position at the same speed.
+
+The column is not separately scrollable. It lives in the document body's scroll
+space, so its capsules are positioned against the body and simply continue past
+the bottom of the document text as far as the last comment needs. The HTML body
+is the only thing that scrolls.
 
 
 ### Reflow triggers
 
-The solver runs once at load and again whenever something moves a comment's
-preferred slot or changes how many slots an item needs. The column lives in the
+The placement pass runs once at load and again whenever something moves a
+comment's preferred position or changes a row's height. The column lives in the
 document's scroll space — capsules are positioned against the document body,
 not the viewport — so plain scrolling moves the column with the text and needs
-**no** re-solve. Everything else that re-solves falls into two groups.
+**no** re-run. Everything else that re-runs the pass falls into two groups.
 
-**Geometry changes** recompute each comment's preferred slot from fresh
-highlight rectangles, then re-run the sweep:
+**Geometry changes** recompute each comment's preferred position from fresh
+highlight rectangles, then re-run the pass:
 
 - The webview resizes (window resize, or the native left sidebar showing or
   hiding, which narrows the webview).
@@ -87,19 +126,17 @@ on any height change, including late image and Mermaid layout — with the windo
 `resize` event covering width-only changes. Coalesce bursts with
 `requestAnimationFrame` so a flurry of image loads solves once.
 
-**State changes** keep the preferred slots but change an item's slot count or
-membership, then re-run the sweep:
+**State changes** keep the preferred positions but change a row's height or
+membership, then re-run the pass:
 
-- A selection appears, moves, or clears — placing or removing the Add Comment
-  button.
 - A compose form opens or closes (new comment, reply, or edit), growing or
-  shrinking an item to its four-slot form.
-- A comment is activated or deactivated, expanding to its full height or
-  collapsing to one slot.
+  shrinking a row to the compose height.
+- A comment is activated or deactivated, expanding to its full content height
+  or collapsing to 45px.
 - A comment add, reply, edit, or delete arrives through the live no-reload
   sync, inserting, resizing, or removing a capsule. Delete runs its
-  puff-of-smoke animation first, then re-solves so the capsules below slide up
-  into place.
+  puff-of-smoke animation first, then re-runs the pass so the capsules below
+  slide up into place.
 
 A document reload (the file changed on disk) rebuilds the column from scratch.
 A comment-only edit does not reload — the content identity that decides reloads
@@ -108,25 +145,20 @@ ignores comments — so those arrive through the live sync above.
 
 ## Adding a comment
 
-When you select some text, an "Add Comment" button appears in the slot adjacent
-to the top of the selection. (Though it does not appear when you have selected
-text that isn't commentable, such as part of a code block.)
+To comment on something, select the text and trigger Add Comment — from the
+toolbar button, the Edit menu, the Cmd+Shift+K shortcut, or the right-click
+menu. All four are enabled only when the selection is commentable; a selection
+that can't anchor a comment, such as part of a code block, leaves them
+disabled.
 
 ![Selecting text](./2026-06-comments-column-assets/02-selected-text.png)
 
-If that slot is occupied by a comment that begins earlier in the document than
-the start of the selection, the Add Comment button appears in the next free
-slot instead.
-
-The selection color is whatever the system-default selection color is — we
-don't need to do anything special for this. The Add Comment button should be
-the system-default primary button color — ie, the macOS "accent color".
-
-When you click "Add Comment", the selection becomes a highlight span, and now
-it should take on the theme's highlight color. The comment-input form appears
-in the slot and consumes the next 3 slots. The "Cancel" and "Done" buttons are
-bottom-aligned to the bottom of that 4th slot. There should be 15px vertical
-gap between the text area and the buttons:
+This action reveals the column if it was hidden. The selection becomes a
+highlight span in the theme's highlight color, and the compose form opens with
+its top at the selection's preferred position. If a comment anchored earlier in
+the document is already there, the form is pushed down to clear it, the same as
+any other row. The "Cancel" and "Done" buttons sit at the bottom of the form,
+with a 15px vertical gap between the textarea and the buttons:
 
 ![Adding comment](./2026-06-comments-column-assets/03-adding-comment.png)
 
@@ -134,8 +166,8 @@ The "Done" button is accent-colored. The textarea and cancel button are
 outlined in the theme's foreground-color.
 
 Once you click "Done", the comment is saved to the document, and the comment
-collapses down to a single slot, with the text preceded by "💬 **Author**: " and
-truncated with an ellipsis at the end of the line:
+collapses to its inactive 45px height, with the text preceded by "💬 **Author**:
+" and truncated with an ellipsis at the end of the line:
 
 ![Inactive comment](./2026-06-comments-column-assets/04-inactive-comment.png)
 
@@ -148,8 +180,8 @@ section will appear in the document:
 ![Hover over comment](./2026-06-comments-column-assets/05-hover-over-comment.png)
 
 When you click on the comment, the highlight remains (because the comment is
-now "active") and the comment expands to take up as many full slots as
-necessary to display its entire contents plus a "Reply" button:
+now "active") and the comment expands to whatever height it needs to display
+its entire contents plus a "Reply" button:
 
 ![Active comment](./2026-06-comments-column-assets/06-selected-comment.png)
 
@@ -163,34 +195,34 @@ These buttons are only present for the last comment in the thread.
 
 ![Edit icon](./2026-06-comments-column-assets/icon-comment-edit.svg)
 
-The Edit button transforms the bubble into the comment-input form, same as at
-the "Adding comment" step above, with the same Cancel and Done buttons below
-the textarea.
+The Edit button transforms the bubble into the compose form, same as at the
+"Adding comment" step above, with the same Cancel and Done buttons below the
+textarea.
 
 ![Delete icon](./2026-06-comments-column-assets/icon-comment-delete.svg)
 
 The Delete button removes the comment in a sort of puff-of-smoke animation
-(using a simple scale-blur-fade combo, I think). As that ends, any necessary
-rearranging of the slots below slides into place.
+(using a simple scale-blur-fade combo, I think). As that ends, the rows below
+slide up into place.
 
 
 ## Replies & threads
 
 If you click the Reply button below the active comment, it will transform that
-slot into a new comment-input form, again occupying 4 full slots (including the
-Cancel & Done buttons which are bottom-aligned to the bottom of the 4th slot).
+row into a new compose form, the same height as the one for a new comment (with
+the Cancel & Done buttons at the bottom of the form).
 
 ![Replying](./2026-06-comments-column-assets/07-replying.png)
 
 Note that the Edit and Delete buttons are removed from the active comment
 bubble, since it will no longer be the last comment in the thread. (They are
 restored if you Cancel out of the new comment, of course.) This means that the
-active comment will sometimes shrink enough to need one less slot, so the
-comment-input form can immediately slide up in that case.
+active comment will sometimes shrink a little, so the compose form can
+immediately slide up in that case.
 
 After the reply is submitted (by clicking Done), the full thread will appear,
-with each comment taking as many slots as needed to display in full, and the
-last comment showing the Edit and Delete icon-buttons:
+with each comment as tall as it needs to display in full, and the last comment
+showing the Edit and Delete icon-buttons:
 
 ![Selected comment with replies](./2026-06-comments-column-assets/08-selected-comment-with-replies.png)
 
@@ -233,18 +265,18 @@ In interactive Up mode there is no visible `[⋯]` marker beside the quoted text
 present in the HTML but hidden by CSS on screen; print and export reveal it,
 with its `#cmt-LABEL` link to the section. Keeping it in the DOM gives the
 highlight its anchor: the JS finds each quotation by the marker's position,
-wraps the quoted text in a `<mark>`, and the slot solver reads that mark's
-`offsetTop` for the comment's preferred slot. (Pulling the marker out of the
-DOM in Up mode would mean anchoring the highlight some other way — more work
-for no visible gain, so it is hidden rather than removed.)
+wraps the quoted text in a `<mark>`, and the placement pass reads that mark's
+`offsetTop` for the comment's preferred position. (Pulling the marker out of
+the DOM in Up mode would mean anchoring the highlight some other way — more
+work for no visible gain, so it is hidden rather than removed.)
 
 
 ### The write path
 
-Editing is native. The compose box is an HTML `<textarea>`; on submit, its text
-crosses to Swift through a message handler carrying the action (add, reply,
-edit, delete), the target label, the body, and — for a new comment — the draft
-locator that pins the quotation to a source byte. A Swift controller then
+Editing is native. The compose form contains a HTML `<textarea>`; on submit,
+its text crosses to Swift through a message handler carrying the action (add,
+reply, edit, delete), the target label, the body, and — for a new comment — the
+draft locator that pins the quotation to a source byte. A Swift controller then
 performs the byte-exact, atomic, security-scoped write to the `.md` file.
 Keyboard handling lives with the textarea: Esc cancels, Cmd-Enter submits, and
 the field gets the standard cut / copy / paste.
@@ -255,9 +287,9 @@ the field gets the standard cut / copy / paste.
 A comment add, reply, edit, or delete updates the column in place, with no
 document reload, so scroll position and any open selection survive. After the
 write, Swift hands the JS the changed comment as a section fragment; the JS
-slots it into the hidden section, reprojects that one capsule, and re-solves. A
-full reload is reserved for an actual change to the document body on disk — a
-comment-only edit does not trigger one.
+slots it into the hidden section, reprojects that one capsule, and re-runs the
+placement pass. A full reload is reserved for an actual change to the document
+body on disk — a comment-only edit does not trigger one.
 
 
 ### Commentability
@@ -273,12 +305,12 @@ button shows when the selection lies in ordinary body text and hides otherwise.
 ### Read and write JavaScript
 
 The exported column is read-only, so the comment JS splits in two: a **read**
-file — projection, highlight anchoring, hover, activate-and-expand, the solver,
-and layout — included everywhere, exports included; and a **write** file —
-selection capture and the Add Comment button, the compose box, submit, edit,
-and delete — included only in the app. An export loads only the read file, so
-its column reveals highlights on hover and expands on click but offers no
-editing.
+file — projection, highlight anchoring, hover, activate-and-expand, the
+placement pass, and layout — included everywhere, exports included; and a
+**write** file — selection capture and the Add Comment button, the compose box,
+submit, edit, and delete — included only in the app. An export loads only the
+read file, so its column reveals highlights on hover and expands on click but
+offers no editing.
 
 
 ## Exporting & printing

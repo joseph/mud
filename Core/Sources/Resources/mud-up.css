@@ -445,7 +445,6 @@ html.comments-column.is-comments-column body {
 /* A slot is 45px tall with a 15px gap above it: a pitch of 60px. The solver
    sets each item's `top` (a slot multiple) inline. */
 .mud-capsule,
-.mud-add-comment,
 .mud-compose {
   position: absolute;
   right: 12px;
@@ -457,21 +456,6 @@ html.comments-column.is-comments-column body {
               opacity 0.18s ease,
               transform 0.18s ease;
 }
-
-/* -- The Add Comment button (one slot, accent colored) -------------------- */
-
-.mud-add-comment {
-  height: 45px;
-  border: none;
-  border-radius: 22px;
-  background: var(--mud-accent);
-  color: #fff;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.mud-add-comment:active { filter: brightness(0.92); }
 
 /* -- A comment capsule ---------------------------------------------------- */
 

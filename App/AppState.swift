@@ -9,6 +9,14 @@ class AppState: ObservableObject {
     /// Transient (not persisted) mirror of the key window's state, for app-level
     /// menu gating — updated on key-window change like `modeInActiveTab`.
     @Published var activeDocumentEditable: Bool = false
+    /// Transient mirror of whether the key window can add a comment right now
+    /// (Up mode, writable document, commentable selection), gating the "Add
+    /// Comment" menu item. Updated on key-window change and on selection change.
+    @Published var canAddComment: Bool = false
+    /// Transient mirror of the key window's Comments column visibility, for the
+    /// "Show/Hide Comments" menu item's label. Column visibility itself is
+    /// per-window (`DocumentState.commentsColumnVisible`) and not persisted.
+    @Published var activeCommentsColumnVisible: Bool = false
     @Published var lighting: Lighting {
         didSet { MudPreferences.shared.lighting = lighting }
     }
@@ -136,8 +144,7 @@ class AppState: ObservableObject {
              .upModeShowCodeHeader,
              .downModeShowLineNumbers,
              .downModeWrapLines,
-             .uiShowReadableColumn,
-             .uiShowCommentsColumn:
+             .uiShowReadableColumn:
             self.viewToggles = c.viewToggles
         // internal.* — not exposed on AppState; mirror already updated.
         case .hasLaunched, .windowFrame, .cliInstalled, .cliSymlinkPath:

@@ -1,11 +1,12 @@
 // Mud - Comments column (write side, Up mode). App only.
 //
-// Adds the editing affordances to the read-side column: the Add Comment button
-// on a commentable selection, the compose box (new / reply / edit), and the
-// reply / edit / delete controls on an active capsule. Each edit is posted to
-// Swift through the `mudCommentSubmit` handler; the native side writes the file
-// and reprojects the column. Bundled in the app only — exports load just
-// mud-comments.js and so are read-only.
+// Adds the editing affordances to the read-side column: starting a new comment
+// on the current selection (driven from the toolbar, Edit menu, shortcut, or
+// context menu), the compose box (new / reply / edit), and the reply / edit /
+// delete controls on an active capsule. Each edit is posted to Swift through the
+// `mudCommentSubmit` handler; the native side writes the file and reprojects the
+// column. Bundled in the app only — exports load just mud-comments.js and so are
+// read-only.
 
 (function () {
   "use strict";
@@ -20,8 +21,7 @@
   var col = window.Mud.comments;
   var PITCH = col.constants.PITCH;
 
-  // Add button / new-comment compose state.
-  var addButton = null;     // the floating "Add Comment" button
+  // New-comment compose state.
   var draft = null;         // { quotation, locator, slot } for the current selection
   var composeNew = null;    // the new-comment compose element (4 slots)
   var composeSlot = 0;
@@ -38,6 +38,16 @@
 
   function setComposing(on) {
     if (handlers.mudComposing) handlers.mudComposing.postMessage(!!on);
+  }
+
+  // Tell the toolbar "Comment" button whether a commentable selection exists.
+  // Reported regardless of whether the column is showing, so the button can
+  // reveal the column on demand. De-duplicated so a drag posts only on change.
+  var lastReportedSelection = null;
+  function reportSelection(has) {
+    if (has === lastReportedSelection) return;
+    lastReportedSelection = has;
+    if (handlers.mudSelection) handlers.mudSelection.postMessage(has);
   }
 
   function submit(payload) {
@@ -148,45 +158,19 @@
     return { quotation: quotation, locator: locator, slot: rangeSlot(range) };
   }
 
-  // -- The Add Comment button ----------------------------------------------
+  // -- Selection reporting --------------------------------------------------
 
-  function ensureAddButton() {
-    if (!addButton) {
-      addButton = document.createElement("button");
-      addButton.type = "button";
-      addButton.className = "mud-add-comment";
-      addButton.textContent = "Add Comment";
-      addButton.addEventListener("mousedown", function (e) {
-        // Hold the selection (a plain click would clear it before we read it).
-        e.preventDefault();
-      });
-      addButton.addEventListener("click", function (e) {
-        e.stopPropagation();
-        openNewCompose();
-      });
-    }
-    // Re-attach if a teardown (toggle off) detached it.
-    if (!addButton.parentNode) col.column().appendChild(addButton);
-    return addButton;
-  }
-
-  function showAddButton() {
-    ensureAddButton().style.display = "";
-  }
-
-  function hideAddButton() {
-    if (addButton) addButton.style.display = "none";
-  }
-
+  // The column has no Add Comment button of its own; a comment is started from
+  // the toolbar, the Edit menu, the keyboard shortcut, or the context menu. We
+  // still watch the selection so those affordances can enable themselves when it
+  // is commentable.
   function onSelectionChange() {
     if (composeNew) return; // composing — ignore selection churn
-    if (!col.isEnabled()) { hideAddButton(); draft = null; return; }
-    draft = commentableDraft();
-    if (draft) { showAddButton(); } else { hideAddButton(); }
-    col.relayout();
+    reportSelection(!!commentableDraft());
   }
 
   document.addEventListener("selectionchange", onSelectionChange);
+  reportSelection(false); // sync initial state (a fresh page has no selection)
 
   // -- Compose (shared builder) ---------------------------------------------
 
@@ -238,7 +222,6 @@
 
   function openNewCompose() {
     if (!draft) return;
-    hideAddButton();
     composeSlot = draft.slot;
     var pending = draft;
     composeNew = buildCompose("", function (body) {
@@ -250,6 +233,10 @@
     });
     col.column().appendChild(composeNew);
     col.layout();
+    // We're composing now: disable the Add Comment affordances. Focusing the
+    // textarea clears the document selection, but `onSelectionChange` ignores
+    // selection churn while composing, so report it explicitly.
+    reportSelection(false);
   }
 
   function closeNewCompose() {
@@ -260,6 +247,20 @@
     setComposing(false);
     draft = null;
     col.relayout();
+    // Re-evaluate now that compose is closed (the selection is usually gone).
+    reportSelection(!!commentableDraft());
+  }
+
+  // The "Add Comment" action (toolbar, Edit menu, shortcut, context menu).
+  // Capture the selection, reveal the column (native has already persisted the
+  // toggle), and open compose — so it works even when the column was hidden.
+  function addFromSelection() {
+    if (composeNew) return;
+    draft = commentableDraft();
+    if (!draft) return;
+    document.documentElement.classList.add("is-comments-column");
+    col.setVisible();
+    openNewCompose();
   }
 
   // -- Active capsule: reply / edit / delete --------------------------------
@@ -395,19 +396,14 @@
 
   // -- Wire the read-side seams --------------------------------------------
 
+  col.addFromSelection = addFromSelection;
   col.hooks.decorateActive = decorateActive;
   col.hooks.undecorateActive = undecorateActive;
   col.hooks.extraItems = function () {
     if (composeNew) return [{ el: composeNew, preferred: composeSlot, slots: 4 }];
-    if (addButton && addButton.style.display !== "none" && draft) {
-      return [{ el: addButton, preferred: draft.slot, slots: 1 }];
-    }
     return [];
   };
   col.hooks.ownedNodes = function () {
-    var nodes = [];
-    if (addButton) nodes.push(addButton);
-    if (composeNew) nodes.push(composeNew);
-    return nodes;
+    return composeNew ? [composeNew] : [];
   };
 })();

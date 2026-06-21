@@ -18,7 +18,7 @@ struct CommentResourcesTests {
   @Test func commentsEditJSIsBundled() {
     let js = HTMLTemplate.mudCommentsEditJS
     #expect(js.contains("mudCommentSubmit"))
-    #expect(js.contains("Add Comment"))
+    #expect(js.contains("addFromSelection"))
   }
 
   @Test func commentCSSIsInlined() {

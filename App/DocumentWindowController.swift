@@ -14,7 +14,7 @@ class DocumentWindowController: NSWindowController {
     private var findButton: NSButton?
     private var changesButton: NSButton?
     private var readableColumnButton: NSButton?
-    private var commentsColumnButton: NSButton?
+    private var commentButton: NSButton?
     private var zoomControl: NSSegmentedControl?
 
     private var splitVC: NSSplitViewController?
@@ -122,6 +122,7 @@ class DocumentWindowController: NSWindowController {
             .sink { [weak self] mode in
                 self?.updateModeButton(mode)
                 self?.updateZoomLabel(for: mode)
+                self?.updateCommentButton()
                 if self?.window?.isKeyWindow == true {
                     deferMutation {
                         AppState.shared.modeInActiveTab = mode
@@ -130,10 +131,24 @@ class DocumentWindowController: NSWindowController {
             }
             .store(in: &cancellables)
 
+        // Enable the "Comment" toolbar button only while the rendered view holds
+        // a commentable selection.
+        state.commentableSelection
+            .sink { [weak self] _ in self?.updateCommentButton() }
+            .store(in: &cancellables)
+
+        // Mirror this window's column visibility into AppState for the View-menu
+        // label, but only while it is the key window.
+        state.$commentsColumnVisible
+            .sink { [weak self] visible in
+                guard self?.window?.isKeyWindow == true else { return }
+                AppState.shared.activeCommentsColumnVisible = visible
+            }
+            .store(in: &cancellables)
+
         AppState.shared.$viewToggles
             .sink { [weak self] toggles in
                 self?.updateReadableColumnButton(toggles.contains(.readableColumn))
-                self?.updateCommentsColumnButton(toggles.contains(.commentsColumn))
             }
             .store(in: &cancellables)
 
@@ -211,10 +226,18 @@ class DocumentWindowController: NSWindowController {
         readableColumnButton?.toolTip = on ? "Show document full-width" : "Show document in a readable-width column"
     }
 
-    private func updateCommentsColumnButton(_ on: Bool) {
-        let symbol = on ? "text.bubble.fill" : "text.bubble"
-        commentsColumnButton?.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
-        commentsColumnButton?.toolTip = on ? "Hide Comments" : "Show Comments"
+    /// The "Comment" button adds a comment to the selection, so it is live only
+    /// for a commentable selection in a writable Up-mode document. Mirrors the
+    /// same condition into `AppState` for the key window so the "Add Comment"
+    /// menu item (and its shortcut) gates in step with the button.
+    private func updateCommentButton() {
+        let canAdd = state.mode == .up
+            && state.commentableSelection.value
+            && !fileURL.isBundleResource
+        commentButton?.isEnabled = canAdd
+        if window?.isKeyWindow == true {
+            AppState.shared.canAddComment = canAdd
+        }
     }
 
     private func updateChangesButton(_ enabled: Bool) {
@@ -244,8 +267,16 @@ class DocumentWindowController: NSWindowController {
         AppState.shared.toggle(.readableColumn)
     }
 
+    /// Reveals the Comments column (per-window state, so a later class-sync keeps
+    /// it shown) and opens a compose box on the current selection.
+    @objc func addComment(_ sender: Any?) {
+        state.commentsColumnVisible = true
+        state.addCommentID = UUID()
+    }
+
+    /// Shows or hides the Comments column for this window only.
     @objc func toggleCommentsColumn(_ sender: Any?) {
-        AppState.shared.toggle(.commentsColumn)
+        state.commentsColumnVisible.toggle()
     }
 
     @objc func zoomAction(_ sender: NSSegmentedControl) {
@@ -369,6 +400,8 @@ extension DocumentWindowController: NSWindowDelegate {
     func windowDidBecomeKey(_ notification: Notification) {
         AppState.shared.modeInActiveTab = state.mode
         AppState.shared.activeDocumentEditable = !fileURL.isBundleResource
+        AppState.shared.activeCommentsColumnVisible = state.commentsColumnVisible
+        updateCommentButton()
         state.hasBackgroundReload = false
     }
 
@@ -389,9 +422,10 @@ extension DocumentWindowController: NSToolbarDelegate {
             .toggleSidebar,
             .sidebarTrackingSeparator,
             .flexibleSpace,
+            .addComment,
+            .space,
             .toggleFind,
             .toggleChanges,
-            .toggleCommentsColumn,
             .space,
             .toggleMode
         ]
@@ -405,7 +439,7 @@ extension DocumentWindowController: NSToolbarDelegate {
             .space,
             .zoom,
             .toggleReadableColumn,
-            .toggleCommentsColumn,
+            .addComment,
             .toggleLighting,
             .toggleFind,
             .toggleChanges,
@@ -458,12 +492,13 @@ extension DocumentWindowController: NSToolbarDelegate {
             item.label = "Column"
             return item
 
-        case .toggleCommentsColumn:
-            let button = makeToolbarButton(symbolName: "text.bubble", action: #selector(toggleCommentsColumn(_:)))
-            commentsColumnButton = button
-            updateCommentsColumnButton(AppState.shared.viewToggles.contains(.commentsColumn))
+        case .addComment:
+            let button = makeToolbarButton(symbolName: "plus.bubble", action: #selector(addComment(_:)))
+            button.toolTip = "Add Comment…"
+            commentButton = button
+            updateCommentButton()
             item.view = button
-            item.label = "Comments"
+            item.label = "Comment"
             return item
 
         case .zoom:
@@ -503,7 +538,7 @@ extension NSToolbarItem.Identifier {
     static let zoom = NSToolbarItem.Identifier("zoom")
     static let settings = NSToolbarItem.Identifier("settings")
     static let toggleReadableColumn = NSToolbarItem.Identifier("toggleReadableColumn")
-    static let toggleCommentsColumn = NSToolbarItem.Identifier("toggleCommentsColumn")
+    static let addComment = NSToolbarItem.Identifier("addComment")
     static let toggleLighting = NSToolbarItem.Identifier("toggleLighting")
     static let toggleMode = NSToolbarItem.Identifier("toggleMode")
     static let toggleChanges = NSToolbarItem.Identifier("toggleChanges")

@@ -1,4 +1,5 @@
 import SwiftUI
+import Combine
 import MudPreferences
 import MudCore
 
@@ -70,6 +71,8 @@ struct DocumentContentView: View {
         opts.docCAlertMode = appState.markdownDocCAlertMode
         opts.extensions = appState.enabledExtensions
         opts.htmlClasses = Set(appState.viewToggles.map(\.className))
+        // Column visibility is per-window state, not a persisted view toggle.
+        if state.commentsColumnVisible { opts.htmlClasses.insert("is-comments-column") }
         opts.zoomLevel = modeZoomLevel
         opts.showInlineDeletions = appState.changesShowInlineDeletions
         opts.wordDiffThreshold = appState.changesWordDiffThreshold
@@ -135,6 +138,7 @@ struct DocumentContentView: View {
             changeScrollTarget: state.changeScrollTarget,
             reloadID: state.reloadID,
             printID: state.printID,
+            addCommentID: state.addCommentID,
             extensions: appState.enabledExtensions,
             footnoteHTML: display.footnoteHTML,
             comments: display.comments,
@@ -144,6 +148,9 @@ struct DocumentContentView: View {
             },
             onComposing: { composing in
                 state.isColumnComposing = composing
+            },
+            onCommentableSelection: { has in
+                state.commentableSelection.send(has)
             },
             onSearchResult: { info in
                 findState.matchInfo = info
@@ -200,6 +207,10 @@ struct DocumentContentView: View {
         .onAppear {
             contentFocused = true
             loadFromDisk()
+            // Reveal the column when a document that already has comments opens.
+            // First-open only (not in loadFromDisk), so a later reload won't
+            // re-show a column the user has since hidden.
+            if !state.comments.isEmpty { state.commentsColumnVisible = true }
             setupFileWatcher()
         }
         .onDisappear {

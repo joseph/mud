@@ -121,6 +121,12 @@ struct MudApp: App {
                 }
                 .keyboardShortcut("c", modifiers: [.command, .control])
 
+                Button(appState.activeCommentsColumnVisible ? "Hide Comments" : "Show Comments") {
+                    NSApp.sendAction(#selector(DocumentWindowController.toggleCommentsColumn(_:)), to: nil, from: nil)
+                }
+                .keyboardShortcut("k", modifiers: [.command, .control])
+                .disabled(appState.modeInActiveTab != .up)
+
                 Divider()
 
                 Toggle("Mark Up", isOn: Binding(
@@ -154,12 +160,6 @@ struct MudApp: App {
                     set: { _ in appState.toggle(.readableColumn) }
                 ))
                 .keyboardShortcut("r", modifiers: [.command, .control])
-
-                Toggle("Comments Column", isOn: Binding(
-                    get: { appState.viewToggles.contains(.commentsColumn) },
-                    set: { _ in appState.toggle(.commentsColumn) }
-                ))
-                .keyboardShortcut("k", modifiers: [.command, .control])
 
                 Divider()
 
@@ -205,6 +205,16 @@ struct MudApp: App {
             }
 
             CommandGroup(replacing: .textEditing) {
+                Button {
+                    NSApp.sendAction(#selector(DocumentWindowController.addComment(_:)), to: nil, from: nil)
+                } label: {
+                    Label("Add Comment…", systemImage: "plus.bubble")
+                }
+                .keyboardShortcut("k", modifiers: [.command, .shift])
+                .disabled(!appState.canAddComment)
+
+                Divider()
+
                 Button("Find...") {
                     NSApp.sendAction(#selector(DocumentWindowController.performFindAction(_:)), to: nil, from: nil)
                 }

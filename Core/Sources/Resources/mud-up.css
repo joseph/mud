@@ -466,6 +466,23 @@ html.comments-column .up-mode-output {
   pointer-events: none;
 }
 
+/* Readable Column: keep the document centered while there is room for the 324px
+   gutter to its right, nudging it left then (window < 1124px) shrinking it, and
+   ride the column off the document's right edge instead of the window's. */
+html.comments-column.is-comments-column.is-readable-column body {
+  padding-right: 0;
+}
+
+html.comments-column.is-comments-column.is-readable-column .up-mode-output {
+  margin-left: max(0px, min((100% - 800px) / 2, 100% - 1124px));
+  margin-right: 324px;
+}
+
+html.comments-column.is-comments-column.is-readable-column #mud-comments-column {
+  right: auto;
+  left: min((100% + 800px) / 2, 100% - 324px);
+}
+
 /* The column header: a "Comments" title and a count badge over a faint rule,
    aligned with the document's top content padding. The placement pass reserves
    its band so no capsule sits under it. */

@@ -1,9 +1,12 @@
 import Foundation
 
 /// Pure source rewriting for comments — no IO. Every edit is **byte-surgical**:
-/// untouched bytes (line endings, trailing-newline state, indentation) are
-/// preserved exactly, so diffs stay minimal and a concurrent agent edit outside
-/// the edited span is never clobbered.
+/// untouched bytes (line endings, indentation, the bytes of unrelated blocks)
+/// are preserved exactly, so diffs stay minimal and a concurrent agent edit
+/// outside the edited span is never clobbered. The one deliberate exception is
+/// trailing newlines at the foot of the file: an edit that touches the file's
+/// last comment normalizes the end to exactly one trailing newline, so the file
+/// stays git-clean and an add/delete round-trip restores the original bytes.
 ///
 /// Locating existing definitions/references by label goes through
 /// ``FootnoteProcessor/locateComments(_:)`` (a fresh `cmark-gfm` parse), so a
@@ -54,14 +57,29 @@ public enum CommentEditor {
         let rebuilt = "[^\(label)]:\n" + indentBody(body)
 
         var bytes = Array(source.utf8)
-        bytes.replaceSubrange(
-            loc.defStart..<loc.defContentEnd, with: Array(rebuilt.utf8))
+        // When everything past the definition is just trailing newlines, the
+        // comment is the file's last content: replace through end-of-file and end
+        // with a single newline (git-clean). Otherwise keep the bytes after the
+        // definition (the blank line and the block that follows it) untouched.
+        let tailIsAllNewlines = bytes[loc.defContentEnd...]
+            .allSatisfy { $0 == 0x0A || $0 == 0x0D }
+        var replacement = Array(rebuilt.utf8)
+        let replaceEnd: Int
+        if tailIsAllNewlines {
+            replaceEnd = bytes.count
+            replacement.append(0x0A)
+        } else {
+            replaceEnd = loc.defContentEnd
+        }
+        bytes.replaceSubrange(loc.defStart..<replaceEnd, with: replacement)
         return String(decoding: bytes, as: UTF8.self)
     }
 
     /// Removes a comment entirely — its definition (and trailing blank lines)
     /// plus every `[^label]` marker — leaving the label gap rather than
-    /// renumbering later labels. A missing label leaves `source` as-is.
+    /// renumbering later labels, and normalizing the foot of the file to a single
+    /// trailing newline when the removal reaches it. A missing label leaves
+    /// `source` as-is.
     public static func delete(_ source: String, label: String) -> String {
         guard let loc = FootnoteProcessor.locateComments(source)
             .first(where: { $0.label == label })
@@ -71,8 +89,21 @@ public enum CommentEditor {
         ranges.append((loc.defStart, loc.defDeleteEnd))
 
         var bytes = Array(source.utf8)
+        // Did this comment end the file? Only then does its removal expose
+        // dangling blank lines to trim — a comment deleted from the middle of the
+        // document leaves the file's own trailing newline untouched.
+        let reachedEnd = loc.defDeleteEnd == bytes.count
         for (start, end) in ranges.sorted(by: { $0.0 > $1.0 }) {
             bytes.removeSubrange(start..<end)
+        }
+        // When the deleted comment was the file's last content, collapse the
+        // trailing newlines it left to a single one, so the file ends cleanly at
+        // its last real content (git-clean) rather than with dangling blank lines.
+        if reachedEnd {
+            while let last = bytes.last, last == 0x0A || last == 0x0D {
+                bytes.removeLast()
+            }
+            if !bytes.isEmpty { bytes.append(0x0A) }
         }
         return String(decoding: bytes, as: UTF8.self)
     }
@@ -157,7 +188,8 @@ public enum CommentEditor {
     }
 
     /// Appends a definition to `source` after exactly one blank line, normalizing
-    /// any trailing newlines so the diff is a clean append.
+    /// any trailing newlines so the diff is a clean append. The result ends with a
+    /// single trailing newline (git-clean).
     private static func appendDefinition(_ definition: String, to source: String)
         -> String
     {

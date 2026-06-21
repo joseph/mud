@@ -384,4 +384,27 @@ struct CommentSerializationTests {
           body: "> First.\n\nSecond."),
       ])
   }
+
+  // A thread of consecutive unattributed messages must keep its boundaries: each
+  // message after the first serializes with a bare `💬`, or the two would merge
+  // back into one on re-parse.
+  @Test func roundTrip_unattributedThread() {
+    roundTrip(
+      quotation: "fox",
+      [
+        CommentMessage(author: nil, created: nil, body: "First, unattributed."),
+        CommentMessage(author: nil, created: nil, body: "Reply, also unattributed."),
+      ])
+  }
+
+  // A reply added to an unattributed first message keeps both distinct.
+  @Test func roundTrip_unattributedThenAttributedReply() {
+    roundTrip(
+      quotation: nil,
+      [
+        CommentMessage(author: nil, created: nil, body: "An open observation."),
+        CommentMessage(
+          author: "JP", created: ts("2026-06-01 18:33:00"), body: "A reply."),
+      ])
+  }
 }

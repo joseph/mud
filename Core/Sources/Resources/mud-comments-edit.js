@@ -199,7 +199,20 @@
     function sync() { done.disabled = trimmed().length === 0; }
     function finish() { onDone(trimmed()); }
 
-    ta.addEventListener("input", sync);
+    // Grow the textarea to fit its text (CSS clamps it to min/max). The box
+    // shrink-wraps, so relayout reflows the capsules below: for a new compose
+    // that's the measured offsetHeight; for an inline reply/edit it's the
+    // active capsule re-measured.
+    function autoGrow() {
+      ta.style.height = "auto";
+      ta.style.height = ta.scrollHeight + "px";
+    }
+
+    ta.addEventListener("input", function () {
+      sync();
+      autoGrow();
+      col.relayout();
+    });
     ta.addEventListener("keydown", function (e) {
       if (e.key === "Escape") { e.preventDefault(); onCancel(); return; }
       if (e.key !== "Enter") return;
@@ -220,8 +233,13 @@
     });
     sync();
     setComposing(true);
-    // Focus after insertion settles.
-    requestAnimationFrame(function () { ta.focus(); });
+    // Focus and size after insertion settles (scrollHeight needs the element in
+    // the DOM with styles applied; pre-filled edit text sizes the box to fit).
+    requestAnimationFrame(function () {
+      ta.focus();
+      autoGrow();
+      col.relayout();
+    });
     return box;
   }
 
@@ -411,23 +429,25 @@
     return li ? li.querySelectorAll(".mud-comment-message").length : 0;
   }
 
-  // Delete the last message. A multi-message thread keeps its capsule and just
-  // reprojects with one fewer message; the last remaining message takes the
-  // whole comment with it, in a puff.
+  // Delete the last message in a puff. In a multi-message thread only that
+  // message box puffs and the capsule reprojects with one fewer message; the
+  // last remaining message puffs the whole comment away with it.
   function removeComment(cap, label) {
-    if (messageCount(label) > 1) {
-      submit({ action: "delete", label: label });
-      return;
+    var multi = messageCount(label) > 1;
+    var target = cap;
+    if (multi) {
+      var msgs = cap.querySelectorAll(".mud-capsule-thread .mud-comment-message");
+      target = msgs[msgs.length - 1] || cap;
     }
-    cap.classList.add("is-removing");
+    target.classList.add("is-removing");
     var fired = false;
     function go() {
       if (fired) return;
       fired = true;
       submit({ action: "delete", label: label });
-      col.deactivate();
+      if (!multi) col.deactivate();
     }
-    cap.addEventListener("animationend", go);
+    target.addEventListener("animationend", go);
     setTimeout(go, 350); // fallback if the animation event is missed
   }
 
@@ -438,7 +458,10 @@
   col.hooks.undecorateActive = undecorateActive;
   col.hooks.extraItems = function () {
     if (composeNew) {
-      return [{ el: composeNew, preferred: composePosition, height: COMPOSE_H }];
+      // The box auto-grows with its text; measure it so capsules below reflow.
+      // COMPOSE_H is the fallback before the box has been laid out.
+      var h = composeNew.offsetHeight || COMPOSE_H;
+      return [{ el: composeNew, preferred: composePosition, height: h }];
     }
     return [];
   };

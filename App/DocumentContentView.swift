@@ -45,6 +45,8 @@ struct DocumentContentView: View {
             var opts = renderOptions
             opts.footnoteMode = .popover
             opts.commentMode = .interactive
+            // The live view is editable, so embed the write-side comment styles.
+            opts.commentsEditable = true
             let document = MudCore.renderUpModeDocumentWithFootnotes(
                 parsed.markdown, options: opts,
                 resolveImageSource: Self.mudAssetResolver)

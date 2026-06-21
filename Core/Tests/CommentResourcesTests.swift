@@ -21,12 +21,28 @@ struct CommentResourcesTests {
     #expect(js.contains("addFromSelection"))
   }
 
-  @Test func commentCSSIsInlined() {
-    // mud-up.css is inlined into every Up document via wrapUp.
+  @Test func readCommentCSSIsAlwaysInlined() {
+    // mud-comments.css (read side) is inlined into every Up document via wrapUp,
+    // exports included — so the marker, highlight, and bottom section render.
     let html = MudCore.renderUpModeDocument(
       "x[^comment-a].\n\n[^comment-a]: Note.\n", options: RenderOptions())
     #expect(html.contains(".mud-comment-marker"))
     #expect(html.contains(".mud-comment-highlight.is-active"))
     #expect(html.contains(".comments.is-print-only"))
+  }
+
+  @Test func editCommentCSSIsGatedOnCommentsEditable() {
+    let markdown = "x[^comment-a].\n\n[^comment-a]: Note.\n"
+    // A read-only export omits the write-side styles (compose box, puff, etc.).
+    let readOnly = MudCore.renderUpModeDocument(markdown, options: RenderOptions())
+    #expect(!readOnly.contains("mud-capsule-puff"))
+    #expect(!readOnly.contains(".mud-compose"))
+
+    // The app's editable view embeds them.
+    var editable = RenderOptions()
+    editable.commentsEditable = true
+    let html = MudCore.renderUpModeDocument(markdown, options: editable)
+    #expect(html.contains("mud-capsule-puff"))
+    #expect(html.contains(".mud-compose"))
   }
 }

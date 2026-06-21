@@ -7,7 +7,6 @@ public enum ViewToggle: String, CaseIterable, Sendable {
     case wordWrap
     case codeHeader
     case autoExpandChanges
-    case commentsColumn
 
     public var className: String {
         switch self {
@@ -16,7 +15,6 @@ public enum ViewToggle: String, CaseIterable, Sendable {
         case .wordWrap: return "has-word-wrap"
         case .codeHeader: return "is-code-header"
         case .autoExpandChanges: return "is-auto-expand-changes"
-        case .commentsColumn: return "is-comments-column"
         }
     }
 
@@ -28,7 +26,6 @@ public enum ViewToggle: String, CaseIterable, Sendable {
         case .wordWrap:          return .downModeWrapLines
         case .codeHeader:        return .upModeShowCodeHeader
         case .autoExpandChanges: return .changesAutoExpandGroups
-        case .commentsColumn:    return .uiShowCommentsColumn
         }
     }
 
@@ -40,7 +37,6 @@ public enum ViewToggle: String, CaseIterable, Sendable {
         case .wordWrap:          return true
         case .codeHeader:        return true
         case .autoExpandChanges: return false
-        case .commentsColumn:    return false
         }
     }
 

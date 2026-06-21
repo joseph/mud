@@ -24,8 +24,41 @@ class MudWebView: WKWebView {
                          action: #selector(postReloadDocument),
                          keyEquivalent: "")
             for item in menu.items where item.action != nil { item.target = self }
+        } else if canAddComment(in: menu) {
+            // Selection menu (Copy etc.): offer "Add Comment…" at the top.
+            let item = NSMenuItem(title: "Add Comment\u{2026}",
+                                  action: #selector(postAddComment),
+                                  keyEquivalent: "")
+            item.target = self
+            item.image = NSImage(systemSymbolName: "plus.bubble",
+                                 accessibilityDescription: nil)
+            menu.insertItem(item, at: 0)
+            menu.insertItem(.separator(), at: 1)
         }
         super.willOpenMenu(menu, with: event)
+    }
+
+    /// The opened document's URL, via the AppKit window controller.
+    private var documentURL: URL? {
+        (window?.windowController as? DocumentWindowController)?.fileURL
+    }
+
+    /// "Add Comment…" applies only to a text selection in the rendered (Up-mode)
+    /// view of a writable document. A WKWebView selection menu carries a Copy
+    /// item (`WKMenuItemIdentifierCopy`); its presence is our selection signal.
+    private func canAddComment(in menu: NSMenu) -> Bool {
+        guard AppState.shared.modeInActiveTab == .up,
+              let url = documentURL, !url.isBundleResource else { return false }
+        return menu.items.contains {
+            $0.identifier?.rawValue == "WKMenuItemIdentifierCopy"
+        }
+    }
+
+    /// Reveals the Comments column and opens a compose for the selection, via the
+    /// window controller so the per-window visibility state is set (otherwise the
+    /// next class-sync would tear the column down).
+    @objc private func postAddComment() {
+        sendActionToController(#selector(DocumentWindowController.addComment(_:)))
     }
 
     private func buildOpenInSubmenu() -> NSMenu {
@@ -110,6 +143,7 @@ struct WebView: NSViewRepresentable {
     var changeScrollTarget: ChangeScrollTarget?
     var reloadID: UUID?
     var printID: UUID?
+    var addCommentID: UUID?
     var extensions: Set<String> = []
     var footnoteHTML: [String: String] = [:]
     var comments: [Comment] = []
@@ -120,6 +154,9 @@ struct WebView: NSViewRepresentable {
     var onCommentSubmit: ((CommentSubmission) -> Void)?
     /// Whether the in-column compose box currently owns the keyboard.
     var onComposing: ((Bool) -> Void)?
+    /// Whether the rendered view holds a commentable selection (enables the
+    /// toolbar "Comment" button).
+    var onCommentableSelection: ((Bool) -> Void)?
     var onSearchResult: ((MatchInfo?) -> Void)?
 
     func makeNSView(context: Context) -> WKWebView {
@@ -150,6 +187,7 @@ struct WebView: NSViewRepresentable {
         config.userContentController.add(context.coordinator, name: "mudFootnote")
         config.userContentController.add(context.coordinator, name: "mudCommentSubmit")
         config.userContentController.add(context.coordinator, name: "mudComposing")
+        config.userContentController.add(context.coordinator, name: "mudSelection")
 
         let webView = MudWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
@@ -169,6 +207,7 @@ struct WebView: NSViewRepresentable {
         context.coordinator.commentLocators = commentLocators
         context.coordinator.onCommentSubmit = onCommentSubmit
         context.coordinator.onComposing = onComposing
+        context.coordinator.onCommentableSelection = onCommentableSelection
         context.coordinator.commentTheme = theme.rawValue
 
         // Handle search
@@ -246,6 +285,17 @@ struct WebView: NSViewRepresentable {
             }
         }
 
+        // Handle the toolbar "Comment" action: open a compose box on the current
+        // selection. The JS reveals the column itself (native has persisted the
+        // toggle), so this works even when the column was hidden.
+        if let addCommentID = addCommentID,
+           context.coordinator.lastAddCommentID != addCommentID {
+            context.coordinator.lastAddCommentID = addCommentID
+            webView.evaluateJavaScript(
+                "window.Mud && Mud.comments && Mud.comments.addFromSelection"
+                + " && Mud.comments.addFromSelection()")
+        }
+
         // Reload content if contentID, mode, or reloadID changed
         let modeChanged = context.coordinator.lastMode != mode
         let contentChanged = context.coordinator.lastContentID != contentID
@@ -300,6 +350,7 @@ struct WebView: NSViewRepresentable {
         var lastChangeScrollTargetID: UUID?
         var lastPrintID: UUID?
         var lastReloadID: UUID?
+        var lastAddCommentID: UUID?
         var activeExtensions: [RenderExtension] = []
         var onSearchResult: ((MatchInfo?) -> Void)?
         var footnoteHTML: [String: String] = [:]
@@ -310,6 +361,7 @@ struct WebView: NSViewRepresentable {
         var lastCommentSignature: [String] = []
         var onCommentSubmit: ((CommentSubmission) -> Void)?
         var onComposing: ((Bool) -> Void)?
+        var onCommentableSelection: ((Bool) -> Void)?
         var commentTheme: String = "earthy"
         weak var webView: WKWebView?
         private var savedFraction: CGFloat?
@@ -348,11 +400,12 @@ struct WebView: NSViewRepresentable {
         }
 
         func applyBodyClasses(to webView: WKWebView, classes: Set<String>) {
-            for toggle in ViewToggle.allCases {
-                let on = classes.contains(toggle.className)
-                webView.evaluateJavaScript(
-                    "Mud.setClass('\(toggle.className)', \(on))"
-                )
+            // The persisted view-toggle classes, plus `is-comments-column` —
+            // per-window state, not a `ViewToggle`, but applied the same way.
+            let names = ViewToggle.allCases.map(\.className) + ["is-comments-column"]
+            for name in names {
+                let on = classes.contains(name)
+                webView.evaluateJavaScript("Mud.setClass('\(name)', \(on))")
             }
         }
 
@@ -446,6 +499,8 @@ struct WebView: NSViewRepresentable {
                 handleCommentSubmit(message.body)
             case "mudComposing":
                 onComposing?((message.body as? Bool) ?? false)
+            case "mudSelection":
+                onCommentableSelection?((message.body as? Bool) ?? false)
             default:
                 break
             }

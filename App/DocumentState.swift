@@ -33,8 +33,23 @@ class DocumentState: ObservableObject {
     @Published var openInBrowserID: UUID?
     @Published var openInEditorRequest: EditorLaunchRequest?
     @Published var reloadID: UUID?
+    /// One-shot trigger for the toolbar "Comment" button: opens a compose box on
+    /// the current selection (`Mud.comments.addFromSelection`).
+    @Published var addCommentID: UUID?
+    /// Whether the rendered (Up-mode) view currently holds a commentable
+    /// selection. Pushed from the page over the `mudSelection` bridge and read by
+    /// the window controller to enable the toolbar "Comment" button. A plain
+    /// subject, not `@Published`, so selection churn doesn't re-render the
+    /// document view (which would re-run the markdown render).
+    let commentableSelection = CurrentValueSubject<Bool, Never>(false)
     /// Parsed comments, refreshed on load; drive the Comments column.
     @Published var comments: [Comment] = []
+    /// Whether the Comments column is shown in this window. Per-window and not
+    /// persisted (unlike the app's view toggles): revealed when a document with
+    /// comments first opens or when you add a comment, toggled via the View menu,
+    /// and gone again on the next document that has none. Feeds the
+    /// `is-comments-column` body class for this window's webview.
+    @Published var commentsColumnVisible: Bool = false
     /// DOM-derived locators for just-added comments, keyed by label, so the live
     /// `[⋯]` marker lands byte-exactly without a reload. Pruned to live labels on
     /// each load; a stale entry is harmless (the JS skips insert when the marker

@@ -233,4 +233,33 @@ struct FootnoteProcessorTests {
     #expect(document.footnotes[0].number == 1)
     #expect(document.footnotes[0].html.contains("The body."))
   }
+
+  /// A footnote popover is its own mini-document in a separate WebView; it must
+  /// not inherit the host document's comments-column state, or the popover body
+  /// is squished into a narrow band beside an empty 324px gutter.
+  @Test func popoverDocumentOmitsCommentsColumn() {
+    let md = "A sentence.[^1]\n\n[^1]: The body.\n"
+    var options = RenderOptions()
+    options.footnoteMode = .popover
+    options.commentMode = .interactive
+    options.commentsEditable = true
+    options.htmlClasses.insert("is-comments-column")
+    let document = MudCore.renderUpModeDocumentWithFootnotes(md, options: options)
+
+    #expect(document.footnotes.count == 1)
+    // The host document still shows the column...
+    #expect(htmlOpeningTag(document.html).contains("comments-column"))
+    // ...but the popover document does not (the check catches both
+    // `comments-column` and `is-comments-column` on the root element).
+    #expect(!htmlOpeningTag(document.footnotes[0].html).contains("comments-column"))
+  }
+
+  /// The opening `<html …>` tag, where the column classes land. The inlined CSS
+  /// also mentions `comments-column`, so inspect only the root element's tag.
+  private func htmlOpeningTag(_ html: String) -> Substring {
+    guard let start = html.range(of: "<html"),
+          let end = html[start.lowerBound...].firstIndex(of: ">")
+    else { return "" }
+    return html[start.lowerBound...end]
+  }
 }

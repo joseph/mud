@@ -15,6 +15,7 @@ class DocumentWindowController: NSWindowController {
     private var changesButton: NSButton?
     private var readableColumnButton: NSButton?
     private var commentButton: NSButton?
+    private var commentsColumnButton: NSButton?
     private var zoomControl: NSSegmentedControl?
 
     private var splitVC: NSSplitViewController?
@@ -137,10 +138,12 @@ class DocumentWindowController: NSWindowController {
             .sink { [weak self] _ in self?.updateCommentButton() }
             .store(in: &cancellables)
 
-        // Mirror this window's column visibility into AppState for the View-menu
+        // Keep this window's Comments-column toolbar button in step with its own
+        // visibility, and mirror that visibility into AppState for the View-menu
         // label, but only while it is the key window.
         state.$commentsColumnVisible
             .sink { [weak self] visible in
+                self?.updateCommentsColumnButton(visible)
                 guard self?.window?.isKeyWindow == true else { return }
                 AppState.shared.activeCommentsColumnVisible = visible
             }
@@ -249,6 +252,12 @@ class DocumentWindowController: NSWindowController {
     private func updateFindButton(_ visible: Bool) {
         let symbol = visible ? "magnifyingglass.circle.fill" : "magnifyingglass.circle"
         findButton?.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+    }
+
+    private func updateCommentsColumnButton(_ visible: Bool) {
+        let symbol = visible ? "text.bubble.fill" : "text.bubble"
+        commentsColumnButton?.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
+        commentsColumnButton?.toolTip = visible ? "Hide Comments" : "Show Comments"
     }
 
     private func updateToggleButton(_ button: NSButton?, on: Bool) {
@@ -440,6 +449,7 @@ extension DocumentWindowController: NSToolbarDelegate {
             .zoom,
             .toggleReadableColumn,
             .addComment,
+            .toggleCommentsColumn,
             .toggleLighting,
             .toggleFind,
             .toggleChanges,
@@ -501,6 +511,14 @@ extension DocumentWindowController: NSToolbarDelegate {
             item.label = "Comment"
             return item
 
+        case .toggleCommentsColumn:
+            let button = makeToolbarButton(symbolName: "text.bubble", action: #selector(toggleCommentsColumn(_:)))
+            commentsColumnButton = button
+            updateCommentsColumnButton(state.commentsColumnVisible)
+            item.view = button
+            item.label = "Comments"
+            return item
+
         case .zoom:
             let control = NSSegmentedControl()
             control.segmentCount = 3
@@ -539,6 +557,7 @@ extension NSToolbarItem.Identifier {
     static let settings = NSToolbarItem.Identifier("settings")
     static let toggleReadableColumn = NSToolbarItem.Identifier("toggleReadableColumn")
     static let addComment = NSToolbarItem.Identifier("addComment")
+    static let toggleCommentsColumn = NSToolbarItem.Identifier("toggleCommentsColumn")
     static let toggleLighting = NSToolbarItem.Identifier("toggleLighting")
     static let toggleMode = NSToolbarItem.Identifier("toggleMode")
     static let toggleChanges = NSToolbarItem.Identifier("toggleChanges")

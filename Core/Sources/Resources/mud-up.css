@@ -466,6 +466,41 @@ html.comments-column .up-mode-output {
   pointer-events: none;
 }
 
+/* The column header: a "Comments" title and a count badge over a faint rule,
+   aligned with the document's top content padding. The placement pass reserves
+   its band so no capsule sits under it. */
+#mud-comments-header {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  width: 300px;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5em;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border-color);
+  pointer-events: auto;
+}
+
+.mud-comments-title {
+  font-weight: 700;
+  color: var(--heading-color);
+}
+
+.mud-comments-count {
+  flex: 0 0 auto;
+  min-width: 1.4em;
+  padding: 1px 8px;
+  font-size: 0.8em;
+  font-weight: 600;
+  text-align: center;
+  color: var(--heading-color);
+  background: var(--code-bg);
+  border-radius: 2em;
+}
+
 /* The placement pass in mud-comments.js sets each item's `top` inline (in
    layout pixels); the transition animates moves and resizes. */
 .mud-capsule,

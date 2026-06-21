@@ -310,6 +310,28 @@
     return col;
   }
 
+  // The "Comments" header pinned at the top of the column, with a running count
+  // badge. Created once per column; `count` is refreshed on every project.
+  function ensureHeader(col, count) {
+    var header = col.querySelector("#mud-comments-header");
+    if (!header) {
+      header = document.createElement("div");
+      header.id = "mud-comments-header";
+      var title = document.createElement("span");
+      title.className = "mud-comments-title";
+      title.textContent = "Comments";
+      var badge = document.createElement("span");
+      badge.className = "mud-comments-count";
+      header.appendChild(title);
+      header.appendChild(badge);
+      col.appendChild(header);
+    }
+    var badgeEl = header.querySelector(".mud-comments-count");
+    badgeEl.textContent = String(count);
+    badgeEl.style.display = count > 0 ? "" : "none";
+    return header;
+  }
+
   function teardown() {
     var col = document.getElementById("mud-comments-column");
     if (col && col.parentNode) col.parentNode.removeChild(col);
@@ -325,12 +347,14 @@
     var col = ensureColumn();
     var wasActive = activeLabel;
 
-    // Keep any write-side items (Add button, compose) the hooks manage.
+    // Keep the header and any write-side items (Add button, compose) the hooks
+    // manage; remove the projected capsules so they rebuild from the section.
+    var header = col.querySelector("#mud-comments-header");
     var keep = api.hooks.ownedNodes ? api.hooks.ownedNodes() : [];
     var child = col.firstChild;
     while (child) {
       var next = child.nextSibling;
-      if (keep.indexOf(child) === -1) col.removeChild(child);
+      if (child !== header && keep.indexOf(child) === -1) col.removeChild(child);
       child = next;
     }
 
@@ -351,6 +375,7 @@
       }
     }
 
+    ensureHeader(col, Object.keys(capsules).length);
     anchorAll();
     if (api.hooks.afterProject) api.hooks.afterProject();
     // Keep a comment expanded across a reproject (e.g. after a reply or edit).
@@ -390,11 +415,11 @@
   // position, breaking ties by build order. Idempotent — re-running from the
   // current heights always recomputes absolute tops, so a row pushed down by a
   // now-shorter neighbor slides back up on the next pass.
-  function solve(items) {
+  function solve(items, startTop) {
     items.sort(function (a, b) {
       return a.preferred - b.preferred || a.order - b.order;
     });
-    var nextFree = 0;
+    var nextFree = startTop || 0;
     for (var i = 0; i < items.length; i++) {
       var it = items[i];
       it.top = Math.max(it.preferred, nextFree);
@@ -430,7 +455,11 @@
       }
     }
 
-    solve(items);
+    // Reserve the header's band at the top so no row sits under it.
+    var header = document.getElementById("mud-comments-header");
+    var startTop = header ? layoutTop(header) + header.offsetHeight + GAP : 0;
+
+    solve(items, startTop);
     for (var k = 0; k < items.length; k++) {
       items[k].el.style.top = items[k].top + "px";
     }

@@ -22,6 +22,15 @@ struct CommentsSettingsView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
+
+            Section {
+                Toggle("Return key saves comment", isOn: $appState.commentReturnSaves)
+                Text(appState.commentReturnSaves
+                     ? "Press Return to save your comment. Shift-Return makes a line break."
+                     : "Press Return to make a line break. Command-Return saves your comment.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
         .padding(.top, -18) // XXX-03-2026-JP -- hack to align top-of-pane with top-of-sidebar

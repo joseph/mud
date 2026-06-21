@@ -132,6 +132,7 @@ extension MudPreferences {
 
         // comment.* — comment authoring
         case commentAuthor                 = "comment-author"
+        case commentReturnSaves            = "comment-return-saves"
     }
 }
 
@@ -287,6 +288,15 @@ extension MudPreferences {
             return NSFullUserName()
         }
         nonmutating set { write(newValue, forKey: .commentAuthor) }
+    }
+
+    /// When on, pressing Return in a comment compose box saves the message (as
+    /// if Done were clicked) and Shift-Return inserts a line break. When off,
+    /// Return inserts a line break and ⌘Return saves. Read live by
+    /// `mud-comments-edit.js` via the `comment-return-saves` html class.
+    public var commentReturnSaves: Bool {
+        get { read(.commentReturnSaves, default: false) }
+        nonmutating set { write(newValue, forKey: .commentReturnSaves) }
     }
 }
 

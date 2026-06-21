@@ -200,11 +200,17 @@
 
     ta.addEventListener("input", sync);
     ta.addEventListener("keydown", function (e) {
-      if (e.key === "Escape") { e.preventDefault(); onCancel(); }
-      else if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
-        e.preventDefault();
-        if (!done.disabled) finish();
-      }
+      if (e.key === "Escape") { e.preventDefault(); onCancel(); return; }
+      if (e.key !== "Enter") return;
+      // ⌘/⌃-Return always saves. With the "comment-return-saves" preference on,
+      // a plain Return saves too and Shift-Return drops to a newline; with it
+      // off, a plain Return is an ordinary newline.
+      var returnSaves =
+        document.documentElement.classList.contains("comment-return-saves");
+      var save = e.metaKey || e.ctrlKey || (returnSaves && !e.shiftKey);
+      if (!save) return;
+      e.preventDefault();
+      if (!done.disabled) finish();
     });
     cancel.addEventListener("click", function (e) { e.stopPropagation(); onCancel(); });
     done.addEventListener("click", function (e) {

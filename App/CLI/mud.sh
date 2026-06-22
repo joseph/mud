@@ -32,7 +32,7 @@ for arg in "$@"; do
   case "$arg" in
     -u|--html-up|-d|--html-down|-b|--browser|-f|--fragment|\
     --line-numbers|--word-wrap|--readable-column|--theme|\
-    -h|--help|-v|--version)
+    -h|--help|-v|--version|--primer)
       exec "$MUD_CLI" "$@"
       ;;
   esac

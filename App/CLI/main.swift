@@ -26,6 +26,9 @@ while i < CommandLine.arguments.count {
     case "--version", "-v":
         printToStdout("mud \(appVersion())")
         exit(0)
+    case "--primer":
+        printPrimer()
+        exit(0)
     case "--html-up", "-u":
         mode = .up
     case "--html-down", "-d":
@@ -224,6 +227,26 @@ func appVersion() -> String {
     return MudCore.version
 }
 
+// MARK: - Primer
+
+// Print the bundled agent primer (Doc/Guides/primer.md) verbatim as Markdown.
+// The mud CLI lives at Contents/Helpers/mud, so the bundled Doc folder is at
+// Contents/Resources/Doc — two directories up, then into Resources.
+func printPrimer() {
+    let execURL = URL(fileURLWithPath: CommandLine.arguments[0])
+        .resolvingSymlinksInPath()
+    let primerURL = execURL
+        .deletingLastPathComponent()  // Contents/Helpers/
+        .deletingLastPathComponent()  // Contents/
+        .appendingPathComponent("Resources/Doc/Guides/primer.md")
+    if let text = try? String(contentsOf: primerURL, encoding: .utf8) {
+        printToStdout(text)
+    } else {
+        printError("primer not found at \(primerURL.path)")
+        exit(2)
+    }
+}
+
 // MARK: - Output helpers
 
 func printToStdout(_ string: String) {
@@ -267,6 +290,7 @@ func printUsage() {
       --word-wrap        Enable word wrapping (with -d)
       --readable-column  Limit content width (with -d or -u)
       --theme NAME       Theme: austere, blues, earthy (default), riot
+      --primer           Print the Markdown authoring primer for coding agents
       -v, --version      Print version and exit
       -h, --help         Print this help and exit
 

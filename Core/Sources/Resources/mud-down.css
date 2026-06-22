@@ -125,13 +125,7 @@ html:not(.has-word-wrap) .down-lines {
 }
 
 
-/* Print: don't clip code blocks */
-
-@media print {
-  .dc-scroll {
-    overflow-x: visible;
-  }
-}
+/* Print: don't clip code blocks — see mud-print.css. */
 
 
 /* -- AST-based syntax highlighting ---------------------------------------- */

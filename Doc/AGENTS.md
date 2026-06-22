@@ -238,6 +238,9 @@ MVP plan.
   compose box and the add / reply / edit / delete controls, plus the delete
   puff. Embedded only when `RenderOptions.commentsEditable` is set, so exports
   omit it. Mirrors the `mud-comments.js` / `mud-comments-edit.js` split.
+- `mud-print.css` — Print styles: every `@media print` rule, gathered out of
+  the mode and comments stylesheets. Included last in both Up and Down
+  documents so its rules win over the on-screen defaults.
 - `mud.js` — Shared JS: find, scroll, lighting, zoom
 - `mud-changes.js` — Change tracking JS: overlays, expand/collapse, navigation
 - `mud-comments.js` — Comments column (read side, bundled everywhere): projects

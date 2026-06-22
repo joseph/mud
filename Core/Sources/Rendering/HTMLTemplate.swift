@@ -10,6 +10,8 @@ public enum HTMLTemplate {
         // view; a read-only export omits them (see commentsEditCSS).
         if options.commentsEditable { doc.styles.append(commentsEditCSS) }
         if options.waypoint != nil { doc.styles.append(changesCSS) }
+        // Print overrides come last so they win over the on-screen defaults.
+        doc.styles.append(printCSS)
         doc.cspImgSrc = options.blockRemoteContent
             ? ["mud-asset:", "data:"]
             : ["mud-asset:", "data:", "https:"]
@@ -48,6 +50,8 @@ public enum HTMLTemplate {
         var doc = HTMLDocument(options: options)
         doc.styles = [themeCSS(for: options.theme), sharedCSS, downCSS]
         if options.waypoint != nil { doc.styles.append(changesCSS) }
+        // Print overrides come last so they win over the on-screen defaults.
+        doc.styles.append(printCSS)
         doc.bodyContent = """
             <div class="down-mode-output">
                 \(bodyHTML)
@@ -89,6 +93,13 @@ public enum HTMLTemplate {
 
     public static var changesCSS: String {
         loadResource("mud-changes", type: "css") ?? ""
+    }
+
+    /// Print overrides (`mud-print.css`): every `@media print` rule, gathered
+    /// out of the mode and comments stylesheets. Included last in both modes so
+    /// these rules win over the on-screen defaults.
+    private static var printCSS: String {
+        loadResource("mud-print", type: "css") ?? ""
     }
 
     /// Returns the CSS custom-property block for the given theme name.

@@ -85,8 +85,9 @@
   margin: 0.4em 0;
 }
 
+/* On screen the column stands in for the bottom section; print shows the
+   section instead (see mud-print.css). */
 .comments.is-print-only { display: none; }
-@media print { .comments.is-print-only { display: block; } }
 
 
 /* -- Comments column ------------------------------------------------------ */
@@ -117,43 +118,51 @@
   }
 }
 
-/* With the column toggled on, reserve a 324px right gutter (12 + 300 + 12). The
-   body is the scroll and positioning container; capsules are absolutely placed
-   within it, so the column scrolls with the document. */
-html.comments-column.is-comments-column body {
-  position: relative;
-  padding-right: 324px;
-}
+/* The comments column and its 324px gutter are an on-screen layout only. Print
+   hides the column (below) and shows the bottom Comments section instead, so the
+   document must fill the page with no reserved gutter — hence the whole block is
+   scoped to `@media screen`. (Reserving the gutter in print left a blank 324px
+   strip down the right of every page.) */
+@media screen {
+  /* With the column toggled on, reserve a 324px right gutter (12 + 300 + 12).
+     The body is the scroll and positioning container; capsules are absolutely
+     placed within it, so the column scrolls with the document. */
+  html.comments-column.is-comments-column body {
+    position: relative;
+    padding-right: 324px;
+  }
 
-html.comments-column.is-comments-column .up-mode-output {
-  border-right: 1px solid var(--border-color);
-}
+  html.comments-column.is-comments-column .up-mode-output {
+    border-right: 1px solid var(--border-color);
+  }
 
-#mud-comments-column {
-  position: absolute;
-  top: 0;
-  right: 0;
-  width: 324px;
-  /* Empty gutter passes clicks through to the document; capsules re-enable. */
-  pointer-events: none;
-  font-size: 0.8rem;
-}
+  #mud-comments-column {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 324px;
+    /* Empty gutter passes clicks through to the document; capsules re-enable. */
+    pointer-events: none;
+    font-size: 0.8rem;
+  }
 
-/* Readable Column: keep the document centered while there is room for the 324px
-   gutter to its right, nudging it left then (window < 1124px) shrinking it, and
-   ride the column off the document's right edge instead of the window's. */
-html.comments-column.is-comments-column.is-readable-column body {
-  padding-right: 0;
-}
+  /* Readable Column: keep the document centered while there is room for the
+     324px gutter to its right, nudging it left then (window < 1124px) shrinking
+     it, and ride the column off the document's right edge instead of the
+     window's. */
+  html.comments-column.is-comments-column.is-readable-column body {
+    padding-right: 0;
+  }
 
-html.comments-column.is-comments-column.is-readable-column .up-mode-output {
-  margin-left: max(0px, min((100% - 800px) / 2, 100% - 1124px));
-  margin-right: 324px;
-}
+  html.comments-column.is-comments-column.is-readable-column .up-mode-output {
+    margin-left: max(0px, min((100% - 800px) / 2, 100% - 1124px));
+    margin-right: 324px;
+  }
 
-html.comments-column.is-comments-column.is-readable-column #mud-comments-column {
-  right: auto;
-  left: min((100% + 800px) / 2, 100% - 324px);
+  html.comments-column.is-comments-column.is-readable-column #mud-comments-column {
+    right: auto;
+    left: min((100% + 800px) / 2, 100% - 324px);
+  }
 }
 
 /* The column header: a "Comments" title, previous / next navigation arrows,
@@ -348,5 +357,3 @@ html.comments-column.is-comments-column.is-readable-column #mud-comments-column 
 
 /* Items just inserted fade/scale in rather than snapping. */
 .mud-capsule.is-entering { opacity: 0; transform: scale(0.96); }
-
-@media print { #mud-comments-column { display: none; } }

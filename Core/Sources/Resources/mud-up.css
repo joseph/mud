@@ -312,9 +312,8 @@ blockquote > :last-child {
 }
 
 /* In `.popover` mode the section is hidden on screen (footnotes show in a
-   native popover) but reappears for Print / Save-PDF. */
+   native popover) but reappears for Print / Save-PDF (see mud-print.css). */
 .footnotes.is-print-only { display: none; }
-@media print { .footnotes.is-print-only { display: block; } }
 
 
 /* -- Horizontal rules ----------------------------------------------------- */

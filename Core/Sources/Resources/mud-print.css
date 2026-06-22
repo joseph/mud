@@ -1,0 +1,73 @@
+/* All `@media print` overrides live here and this stylesheet is included last,
+   so these rules win over the on-screen defaults set in mud-up.css,
+   mud-down.css, and mud-comments.css. */
+
+/* The physical page margin. The browser's default is roughly an inch; shrink
+   it so the document fills more of the sheet. Top-level rather than nested in
+   `@media print` — `@page` only applies to paged output anyway, and some
+   WebKit versions ignore it inside `@media`. */
+@page {
+  margin: 1.8cm;
+}
+
+@media print {
+  :root {
+    font-size: 10pt;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+  }
+
+  /* On screen the content padding reserves room for the floating bars and sits
+     inside the window; on paper there are no bars and the printer adds its own
+     page margin, so trim the padding to a thin frame. */
+  .up-mode-output {
+    padding: 0;
+  }
+
+  /* Every printed text consumer of the faint --blockquote-color: blockquotes,
+     footnote bodies, comment quotations, the code-block language label, and
+     frontmatter. Pull each most of the way to the body text color so it clears
+     a minimum contrast, while keeping a little of the theme's tint. Mixing
+     toward --text-color (rather than clamping lightness) stays correct under
+     dark lighting, where both vars are the light-on-dark palette. (The
+     comments column, copy button, and compose box use the var too, but none of
+     them print.) */
+  blockquote,
+  .footnotes,
+  .mud-comment-quote,
+  .code-language,
+  .mud-frontmatter {
+    color: color-mix(in srgb, var(--blockquote-color), var(--text-color) 60%);
+  }
+
+  /* The same treatment for the faint --syntax-comment color: code comments
+     (Up mode) and the comment-toned markdown tokens of the raw source (Down
+     mode). These are every consumer of the variable. */
+  .hljs-comment,
+  .hljs-quote,
+  .md-code-fence,
+  .md-blockquote,
+  .md-hr {
+    color: color-mix(in srgb, var(--syntax-comment), var(--text-color) 60%);
+  }
+
+  /* Up mode: footnotes. In `.popover` mode the section is hidden on screen
+     (footnotes show in a native popover) but reappears for Print / Save-PDF. */
+  .footnotes.is-print-only { display: block; }
+
+
+  /* Up mode: comments. The bottom Comments section is hidden on screen in
+     favor of the column, but prints in place of the column. */
+  .comments.is-print-only { display: block; }
+
+  /* The comments column is an on-screen layout only; print shows the bottom
+     Comments section instead (above). */
+  #mud-comments-column { display: none; }
+
+
+  /* Down mode: don't clip code blocks. */
+  .dc-scroll { overflow-x: visible; }
+}

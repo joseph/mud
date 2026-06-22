@@ -133,6 +133,7 @@ extension MudPreferences {
         // comment.* — comment authoring
         case commentAuthor                 = "comment-author"
         case commentReturnSaves            = "comment-return-saves"
+        case commentsIncludeInExport       = "comments-include-in-export"
     }
 }
 
@@ -297,6 +298,17 @@ extension MudPreferences {
     public var commentReturnSaves: Bool {
         get { read(.commentReturnSaves, default: false) }
         nonmutating set { write(newValue, forKey: .commentReturnSaves) }
+    }
+
+    /// When on (the default), Open In Browser (and the "Open In…" HTML handoff)
+    /// includes the read-only Comments column in the document it exports. When
+    /// off, every comment is dropped from the export — no column, no bottom
+    /// section, no inline markers — by removing the comments from the source it
+    /// renders; comments stay in the document and on screen. The `mud -u` CLI
+    /// ignores this — it has its own `--exclude-comments` flag.
+    public var commentsIncludeInExport: Bool {
+        get { read(.commentsIncludeInExport, default: true) }
+        nonmutating set { write(newValue, forKey: .commentsIncludeInExport) }
     }
 }
 

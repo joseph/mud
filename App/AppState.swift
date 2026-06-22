@@ -74,6 +74,9 @@ class AppState: ObservableObject {
     @Published var commentReturnSaves: Bool {
         didSet { MudPreferences.shared.commentReturnSaves = commentReturnSaves }
     }
+    @Published var commentsIncludeInExport: Bool {
+        didSet { MudPreferences.shared.commentsIncludeInExport = commentsIncludeInExport }
+    }
 
     private init() {
         // Fan the current `defaults` values out to the app-group mirror so the
@@ -103,6 +106,7 @@ class AppState: ObservableObject {
         )
         self.commentAuthor = config.commentAuthor
         self.commentReturnSaves = config.commentReturnSaves
+        self.commentsIncludeInExport = config.commentsIncludeInExport
 
         // Pick up `defaults write org.josephpearson.Mud …` made while the app
         // is running. The callback's `didSet` writes idempotently update the
@@ -140,6 +144,7 @@ class AppState: ObservableObject {
         case .uiFloatingControlsPosition: self.uiFloatingControlsPosition = c.uiFloatingControlsPosition
         case .commentAuthor:              self.commentAuthor = c.commentAuthor
         case .commentReturnSaves:         self.commentReturnSaves = c.commentReturnSaves
+        case .commentsIncludeInExport:    self.commentsIncludeInExport = c.commentsIncludeInExport
         case .openInDefaultBundleID, .openInDefaultFormat:
             OpenInMenuModel.shared.refresh()
         // Every ViewToggle-backed key reloads the whole set — cheaper than

@@ -1,7 +1,7 @@
 Plan: Comments Column
 ===============================================================================
 
-> Status: Underway
+> Status: Complete
 
 
 ## Width and position
@@ -33,7 +33,102 @@ documents. The column is an Up-mode feature: in Down mode the toggle is inert
 and the column does not appear.
 
 
-## Rows
+## Adding a comment
+
+To comment on something, select the text and trigger **Add Comment** — from the
+toolbar button, the Edit menu, the Cmd+Shift+K shortcut, or the right-click
+menu. All four are enabled only when the selection is commentable; a selection
+that can't anchor a comment, such as part of a code block, leaves them
+disabled.
+
+This action reveals the column if it was hidden. The selection becomes a
+highlight span in the theme's highlight color, and the compose form opens in
+the column next to the quoted text. The compose form has two rows: the
+textarea, and a controls row with "Cancel" and "Done" buttons:
+
+![Adding comment](./2026-06-comments-column-assets/03-adding-comment.png)
+
+The "Done" button is accent-colored[^comment-a]. The textarea and cancel button
+are outlined in the theme's foreground-color.
+
+Once you click "Done", the comment is saved to the document, and the comment
+collapses to its inactive 45px height, with the text preceded by "💬 **Author**:
+" and truncated with an ellipsis at the end of the line:
+
+![Inactive comment](./2026-06-comments-column-assets/04-inactive-comment.png)
+
+
+## Navigating comments
+
+When you hover over a comment in the column, the highlight for the quoted
+section will appear in the document:
+
+![Hover over comment](./2026-06-comments-column-assets/05-hover-over-comment.png)
+
+When you click on the comment, the highlight remains (because the comment is
+now "active") and the comment expands to whatever height it needs to display
+its entire contents plus a "Reply" button:
+
+![Active comment](./2026-06-comments-column-assets/06-selected-comment.png)
+
+An active comment shows each message's author and time. The time is relative
+for the first 24 hours — "5 minutes ago", "11 hours ago" — and an absolute
+date-time after that.
+
+Whenever the document has a comment, the column header shows previous (‹) and
+next (›) arrows beside the count, like the Find bar. Each arrow steps to the
+comment before or after the open one in document order, activating it and
+scrolling its quotation to the center of the view. With no comment open, next
+lands on the first comment and previous on the last; both wrap around the ends.
+
+The base of the message bubble shows two small icons: an Edit button (as a
+comment-bubble-with-pencil icon) and a Delete button (as a trash-can icon).
+These buttons are only present for the last comment in the thread.
+
+![Edit icon](./2026-06-comments-column-assets/icon-comment-edit.svg)
+
+The Edit button transforms the bubble into the compose form, same as at the
+"Adding comment" step above, with the same Cancel and Done buttons below the
+textarea.
+
+![Delete icon](./2026-06-comments-column-assets/icon-comment-delete.svg)
+
+The Delete button removes the comment in a sort of puff-of-smoke animation
+(using a simple scale-blur-fade combo, I think). As that ends, the rows below
+slide up into place.
+
+
+## Replies & threads
+
+If you click the Reply button below the active comment, it will transform that
+row into a new compose form, the same height as the one for a new comment (with
+the Cancel & Done buttons at the bottom of the form).
+
+![Replying](./2026-06-comments-column-assets/07-replying.png)
+
+Note that the Edit and Delete buttons are removed from the active comment
+bubble, since it will no longer be the last comment in the thread. (They are
+restored if you Cancel out of the new comment, of course.) This means that the
+active comment will sometimes shrink a little, so the compose form can
+immediately slide up in that case.
+
+After the reply is submitted (by clicking Done), the full thread will appear,
+with each comment as tall as it needs to display in full, and the last comment
+showing the Edit and Delete icon-buttons:
+
+![Selected comment with replies](./2026-06-comments-column-assets/08-selected-comment-with-replies.png)
+
+Mouse-down anywhere outside the comment will collapse it to an inactive
+comment. In this form, only the truncation of the first comment in the thread
+is shown, with "1 reply" / "2 replies" / etc as a label that cuts into the
+border of the bubble:
+
+![Inactive comment with replies](./2026-06-comments-column-assets/09-inactive-comment-with-replies.png)
+
+
+## Column layout
+
+### Rows
 
 The Comments column contains rows. A row is a comment or a set of controls.
 When a comment is expanded, each comment in the thread is a separate row. Each
@@ -79,10 +174,12 @@ previous comment's bottom, it stays at its preferred position and the gap is
 simply larger.
 
 Heights are measured live, not counted in fixed units — an inactive comment is
-45px, an active one is as tall as its content, and a compose form is a fixed
-225px (textarea, a 15px gap, and the controls row). The pass reads each row's
-current height, so activating, replying, or editing a comment grows that row
-and pushes the rows below it down on the next pass.
+45px, an active one is as tall as its content, and a compose form is as tall as
+its textarea plus a 15px gap and the controls row. The textarea itself grows
+with the typed text, from a 100px minimum to a 400px maximum (it scrolls beyond
+that). The pass reads each row's current height, so activating, replying,
+editing, or typing into a comment grows that row and pushes the rows below it
+down on the next pass.
 
 A row is anchored by its top and grows downward only; expanding a comment never
 moves its own top. The pass is also idempotent: every top is recomputed from
@@ -141,97 +238,6 @@ membership, then re-run the pass:
 A document reload (the file changed on disk) rebuilds the column from scratch.
 A comment-only edit does not reload — the content identity that decides reloads
 ignores comments — so those arrive through the live sync above.
-
-
-## Adding a comment
-
-To comment on something, select the text and trigger Add Comment — from the
-toolbar button, the Edit menu, the Cmd+Shift+K shortcut, or the right-click
-menu. All four are enabled only when the selection is commentable; a selection
-that can't anchor a comment, such as part of a code block, leaves them
-disabled.
-
-![Selecting text](./2026-06-comments-column-assets/02-selected-text.png)
-
-This action reveals the column if it was hidden. The selection becomes a
-highlight span in the theme's highlight color, and the compose form opens with
-its top at the selection's preferred position. If a comment anchored earlier in
-the document is already there, the form is pushed down to clear it, the same as
-any other row. The "Cancel" and "Done" buttons sit at the bottom of the form,
-with a 15px vertical gap between the textarea and the buttons:
-
-![Adding comment](./2026-06-comments-column-assets/03-adding-comment.png)
-
-The "Done" button is accent-colored. The textarea and cancel button are
-outlined in the theme's foreground-color.
-
-Once you click "Done", the comment is saved to the document, and the comment
-collapses to its inactive 45px height, with the text preceded by "💬 **Author**:
-" and truncated with an ellipsis at the end of the line:
-
-![Inactive comment](./2026-06-comments-column-assets/04-inactive-comment.png)
-
-
-## Navigating comments
-
-When you hover over a comment in the column, the highlight for the quoted
-section will appear in the document:
-
-![Hover over comment](./2026-06-comments-column-assets/05-hover-over-comment.png)
-
-When you click on the comment, the highlight remains (because the comment is
-now "active") and the comment expands to whatever height it needs to display
-its entire contents plus a "Reply" button:
-
-![Active comment](./2026-06-comments-column-assets/06-selected-comment.png)
-
-An active comment shows each message's author and time. The time is relative
-for the first 24 hours — "5 minutes ago", "11 hours ago" — and an absolute
-date-time after that.
-
-The base of the message bubble shows two small icons: an Edit button (as a
-comment-bubble-with-pencil icon) and a Delete button (as a trash-can icon).
-These buttons are only present for the last comment in the thread.
-
-![Edit icon](./2026-06-comments-column-assets/icon-comment-edit.svg)
-
-The Edit button transforms the bubble into the compose form, same as at the
-"Adding comment" step above, with the same Cancel and Done buttons below the
-textarea.
-
-![Delete icon](./2026-06-comments-column-assets/icon-comment-delete.svg)
-
-The Delete button removes the comment in a sort of puff-of-smoke animation
-(using a simple scale-blur-fade combo, I think). As that ends, the rows below
-slide up into place.
-
-
-## Replies & threads
-
-If you click the Reply button below the active comment, it will transform that
-row into a new compose form, the same height as the one for a new comment (with
-the Cancel & Done buttons at the bottom of the form).
-
-![Replying](./2026-06-comments-column-assets/07-replying.png)
-
-Note that the Edit and Delete buttons are removed from the active comment
-bubble, since it will no longer be the last comment in the thread. (They are
-restored if you Cancel out of the new comment, of course.) This means that the
-active comment will sometimes shrink a little, so the compose form can
-immediately slide up in that case.
-
-After the reply is submitted (by clicking Done), the full thread will appear,
-with each comment as tall as it needs to display in full, and the last comment
-showing the Edit and Delete icon-buttons:
-
-![Selected comment with replies](./2026-06-comments-column-assets/08-selected-comment-with-replies.png)
-
-Mouse-down anywhere outside the comment will collapse it to an inactive
-comment. In this form, only the truncation of the first comment in the thread
-is shown, with "1 reply" / "2 replies" / etc as a label that cuts into the
-border of the bubble:
-
-![Inactive comment with replies](./2026-06-comments-column-assets/09-inactive-comment-with-replies.png)
 
 
 ## Implementation details
@@ -296,10 +302,12 @@ body on disk — a comment-only edit does not trigger one.
 
 The Add Comment button must appear only for a selection that can actually be
 saved — otherwise a click would fail at submit. A code-block selection, for
-instance, has no anchor. The exact predicate — which selections are
-commentable, and whether a selection may span more than one block — is **still
-open**, to be settled during implementation. The plan assumes for now that the
-button shows when the selection lies in ordinary body text and hides otherwise.
+instance, has no anchor. The shipped predicate (`commentableDraft` in
+`mud-comments-edit.js`) accepts a selection when it is non-empty, lives in the
+body, is not inside a `<pre>` code block or a `.mermaid` diagram, and resolves
+to a source byte. A Mermaid diagram is excluded because its rendered SVG labels
+are HTML with no source byte to anchor to. The comment ends at the end of the
+selection's leaf block, so the marker lands where the quotation ends.
 
 
 ### Read and write JavaScript
@@ -334,3 +342,45 @@ show with CSS and which JavaScript it loads.
 
 The bottom section is the single source the column projects from, so all of
 these read from one rendered form of the comments.
+
+[^comment-a]: > accent-colored
+
+    💬 {Joseph @ 2026-06-22 09:57:34}:
+
+    By the way, did we implement this to use the macOS accent color?
+    Is there a nice CSS property for that, or do we have to plumb
+    something through from Swift into the stylesheet?
+
+    💬 {Claude @ 2026-06-22 10:04:00}:
+
+    No Swift plumbing — it’s pure CSS. `mud-comments-edit.css` sets
+    `--mud-accent: AccentColor` inside an
+    `@supports (color: AccentColor)` block, with a `#0a66ff` fallback
+    for engines that don’t know the keyword. WebKit maps the
+    `AccentColor` system keyword to the live macOS accent color, so
+    the Done button tracks System Settings automatically.
+
+    💬 {Joseph @ 2026-06-22 12:17:52}:
+
+    So, AccentColor is an Apple convention?
+
+    💬 {Claude @ 2026-06-22 12:34:18}:
+
+    No — it's a web standard, not an Apple-only thing. `AccentColor`
+    is one of the system color keywords defined in CSS Color Module
+    Level 4, alongside `Canvas`, `CanvasText`, `LinkText`, and
+    friends. The spec says it should resolve to "the user's preferred
+    accent color," and leaves it to each browser to decide where that
+    comes from.
+
+    What _is_ an Apple convention is the value behind it on macOS:
+    WebKit maps `AccentColor` to the accent color you pick in System
+    Settings → Appearance. On Windows, Chromium and Firefox map the
+    same keyword to the Windows accent color instead. So the keyword
+    is portable; the color it produces tracks whatever "accent color"
+    means on the host OS.
+
+    The `@supports (color: AccentColor)` guard is there because the
+    keyword is fairly recent — older engines don't recognize it, and
+    would drop the declaration. The guard keeps us on the `#0a66ff`
+    fallback in that case rather than rendering an invalid color.

@@ -160,18 +160,20 @@ html.comments-column.is-comments-column.is-readable-column #mud-comments-column 
    aligned with the document's top content padding. The placement pass reserves
    its band so no capsule sits under it. */
 #mud-comments-header {
-  position: absolute;
-  top: 10px;
+  position: fixed;
+  top: 0;
   right: 12px;
   width: 300px;
+  z-index: 10;
+  pointer-events: auto;
   box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 0.5em;
-  padding-bottom: 8px;
+  padding: 9px 0;
   border-bottom: 1px solid var(--border-color);
-  pointer-events: auto;
+  background-image: linear-gradient(to bottom, var(--bg-color), var(--body-bg) 45px);
 }
 
 .mud-comments-title {

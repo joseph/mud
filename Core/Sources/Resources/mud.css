@@ -22,6 +22,8 @@ body {
   line-height: 1.6;
   color: var(--text-color);
   background-color: var(--body-bg);
+  background-image: linear-gradient(to bottom, var(--bg-color), var(--body-bg) 45px);
+  background-attachment: fixed;
 }
 
 article {

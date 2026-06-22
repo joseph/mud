@@ -348,6 +348,17 @@ struct CommentSerializationTests {
         author: "JP", created: ts("2026-06-01 18:33:00"), body: "A comment.")])
   }
 
+  // A truncated quotation is just plain blockquote text; the spaced ellipsis
+  // must survive serialize/parse untouched. Matching the truncation is a
+  // render-time concern (mud-comments.js), not the codec's.
+  @Test func roundTrip_truncatedQuotation() {
+    roundTrip(
+      quotation: "Anchoring by verbatim echo … computed in JS, never stored.",
+      [CommentMessage(
+        author: "JP", created: ts("2026-06-22 20:52:00"),
+        body: "A truncated quotation.")])
+  }
+
   @Test func roundTrip_authorOnly() {
     roundTrip(
       quotation: "fox",

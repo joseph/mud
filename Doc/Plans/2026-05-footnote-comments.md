@@ -113,6 +113,130 @@ the closing `}` and the optional `:` (otherwise the `:` is the first character
 of the message content). See the spec's Whitespace section.
 
 
+## 2026-06 update — quotation truncation
+
+A quotation is the document text a comment points to. Mud stores it as the
+leading blockquote and, on render, finds it again by matching it against the
+text right before the marker. A long selection makes a long quotation — this
+plan's own `[^comment-zb]` stores a whole paragraph. That causes two problems:
+the on-disk footnote is bulky, and a long quotation is fragile, because one
+agent edit anywhere inside it breaks the exact match and the comment silently
+goes unanchored.
+
+Quotation truncation addresses both. When Mud creates a comment from a long
+selection, it may shorten the quotation by replacing a middle section with an
+ellipsis surrounded by spaces — keeping a head and a tail. So a paragraph-long
+quotation becomes, for example:
+
+> Anchoring by verbatim echo … computed in JS, never stored.
+
+The comment still highlights the whole original range; only the stored text is
+shorter.
+
+
+### Format
+
+The on-disk form is unchanged except that the quotation blockquote may contain
+a truncation marker: an ellipsis with whitespace on both sides, written either
+as the single character `…` (U+2026) or as three dots `...` (not everyone can
+type `…` easily). The quotation is still a leading blockquote of plain text. An
+ellipsis with no surrounding space (`wait...what`) is ordinary quoted text, not
+a truncation. Mud writes `…`; it reads either form. The canonical description
+and a worked example (`comment-n`) live in `Doc/Spec/comments.md`.
+
+
+### Matching (read side)
+
+Matching a quotation gains a second phase. Both run in JS at render time
+against the whitespace-collapsed flat text of the body, exactly as today;
+nothing is stored.
+
+1. **Verbatim.** Walk back `quotation.length` characters from the marker and
+   check that run equals the quotation — the current behavior. A quotation with
+   no truncation marker uses only this phase, so existing comments are
+   unaffected.
+2. **Truncated.** Only when phase 1 fails and the quotation contains a spaced
+   ellipsis. Split the quotation on each spaced ellipsis (`…` or `...` with
+   whitespace on both sides) into parts. Match the **last** part against the
+   run immediately before the marker. Then walk left: for each earlier part,
+   find its nearest occurrence (`lastIndexOf`) before the part already matched.
+   The highlight runs from the start of the first matched part to the end of
+   the last — so it covers the elided middle too. If any part isn't found, the
+   comment is unanchored, the same as a verbatim miss.
+
+The per-slice `<mark>` wrapping over the computed range is unchanged from the
+existing render path (see _Anchoring_).
+
+
+### Creation (write side)
+
+Capture already collapses the selection's whitespace into the quotation (in
+`mud-comments.js`). Truncation is added there, before the draft is posted to
+Swift:
+
+- If the collapsed quotation is short (under a threshold — start at ~16 words /
+  ~120 characters, tunable), store it whole. No truncation.
+- Otherwise build a candidate: keep the first few and last few words, joined
+  with `…` (Mud writes the `…` character).
+- **Verify before writing.** Run the phase-2 matcher on the candidate against
+  the live DOM. Keep it only if it re-anchors to exactly the original selection
+  range. If it doesn't (a kept part recurs inside the span, so the
+  nearest-match lands wrong), widen the head and tail and retry; if it still
+  can't be made unambiguous, fall back to the full quotation.
+
+This "generate it, then check it round-trips" rule is what makes a truncation
+unambiguous by construction — Mud never writes a truncation it can't recover.
+
+
+### The split regex
+
+The delimiter is an ellipsis with whitespace on both sides, in either form:
+
+```js
+/\s+(?:…|\.\.\.)\s+/
+```
+
+Accepting `...` alongside `…` lets a hand-author who can't type `…` still
+truncate.
+
+
+### Relation to the deferred endpoint anchoring
+
+The Anchoring section lists endpoint anchoring — re-anchoring a long run's two
+ends independently — as the planned robustness upgrade for long quotations.
+Truncation is a simpler form of the same idea: it anchors a head and a tail and
+treats the middle as filler. It ships now and covers the common case; full
+endpoint anchoring (with per-part fuzziness) stays a later option.
+
+
+### Files
+
+- `Core/Sources/Resources/mud-comments.js` — the only behavior change: the
+  two-phase matcher at render, and candidate-truncate-then-verify at capture.
+- `Doc/Spec/comments.md` — documents the format and matching (done alongside
+  this section).
+- No Swift changes. The quotation is already stored and parsed as plain text:
+  `CommentEditor` writes it as a blockquote and the `Comment` model carries it
+  verbatim, ellipsis and all. Matching stays render-time JS, never stored, as
+  in the existing design.
+
+
+### Verification
+
+- Unit: a Core round-trip test that a quotation containing `…` survives
+  `serialize`/ `parse` unchanged (it is plain text, so this only guards against
+  accidental special-casing).
+- End-to-end (the acceptance proof): replace `[^comment-zb]`'s paragraph-long
+  quotation in this plan with
+  `> Anchoring by verbatim echo … computed in JS, never stored.`, open the plan
+  in Mud, and confirm the `[⋯]` marker still highlights the whole original
+  bullet on hover. Then break the tail by an external edit and confirm it
+  degrades to unanchored.
+- End-to-end (capture): select a long passage, Add Comment, and confirm Mud
+  writes a truncated `> head … tail` quotation that re-highlights the full
+  selection.
+
+
 ## Confirmed decisions
 
 These were settled during design; the implementation below assumes them.
@@ -160,7 +284,8 @@ These were settled during design; the implementation below assumes them.
   if it doesn't (the agent rewrote the text), the comment is simply general.
   There is **no** distinct "orphaned" state and no sentinel: a comment is
   either anchored (a highlight is drawn) or not (none is). Whether a quotation
-  matches is a pure **render-time DOM** question, computed in JS, never stored.
+  matches is a pure **render-time DOM** question, computed in JS, never
+  stored.[^comment-zb]
 
 - **Strict write, forgiving read.** Mud _generates_ a strict canonical form —
   alpha labels (`comment-a`, `comment-b`, …); a leading blockquote for the
@@ -208,12 +333,12 @@ These were settled during design; the implementation below assumes them.
 
 ## Data model
 
-The on-disk grammar[^comment-y] — one worked example per case with the exact
-properties it parses to — is pinned in `Doc/Spec/comments.md`, the canonical
-spec. This section summarizes it.
+The on-disk grammar — one worked example per case with the exact properties it
+parses to — is pinned in `Doc/Spec/comments.md`, the canonical spec. This
+section summarizes it.
 
-A comment is a footnote[^comment-z] whose label matches `^comment-[\w-]+$`. Its
-definition body is, in order[^comment-za]:
+A comment is a footnote whose label matches `^comment-[\w-]+$`. Its definition
+body is, in order:
 
 1. an **optional leading blockquote** — the **quotation** (the document text
    the comment refers to). With no blockquote the comment is **general**
@@ -369,13 +494,16 @@ for the single selection-end point (below).
   baked into the static HTML so it shows even without JS. `mud-comments.js`
   builds a flat text of the body with a position → (text node, offset) index,
   then for each marker walks **backward** `quotation.length` characters from
-  the marker and checks that run equals the `quotation`. On a match it maps
-  that range back to a `Range` and wraps **each intersected text-node slice**
-  in its own `<mark class="mud-comment-highlight" data-mud-label="LABEL">`.
-  Per-slice wrapping is required because `Range.surroundContents()` throws
-  across element boundaries; the shared `data-mud-label` ties the slices to the
-  marker. The marks are **transparent by default** — hovering the marker
-  toggles `.is-active` (bright yellow) on the slices with the matching
+  the marker and checks that run equals the `quotation`. (If that fails and the
+  quotation contains a spaced `…`, a second phase splits it on the ellipsis and
+  anchors the head and tail — see _quotation truncation_ above.) On a match it
+  maps that range back to a `Range` and wraps **each intersected text-node
+  slice** in its own
+  `<mark class="mud-comment-highlight" data-mud-label="LABEL">`. Per-slice
+  wrapping is required because `Range.surroundContents()` throws across element
+  boundaries; the shared `data-mud-label` ties the slices to the marker. The
+  marks are **transparent by default** — hovering the marker toggles
+  `.is-active` (bright yellow) on the slices with the matching
   `data-mud-label`, and clears it on leave.
 - **Unanchored fallback.** If the run immediately before the marker doesn't
   equal the quotation (a general comment, or the agent rewrote the text), the
@@ -400,7 +528,10 @@ only on marker hover, one marker at a time, so two never show at once. A long
 or cross-block quotation is **more likely to go unanchored** (one agent edit
 anywhere in the run breaks the exact backward match); it degrades to a general
 comment gracefully, and endpoint anchoring (re-anchoring the run's two ends
-independently) is the planned robustness upgrade.
+independently) is the planned robustness upgrade. **Quotation truncation** (the
+2026-06 update above) is the first step toward it: a shortened `head … tail`
+quotation is smaller on disk and harder to break, because an edit inside the
+elided middle no longer breaks the match.
 
 **Marker-deleted comments are not surfaced (v1).** cmark unlinks an
 _unreferenced_ footnote definition from its tree, so a comment whose inline
@@ -893,14 +1024,33 @@ mode):
 - `mud -u` / `mud -f` on the fixture → output contains the Comments section.
 - Quick Look (spacebar in Finder) → Comments section visible.
 
-[^comment-y]: > on-disk grammar
+[^comment-zb]: > Anchoring by verbatim echo … computed in JS, never stored.
 
-    💬 {JP @ 2026-06-03 08:17:31}:
+    💬 {JP @ 2026-06-22 20:52:26}:
 
-[^comment-z]: > footnote
+    Look at the quotation for this comment. It’s really long! We
+    should update the comments spec to permit “quotation
+    truncation”.
 
-    💬 {JP @ 2026-06-03 08:18:17}:
+    When creating comments, the spec can say “you may shorten the
+    quotation by replacing any middle section of it with an ellipsis
+    surrounded by spaces.”
 
-[^comment-za]: > order
+    Mud will create such quotation truncations carefully, making
+    sure they are unambiguous.
 
-    💬 {JP @ 2026-06-03 08:18:25}:
+    When matching quotations, quotation truncation means that there
+    are now two phases. The first phase is a verbatim search for an
+    exact match in the text that directly precedes the comment
+    marker.
+
+    If nothing is found in the “verbatim-search” phase, and if the
+    quotation contains an ellipsis surrounded by whitespace, then
+    there is a second “truncation-search” phase. In this phase, the
+    string is split into parts using `/\s+…\s+/`. Taking the last
+    part, we search for a matching string directly preceding the
+    comment marker. If a match is found, we take the
+    next-to-last-part, and search for the matching string that most
+    closely precedes the last part. If found, we continue to work
+    backwards through the parts until we find all of them. The
+    quoted text is the range between the first and last parts.

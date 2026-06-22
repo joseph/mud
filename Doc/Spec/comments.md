@@ -21,10 +21,10 @@ optionally preceded by a `💬` and followed by a `:` —
 💬 {author @ time}:
 ```
 
-A message attribution at the start of a paragraph **begins a new
-message**. The first message needs no such attribution; its content may start
-immediately after the quotation. A `💬` on its own — no braces — is also valid.
-It begins an unattributed message in the thread.
+A message attribution at the start of a paragraph **begins a new message**. The
+first message needs no such attribution; its content may start immediately
+after the quotation. A `💬` on its own — no braces — is also valid. It begins an
+unattributed message in the thread.
 
 
 ## Author and time
@@ -44,6 +44,37 @@ no `@` is followed by a valid time, the whole brace interior is the author — s
 an author may itself contain `@` (eg, an `@`-handle or email address) without
 being misread. Accepted time forms: `YYYY-MM-DD`, `YYYY-MM-DD HH:MM`, and
 `YYYY-MM-DD HH:MM:SS`, all local wall-clock.
+
+
+## Quotation truncation
+
+A long quotation may be **shortened**: replace any middle section with an
+ellipsis surrounded by spaces, keeping a head and a tail. The ellipsis may be
+written either as the single character `…` (U+2026) or as three dots `...` —
+both are accepted, since not every keyboard makes `…` easy to type. The comment
+still anchors to the **whole** original range — the elided middle included.
+
+Only an ellipsis with whitespace on **both** sides marks a truncation. An
+ellipsis with no surrounding space (`wait...what`) is ordinary quoted text. Mud
+writes the `…` character; it reads either form.
+
+Mud matches a quotation in two phases:
+
+1. **Verbatim** — find the quotation, exactly as written, in the text
+   immediately before the comment marker. A quotation with no truncation uses
+   only this phase.
+2. **Truncated** — only when the verbatim phase fails and the quotation
+   contains a spaced ellipsis. Split the quotation on each spaced ellipsis (`…`
+   or `...` surrounded by whitespace) into parts. Anchor the **last** part to
+   the text immediately before the marker, then match each earlier part, right
+   to left, to its nearest occurrence before the part already matched. The
+   anchored range runs from the first part's start to the last part's end. If
+   any part is missing, the comment is unanchored, the same as a verbatim miss.
+
+A truncation is only safe when it re-anchors to exactly the intended range, so
+a kept part must not recur between its true position and the next part. Mud
+checks this when it creates a truncation and keeps more text if needed; a
+hand-author should do the same.
 
 
 ## Whitespace
@@ -78,8 +109,8 @@ Whitespace _within_ message content is meaningful, in the usual Markdown ways.
   whose content genuinely begins with braced text will have that text consumed
   as attribution. This is the one case the convention cannot disambiguate. One
   workaround is to put the literal brace inside code-backticks. Another option
-  is to put empty braces at the start of the message, which will be consumed
-  as the attribution instead.
+  is to put empty braces at the start of the message, which will be consumed as
+  the attribution instead.
 
 The attribution degrades gracefully in renderers that support footnotes but not
 Mud's comments (eg, GitHub): the footnote still appears, with `{author @ time}`
@@ -96,7 +127,9 @@ The quick brown fox[^comment-a] jumped over the lazy dog.
 Valid. Properties:
 
 - Label: comment-a
+
 - Message 1:
+
   - Content: The simplest comment. No quotation, no author, no time.
 
 
@@ -112,8 +145,11 @@ The quick brown fox[^comment-b] jumped over the lazy dog.[^1]
 Valid. Properties:
 
 - Label: comment-b
+
 - Quotation: fox
+
 - Message 1:
+
   - Content: A quoted comment, no attributes.
 
 
@@ -129,8 +165,11 @@ The quick brown fox[^comment-c] jumped over the lazy dog.
 Valid. Properties:
 
 - Label: comment-c
+
 - Quotation: brown fox
+
 - Message 1:
+
   - Author: JP
   - Time: 2026-06-01 18:33
   - Content: A message with author and time.
@@ -158,12 +197,17 @@ The quick brown fox[^comment-d] jumped over the lazy dog.
 Valid. Properties:
 
 - Label: comment-d
+
 - Quotation: quick brown fox
+
 - Message 1:
+
   - Author: Joseph
   - Time: 2026-06-01 18:33
   - Content: First message in the thread.
+
 - Message 2:
+
   - Author: Claude Opus 4.8
 
   - Time: 2026-06-01 18:33:13
@@ -195,12 +239,17 @@ Valid, with two messages: the leading `💬` on a message attributes block is
 optional, so each `{…}:` at a paragraph start begins a new message. Properties:
 
 - Label: comment-e
+
 - Quotation: The quick brown fox
+
 - Message 1:
+
   - Author: JP
   - Time: 2026-06-01 18:33
   - Content: First message in the thread.
+
 - Message 2:
+
   - Author: Claude Opus 4.8
   - Time: 2026-06-01 18:33:13
   - Content: Second message in the thread.
@@ -223,8 +272,11 @@ Valid, a single message. The 💬 in the body is mid-paragraph, not at a paragra
 start, so it does not begin a new message. Properties:
 
 - Label: comment-f
+
 - Quotation: fox
+
 - Message 1:
+
   - Author: JP
   - Time: 2026-06-01 18:33
   - Content: A single message. The body mentions a 💬 mid-sentence, which must
@@ -247,8 +299,11 @@ The quick brown fox[^comment-g] jumped over the lazy dog.
 Valid. Properties:
 
 - Label: comment-g
+
 - Quotation: brown fox
+
 - Message 1:
+
   - Author: JP
   - Time: 2026-06-01 18:33
   - Content: The colon after the closing brace is optional; this block omits
@@ -272,11 +327,15 @@ Valid, general and threaded. No leading blockquote, so there is no quotation;
 two message attributes blocks, so there are two messages. Properties:
 
 - Label: comment-h
+
 - Message 1:
+
   - Author: JP
   - Time: 2026-06-01 18:33
   - Content: A general message with no quotation, but part of a thread.
+
 - Message 2:
+
   - Author: Claude Opus 4.8
   - Time: 2026-06-01 18:33:13
   - Content: A reply, also with no document quotation.
@@ -295,8 +354,11 @@ Valid. The message attribution has an author and no `@`-delimited time.
 Properties:
 
 - Label: comment-i
+
 - Quotation: fox
+
 - Message 1:
+
   - Author: JP
   - Content: A message with an author but no time.
 
@@ -314,8 +376,11 @@ Valid. The interior opens with `@`, so the author is empty; the remainder is a
 date-only time. Properties:
 
 - Label: comment-j
+
 - Quotation: fox
+
 - Message 1:
+
   - Time: 2026-06-01
   - Content: A message with a time but no author.
 
@@ -334,8 +399,11 @@ nothing splits and the whole interior — leading `@` and all — is the author.
 Contrast comment-j, where the text after `@` _is_ a time. Properties:
 
 - Label: comment-k
+
 - Quotation: fox
+
 - Message 1:
+
   - Author: @jp
   - Content: An author that is an `@`-handle.
 
@@ -353,8 +421,11 @@ Valid but discouraged — prefer omitting the block entirely, as in comment-a.
 The empty block is still consumed. Properties:
 
 - Label: comment-l
+
 - Quotation: fox
+
 - Message 1:
+
   - Content: Empty braces have no attributes.
 
 
@@ -373,11 +444,44 @@ Valid: two messages, each demarcated by a bare `💬` with no attributes. The `�
 is consumed even when no braces follow it. Properties:
 
 - Label: comment-m
+
 - Quotation: fox
+
 - Message 1:
+
   - Content: A threaded message with no author or time.
+
 - Message 2:
+
   - Content: A reply, also unattributed.
+
+
+-------------------------------------------------------------------------------
+
+
+The quick brown fox jumped over the lazy dog[^comment-n] today.
+
+[^comment-n]: > quick … dog
+
+    A truncated quotation: "quick" and "dog" are kept, the middle
+    elided.
+
+Valid. The verbatim phase fails (the document has no spaced ellipsis), so the
+truncated phase splits the quotation into `quick` and `dog`. `dog` anchors
+immediately before the marker; `quick` is its nearest earlier match; the
+highlight spans the whole original range. Writing `> quick ... dog` (three
+dots) would parse identically. Properties:
+
+- Label: comment-n
+
+- Quotation: quick … dog
+
+- Anchors to: quick brown fox jumped over the lazy dog
+
+- Message 1:
+
+  - Content: A truncated quotation: "quick" and "dog" are kept, the middle
+    elided.
 
 
 -------------------------------------------------------------------------------

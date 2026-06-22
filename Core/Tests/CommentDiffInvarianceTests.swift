@@ -164,7 +164,7 @@ struct CommentDiffInvarianceTests {
 
   @Test func stripCommentTokensRemovesBakedMarker() {
     let baked = "Fox<a class=\"mud-comment-marker\" id=\"cmtref-comment-a\""
-      + " data-mud-label=\"comment-a\" href=\"#cmt-comment-a\">⋯</a> ran."
+      + " data-mud-label=\"comment-a\" href=\"#cmt-comment-a\">💬</a> ran."
     #expect(FootnoteProcessor.stripCommentTokens(baked) == "Fox ran.")
   }
 }

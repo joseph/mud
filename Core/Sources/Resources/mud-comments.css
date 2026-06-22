@@ -14,19 +14,18 @@
   display: inline-block;
   font-size: 0.7em;
   line-height: 1;
-  vertical-align: middle;
-  padding: 0.1em 0.4em;
-  margin: 0 0.1em;
-  border-radius: 3px;
-  background-color: var(--code-bg);
-  color: var(--text-color);
-  text-decoration: none;
+  vertical-align: top;
+  padding: 0.4em;
+  margin: -0.4em 0 0 -0.4em;
+  border-radius: 1em;
   cursor: pointer;
+  text-decoration: none;
   user-select: none;
 }
 
 .mud-comment-marker:hover {
-  background-color: var(--border-color);
+  background-color: var(--code-bg);
+  text-decoration: none;
 }
 
 /* The quoted range, wrapped per text-node slice by mud-comments.js. Transparent

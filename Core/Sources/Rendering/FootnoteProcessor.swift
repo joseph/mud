@@ -733,11 +733,11 @@ enum FootnoteProcessor {
 
     /// Comment-only regex precompiled once: the raw reference form
     /// `[^comment-x]` and the baked marker HTML `<a class="mud-comment-marker"
-    /// …>⋯</a>`. Used by ``stripCommentTokens(_:)``.
+    /// …>💬</a>`. Used by ``stripCommentTokens(_:)``.
     private static let commentTokenRegexes: [NSRegularExpression] = {
         let patterns = [
             #"\[\^comment-[\w-]+\]"#,
-            #"<a class="mud-comment-marker"[^>]*>⋯</a>"#,
+            #"<a class="mud-comment-marker"[^>]*>💬</a>"#,
         ]
         return patterns.compactMap { try? NSRegularExpression(pattern: $0) }
     }()
@@ -795,7 +795,7 @@ enum FootnoteProcessor {
     private static func commentMarkerHTML(label: String) -> String {
         let escLabel = HTMLEscaping.escape(label)
         return "<a class=\"mud-comment-marker\" id=\"cmtref-\(escLabel)\""
-            + " data-mud-label=\"\(escLabel)\" href=\"#cmt-\(escLabel)\">⋯</a>"
+            + " data-mud-label=\"\(escLabel)\" href=\"#cmt-\(escLabel)\">💬</a>"
     }
 
     /// If the line beginning at `start` is a column-0 footnote-definition

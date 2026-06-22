@@ -42,8 +42,8 @@
   margin: 0 -0.3rem;
 }
 .mud-message-actions .mud-icon-button {
-  width: 2rem;
-  height: 2rem;
+  width: 1.8rem;
+  height: 1.8rem;
   border: none;
   border-radius: 6px;
   background: transparent;
@@ -57,10 +57,11 @@
   height: 100%;
 }
 
-/* The Reply control sits on its own row below the thread, right-aligned. */
-.mud-capsule-actions {
+.mud-capsule-actions,
+.mud-compose-actions {
   display: flex;
   justify-content: flex-end;
+  font-size: 1rem;
 }
 
 /* -- Capsule controls (Cancel / Done / Reply): 30px pills ----------------- */
@@ -115,8 +116,6 @@
 }
 
 .mud-compose .mud-compose-actions {
-  display: flex;
-  justify-content: flex-end;
   gap: 10px;
   margin-top: 15px;
 }

@@ -137,6 +137,7 @@ html.comments-column.is-comments-column .up-mode-output {
   width: 324px;
   /* Empty gutter passes clicks through to the document; capsules re-enable. */
   pointer-events: none;
+  font-size: 0.8rem;
 }
 
 /* Readable Column: keep the document centered while there is room for the 324px
@@ -171,6 +172,7 @@ html.comments-column.is-comments-column.is-readable-column #mud-comments-column 
   align-items: center;
   justify-content: space-between;
   gap: 0.5em;
+  font-size: 120%;
   padding: 9px 0;
   border-bottom: 1px solid var(--border-color);
   background-image: linear-gradient(to bottom, var(--bg-color), var(--body-bg) 45px);
@@ -280,11 +282,11 @@ html.comments-column.is-comments-column.is-readable-column #mud-comments-column 
 /* The "N replies" label cuts into the bottom border of a collapsed thread. */
 .mud-capsule-replies {
   position: absolute;
-  right: 14px;
+  right: 18px;
   bottom: -1px;
   transform: translateY(50%);
   padding: 0 6px;
-  font-size: 0.75em;
+  font-size: 90%;
   font-weight: 500;
   color: var(--blockquote-color);
   background: var(--body-bg);

@@ -137,4 +137,58 @@ struct CommentSectionRenderingTests {
     #expect(comments.first?.quotation?.contains("quoted text") == true)
     #expect(comments.first?.messages.isEmpty == false)
   }
+
+  // MARK: - Read-only export column
+
+  /// A distinctive line from mud-comments.js (read side), absent from the CSS,
+  /// so its presence proves the read JS was inlined into the document.
+  private let readJSMarker = "window.Mud.comments = api;"
+
+  @Test func showingReadOnlyCommentsEnablesColumnWhenPresent() {
+    let md = "x[^comment-a].\n\n[^comment-a]: Note.\n"
+    let opts = MudCore.showingReadOnlyComments(RenderOptions(), ifPresentIn: md)
+
+    #expect(opts.commentMode == .interactive)
+    #expect(opts.htmlClasses.contains("is-comments-column"))
+  }
+
+  @Test func showingReadOnlyCommentsIsNoopWithoutComments() {
+    let md = "Just a plain paragraph, no comments.\n"
+    let opts = MudCore.showingReadOnlyComments(RenderOptions(), ifPresentIn: md)
+
+    #expect(opts.commentMode == .section)
+    #expect(!opts.htmlClasses.contains("is-comments-column"))
+  }
+
+  @Test func readOnlyExportInlinesReadJS() {
+    let md = "x[^comment-a].\n\n[^comment-a]: Note.\n"
+    var options = MudCore.showingReadOnlyComments(RenderOptions(), ifPresentIn: md)
+    options.standalone = true
+    let html = MudCore.renderUpModeDocument(md, options: options)
+
+    // The column is on, its read JS is inlined, and the CSP permits it.
+    #expect(htmlOpeningTag(html).contains("comments-column"))
+    #expect(htmlOpeningTag(html).contains("is-comments-column"))
+    #expect(html.contains(readJSMarker))
+    #expect(html.contains("script-src") && html.contains("'unsafe-inline'"))
+  }
+
+  /// The app's editable live view injects the read JS via WKUserScript; wrapUp
+  /// must not also inline it, or the script would run twice.
+  @Test func editableViewDoesNotInlineReadJS() {
+    let md = "x[^comment-a].\n\n[^comment-a]: Note.\n"
+    var options = RenderOptions()
+    options.commentMode = .interactive
+    options.commentsEditable = true
+    let html = MudCore.renderUpModeDocument(md, options: options)
+
+    #expect(!html.contains(readJSMarker))
+  }
+
+  @Test func sectionExportOmitsReadJS() {
+    let md = "x[^comment-a].\n\n[^comment-a]: Note.\n"
+    let html = MudCore.renderUpModeDocument(md, options: RenderOptions())
+
+    #expect(!html.contains(readJSMarker))
+  }
 }

@@ -374,6 +374,9 @@ struct DocumentContentView: View {
             html = MudCore.renderDownModeDocument(parsed.markdown,
                 options: exportOptions)
         } else {
+            // A commented document exports the read-only Comments column.
+            exportOptions = MudCore.showingReadOnlyComments(
+                exportOptions, ifPresentIn: parsed.markdown)
             html = MudCore.renderUpModeDocument(parsed.markdown,
                 options: exportOptions,
                 resolveImageSource: { source, baseURL in
@@ -405,6 +408,9 @@ struct DocumentContentView: View {
             exportHTML = MudCore.renderDownModeDocument(text,
                 options: exportOptions)
         } else {
+            // A commented document exports the read-only Comments column.
+            exportOptions = MudCore.showingReadOnlyComments(
+                exportOptions, ifPresentIn: text)
             exportHTML = MudCore.renderUpModeDocument(text,
                 options: exportOptions,
                 resolveImageSource: { source, baseURL in

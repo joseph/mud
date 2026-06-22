@@ -20,6 +20,15 @@ public enum HTMLTemplate {
         // decide whether to project the column.
         if options.commentMode == .interactive {
             doc.htmlClasses.append("comments-column")
+            // The app's live, editable view injects the read-side column JS at
+            // runtime via WKUserScript (WebView.swift). A read-only export has
+            // no WKWebView to do that, so inline mud-comments.js here; on load
+            // it projects the column from the hidden bottom section. Mirrors how
+            // commentsEditCSS rides along only for the editable view.
+            if !options.commentsEditable {
+                doc.cspScriptSrc.append("'unsafe-inline'")
+                doc.bodyScripts.append(.inline(mudCommentsJS))
+            }
         }
 
         if options.standalone {

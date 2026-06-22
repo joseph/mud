@@ -422,6 +422,29 @@ public enum MudCore {
         FootnoteProcessor.removeComments(source)
     }
 
+    /// Returns `options` adjusted to project the read-only Comments column, but
+    /// only when `source` actually contains comments. The export paths — the
+    /// `mud -u` CLI and Open In Browser — call this so a self-contained document
+    /// shows the same projected column the app does, read-only: it switches the
+    /// comment mode to `.interactive` (hiding the bottom section and the inline
+    /// markers in favor of the column) and turns the column on with
+    /// `is-comments-column` (an export has no live toggle to set it). The
+    /// read-side JS that `HTMLTemplate.wrapUp` inlines for a read-only render
+    /// then builds the column from the hidden section on load.
+    ///
+    /// A comment-free source is returned unchanged, so it reserves no column
+    /// gutter. The live app view does not use this — it drives the column from
+    /// per-window visibility state and injects the JS via WKUserScript.
+    public static func showingReadOnlyComments(
+        _ options: RenderOptions, ifPresentIn source: String
+    ) -> RenderOptions {
+        guard !parseComments(source).isEmpty else { return options }
+        var adjusted = options
+        adjusted.commentMode = .interactive
+        adjusted.htmlClasses.insert("is-comments-column")
+        return adjusted
+    }
+
     /// The opening `<div class="mud-comment-message">` tag, carrying the
     /// message's author and time as machine-readable `data-mud-*` attributes —
     /// epoch milliseconds plus the preformatted absolute string — so the column

@@ -14,6 +14,7 @@ var htmlClasses: [String] = []
 var browser = false
 var standalone = false
 var fragment = false
+var excludeComments = false
 var i = 1  // skip argv[0]
 
 while i < CommandLine.arguments.count {
@@ -33,6 +34,8 @@ while i < CommandLine.arguments.count {
         browser = true
     case "--standalone":
         standalone = true
+    case "--exclude-comments":
+        excludeComments = true
     case "--fragment", "-f":
         fragment = true
     case "--line-numbers":
@@ -138,6 +141,9 @@ if files.isEmpty {
 // MARK: - Rendering
 
 func render(_ markdown: String, baseURL: URL?) -> String {
+    // Drop every comment at the source so nothing downstream emits a marker,
+    // section, or column (and the read-only column helper finds none).
+    let markdown = excludeComments ? MudCore.removeComments(markdown) : markdown
     var options = RenderOptions()
     options.baseURL = baseURL
     options.theme = theme
@@ -166,6 +172,9 @@ func render(_ markdown: String, baseURL: URL?) -> String {
 
     switch mode {
     case .up:
+        // A commented document exports the read-only Comments column (no-op
+        // when there are no comments).
+        options = MudCore.showingReadOnlyComments(options, ifPresentIn: markdown)
         return MudCore.renderUpModeDocument(markdown, options: options,
             resolveImageSource: imageResolver)
     case .down:
@@ -253,6 +262,7 @@ func printUsage() {
       -f, --fragment     Output HTML body only, no document wrapper
       -b, --browser      Open in default browser instead of stdout
       --standalone       Self-contained output (images as data URIs)
+      --exclude-comments Drop all comments (no column, section, or markers)
       --line-numbers     Show line numbers (with -d)
       --word-wrap        Enable word wrapping (with -d)
       --readable-column  Limit content width (with -d or -u)

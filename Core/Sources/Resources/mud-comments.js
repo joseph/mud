@@ -311,8 +311,10 @@
     return col;
   }
 
-  // The "Comments" header pinned at the top of the column, with a running count
-  // badge. Created once per column; `count` is refreshed on every project.
+  // The "Comments" header pinned at the top of the column: a "Comments" title,
+  // previous / next navigation arrows, and a running count badge. Created once
+  // per column; the arrows and `count` are refreshed on every project. The
+  // arrows show whenever there is at least one comment.
   function ensureHeader(col, count) {
     var header = col.querySelector("#mud-comments-header");
     if (!header) {
@@ -321,16 +323,45 @@
       var title = document.createElement("span");
       title.className = "mud-comments-title";
       title.textContent = "Comments";
+
+      var nav = document.createElement("div");
+      nav.className = "mud-comments-nav";
+      var prev = makeNavButton("mud-comments-prev", "Previous comment", "‹", -1);
+      var next = makeNavButton("mud-comments-next", "Next comment", "›", 1);
       var badge = document.createElement("span");
       badge.className = "mud-comments-count";
+      nav.appendChild(prev);
+      nav.appendChild(next);
+      nav.appendChild(badge);
+
       header.appendChild(title);
-      header.appendChild(badge);
+      header.appendChild(nav);
       col.appendChild(header);
     }
     var badgeEl = header.querySelector(".mud-comments-count");
     badgeEl.textContent = String(count);
     badgeEl.style.display = count > 0 ? "" : "none";
+    var showArrows = count > 0 ? "" : "none";
+    header.querySelector(".mud-comments-prev").style.display = showArrows;
+    header.querySelector(".mud-comments-next").style.display = showArrows;
     return header;
+  }
+
+  // A header arrow button. A `mousedown` that stops propagation keeps the
+  // document-level mousedown from deactivating the open comment before the
+  // click lands, so `navigate` can still step relative to it.
+  function makeNavButton(cls, label, glyph, direction) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = cls;
+    btn.setAttribute("aria-label", label);
+    btn.textContent = glyph;
+    btn.addEventListener("mousedown", function (e) { e.stopPropagation(); });
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      navigate(direction);
+    });
+    return btn;
   }
 
   function teardown() {
@@ -519,6 +550,40 @@
     var cap = capsules[activeLabel];
     if (cap && !cap.contains(e.target)) deactivate();
   });
+
+  // -- Previous / next navigation -------------------------------------------
+
+  // Comment labels in document order — sorted by the same preferred position
+  // the placement pass uses, so navigation follows the order the capsules read
+  // down the column.
+  function orderedLabels() {
+    return Object.keys(capsules).sort(function (a, b) {
+      return preferredPosition(a) - preferredPosition(b);
+    });
+  }
+
+  function scrollToComment(label) {
+    var safe = cssEsc(label);
+    var anchor = container.querySelector(
+        'mark.mud-comment-highlight[data-mud-label="' + safe + '"]') ||
+      container.querySelector(
+        '.mud-comment-marker[data-mud-label="' + safe + '"]');
+    if (anchor) anchor.scrollIntoView({ block: "center", behavior: "smooth" });
+  }
+
+  // Step to the previous (-1) or next (+1) comment, wrapping around the ends.
+  // The step is relative to the open comment; with none open, +1 lands on the
+  // first comment and -1 on the last, like the Find bar.
+  function navigate(direction) {
+    var order = orderedLabels();
+    if (!order.length) return;
+    var current = activeLabel ? order.indexOf(activeLabel) : -1;
+    var n = current + direction;
+    n = ((n % order.length) + order.length) % order.length;
+    var label = order[n];
+    activate(label);
+    scrollToComment(label);
+  }
 
   // -- Reflow ---------------------------------------------------------------
 
@@ -724,6 +789,8 @@
     },
     activate: activate,
     deactivate: deactivate,
+    // Step to the previous (-1) or next (+1) comment, wrapping at the ends.
+    navigate: navigate,
     isEnabled: enabled,
     activeLabel: function () { return activeLabel; },
     capsuleFor: function (label) { return capsules[label]; },

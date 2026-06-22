@@ -156,9 +156,9 @@ html.comments-column.is-comments-column.is-readable-column #mud-comments-column 
   left: min((100% + 800px) / 2, 100% - 324px);
 }
 
-/* The column header: a "Comments" title and a count badge over a faint rule,
-   aligned with the document's top content padding. The placement pass reserves
-   its band so no capsule sits under it. */
+/* The column header: a "Comments" title, previous / next navigation arrows,
+   and a count badge over a faint rule, aligned with the document's top content
+   padding. The placement pass reserves its band so no capsule sits under it. */
 #mud-comments-header {
   position: fixed;
   top: 0;
@@ -181,8 +181,38 @@ html.comments-column.is-comments-column.is-readable-column #mud-comments-column 
   color: var(--heading-color);
 }
 
-.mud-comments-count {
+/* Title on the left; arrows and count grouped on the right. */
+.mud-comments-nav {
   flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 0.4em;
+}
+
+/* Previous / next arrows: bare chevron glyphs in the heading color, shown
+   whenever there is at least one comment. */
+.mud-comments-prev,
+.mud-comments-next {
+  appearance: none;
+  margin: -4px 0 0;
+  padding: 4px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  font-size: 1.3em;
+  line-height: 1;
+  color: var(--heading-color);
+  cursor: pointer;
+  opacity: 0.65;
+  transition: opacity 0.12s ease;
+}
+
+.mud-comments-prev:hover,
+.mud-comments-next:hover {
+  opacity: 1;
+}
+
+.mud-comments-count {
   min-width: 1.4em;
   padding: 1px 8px;
   font-size: 0.8em;

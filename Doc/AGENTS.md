@@ -36,7 +36,8 @@ MVP plan.
 - Link handling: anchors, local .md, external URLs
 - Quit on last window close
 - CLI tool: `mud -u` / `-d` for HTML output, `-f` for fragment output, stdin
-  support, theme and view-option flags
+  support, theme and view-option flags, `--primer` for the agent authoring
+  guide
 
 
 ## Targets
@@ -122,8 +123,8 @@ MVP plan.
 - `DownModeSettingsView.swift` — Down Mode settings pane
 - `ChangesSettingsView.swift` — Changes settings pane (inline deletions, git
   waypoints)
-- `CommentsSettingsView.swift` — Comments settings pane (`comment-author`
-  preference)
+- `CommentsSettingsView.swift` — Comments settings pane (`comment-author`,
+  `comment-return-saves`, and `comments-include-in-export` preferences)
 - `CommandLineSettingsView.swift` — Command Line settings pane
 - `UpdateSettingsView.swift` — Updates pane (`#if SPARKLE`)
 - `SettingsWindowController.swift` — Settings window lifecycle (singleton)
@@ -229,12 +230,23 @@ MVP plan.
 - `mud.css` — Shared styles and lighting variables
 - `mud-up.css` — Up mode styles
 - `mud-down.css` — Down mode styles
+- `mud-comments.css` — Comments column styles (read side, bundled everywhere):
+  markers, quotation highlights, the bottom Comments section, and the projected
+  column (capsules, header, threads). Inlined into every Up document via
+  `wrapUp`, exports included.
+- `mud-comments-edit.css` — Comments column styles (write side, app only): the
+  compose box and the add / reply / edit / delete controls, plus the delete
+  puff. Embedded only when `RenderOptions.commentsEditable` is set, so exports
+  omit it. Mirrors the `mud-comments.js` / `mud-comments-edit.js` split.
 - `mud.js` — Shared JS: find, scroll, lighting, zoom
 - `mud-changes.js` — Change tracking JS: overlays, expand/collapse, navigation
-- `mud-comments.js` — Comments JS: selection capture, `[⋯]` marker-click
-  routing, hover-revealed quotation highlights, and live marker sync (`setData`
-  inserts/removes the `[⋯]` marker in place on a comment add/remove, so no
-  reload is needed)
+- `mud-comments.js` — Comments column (read side, bundled everywhere): projects
+  a capsule per comment from the hidden bottom section, anchors quotation
+  highlights off the hidden markers, runs the slot solver, and on `setData`
+  rebuilds the section + syncs body markers + reprojects in place (no reload)
+- `mud-comments-edit.js` — Comments column (write side, app only): the Add
+  Comment button on a commentable selection, the compose box, and the
+  submit/reply/edit/delete bridge (`mudCommentSubmit`)
 - `mud-up.js` — Up-mode JS
 - `mud-down.js` — Down-mode JS
 - `emoji.json` — GitHub gemoji shortcode database
@@ -245,6 +257,8 @@ MVP plan.
 - `mermaid.min.js` — Mermaid diagram library (v11, UMD build)
 - `mermaid-init.js` — Mermaid init script for Up mode rendering
 - `Doc/Guides/command-line.md` — Bundled guide: CLI usage
+- `Doc/Guides/primer.md` — Bundled guide: dense Markdown authoring primer for
+  coding agents, printed by `mud --primer`
 
 **Scripts and CI:**
 

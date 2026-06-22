@@ -129,9 +129,44 @@
     }
   }
 
-  // For each marker, the quotation occupies the collapsed characters
-  // immediately before it. On a match, wrap each intersected text-node slice in
-  // its own <mark data-mud-label>.
+  // A truncation marker: an ellipsis (the `…` character or three dots) with
+  // whitespace on both sides. Splitting `flat` on it yields the kept parts.
+  var ELLIPSIS_SPLIT = /\s+(?:…|\.\.\.)\s+/;
+
+  // The flat-text index where `quote` begins, anchored to end just before the
+  // marker at `end` — or -1 if it doesn't anchor. Two phases (see
+  // Doc/Spec/comments.md, "Quotation truncation"):
+  //   1. Verbatim — the whole quotation sits immediately before the marker.
+  //   2. Truncated — only when phase 1 fails and the quotation carries a spaced
+  //      ellipsis. Split into parts; anchor the last part at the marker, then
+  //      walk left, matching each earlier part to its nearest occurrence before
+  //      the part already matched. The returned range (first part's start →
+  //      marker) covers the elided middle too.
+  function matchQuotationStart(flat, end, quote) {
+    var start = end - quote.length;
+    if (start >= 0 && flat.slice(start, end) === quote) return start;
+
+    var parts = quote.split(ELLIPSIS_SPLIT);
+    if (parts.length < 2) return -1;
+    for (var i = 0; i < parts.length; i++) {
+      parts[i] = parts[i].trim();
+      if (!parts[i]) return -1;
+    }
+
+    var last = parts[parts.length - 1];
+    var s = end - last.length;
+    if (s < 0 || flat.slice(s, end) !== last) return -1;
+    for (var k = parts.length - 2; k >= 0; k--) {
+      var at = flat.lastIndexOf(parts[k], s - parts[k].length);
+      if (at < 0) return -1;
+      s = at;
+    }
+    return s;
+  }
+
+  // For each marker, find where its quotation anchors (verbatim, or truncated).
+  // On a match, wrap each intersected text-node slice in its own
+  // <mark data-mud-label>.
   function anchorAll() {
     clearHighlights();
     var idx = buildIndex();
@@ -143,9 +178,8 @@
       if (!quote) return;
 
       var end = idx.markerAt[label];
-      var start = end - quote.length;
+      var start = matchQuotationStart(idx.flat, end, quote);
       if (start < 0) return;
-      if (idx.flat.slice(start, end) !== quote) return;
 
       var i = start;
       while (i < end) {
@@ -800,6 +834,9 @@
     constants: { GAP: GAP, INACTIVE_H: INACTIVE_H, COMPOSE_H: COMPOSE_H },
     layoutTop: layoutTop,
     preferredPosition: preferredPosition,
+    // Two-phase quotation matcher (verbatim, then truncated). The write side
+    // reuses it to confirm a candidate truncation re-anchors to the full text.
+    matchQuotationStart: matchQuotationStart,
     // Live update from the app: rebuild section + markers + reproject.
     setData: setData,
     // Seams the write side fills in (all default to no-op / empty).

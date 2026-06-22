@@ -66,6 +66,34 @@
 
   function normalizeWS(s) { return s.replace(/\s+/g, " "); }
 
+  // -- Quotation truncation -------------------------------------------------
+
+  var TRUNCATE_OVER = 120;  // characters; shorter quotations are stored whole
+  var KEEP_WORDS = 6;       // words kept at each end to start
+  var WIDEN_STEP = 4;       // words added to each end when a candidate is ambiguous
+
+  // Shorten a long quotation to "head … tail", but only when the shortened form
+  // re-anchors to exactly the original text. The read-side matcher, run against
+  // the full quotation, must recover the whole of it (start index 0); if a kept
+  // part recurs in the elided middle it won't, so widen the kept ends and retry.
+  // If no candidate is both unambiguous and shorter, keep the full quotation.
+  // See Doc/Plans/2026-05-footnote-comments.md, "Quotation truncation".
+  function truncateQuotation(quote) {
+    if (quote.length <= TRUNCATE_OVER) return quote;
+    if (!col.matchQuotationStart) return quote;
+    var words = quote.split(" ");
+    for (var keep = KEEP_WORDS; keep * 2 < words.length; keep += WIDEN_STEP) {
+      var head = words.slice(0, keep).join(" ");
+      var tail = words.slice(words.length - keep).join(" ");
+      var candidate = head + " … " + tail;
+      if (candidate.length >= quote.length) break; // no saving — keep it whole
+      if (col.matchQuotationStart(quote, quote.length, candidate) === 0) {
+        return candidate;
+      }
+    }
+    return quote;
+  }
+
   function isMarkerElement(node) {
     return node.nodeType === Node.ELEMENT_NODE && node.classList &&
       (node.classList.contains("mud-comment-marker") ||
@@ -286,6 +314,9 @@
     if (composeNew) return;
     draft = commentableDraft();
     if (!draft) return;
+    // Shorten a long quotation now that we're committing to a comment (the
+    // marker placement uses the locator, so this only affects the stored text).
+    draft.quotation = truncateQuotation(draft.quotation);
     document.documentElement.classList.add("is-comments-column");
     col.setVisible();
     openNewCompose();

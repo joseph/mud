@@ -291,7 +291,17 @@ html.comments-column.is-comments-column.is-readable-column #mud-comments-column 
   font-weight: 600;
   margin-bottom: 0.2em;
 }
+/* The author takes the leftover width and ellipsizes; the time keeps its full
+   width beside it so a long name truncates rather than wrapping. */
+.mud-capsule-thread .mud-comment-author {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .mud-capsule-thread .mud-comment-time {
+  flex: 0 0 auto;
   font-size: 85%;
   font-weight: 400;
   opacity: 0.7;

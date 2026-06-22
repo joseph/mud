@@ -8,8 +8,113 @@ description: >
 Feature showcase
 ===============================================================================
 
-Mud renders GitHub-Flavored Markdown with a set of extended features beyond
-the CommonMark baseline. This document demonstrates all of them in one place.
+Mud renders GitHub-Flavored Markdown with a set of extended features beyond the
+CommonMark baseline. This document demonstrates all of them in one place.
+
+
+## Inline formatting
+
+Standard inline markup: **bold**, _italic_, _**bold and italic**_,
+~~strikethrough~~, and `inline code`.
+
+Emoji shortcodes resolve to Unicode using GitHub's gemoji database (~1,800
+aliases): :rocket: :sparkles: :tada: :white_check_mark: :warning:
+
+> "Mud renders Markdown the way GitHub does, right on your Mac."[^comment-a]
+
+
+## Syntax highlighting
+
+Code blocks with a language tag are highlighted server-side by highlight.js via
+JavaScriptCore — no network requests, no external dependencies.
+
+```swift
+struct Renderer {
+    func render(_ markdown: String) -> String {
+        let doc = MarkdownParser.parse(markdown)
+        var visitor = UpHTMLVisitor()
+        visitor.visit(doc)
+        return visitor.result
+    }
+}
+```
+
+```python
+from pathlib import Path
+
+def render_file(path: Path) -> str:
+    text = path.read_text(encoding="utf-8")
+    return markdown.markdown(text, extensions=["tables", "fenced_code"])
+```
+
+```sh
+mud -u README.md > output.html
+mud -u -b README.md        # open in browser
+mud -f README.md           # fragment only, no <html> wrapper
+```
+
+
+## Task lists
+
+- [x] CommonMark baseline (headings, lists, links, images)
+- [x] GFM tables
+- [x] GFM task lists
+- [x] GFM strikethrough
+- [x] GFM alerts (note, tip, important, warning, caution)
+- [x] DocC asides
+- [x] Status asides
+- [x] Mermaid diagrams
+- [x] Syntax highlighting via highlight.js
+- [x] Emoji shortcodes
+- [x] YAML frontmatter
+- [x] Change tracking
+- [x] Footnotes
+- [x] Comments
+- [ ] Math rendering (not yet planned)
+
+
+## Tables
+
+GFM tables support per-column text alignment using `:` in the separator row.
+
+| Feature          | Syntax               | Status |
+| ---------------- | :------------------: | -----: |
+| Alerts           | `> [!NOTE]`          | ✓      |
+| Mermaid diagrams | ```` ```mermaid ```` | ✓      |
+| Syntax highlight | ```` ```swift ````   | ✓      |
+| Emoji shortcodes | `:shortcode:`        | ✓      |
+| Task lists       | `- [ ]`              | ✓      |
+| Strikethrough    | `~~text~~`           | ✓      |
+| DocC asides      | `> Note: …`          | ✓      |
+| Status asides    | `> Status: …`        | ✓      |
+| Frontmatter      | `---` … `---`        | ✓      |
+| Change tracking  | View → Show Changes  | ✓      |
+| Footnotes        | `text[^1]`           | ✓      |
+| Comments         | `[^comment-1]`       | ✓      |
+
+
+## Footnotes
+
+A footnote reference like `[^label]` links to a definition kept at the bottom
+of the document.[^1] Click a marker to jump to its definition; in Up mode,
+click on a marker to read the footnote in a popover without leaving your place.
+
+Footnote labels can be numbers or words — `[^1]` and `[^note]` both work — and
+the bodies are full Markdown.[^rich] Definitions can appear anywhere in the
+source.
+
+
+## Comments
+
+A comment is Mud's own convention layered on standard footnotes: a footnote
+whose label starts with `comment-`.[^comment-b] Mud shows comments in a margin
+column beside the text, anchored to the quoted passage they annotate, rather
+than in the footnote list at the bottom.
+
+Because a comment is just a footnote, it survives untouched in any other
+Markdown tool. On GitHub it renders as an ordinary footnote with a byline. In
+Mud you can add, reply to, edit, and delete comments directly in the margin —
+the changes are written back to the document as footnotes.
 
 
 ## Alerts
@@ -28,8 +133,7 @@ icons.
 > Crucial information necessary for users to succeed.
 
 > [!WARNING]
-> Critical content demanding immediate user attention due to
-> potential risks.
+> Critical content demanding immediate user attention due to potential risks.
 
 > [!CAUTION]
 > Negative potential consequences of an action.
@@ -38,10 +142,34 @@ Alerts can also contain rich content — code blocks, lists, inline formatting,
 and links:
 
 > [!TIP]
-> Press **Space** to toggle between Up mode (rendered) and Down mode
-> (raw source) without losing your scroll position.
+> Press **Space** to toggle between Up mode (rendered) and Down mode (raw
+> source) without losing your scroll position.
 >
 > Or use the toolbar button, or **View → Toggle Mode** in the menu bar.
+
+
+### DocC asides
+
+DocC-style asides use a word-and-colon prefix instead of the GFM `[!TYPE]` tag.
+Both syntaxes produce the same icon and colour scheme.
+
+> Note: Use DocC style in documentation comments rendered by Xcode.
+
+> Tip: The TOC sidebar (View → Show Sidebar) lists all headings. Click any
+> entry to jump to that section.
+
+> Warning: Modifying the file outside Mud while it is open may cause the file
+> watcher to miss the final change event on some filesystems.
+
+
+### Status asides
+
+A blockquote starting with `Status:` renders as a special call-out — used in
+plan documents to track progress.
+
+> Status: Complete
+>
+> All features in this document are implemented and shipping.
 
 
 ## Diagrams
@@ -94,72 +222,6 @@ stateDiagram-v2
 ```
 
 
-## Syntax highlighting
-
-Code blocks with a language tag are highlighted server-side by highlight.js via
-JavaScriptCore — no network requests, no external dependencies.
-
-```swift
-struct Renderer {
-    func render(_ markdown: String) -> String {
-        let doc = MarkdownParser.parse(markdown)
-        var visitor = UpHTMLVisitor()
-        visitor.visit(doc)
-        return visitor.result
-    }
-}
-```
-
-```python
-from pathlib import Path
-
-def render_file(path: Path) -> str:
-    text = path.read_text(encoding="utf-8")
-    return markdown.markdown(text, extensions=["tables", "fenced_code"])
-```
-
-```sh
-mud -u README.md > output.html
-mud -u -b README.md        # open in browser
-mud -f README.md           # fragment only, no <html> wrapper
-```
-
-
-## Tables
-
-GFM tables support per-column text alignment using `:` in the separator row.
-
-| Feature          | Syntax               | Status |
-| ---------------- | :------------------: | -----: |
-| Alerts           | `> [!NOTE]`          | ✓      |
-| Mermaid diagrams | ```` ```mermaid ```` | ✓      |
-| Syntax highlight | ```` ```swift ````   | ✓      |
-| Emoji shortcodes | `:shortcode:`        | ✓      |
-| Task lists       | `- [ ]`              | ✓      |
-| Strikethrough    | `~~text~~`           | ✓      |
-| DocC asides      | `> Note: …`          | ✓      |
-| Status asides    | `> Status: …`        | ✓      |
-| Frontmatter      | `---` … `---`        | ✓      |
-| Change tracking  | View → Show Changes  | ✓      |
-
-
-## Task lists
-
-- [x] CommonMark baseline (headings, lists, links, images)
-- [x] GFM tables
-- [x] GFM task lists
-- [x] GFM strikethrough
-- [x] GFM alerts (note, tip, important, warning, caution)
-- [x] DocC asides
-- [x] Status asides
-- [x] Mermaid diagrams
-- [x] Syntax highlighting via highlight.js
-- [x] Emoji shortcodes
-- [x] YAML frontmatter
-- [x] Change tracking
-- [ ] Math rendering (not yet planned)
-
-
 ## Change tracking
 
 Mud tracks changes to your document as you edit and reload. Toggle the Changes
@@ -177,36 +239,31 @@ bar from **View → Show Changes** (⌃⌘C) or the toolbar button.
 See `Doc/Guides/change-tracking.md` for the full guide.
 
 
-## Inline formatting
 
-Standard inline markup: **bold**, _italic_, _**bold and italic**_,
-~~strikethrough~~, and `inline code`.
+[^1]: This is a footnote. The marker above is a superscript number; this
+    definition is collected here at the foot of the document.
 
-Emoji shortcodes resolve to Unicode using GitHub's gemoji database (~1,800
-aliases): :rocket: :sparkles: :tada: :white_check_mark: :warning:
+[^rich]: Footnote bodies can hold rich Markdown — `inline code`, **bold**,
+    _italic_, links, and even short lists:
 
-> "Mud renders Markdown the way GitHub does, right on your Mac."
+    - first point
+    - second point
 
+[^comment-a]: > "Mud renders Markdown the way GitHub does, right on your Mac."
 
-## DocC asides
+    💬 {Mud @ 2026-06-22 09:14:00}:
 
-DocC-style asides use a word-and-colon prefix instead of the GFM `[!TYPE]` tag.
-Both syntaxes produce the same icon and colour scheme.
+    This is a comment, anchored to the quotation above. It appears in the
+    margin column to the right, beside the text it annotates.
 
-> Note: Use DocC style in documentation comments rendered by Xcode.
+    💬 {Mudder @ 2026-06-22 09:15:30}:
 
-> Tip: The TOC sidebar (View → Show Sidebar) lists all headings. Click any
-> entry to jump to that section.
+    Replies stack underneath. Each `💬 {author @ time}:` line starts a new
+    message in the same thread.
 
-> Warning: Modifying the file outside Mud while it is open may cause the file
-> watcher to miss the final change event on some filesystems.
+[^comment-b]: > a footnote whose label starts with `comment-`
 
+    💬 {Claude @ 2026-06-22 09:18:42}:
 
-## Status asides
-
-A blockquote starting with `Status:` renders as a special call-out — used in
-plan documents to track progress.
-
-> Status: Complete
->
-> All features in this document are implemented and shipping.
+    For example, this thread is defined by a footnote labelled `comment-b`.
+    The label is a unique key — never renumber or reuse one.

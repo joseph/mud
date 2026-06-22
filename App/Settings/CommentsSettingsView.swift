@@ -31,6 +31,16 @@ struct CommentsSettingsView: View {
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
+
+            Section {
+                Toggle("Include comments in export",
+                       isOn: $appState.commentsIncludeInExport)
+                Text("Open In Browser includes the read-only comments column. "
+                     + "Turn this off to leave comments out: no column, no "
+                     + "comments section, no markers.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
         }
         .formStyle(.grouped)
         .padding(.top, -18) // XXX-03-2026-JP -- hack to align top-of-pane with top-of-sidebar

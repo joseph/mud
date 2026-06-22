@@ -369,15 +369,19 @@ struct DocumentContentView: View {
         var exportOptions = renderOptions
         exportOptions.standalone = true
         exportOptions.waypoint = nil
+        // Unless comments are included, drop every comment from the source so
+        // the exported file holds none at all (like the CLI's --exclude-comments).
+        let markdown = appState.commentsIncludeInExport
+            ? parsed.markdown : MudCore.removeComments(parsed.markdown)
         let html: String
         if state.mode == .down {
-            html = MudCore.renderDownModeDocument(parsed.markdown,
+            html = MudCore.renderDownModeDocument(markdown,
                 options: exportOptions)
         } else {
             // A commented document exports the read-only Comments column.
             exportOptions = MudCore.showingReadOnlyComments(
-                exportOptions, ifPresentIn: parsed.markdown)
-            html = MudCore.renderUpModeDocument(parsed.markdown,
+                exportOptions, ifPresentIn: markdown)
+            html = MudCore.renderUpModeDocument(markdown,
                 options: exportOptions,
                 resolveImageSource: { source, baseURL in
                     ImageDataURI.encode(source: source, baseURL: baseURL)
@@ -394,7 +398,10 @@ struct DocumentContentView: View {
 
     private func openInBrowser() {
         guard case .parsed(let parsed) = content else { return }
-        let text = parsed.markdown
+        // Unless comments are included, drop every comment from the source so
+        // the exported file holds none at all (like the CLI's --exclude-comments).
+        let text = appState.commentsIncludeInExport
+            ? parsed.markdown : MudCore.removeComments(parsed.markdown)
         let tempDir = NSTemporaryDirectory()
         let baseName = fileURL.deletingPathExtension().lastPathComponent
         let tempURL = URL(fileURLWithPath: tempDir)

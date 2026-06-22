@@ -362,6 +362,13 @@
     if (msgActions) msgActions.parentNode.removeChild(msgActions);
     var inline = cap.querySelector(".mud-compose");
     if (inline) inline.parentNode.removeChild(inline);
+    // A mid-edit teardown (clicking away, or switching capsules) bypasses the
+    // compose box's own teardownInline, which is what restores the message the
+    // edit hid. Un-hide it here so it isn't left invisible on the next activate.
+    var msgs = cap.querySelectorAll(".mud-capsule-thread .mud-comment-message");
+    for (var i = 0; i < msgs.length; i++) {
+      if (msgs[i].style.display === "none") msgs[i].style.display = "";
+    }
     setComposing(false);
   }
 

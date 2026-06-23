@@ -25,6 +25,7 @@
   var draft = null;         // { quotation, locator, position } for the selection
   var composeNew = null;    // the new-comment compose element
   var composePosition = 0;  // its preferred position, in layout pixels
+  var pendingResolve = null; // resolver awaiting the native submit ack
 
   function zoom() {
     return parseFloat(document.documentElement.style.zoom) || 1;
@@ -51,9 +52,22 @@
     if (handlers.mudSelection) handlers.mudSelection.postMessage(has);
   }
 
-  function submit(payload) {
+  // Post a submission and remember its resolver. The native side writes the
+  // file and calls `resolveCompose` with the outcome: a submission stays
+  // "in flight" (its box disabled) until then, so a failed write keeps the box
+  // and its text rather than closing on an optimistic assumption of success.
+  function submit(payload, onResolve) {
+    pendingResolve = onResolve || null;
     handlers.mudCommentSubmit.postMessage(payload);
   }
+
+  // Called from Swift (via WebView) with the submit outcome. True closes the
+  // box; false leaves it open for another try.
+  col.resolveCompose = function (success) {
+    var resolve = pendingResolve;
+    pendingResolve = null;
+    if (resolve) resolve(!!success);
+  };
 
   // -- Locator (selection end → source byte), ported from the anchor path ----
 
@@ -221,14 +235,38 @@
     done.type = "button";
     done.className = "mud-done";
     done.textContent = "Done";
+    var error = document.createElement("div");
+    error.className = "mud-compose-error";
+    error.style.display = "none";
     actions.appendChild(cancel);
     actions.appendChild(done);
     box.appendChild(ta);
+    box.appendChild(error);
     box.appendChild(actions);
 
     function trimmed() { return ta.value.trim(); }
-    function sync() { done.disabled = trimmed().length === 0; }
+    function sync() { done.disabled = busy || trimmed().length === 0; }
     function finish() { onDone(trimmed()); }
+
+    // While a submission is in flight, lock the box (its text stays put); a
+    // failure unlocks it for another try. Exposed on the element so the submit
+    // callbacks below can drive it.
+    var busy = false;
+    box.setBusy = function (on) {
+      busy = !!on;
+      ta.disabled = busy;
+      cancel.disabled = busy;
+      sync();
+    };
+    box.showError = function (msg) {
+      error.textContent = msg || "";
+      error.style.display = msg ? "" : "none";
+      // With an error showing, dismissing the box discards nothing new — it just
+      // drops the held change, refreshing to the version on disk. Say so.
+      cancel.textContent = msg ? "Reload" : "Cancel";
+      col.relayout();
+    };
+    box.focusTextarea = function () { ta.focus(); };
 
     // Grow the textarea to fit its text (CSS clamps it to min/max). The box
     // shrink-wraps, so relayout reflows the capsules below: for a new compose
@@ -281,9 +319,17 @@
     composePosition = draft.position;
     var pending = draft;
     composeNew = buildCompose("", function (body) {
+      composeNew.showError("");
+      composeNew.setBusy(true);
       submit({ action: "add", body: body, locator: pending.locator,
-               quotation: pending.quotation });
-      closeNewCompose();
+               quotation: pending.quotation }, function (success) {
+        if (success) { closeNewCompose(); return; }
+        // The write couldn't place the marker (native explains why). Keep the
+        // box and its text; unlock for another try, or Cancel to refresh.
+        composeNew.setBusy(false);
+        composeNew.showError("Cannot save: the highlighted text has changed.");
+        composeNew.focusTextarea();
+      });
     }, function () {
       closeNewCompose();
     });
@@ -440,9 +486,15 @@
     }
 
     var box = buildCompose(initial, function (body) {
-      submit({ action: action, label: label, body: body });
-      // Native reprojects on the write echo; just restore controls meanwhile.
-      teardownInline();
+      box.showError("");
+      box.setBusy(true);
+      submit({ action: action, label: label, body: body }, function (success) {
+        // Native reprojects on the write echo; just restore controls meanwhile.
+        if (success) { teardownInline(); return; }
+        box.setBusy(false);
+        box.showError("Cannot save: the thread has been changed.");
+        box.focusTextarea();
+      });
     }, function () {
       teardownInline();
     });

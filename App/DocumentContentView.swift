@@ -143,6 +143,7 @@ struct DocumentContentView: View {
             reloadID: state.reloadID,
             printID: state.printID,
             addCommentID: state.addCommentID,
+            composeResolution: state.composeResolution,
             extensions: appState.enabledExtensions,
             footnoteHTML: display.footnoteHTML,
             comments: display.comments,
@@ -197,8 +198,15 @@ struct DocumentContentView: View {
         }
         .onChange(of: state.isComposingComment) { _, composing in
             // When the compose box closes, take keyboard focus back so document
-            // shortcuts resume.
-            if !composing { contentFocused = true }
+            // shortcuts resume, and apply any external change held while it was
+            // open (re-reading disk so a successful comment write is included).
+            if !composing {
+                contentFocused = true
+                if state.pendingExternalReload {
+                    state.pendingExternalReload = false
+                    loadFromDisk()
+                }
+            }
         }
         .onChange(of: contentFocused) { _, focused in
             // Reclaim focus so document keyboard shortcuts (space, `/`) keep
@@ -247,80 +255,174 @@ struct DocumentContentView: View {
         #endif
     }
 
-    /// Dispatches a column edit to `CommentController`. The write echoes back
+    /// Dispatches a column edit to `CommentController`, then acknowledges the
+    /// outcome back to the page (`resolveCompose`). On success the write echoes
     /// through the `FileWatcher`, refreshing `state.comments`, which re-pushes the
-    /// comment data so the column reprojects in place (no reload).
+    /// comment data so the column reprojects in place (no reload). On failure the
+    /// box stays open with its text and we explain why (the most likely cause is
+    /// the quoted text changing on disk while the box was held open).
     private func handleCommentSubmit(_ submission: CommentSubmission) {
         let controller = CommentController(fileURL: fileURL) { state.registerSelfWrite($0) }
         let author = appState.commentAuthor
         let body = submission.body ?? ""
         switch submission.action {
         case .add:
-            guard let draft = submission.draft else { return }
+            guard let draft = submission.draft else { resolveCompose(false); return }
             if let label = controller.addComment(draft, author: author, body: body) {
                 state.pendingCommentLocators[label] = CommentLocator(
                     blockText: draft.blockText, offset: draft.offsetInBlock,
                     occurrence: draft.occurrence)
+                resolveCompose(true)
+            } else {
+                resolveCompose(false)
+                presentCommentFailure(
+                    message: "The text you commented on has changed, "
+                        + "so the comment couldn't be placed. "
+                        + "Your note is still in the compose box.",
+                    note: body)
             }
         case .reply:
-            guard let label = submission.label else { return }
-            _ = controller.reply(toLabel: label, author: author, body: body)
+            guard let label = submission.label else { resolveCompose(false); return }
+            let ok = controller.reply(toLabel: label, author: author, body: body)
+            resolveCompose(ok)
+            if !ok { presentCommentFailure(message: replyFailureMessage, note: body) }
         case .edit:
-            guard let label = submission.label else { return }
-            _ = controller.editLastMessage(label: label, body: body)
+            guard let label = submission.label else { resolveCompose(false); return }
+            let ok = controller.editLastMessage(label: label, body: body)
+            resolveCompose(ok)
+            if !ok { presentCommentFailure(message: replyFailureMessage, note: body) }
         case .delete:
             guard let label = submission.label else { return }
             _ = controller.deleteLastMessage(label: label)
         }
     }
 
+    private var replyFailureMessage: String {
+        "The comment has changed or been removed, "
+            + "so your text couldn't be saved. It is still in the compose box."
+    }
+
+    /// Pushes the submit outcome to the page. A fresh `id` makes `WebView` fire it
+    /// once, so the compose box closes (success) or re-enables (failure).
+    private func resolveCompose(_ success: Bool) {
+        state.composeResolution = ComposeResolution(id: UUID(), success: success)
+    }
+
+    /// Explains a comment write that couldn't be completed, keeping the user's
+    /// text recoverable: the box stays open (the page re-enables it on the false
+    /// resolve) and "Copy Note" puts the body on the clipboard. Deferred past the
+    /// current run loop so the `resolveCompose` render lands — and re-enables the
+    /// box — before this modal blocks the main thread.
+    private func presentCommentFailure(message: String, note: String) {
+        DispatchQueue.main.async {
+            let alert = NSAlert()
+            alert.messageText = "Couldn't save your comment"
+            alert.informativeText = message
+            alert.addButton(withTitle: "OK")
+            if !note.isEmpty { alert.addButton(withTitle: "Copy Note") }
+            let response = alert.runModal()
+            if !note.isEmpty, response == .alertSecondButtonReturn {
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(note, forType: .string)
+            }
+        }
+    }
+
     private func setupFileWatcher() {
         guard !fileURL.isBundleResource else { return }
         fileWatcher = FileWatcher(url: fileURL) {
-            let text = loadFromDisk()
-            // A reload echoing one of our own comment writes isn't an external
-            // change: refresh the render (the new marker appears) but don't raise
-            // the background-reload badge. A genuine external edit still does.
-            let isSelfWrite = text.map { state.consumeSelfWrite($0) } ?? false
+            let read = readDisk()
+            // While a compose box is open, hold the change instead of applying
+            // it: applying would move `displayContentID`, reload the page, and
+            // destroy the box and its unsaved text. A read failure (e.g. a
+            // transient gap mid atomic-save) is held the same way, so it can't
+            // tear the box down either. The held change applies when composing
+            // ends (`onChange(of: state.isComposingComment)`).
+            guard case .text(let text) = read else {
+                if state.isComposingComment {
+                    state.pendingExternalReload = true
+                } else if case .failure(let html) = read {
+                    content = .error(html)
+                }
+                return
+            }
+            // Consume a pending self-write (our own comment echo) so the set
+            // stays bounded and a later genuine edit isn't misread.
+            let isSelfWrite = state.consumeSelfWrite(text)
+            // While composing, hold *every* change — external edits and our own
+            // comment echo alike — so the page and the open box are never torn
+            // down mid-edit. One `loadFromDisk` at compose-end applies whatever
+            // is on disk by then (held prose, the new marker, or both). Holding
+            // the self-write too matters: when a held external change and the
+            // comment land in the same write, applying its echo now would change
+            // the prose, reload the page, and strand the box.
+            if state.isComposingComment {
+                state.pendingExternalReload = true
+                return
+            }
+            applyLoaded(text)
             if !isSelfWrite, state.windowController?.window?.isKeyWindow != true {
                 state.hasBackgroundReload = true
             }
         }
     }
 
-    /// Reads the file, parses, and refreshes per-document state. Returns the
-    /// loaded source text (nil on a read/decoding failure) so the file-watcher
-    /// echo can match it against a pending self-write; other callers discard it.
-    @discardableResult
-    private func loadFromDisk() -> String? {
+    /// The outcome of reading the document off disk: the decoded source, or the
+    /// error-page HTML to show. Pure — it does not mutate `content` — so the
+    /// file-watcher can classify a change (self-write? composing?) before
+    /// deciding whether to apply or hold it.
+    private enum DiskRead {
+        case text(String)
+        case failure(String)  // pre-rendered error page HTML
+    }
+
+    private func readDisk() -> DiskRead {
         do {
             let data = try Data(contentsOf: fileURL)
             guard let text = String(data: data, encoding: .utf8) else {
-                content = .error(ErrorPage.fileEncodingError())
-                return nil
+                return .failure(ErrorPage.fileEncodingError())
             }
-            let parsed = ParsedMarkdown(text)
-            content = .parsed(parsed)
-            state.outlineHeadings = parsed.headings
-            state.comments = MudCore.parseComments(text)
-            // Drop locators for comments that no longer exist (e.g. deleted), so
-            // a never-reused label can't misdirect a future live insert.
-            let liveLabels = Set(state.comments.map(\.label))
-            state.pendingCommentLocators = state.pendingCommentLocators
-                .filter { liveLabels.contains($0.key) }
-            state.contentTitle = parsed.title
-            changeTracker.update(parsed)
-            #if GIT_PROVIDER
-            refreshGitWaypoints(for: text)
-            #endif
-            return text
+            return .text(text)
         } catch let cocoaError as CocoaError where cocoaError.code == .fileReadNoSuchFile {
-            content = .error(ErrorPage.fileNotFound(error: cocoaError))
-            return nil
+            return .failure(ErrorPage.fileNotFound(error: cocoaError))
         } catch {
-            content = .error(ErrorPage.filePermissionDenied(path: fileURL.path, error: error))
+            return .failure(
+                ErrorPage.filePermissionDenied(path: fileURL.path, error: error))
+        }
+    }
+
+    /// Reads the file and applies it. Returns the loaded source text (nil on a
+    /// read/decoding failure), used by callers that need it; others discard it.
+    @discardableResult
+    private func loadFromDisk() -> String? {
+        switch readDisk() {
+        case .text(let text):
+            applyLoaded(text)
+            return text
+        case .failure(let html):
+            content = .error(html)
             return nil
         }
+    }
+
+    /// Parses `text` and refreshes per-document state (the render, headings,
+    /// comments, title, change tracking). The single place a successful disk
+    /// read becomes the displayed document.
+    private func applyLoaded(_ text: String) {
+        let parsed = ParsedMarkdown(text)
+        content = .parsed(parsed)
+        state.outlineHeadings = parsed.headings
+        state.comments = MudCore.parseComments(text)
+        // Drop locators for comments that no longer exist (e.g. deleted), so
+        // a never-reused label can't misdirect a future live insert.
+        let liveLabels = Set(state.comments.map(\.label))
+        state.pendingCommentLocators = state.pendingCommentLocators
+            .filter { liveLabels.contains($0.key) }
+        state.contentTitle = parsed.title
+        changeTracker.update(parsed)
+        #if GIT_PROVIDER
+        refreshGitWaypoints(for: text)
+        #endif
     }
 
     #if GIT_PROVIDER

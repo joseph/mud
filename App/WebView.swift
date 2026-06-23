@@ -144,6 +144,7 @@ struct WebView: NSViewRepresentable {
     var reloadID: UUID?
     var printID: UUID?
     var addCommentID: UUID?
+    var composeResolution: ComposeResolution?
     var extensions: Set<String> = []
     var footnoteHTML: [String: String] = [:]
     var comments: [Comment] = []
@@ -296,6 +297,16 @@ struct WebView: NSViewRepresentable {
                 + " && Mud.comments.addFromSelection()")
         }
 
+        // Acknowledge a comment submission to the page: close the compose box on
+        // success, or re-enable it (text intact) on failure.
+        if let resolution = composeResolution,
+           context.coordinator.lastComposeResolutionID != resolution.id {
+            context.coordinator.lastComposeResolutionID = resolution.id
+            webView.evaluateJavaScript(
+                "window.Mud && Mud.comments && Mud.comments.resolveCompose"
+                + " && Mud.comments.resolveCompose(\(resolution.success))")
+        }
+
         // Reload content if contentID, mode, or reloadID changed
         let modeChanged = context.coordinator.lastMode != mode
         let contentChanged = context.coordinator.lastContentID != contentID
@@ -351,6 +362,7 @@ struct WebView: NSViewRepresentable {
         var lastPrintID: UUID?
         var lastReloadID: UUID?
         var lastAddCommentID: UUID?
+        var lastComposeResolutionID: UUID?
         var activeExtensions: [RenderExtension] = []
         var onSearchResult: ((MatchInfo?) -> Void)?
         var footnoteHTML: [String: String] = [:]

@@ -25,6 +25,15 @@ struct CommentLocator: Equatable {
     let occurrence: Int
 }
 
+/// The native acknowledgement of a comment submission, delivered back to the
+/// page so the compose box knows whether to close (`success`) or stay open with
+/// its text for another try (failure). A one-shot trigger: the `id` makes each
+/// resolution distinct so `WebView` fires it exactly once.
+struct ComposeResolution: Equatable {
+    let id: UUID
+    let success: Bool
+}
+
 // MARK: - Document State
 
 class DocumentState: ObservableObject {
@@ -36,6 +45,10 @@ class DocumentState: ObservableObject {
     /// One-shot trigger for the toolbar "Comment" button: opens a compose box on
     /// the current selection (`Mud.comments.addFromSelection`).
     @Published var addCommentID: UUID?
+    /// One-shot ack of a comment submission, pushed to the page so the compose
+    /// box closes on success or stays open (text intact) on failure. Set by
+    /// `DocumentContentView.handleCommentSubmit`; fired by `WebView`.
+    @Published var composeResolution: ComposeResolution?
     /// Whether the rendered (Up-mode) view currently holds a commentable
     /// selection. Pushed from the page over the `mudSelection` bridge and read by
     /// the window controller to enable the toolbar "Comment" button. A plain
@@ -55,6 +68,11 @@ class DocumentState: ObservableObject {
     /// each load; a stale entry is harmless (the JS skips insert when the marker
     /// already exists). Plain bookkeeping, read during the view's render.
     var pendingCommentLocators: [String: CommentLocator] = [:]
+    /// A genuine external change arrived while a compose box was open and was
+    /// held rather than applied (applying would reload the page and destroy the
+    /// box). `DocumentContentView` re-reads disk and applies it when composing
+    /// ends. Plain bookkeeping, read and written on the main thread.
+    var pendingExternalReload: Bool = false
     /// True while an in-column compose box (new comment, reply, or edit) owns the
     /// keyboard. Set from the page over the `mudComposing` bridge; folded into
     /// `isComposingComment` so the focus trap leaves the textarea alone.

@@ -221,10 +221,6 @@ struct DocumentContentView: View {
         .onAppear {
             contentFocused = true
             loadFromDisk()
-            // Reveal the column when a document that already has comments opens.
-            // First-open only (not in loadFromDisk), so a later reload won't
-            // re-show a column the user has since hidden.
-            if !state.comments.isEmpty { state.commentsColumnVisible = true }
             setupFileWatcher()
         }
         .onDisappear {
@@ -417,7 +413,15 @@ struct DocumentContentView: View {
         let parsed = ParsedMarkdown(text)
         content = .parsed(parsed)
         state.outlineHeadings = parsed.headings
+        let hadComments = !state.comments.isEmpty
         state.comments = MudCore.parseComments(text)
+        // Reveal the Comments Column when a document gains its first comment —
+        // whether on first open or on a reload that adds one. A reload that
+        // keeps existing comments (1+ → 1+) makes no change here, so a column
+        // the user has hidden stays hidden.
+        if !hadComments, !state.comments.isEmpty {
+            state.commentsColumnVisible = true
+        }
         // Drop locators for comments that no longer exist (e.g. deleted), so
         // a never-reused label can't misdirect a future live insert.
         let liveLabels = Set(state.comments.map(\.label))

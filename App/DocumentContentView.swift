@@ -144,6 +144,7 @@ struct DocumentContentView: View {
             printID: state.printID,
             addCommentID: state.addCommentID,
             composeResolution: state.composeResolution,
+            externalChangeHeld: state.externalChangeHeld,
             extensions: appState.enabledExtensions,
             footnoteHTML: display.footnoteHTML,
             comments: display.comments,
@@ -202,6 +203,7 @@ struct DocumentContentView: View {
             // open (re-reading disk so a successful comment write is included).
             if !composing {
                 contentFocused = true
+                state.externalChangeHeld = false  // banner goes with the box
                 if state.pendingExternalReload {
                     state.pendingExternalReload = false
                     loadFromDisk()
@@ -358,6 +360,9 @@ struct DocumentContentView: View {
             // the prose, reload the page, and strand the box.
             if state.isComposingComment {
                 state.pendingExternalReload = true
+                // Only a genuine external edit raises the banner; our own comment
+                // echo is held too but isn't "the file changed under you".
+                if !isSelfWrite { state.externalChangeHeld = true }
                 return
             }
             applyLoaded(text)

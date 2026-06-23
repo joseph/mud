@@ -68,11 +68,16 @@ class DocumentState: ObservableObject {
     /// each load; a stale entry is harmless (the JS skips insert when the marker
     /// already exists). Plain bookkeeping, read during the view's render.
     var pendingCommentLocators: [String: CommentLocator] = [:]
-    /// A genuine external change arrived while a compose box was open and was
-    /// held rather than applied (applying would reload the page and destroy the
-    /// box). `DocumentContentView` re-reads disk and applies it when composing
-    /// ends. Plain bookkeeping, read and written on the main thread.
+    /// A change arrived while a compose box was open and was held rather than
+    /// applied (applying would reload the page and destroy the box).
+    /// `DocumentContentView` re-reads disk and applies it when composing ends.
+    /// Plain bookkeeping, read and written on the main thread.
     var pendingExternalReload: Bool = false
+    /// True while a held change is specifically an *external* edit (not our own
+    /// comment echo). Drives the "file changed on disk" banner in the page, so
+    /// you know the view is showing a stale version until you finish the comment.
+    /// Published so a change reaches the WebView; cleared when composing ends.
+    @Published var externalChangeHeld: Bool = false
     /// True while an in-column compose box (new comment, reply, or edit) owns the
     /// keyboard. Set from the page over the `mudComposing` bridge; folded into
     /// `isComposingComment` so the focus trap leaves the textarea alone.

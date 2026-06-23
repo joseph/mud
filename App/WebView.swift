@@ -145,6 +145,7 @@ struct WebView: NSViewRepresentable {
     var printID: UUID?
     var addCommentID: UUID?
     var composeResolution: ComposeResolution?
+    var externalChangeHeld: Bool = false
     var extensions: Set<String> = []
     var footnoteHTML: [String: String] = [:]
     var comments: [Comment] = []
@@ -307,6 +308,16 @@ struct WebView: NSViewRepresentable {
                 + " && Mud.comments.resolveCompose(\(resolution.success))")
         }
 
+        // Toggle the "file changed on disk" banner (a held external change during
+        // compose). A sustained state, not a one-shot: it turns on when the change
+        // is held and off when the box closes. Pushed without a reload.
+        if context.coordinator.lastExternalChangeHeld != externalChangeHeld {
+            context.coordinator.lastExternalChangeHeld = externalChangeHeld
+            webView.evaluateJavaScript(
+                "window.Mud && Mud.comments && Mud.comments.setHoldBanner"
+                + " && Mud.comments.setHoldBanner(\(externalChangeHeld))")
+        }
+
         // Reload content if contentID, mode, or reloadID changed
         let modeChanged = context.coordinator.lastMode != mode
         let contentChanged = context.coordinator.lastContentID != contentID
@@ -363,6 +374,7 @@ struct WebView: NSViewRepresentable {
         var lastReloadID: UUID?
         var lastAddCommentID: UUID?
         var lastComposeResolutionID: UUID?
+        var lastExternalChangeHeld: Bool?
         var activeExtensions: [RenderExtension] = []
         var onSearchResult: ((MatchInfo?) -> Void)?
         var footnoteHTML: [String: String] = [:]

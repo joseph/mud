@@ -224,8 +224,10 @@ class DocumentWindowController: NSWindowController {
     }
 
     private func updateReadableColumnButton(_ on: Bool) {
-        let symbol = on ? "rectangle.compress.vertical" : "rectangle.expand.vertical"
-        readableColumnButton?.image = rotatedSymbol(symbol)
+        let symbol = on
+            ? "rectangle.portrait.arrowtriangle.2.inward"
+            : "rectangle.portrait.arrowtriangle.2.outward"
+        readableColumnButton?.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
         readableColumnButton?.toolTip = on ? "Show document full-width" : "Show document in a readable-width column"
     }
 
@@ -386,21 +388,6 @@ class DocumentWindowController: NSWindowController {
         return button
     }
 
-    private func rotatedSymbol(_ name: String) -> NSImage? {
-        guard let original = NSImage(systemSymbolName: name, accessibilityDescription: nil) else { return nil }
-        let s = original.size
-        let rotated = NSImage(size: NSSize(width: s.height, height: s.width), flipped: false) { rect in
-            let t = NSAffineTransform()
-            t.translateX(by: rect.width / 2, yBy: rect.height / 2)
-            t.rotate(byDegrees: 90)
-            t.translateX(by: -s.width / 2, yBy: -s.height / 2)
-            t.concat()
-            original.draw(in: NSRect(origin: .zero, size: s))
-            return true
-        }
-        rotated.isTemplate = true
-        return rotated
-    }
 }
 
 // MARK: - NSWindowDelegate
@@ -496,7 +483,7 @@ extension DocumentWindowController: NSToolbarDelegate {
             return item
 
         case .toggleReadableColumn:
-            let button = makeToolbarButton(symbolName: "rectangle.compress.vertical", action: #selector(toggleReadableColumn(_:)))
+            let button = makeToolbarButton(symbolName: "rectangle.portrait.arrowtriangle.2.inward", action: #selector(toggleReadableColumn(_:)))
             if flag { readableColumnButton = button }
             updateReadableColumnButton(AppState.shared.viewToggles.contains(.readableColumn))
             item.view = button

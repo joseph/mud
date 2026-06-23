@@ -195,7 +195,7 @@ struct MudPreferencesTests {
         defer { tc.tearDown() }
         // Bool prefs must not fall back to `false` on an empty suite —
         // the object(forKey:) as? Bool ?? default pattern matters here.
-        #expect(tc.config.changesEnabled == false)
+        #expect(tc.config.changesEnabled == true)
         #expect(tc.config.changesShowInlineDeletions == false)
         #expect(tc.config.quitOnClose == true)
         #expect(tc.config.upModeAllowRemoteContent == true)
@@ -276,7 +276,7 @@ struct MudPreferencesTests {
         #expect(tc.config.theme == .earthy)
         #expect(tc.config.lighting == .auto)
         #expect(tc.config.upModeZoomLevel == 1.0)
-        #expect(tc.config.changesEnabled == false)
+        #expect(tc.config.changesEnabled == true)
         #expect(tc.config.readViewToggle(.readableColumn) == false)
     }
 

@@ -20,7 +20,7 @@
 .mud-compose {
   position: absolute;
   right: 12px;
-  width: 300px;
+  width: var(--comment-column-width);
   box-sizing: border-box;
   pointer-events: auto;
   transition: top 0.22s cubic-bezier(0.2, 0.7, 0.2, 1),
@@ -166,6 +166,44 @@
   width: 100%;
   margin: 0;
 }
+
+/* -- Column resize handle ------------------------------------------------- */
+
+/* A full-height grab strip centered on the gutter's inner edge — the divider
+   between the document and the column. Invisible but for the resize cursor;
+   shown only in column mode (the read side reserves the gutter under the same
+   classes). mud-comments-edit.js wires the drag. */
+.mud-column-resizer { display: none; }
+
+@media screen {
+  html.comments-column.is-comments-column .mud-column-resizer {
+    display: block;
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    right: var(--comment-column-gutter);
+    width: 9px;
+    transform: translateX(50%);
+    z-index: 11;
+    cursor: col-resize;
+    pointer-events: auto;
+  }
+
+  /* In Readable Column the divider sits at the column's left edge (off the
+     document's right edge), not the window's, so follow the column there. */
+  html.comments-column.is-comments-column.is-readable-column .mud-column-resizer {
+    right: auto;
+    left: min((100% + 800px) / 2, 100% - var(--comment-column-gutter));
+    transform: translateX(-50%);
+  }
+}
+
+/* While dragging: keep the resize cursor everywhere and suppress text selection,
+   and drop the capsule move/resize transitions so the column tracks the pointer
+   without lag. */
+html.is-resizing-comment-column { cursor: col-resize; user-select: none; }
+html.is-resizing-comment-column .mud-capsule,
+html.is-resizing-comment-column .mud-compose { transition: none; }
 
 /* Delete: a brief scale-blur-fade puff — the whole capsule for the last
    remaining message, or just one message box within a longer thread. */

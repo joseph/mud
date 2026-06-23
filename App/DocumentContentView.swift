@@ -137,6 +137,7 @@ struct DocumentContentView: View {
             theme: displayTheme,
             bodyClasses: renderOptions.htmlClasses,
             zoomLevel: renderOptions.zoomLevel,
+            commentColumnWidth: appState.commentColumnWidth,
             searchQuery: findState.currentQuery,
             scrollTarget: state.scrollTarget,
             changeScrollTarget: state.changeScrollTarget,
@@ -157,6 +158,9 @@ struct DocumentContentView: View {
             },
             onCommentableSelection: { has in
                 state.commentableSelection.send(has)
+            },
+            onColumnWidthChange: { width in
+                appState.commentColumnWidth = width
             },
             onSearchResult: { info in
                 findState.matchInfo = info

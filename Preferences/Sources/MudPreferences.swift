@@ -119,6 +119,7 @@ extension MudPreferences {
         case uiUseHeadingAsTitle        = "ui.use-heading-as-title"
         case uiFloatingControlsPosition = "ui.floating-controls-position"
         case uiShowReadableColumn       = "ui.show-readable-column"
+        case uiCommentColumnWidth       = "ui.comment-column-width"
 
         // internal.* — app-owned bookkeeping
         case hasLaunched                = "internal.has-launched"
@@ -192,6 +193,14 @@ extension MudPreferences {
     public var downModeZoomLevel: Double {
         get { read(.downModeZoomLevel, default: 1.0) }
         nonmutating set { write(newValue, forKey: .downModeZoomLevel) }
+    }
+
+    /// The Comments Column's inner content width in points (the drag handle
+    /// writes it). The read-side JS clamps to 200–400; the default matches the
+    /// CSS default.
+    public var commentColumnWidth: Double {
+        get { read(.uiCommentColumnWidth, default: 300) }
+        nonmutating set { write(newValue, forKey: .uiCommentColumnWidth) }
     }
 
     public var sidebarEnabled: Bool {

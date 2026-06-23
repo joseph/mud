@@ -578,4 +578,53 @@
   col.hooks.ownedNodes = function () {
     return composeNew ? [composeNew] : [];
   };
+
+  // -- Column resize handle -------------------------------------------------
+
+  // A full-height strip sitting on the gutter's inner edge (the divider between
+  // the document and the column). Dragging it left widens the column and right
+  // narrows it; the read side clamps to 200–400px. On release the applied width
+  // is posted to Swift, which persists it (see WebView's `mudColumnWidth`). CSS
+  // shows the strip only in column mode; here in the app it always exists.
+  function currentWidth() {
+    var v = getComputedStyle(document.documentElement)
+      .getPropertyValue("--comment-column-width");
+    return parseFloat(v) || 300;
+  }
+
+  var resizer = document.createElement("div");
+  resizer.className = "mud-column-resizer";
+  resizer.setAttribute("aria-hidden", "true");
+  document.body.appendChild(resizer);
+
+  var dragStartX = 0, dragStartWidth = 0, dragWidth = 0;
+
+  // Keep the document-level mousedown from deactivating an open comment when the
+  // grab lands on the handle (same guard the header arrows use).
+  resizer.addEventListener("mousedown", function (e) { e.stopPropagation(); });
+
+  resizer.addEventListener("pointerdown", function (e) {
+    e.preventDefault();
+    dragStartX = e.clientX;
+    dragStartWidth = dragWidth = currentWidth();
+    resizer.setPointerCapture(e.pointerId);
+    document.documentElement.classList.add("is-resizing-comment-column");
+  });
+
+  resizer.addEventListener("pointermove", function (e) {
+    if (!resizer.hasPointerCapture(e.pointerId)) return;
+    // Dragging left (a smaller clientX) widens the column. The delta is in
+    // zoomed screen pixels; divide by the zoom to match the layout-pixel width.
+    dragWidth = col.setColumnWidth(
+      dragStartWidth + (dragStartX - e.clientX) / zoom());
+  });
+
+  function endDrag(e) {
+    if (!resizer.hasPointerCapture(e.pointerId)) return;
+    resizer.releasePointerCapture(e.pointerId);
+    document.documentElement.classList.remove("is-resizing-comment-column");
+    if (handlers.mudColumnWidth) handlers.mudColumnWidth.postMessage(dragWidth);
+  }
+  resizer.addEventListener("pointerup", endDrag);
+  resizer.addEventListener("pointercancel", endDrag);
 })();

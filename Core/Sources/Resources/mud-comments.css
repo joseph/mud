@@ -95,6 +95,12 @@
 /* The quotation highlight color. A theme may override `--comment-highlight`. */
 :root {
   --comment-highlight: #fde047;
+
+  /* The column's inner content width (the capsule / header / compose width),
+     200–400px. The app's drag handle rewrites it live; everywhere else it holds
+     this default. The gutter adds the fixed 12px margin on each side. */
+  --comment-column-width: 300px;
+  --comment-column-gutter: calc(var(--comment-column-width) + 24px);
 }
 
 /* Column mode: the inline quote markers are an export/print affordance only —
@@ -118,18 +124,18 @@
   }
 }
 
-/* The comments column and its 324px gutter are an on-screen layout only. Print
-   hides the column (below) and shows the bottom Comments section instead, so the
+/* The comments column and its gutter are an on-screen layout only. Print hides
+   the column (below) and shows the bottom Comments section instead, so the
    document must fill the page with no reserved gutter — hence the whole block is
-   scoped to `@media screen`. (Reserving the gutter in print left a blank 324px
-   strip down the right of every page.) */
+   scoped to `@media screen`. (Reserving the gutter in print left a blank strip
+   down the right of every page.) */
 @media screen {
-  /* With the column toggled on, reserve a 324px right gutter (12 + 300 + 12).
-     The body is the scroll and positioning container; capsules are absolutely
-     placed within it, so the column scrolls with the document. */
+  /* With the column toggled on, reserve the right gutter. The body is the
+     scroll and positioning container; capsules are absolutely placed within it,
+     so the column scrolls with the document. */
   html.comments-column.is-comments-column body {
     position: relative;
-    padding-right: 324px;
+    padding-right: var(--comment-column-gutter);
   }
 
   html.comments-column.is-comments-column .up-mode-output {
@@ -140,28 +146,36 @@
     position: absolute;
     top: 0;
     right: 0;
-    width: 324px;
+    width: var(--comment-column-gutter);
     /* Empty gutter passes clicks through to the document; capsules re-enable. */
     pointer-events: none;
     font-size: 0.8rem;
   }
 
   /* Readable Column: keep the document centered while there is room for the
-     324px gutter to its right, nudging it left then (window < 1124px) shrinking
-     it, and ride the column off the document's right edge instead of the
-     window's. */
+     gutter to its right, nudging it left then (once the window is narrower than
+     the readable width plus the gutter) shrinking it, and ride the column off
+     the document's right edge instead of the window's. */
   html.comments-column.is-comments-column.is-readable-column body {
     padding-right: 0;
   }
 
   html.comments-column.is-comments-column.is-readable-column .up-mode-output {
-    margin-left: max(0px, min((100% - 800px) / 2, 100% - 1124px));
-    margin-right: 324px;
+    margin-left: max(0px, min((100% - 800px) / 2, 100% - (800px + var(--comment-column-gutter))));
+    margin-right: var(--comment-column-gutter);
   }
 
   html.comments-column.is-comments-column.is-readable-column #mud-comments-column {
     right: auto;
-    left: min((100% + 800px) / 2, 100% - 324px);
+    left: min((100% + 800px) / 2, 100% - var(--comment-column-gutter));
+  }
+
+  /* The fixed header rides off the window's right edge by default; in Readable
+     Column it must follow the column instead, so its left edge lines up with the
+     capsules (the column's left, plus the 12px margin). */
+  html.comments-column.is-comments-column.is-readable-column #mud-comments-header {
+    right: auto;
+    left: calc(min((100% + 800px) / 2, 100% - var(--comment-column-gutter)) + 12px);
   }
 }
 
@@ -172,7 +186,7 @@
   position: fixed;
   top: 0;
   right: 12px;
-  width: 300px;
+  width: var(--comment-column-width);
   z-index: 10;
   pointer-events: auto;
   box-sizing: border-box;
@@ -249,7 +263,7 @@
 .mud-capsule {
   position: absolute;
   right: 12px;
-  width: 300px;
+  width: var(--comment-column-width);
   box-sizing: border-box;
   pointer-events: auto;
   transition: top 0.22s cubic-bezier(0.2, 0.7, 0.2, 1),

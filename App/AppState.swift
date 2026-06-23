@@ -32,6 +32,9 @@ class AppState: ObservableObject {
     @Published var downModeZoomLevel: Double {
         didSet { MudPreferences.shared.downModeZoomLevel = downModeZoomLevel }
     }
+    @Published var commentColumnWidth: Double {
+        didSet { MudPreferences.shared.commentColumnWidth = commentColumnWidth }
+    }
     @Published var sidebarEnabled: Bool {
         didSet { MudPreferences.shared.sidebarEnabled = sidebarEnabled }
     }
@@ -90,6 +93,7 @@ class AppState: ObservableObject {
         self.viewToggles = config.viewToggles
         self.upModeZoomLevel = config.upModeZoomLevel
         self.downModeZoomLevel = config.downModeZoomLevel
+        self.commentColumnWidth = config.commentColumnWidth
         self.sidebarEnabled = config.sidebarEnabled
         self.sidebarPane = config.sidebarPane
         self.changesEnabled = config.changesEnabled
@@ -137,6 +141,7 @@ class AppState: ObservableObject {
         case .upModeZoomLevel:            self.upModeZoomLevel = c.upModeZoomLevel
         case .upModeAllowRemoteContent:   self.upModeAllowRemoteContent = c.upModeAllowRemoteContent
         case .downModeZoomLevel:          self.downModeZoomLevel = c.downModeZoomLevel
+        case .uiCommentColumnWidth:       self.commentColumnWidth = c.commentColumnWidth
         case .sidebarEnabled:             self.sidebarEnabled = c.sidebarEnabled
         case .sidebarPane:                self.sidebarPane = c.sidebarPane
         case .markdownDocCAlertMode:      self.markdownDocCAlertMode = c.markdownDocCAlertMode

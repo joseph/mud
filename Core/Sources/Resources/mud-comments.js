@@ -627,6 +627,21 @@
   }
   window.addEventListener("resize", scheduleLayout);
 
+  // The column's inner content width, clamped to its bounds. The single place
+  // the width is set: the app pushes a persisted value on load and the drag
+  // handle (write side) calls it live; both go through the same clamp. Setting
+  // the CSS variable rewraps capsule text, so reflow follows. Returns the value
+  // actually applied, which the caller persists.
+  var MIN_WIDTH = 200, MAX_WIDTH = 400;
+
+  function setColumnWidth(px) {
+    var w = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, Math.round(px)));
+    document.documentElement.style.setProperty(
+      "--comment-column-width", w + "px");
+    scheduleLayout();
+    return w;
+  }
+
   // -- Live updates: rebuild the hidden section, sync body markers ----------
 
   // The app calls setData on a comment add / reply / edit / delete (no reload).
@@ -839,6 +854,9 @@
     matchQuotationStart: matchQuotationStart,
     // Live update from the app: rebuild section + markers + reproject.
     setData: setData,
+    // Live width change (app load + the write side's drag handle). Clamps to
+    // 200–400px, sets the CSS variable, reflows, and returns the applied width.
+    setColumnWidth: setColumnWidth,
     // Seams the write side fills in (all default to no-op / empty).
     hooks: {
       afterProject: null,     // build the Add button machinery

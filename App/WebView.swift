@@ -138,6 +138,9 @@ struct WebView: NSViewRepresentable {
     var theme: Theme = .earthy
     var bodyClasses: Set<String> = []
     var zoomLevel: Double = 1.0
+    /// The Comments Column's inner content width, pushed to the page like zoom
+    /// (no reload). The drag handle reports changes back via `onColumnWidthChange`.
+    var commentColumnWidth: Double = 300
     var searchQuery: SearchQuery?
     var scrollTarget: ScrollTarget?
     var changeScrollTarget: ChangeScrollTarget?
@@ -159,6 +162,9 @@ struct WebView: NSViewRepresentable {
     /// Whether the rendered view holds a commentable selection (enables the
     /// toolbar "Comment" button).
     var onCommentableSelection: ((Bool) -> Void)?
+    /// The Comments Column was resized via its drag handle (the applied width,
+    /// already clamped to 200–400 by the page). Persisted by the caller.
+    var onColumnWidthChange: ((Double) -> Void)?
     var onSearchResult: ((MatchInfo?) -> Void)?
 
     func makeNSView(context: Context) -> WKWebView {
@@ -190,6 +196,7 @@ struct WebView: NSViewRepresentable {
         config.userContentController.add(context.coordinator, name: "mudCommentSubmit")
         config.userContentController.add(context.coordinator, name: "mudComposing")
         config.userContentController.add(context.coordinator, name: "mudSelection")
+        config.userContentController.add(context.coordinator, name: "mudColumnWidth")
 
         let webView = MudWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
@@ -210,6 +217,8 @@ struct WebView: NSViewRepresentable {
         context.coordinator.onCommentSubmit = onCommentSubmit
         context.coordinator.onComposing = onComposing
         context.coordinator.onCommentableSelection = onCommentableSelection
+        context.coordinator.onColumnWidthChange = onColumnWidthChange
+        context.coordinator.commentColumnWidth = commentColumnWidth
         context.coordinator.commentTheme = theme.rawValue
 
         // Handle search
@@ -324,10 +333,14 @@ struct WebView: NSViewRepresentable {
         let reloadForced = reloadID != nil && context.coordinator.lastReloadID != reloadID
 
         if !modeChanged && !contentChanged && !reloadForced {
-            // Only theme/zoom/classes changed — apply without reload.
+            // Only theme/zoom/classes/width changed — apply without reload.
             context.coordinator.applyTheme(to: webView, theme: theme)
             context.coordinator.applyBodyClasses(to: webView, classes: bodyClasses)
             context.coordinator.applyZoom(to: webView, level: zoomLevel)
+            if context.coordinator.lastCommentColumnWidth != commentColumnWidth {
+                context.coordinator.applyCommentColumnWidth(
+                    to: webView, width: commentColumnWidth)
+            }
             // A comment add/remove changes the comment set but not the (Up-mode
             // comment-invariant) contentID, so no reload fires. Re-push the
             // comment data so `mud-comments.js` inserts/removes the marker and
@@ -386,6 +399,11 @@ struct WebView: NSViewRepresentable {
         var onCommentSubmit: ((CommentSubmission) -> Void)?
         var onComposing: ((Bool) -> Void)?
         var onCommentableSelection: ((Bool) -> Void)?
+        var onColumnWidthChange: ((Double) -> Void)?
+        /// The width last requested by updateNSView; `applyCommentColumnWidth`
+        /// pushes only on a change, and `didFinish` reapplies it after a reload.
+        var commentColumnWidth: Double = 300
+        var lastCommentColumnWidth: Double?
         var commentTheme: String = "earthy"
         weak var webView: WKWebView?
         private var savedFraction: CGFloat?
@@ -423,6 +441,16 @@ struct WebView: NSViewRepresentable {
             webView.evaluateJavaScript("Mud.setZoom(\(level))")
         }
 
+        /// Push the persisted Comments Column width to the page. A fresh load
+        /// resets the column to its CSS default, so `didFinish` always reapplies;
+        /// the no-reload path applies only on a change. The page re-clamps.
+        func applyCommentColumnWidth(to webView: WKWebView, width: Double) {
+            lastCommentColumnWidth = width
+            webView.evaluateJavaScript(
+                "window.Mud && Mud.comments && Mud.comments.setColumnWidth"
+                + " && Mud.comments.setColumnWidth(\(width))")
+        }
+
         func applyBodyClasses(to webView: WKWebView, classes: Set<String>) {
             // The persisted view-toggle classes, plus `is-comments-column`
             // (per-window state) and `comment-return-saves` (a preference) —
@@ -439,6 +467,7 @@ struct WebView: NSViewRepresentable {
             lastSearchID = nil
             restoreScrollPosition(to: webView)
             applyComments(to: webView)
+            applyCommentColumnWidth(to: webView, width: commentColumnWidth)
             for ext in activeExtensions {
                 injectExtension(ext, into: webView)
             }
@@ -531,6 +560,10 @@ struct WebView: NSViewRepresentable {
                 onComposing?((message.body as? Bool) ?? false)
             case "mudSelection":
                 onCommentableSelection?((message.body as? Bool) ?? false)
+            case "mudColumnWidth":
+                if let width = message.body as? Double {
+                    onColumnWidthChange?(width)
+                }
             default:
                 break
             }

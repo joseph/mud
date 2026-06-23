@@ -243,7 +243,12 @@ struct FloatingBarsOverlay: ViewModifier {
     @ObservedObject private var appState = AppState.shared
     @FocusState private var isFindFocused: Bool
     @State private var containerWidth: CGFloat = 0
+    var commentsColumnVisible: Bool
     var onSelectChange: ([String]) -> Void
+
+    /// When the bars sit in the top right and the Comments Column is open,
+    /// drop them below its header so they don't cover it.
+    private static let commentsHeaderClearance: CGFloat = 45
 
     /// Side-by-side bars need roughly this much room (FindBar caps at 320pt
     /// plus the Changes bar); below it, bottom center stacks vertically.
@@ -279,6 +284,13 @@ struct FloatingBarsOverlay: ViewModifier {
         }
     }
 
+    /// Extra space above the bars, so a top-right stack clears the Comments
+    /// Column header when that column is open.
+    private var topInset: CGFloat {
+        barLayout == .topRightColumn && commentsColumnVisible
+            ? Self.commentsHeaderClearance : 0
+    }
+
     private var barLayout: BarLayout {
         switch appState.uiFloatingControlsPosition {
         case .topRight: .topRightColumn
@@ -299,10 +311,12 @@ struct FloatingBarsOverlay: ViewModifier {
             .overlay(alignment: barLayout.overlayAlignment) {
                 floatingBars
                     .padding(12)
+                    .padding(.top, topInset)
             }
             .animation(.easeOut(duration: 0.15), value: findState.isVisible)
             .animation(.easeOut(duration: 0.15), value: changesBarVisible)
             .animation(.easeOut(duration: 0.15), value: barLayout)
+            .animation(.easeOut(duration: 0.15), value: commentsColumnVisible)
             .onChange(of: findState.isVisible) { _, isVisible in
                 if isVisible { isFindFocused = true }
             }
@@ -351,11 +365,13 @@ extension View {
     func floatingBarsOverlay(
         findState: FindState,
         changeTracker: ChangeTracker,
+        commentsColumnVisible: Bool,
         onSelectChange: @escaping ([String]) -> Void
     ) -> some View {
         modifier(FloatingBarsOverlay(
             findState: findState,
             changeTracker: changeTracker,
+            commentsColumnVisible: commentsColumnVisible,
             onSelectChange: onSelectChange
         ))
     }

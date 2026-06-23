@@ -172,6 +172,7 @@ struct DocumentContentView: View {
         .floatingBarsOverlay(
             findState: findState,
             changeTracker: changeTracker,
+            commentsColumnVisible: state.commentsColumnVisible,
             onSelectChange: { changeIDs in
                 state.changeScrollTarget = ChangeScrollTarget(
                     id: UUID(), changeIDs: changeIDs)

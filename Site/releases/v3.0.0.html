@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src mud-asset: data: https:; style-src 'unsafe-inline'; script-src 'none'">
         
-    <title>v1.1.0</title>
+    <title>v3.0.0</title>
     <style>/* -- Theme: Earthy -------------------------------------------------------- */
 
 :root {
@@ -1118,48 +1118,35 @@ img {
 </head>
 <body>
     <article class="up-mode-output">
-<h1 id="v110">v1.1.0</h1>
+<h1 id="v300">v3.0.0</h1>
 <ul>
-<li>Settings dialog with sidebar navigation and panes for General, Theme,
-Markdown, Up Mode, Down Mode, Command Line, and Debugging
+<li><strong>Comments!</strong> — select any passage and attach a threaded comment, perfect for
+marking up a document for a coding agent or a colleague. Comments live inside
+the Markdown file itself as standard footnotes, so they travel with the file
+and stay readable in any other tool. Replies, edits, and deletes are all
+supported.
 </li>
-<li>Theme preview cards in Settings with visual color swatches
+<li><strong>Footnotes</strong> — Mud now renders Markdown footnotes. Clicking a reference
+marker opens a popover with the footnote body rendered as Markdown, and Down
+mode highlights footnote definitions and markers.
 </li>
-<li>Card-based lighting selector in General settings
+<li><code>mud --primer</code> prints a short Mud guide written for coding agents. Teach your
+clanker to run that command when it generates Markdown, so it knows how to
+launch Mud, write rich documents with tables and diagrams and footnotes and
+more, and reply to your comments!
 </li>
-<li>Up Mode setting to block loading of remote content
+<li><strong>Open In…</strong> — a new File menu command opens the current document in your
+editor of choice, so you don’t have to detour through the Finder to make a
+change.
 </li>
-<li>Sandbox-aware command line settings: manual <code>ln -s</code> instructions when
-sandboxed, automatic installer otherwise
+<li>Hover over the document title in the toolbar to reveal the <em>file proxy</em> icon.
 </li>
-<li>GFM alerts and DocC-style asides (Note, Tip, Important, Warning, Caution)
+<li>Toolbar button icons have <em>tooltips</em>.
 </li>
-<li>Special “Status” aside with deep orange styling and pulse icon
+<li>The Changes bar and Find bar now sit side by side when bottom-centered.
 </li>
-<li>“Error” recognized as a DocC-style aside
-</li>
-<li>Emoji shortcode support in Up mode (<code>:shortcode:</code> → emoji)
-</li>
-<li>Mermaid diagram rendering in Up mode
-</li>
-<li>CLI tool: separate “Mud CLI” target for command-line HTML output
-</li>
-<li>CLI tool: <code>-v</code> reports the main Mud.app version number
-</li>
-<li>CLI tool: when sandboxed, strips executable assets and adapts settings pane
-</li>
-<li>Error page displayed when documents can’t be opened
-</li>
-<li>Help menu item and bundled README opened on first launch
-</li>
-<li>Table of contents sidebar: extra space for disclosure chevrons, decoupled
-empty-state view from sidebar layout
-</li>
-<li>FileWatcher no longer fires onChange after genuine file deletion
-</li>
-<li>Window frame restored after content and toolbar setup
-</li>
-<li>“Enter Full Screen” hidden from View menu
+<li>Speculative fixes for people who’ve had problems getting the <em>Quick Look</em>
+feature to work.
 </li>
 </ul>
 <hr />

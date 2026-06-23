@@ -1,6 +1,30 @@
 RELEASES
 ===============================================================================
 
+## v3.0.0
+
+- **Comments!** — select any passage and attach a threaded comment, perfect for
+  marking up a document for a coding agent or a colleague. Comments live inside
+  the Markdown file itself as standard footnotes, so they travel with the file
+  and stay readable in any other tool. Replies, edits, and deletes are all
+  supported.
+- **Footnotes** — Mud now renders Markdown footnotes. Clicking a reference
+  marker opens a popover with the footnote body rendered as Markdown, and Down
+  mode highlights footnote definitions and markers.
+- `mud --primer` prints a short Mud guide written for coding agents. Teach your
+  clanker to run that command when it generates Markdown, so it knows how to
+  launch Mud, write rich documents with tables and diagrams and footnotes and
+  more, and reply to your comments!
+- **Open In…** — a new File menu command opens the current document in your
+  editor of choice, so you don't have to detour through the Finder to make a
+  change.
+- Hover over the document title in the toolbar to reveal the _file proxy_ icon.
+- Toolbar button icons have _tooltips_.
+- The Changes bar and Find bar now sit side by side when bottom-centered.
+- Speculative fixes for people who've had problems getting the _Quick Look_
+  feature to work.
+
+
 ## v2.1.0
 
 - **Quick Look previews** — press Space on a Markdown file in the Finder to see

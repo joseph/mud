@@ -30,7 +30,7 @@ class MudWebView: WKWebView {
                                   action: #selector(postAddComment),
                                   keyEquivalent: "")
             item.target = self
-            item.image = NSImage(systemSymbolName: "plus.bubble",
+            item.image = NSImage(systemSymbolName: "plus.message",
                                  accessibilityDescription: nil)
             menu.insertItem(item, at: 0)
             menu.insertItem(.separator(), at: 1)

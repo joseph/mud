@@ -208,7 +208,7 @@ struct MudApp: App {
                 Button {
                     NSApp.sendAction(#selector(DocumentWindowController.addComment(_:)), to: nil, from: nil)
                 } label: {
-                    Label("Add Comment…", systemImage: "plus.bubble")
+                    Label("Add Comment…", systemImage: "plus.message")
                 }
                 .keyboardShortcut("k", modifiers: [.command, .shift])
                 .disabled(!appState.canAddComment)

@@ -255,7 +255,7 @@ class DocumentWindowController: NSWindowController {
     }
 
     private func updateCommentsColumnButton(_ visible: Bool) {
-        let symbol = visible ? "text.bubble.fill" : "text.bubble"
+        let symbol = visible ? "bubble.left.and.text.bubble.right.fill" : "bubble.left.and.text.bubble.right"
         commentsColumnButton?.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
         commentsColumnButton?.toolTip = visible ? "Hide Comments" : "Show Comments"
     }
@@ -432,6 +432,7 @@ extension DocumentWindowController: NSToolbarDelegate {
             .sidebarTrackingSeparator,
             .flexibleSpace,
             .addComment,
+            .toggleCommentsColumn,
             .space,
             .toggleFind,
             .toggleChanges,
@@ -503,7 +504,7 @@ extension DocumentWindowController: NSToolbarDelegate {
             return item
 
         case .addComment:
-            let button = makeToolbarButton(symbolName: "plus.bubble", action: #selector(addComment(_:)))
+            let button = makeToolbarButton(symbolName: "plus.message", action: #selector(addComment(_:)))
             button.toolTip = "Add Comment…"
             commentButton = button
             updateCommentButton()
@@ -512,7 +513,7 @@ extension DocumentWindowController: NSToolbarDelegate {
             return item
 
         case .toggleCommentsColumn:
-            let button = makeToolbarButton(symbolName: "text.bubble", action: #selector(toggleCommentsColumn(_:)))
+            let button = makeToolbarButton(symbolName: "bubble.left.and.text.bubble.right", action: #selector(toggleCommentsColumn(_:)))
             commentsColumnButton = button
             updateCommentsColumnButton(state.commentsColumnVisible)
             item.view = button

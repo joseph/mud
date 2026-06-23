@@ -24,8 +24,38 @@ class MudWebView: WKWebView {
                          action: #selector(postReloadDocument),
                          keyEquivalent: "")
             for item in menu.items where item.action != nil { item.target = self }
+        } else if canAddComment(in: menu) {
+            // Selection menu (Copy etc.): offer "Add Comment…" at the top.
+            let item = NSMenuItem(title: "Add Comment\u{2026}",
+                                  action: #selector(postAddComment),
+                                  keyEquivalent: "")
+            item.target = self
+            item.image = NSImage(systemSymbolName: "plus.bubble",
+                                 accessibilityDescription: nil)
+            menu.insertItem(item, at: 0)
+            menu.insertItem(.separator(), at: 1)
         }
         super.willOpenMenu(menu, with: event)
+    }
+
+    /// The opened document's URL, via the AppKit window controller.
+    private var documentURL: URL? {
+        (window?.windowController as? DocumentWindowController)?.fileURL
+    }
+
+    /// "Add Comment…" applies only to a text selection in the rendered (Up-mode)
+    /// view of a writable document. A WKWebView selection menu carries a Copy
+    /// item (`WKMenuItemIdentifierCopy`); its presence is our selection signal.
+    private func canAddComment(in menu: NSMenu) -> Bool {
+        guard AppState.shared.modeInActiveTab == .up,
+              let url = documentURL, !url.isBundleResource else { return false }
+        return menu.items.contains {
+            $0.identifier?.rawValue == "WKMenuItemIdentifierCopy"
+        }
+    }
+
+    @objc private func postAddComment() {
+        sendActionToController(#selector(DocumentWindowController.addComment(_:)))
     }
 
     private func buildOpenInSubmenu() -> NSMenu {
@@ -112,6 +142,17 @@ struct WebView: NSViewRepresentable {
     var printID: UUID?
     var extensions: Set<String> = []
     var footnoteHTML: [String: String] = [:]
+    var comments: [Comment] = []
+    var draftCommentID: UUID?
+    /// The comment thread to reveal in the document (scroll to its `[⋯]` marker
+    /// and light its highlight); `nil` clears. Driven by the sidebar selection.
+    var revealCommentLabel: String?
+    /// `[⋯]` marker click → open this comment's thread in the sidebar.
+    var onOpenComment: ((String) -> Void)?
+    /// "Add Comment" selection captured → start a new comment in the sidebar.
+    var onCommentDraft: ((CommentDraft) -> Void)?
+    /// Whether the rendered body has a non-empty selection (gates "Add Comment").
+    var onSelectionChange: ((Bool) -> Void)?
     var onSearchResult: ((MatchInfo?) -> Void)?
 
     func makeNSView(context: Context) -> WKWebView {
@@ -126,6 +167,7 @@ struct WebView: NSViewRepresentable {
             HTMLTemplate.mudChangesJS,
             HTMLTemplate.mudUpJS,
             HTMLTemplate.mudDownJS,
+            HTMLTemplate.mudCommentsJS,
         ]
         for source in scripts {
             let script = WKUserScript(
@@ -138,6 +180,9 @@ struct WebView: NSViewRepresentable {
 
         config.userContentController.add(context.coordinator, name: "mudOpen")
         config.userContentController.add(context.coordinator, name: "mudFootnote")
+        config.userContentController.add(context.coordinator, name: "mudCommentDraft")
+        config.userContentController.add(context.coordinator, name: "mudCommentOpen")
+        config.userContentController.add(context.coordinator, name: "mudSelection")
 
         let webView = MudWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
@@ -153,6 +198,26 @@ struct WebView: NSViewRepresentable {
     func updateNSView(_ webView: WKWebView, context: Context) {
         context.coordinator.onSearchResult = onSearchResult
         context.coordinator.footnoteHTML = footnoteHTML
+        context.coordinator.comments = comments
+        context.coordinator.onOpenComment = onOpenComment
+        context.coordinator.onCommentDraft = onCommentDraft
+        context.coordinator.onSelectionChange = onSelectionChange
+
+        // Reveal a comment in the document when the sidebar selection changes.
+        if context.coordinator.revealCommentLabel != revealCommentLabel {
+            context.coordinator.revealCommentLabel = revealCommentLabel
+            context.coordinator.applyCommentReveal(to: webView)
+        }
+
+        // "Add Comment" fires draft capture in the page (Up mode only — the
+        // selection and `Mud.comments` live there).
+        if let draftCommentID,
+           context.coordinator.lastDraftCommentID != draftCommentID {
+            context.coordinator.lastDraftCommentID = draftCommentID
+            if mode == .up {
+                webView.evaluateJavaScript("Mud.comments.draft()")
+            }
+        }
 
         // Handle search
         if let query = searchQuery,
@@ -278,6 +343,12 @@ struct WebView: NSViewRepresentable {
         var activeExtensions: [RenderExtension] = []
         var onSearchResult: ((MatchInfo?) -> Void)?
         var footnoteHTML: [String: String] = [:]
+        var comments: [Comment] = []
+        var onOpenComment: ((String) -> Void)?
+        var onCommentDraft: ((CommentDraft) -> Void)?
+        var onSelectionChange: ((Bool) -> Void)?
+        var revealCommentLabel: String?
+        var lastDraftCommentID: UUID?
         weak var webView: WKWebView?
         private var savedFraction: CGFloat?
         private let baseURL: URL?
@@ -326,12 +397,44 @@ struct WebView: NSViewRepresentable {
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
             lastSearchID = nil
             restoreScrollPosition(to: webView)
+            applyComments(to: webView)
+            applyCommentReveal(to: webView)
             for ext in activeExtensions {
                 injectExtension(ext, into: webView)
             }
             if webView.alphaValue == 0 {
                 webView.alphaValue = 1
             }
+        }
+
+        /// Hands the parsed comments (label + quotation) to `mud-comments.js`,
+        /// which (re-)anchors the hover-revealed highlights.
+        private func applyComments(to webView: WKWebView) {
+            struct Payload: Encodable { let label: String; let quotation: String }
+            let payload = comments.map {
+                Payload(label: $0.label, quotation: $0.quotation ?? "")
+            }
+            guard let data = try? JSONEncoder().encode(payload),
+                  let json = String(data: data, encoding: .utf8) else { return }
+            // `Mud.comments` exists only in Up mode (mud-comments.js early-returns
+            // in Down mode), so guard before calling.
+            webView.evaluateJavaScript(
+                "window.Mud && Mud.comments && Mud.comments.setData(\(json))")
+        }
+
+        /// Reveals (or clears) the sidebar-selected comment in the document.
+        func applyCommentReveal(to webView: WKWebView) {
+            let arg: String
+            if let label = revealCommentLabel {
+                let escaped = label
+                    .replacingOccurrences(of: "\\", with: "\\\\")
+                    .replacingOccurrences(of: "'", with: "\\'")
+                arg = "'\(escaped)'"
+            } else {
+                arg = "null"
+            }
+            webView.evaluateJavaScript(
+                "window.Mud && Mud.comments && Mud.comments.reveal(\(arg))")
         }
 
         private func injectExtension(_ ext: RenderExtension, into webView: WKWebView) {
@@ -360,9 +463,48 @@ struct WebView: NSViewRepresentable {
                 }
             case "mudFootnote":
                 presentFootnote(message.body)
+            case "mudCommentDraft":
+                handleCommentDraft(message.body)
+            case "mudCommentOpen":
+                if let dict = message.body as? [String: Any],
+                   let label = dict["label"] as? String {
+                    onOpenComment?(label)
+                }
+            case "mudSelection":
+                onSelectionChange?((message.body as? Bool) ?? false)
             default:
                 break
             }
+        }
+
+        /// Parses the `mudCommentDraft` payload `{quotation, locator:{…}}` into a
+        /// `CommentDraft` and hands it to the sidebar's create flow. Nothing is
+        /// written until the user adds a message there.
+        private func handleCommentDraft(_ body: Any) {
+            guard let dict = body as? [String: Any],
+                  let quotation = dict["quotation"] as? String,
+                  let locator = dict["locator"] as? [String: Any],
+                  let blockText = locator["blockText"] as? String,
+                  let offset = locator["offset"] as? Int else { return }
+            let draft = CommentDraft(
+                quotation: quotation, blockText: blockText,
+                offsetInBlock: offset,
+                occurrence: locator["occurrence"] as? Int ?? 0)
+            onCommentDraft?(draft)
+        }
+
+        /// Converts a JS `{x,y,width,height}` rect (top-left origin, zoom-
+        /// normalized CSS pixels) into an `NSRect` in the WebView's AppKit space.
+        private func anchorRect(
+            from rectDict: [String: Any], in webView: WKWebView
+        ) -> NSRect {
+            func value(_ key: String) -> CGFloat {
+                CGFloat((rectDict[key] as? Double) ?? 0)
+            }
+            let x = value("x"), y = value("y")
+            let w = value("width"), h = value("height")
+            let appKitY = webView.isFlipped ? y : webView.bounds.height - (y + h)
+            return NSRect(x: x, y: appKitY, width: w, height: h)
         }
 
         /// Routes a link: local `.md`/`.markdown` open a new Mud document;
@@ -388,21 +530,9 @@ struct WebView: NSViewRepresentable {
                   let html = footnoteHTML[label.lowercased()],
                   let webView = webView else { return }
 
-            func value(_ key: String) -> CGFloat {
-                CGFloat((rectDict[key] as? Double) ?? 0)
-            }
-            let x = value("x"), y = value("y")
-            let w = value("width"), h = value("height")
-            // Web coords are top-left origin; flip into the WKWebView's AppKit
-            // space unless the view is already flipped.
-            let appKitY = webView.isFlipped
-                ? y
-                : webView.bounds.height - (y + h)
-            let anchor = NSRect(x: x, y: appKitY, width: w, height: h)
-
             footnotePopover.show(
                 html: html, baseURL: baseURL,
-                relativeTo: anchor, of: webView,
+                relativeTo: anchorRect(from: rectDict, in: webView), of: webView,
                 onOpenURL: { [weak self] url in self?.openURL(url) })
         }
 

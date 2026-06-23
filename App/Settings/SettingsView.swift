@@ -6,6 +6,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
     case markdown
     case theme
     case changes
+    case comments
     case upMode
     case downMode
     case commandLine
@@ -24,6 +25,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .markdown: return "Markdown"
         case .theme: return "Theme"
         case .changes: return "Change Tracking"
+        case .comments: return "Comments"
         case .upMode: return "Up Mode"
         case .downMode: return "Down Mode"
         case .commandLine: return "Command Line"
@@ -42,6 +44,7 @@ enum SettingsPane: String, CaseIterable, Identifiable {
         case .markdown: return "text.document"
         case .theme: return "paintpalette"
         case .changes: return "document.badge.clock"
+        case .comments: return "text.bubble"
         case .upMode: return "arrow.uturn.up.circle"
         case .downMode: return "arrow.uturn.down.circle"
         case .commandLine: return "terminal"
@@ -87,6 +90,8 @@ struct SettingsView: View {
             ThemeSettingsView()
         case .changes:
             ChangesSettingsView()
+        case .comments:
+            CommentsSettingsView()
         case .upMode:
             UpModeSettingsView()
         case .downMode:

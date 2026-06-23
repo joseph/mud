@@ -129,6 +129,9 @@ extension MudPreferences {
         // open-in.* — external-editor handoff
         case openInDefaultBundleID         = "open-in.default-bundle-id"
         case openInDefaultFormat           = "open-in.default-format"
+
+        // comment.* — comment authoring
+        case commentAuthor                 = "comment-author"
     }
 }
 
@@ -272,6 +275,18 @@ extension MudPreferences {
     public var openInDefaultFormat: EditorFormat {
         get { read(.openInDefaultFormat, default: .auto) }
         nonmutating set { write(newValue, forKey: .openInDefaultFormat) }
+    }
+
+    /// Author name written into new comment messages' `💬 <author> (…)` header.
+    /// An empty or unset value resolves to the system full name, so a fresh
+    /// install attributes comments without any configuration.
+    public var commentAuthor: String {
+        get {
+            let stored = defaults.string(forKey: Keys.commentAuthor.rawValue)
+            if let stored, !stored.isEmpty { return stored }
+            return NSFullUserName()
+        }
+        nonmutating set { write(newValue, forKey: .commentAuthor) }
     }
 }
 

@@ -1,3 +1,6 @@
+Comments in Mud - Specification by Examples
+===============================================================================
+
 The quick brown fox[^comment-a] jumped over the lazy dog.
 
 [^comment-a]: The simplest comment. No quotation, no author, no timestamp.
@@ -11,7 +14,7 @@ Valid. Properties:
 
 ----
 
-The quick brown fox[^comment-b] jumped over the lazy dog.
+The quick brown fox[^comment-b] jumped over the lazy dog.[^1]
 
 [^comment-b]: > fox
 
@@ -167,3 +170,7 @@ two 💬 headers, so there are two comments. Properties:
   * Timestamp: 2026-06-01 18:33:13
   * Message: A reply, also with no document quotation.
 
+
+
+[^1]: This is a regular footnote. Included to prove that footnote markers are
+  independently numbered from comments.

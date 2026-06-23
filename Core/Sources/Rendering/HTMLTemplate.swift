@@ -80,6 +80,13 @@ public enum HTMLTemplate {
         loadResource("mud-up", type: "js") ?? ""
     }
 
+    /// Comment JavaScript (highlights, marker routing, selection capture)
+    /// injected at runtime by WKWebView. In-app only; exports rely on the static
+    /// marker, its `#cmt-LABEL` anchor, and the bottom Comments section.
+    public static var mudCommentsJS: String {
+        loadResource("mud-comments", type: "js") ?? ""
+    }
+
     /// Down-mode JavaScript injected at runtime by WKWebView.
     public static var mudDownJS: String {
         loadResource("mud-down", type: "js") ?? ""

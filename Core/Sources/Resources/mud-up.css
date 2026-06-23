@@ -317,6 +317,97 @@ blockquote > :last-child {
 @media print { .footnotes.is-print-only { display: block; } }
 
 
+/* -- Comments ------------------------------------------------------------- */
+
+/* The inline `[⋯]` marker: a small grayish chip carrying the middot-ellipsis,
+   in place of a numbered superscript so comments consume no footnote number. */
+.mud-comment-marker {
+  display: inline-block;
+  font-size: 0.7em;
+  line-height: 1;
+  vertical-align: middle;
+  padding: 0.1em 0.4em;
+  margin: 0 0.1em;
+  border-radius: 3px;
+  background-color: var(--code-bg);
+  color: var(--text-color);
+  text-decoration: none;
+  cursor: pointer;
+  user-select: none;
+}
+
+.mud-comment-marker:hover {
+  background-color: var(--border-color);
+}
+
+/* The quoted range, wrapped per text-node slice by mud-comments.js. Transparent
+   until the matching marker is hovered (`.is-active`), so two highlights never
+   show at once. */
+.mud-comment-highlight {
+  background-color: transparent;
+  color: inherit;
+  border-radius: 2px;
+  transition: background-color 0.1s ease;
+}
+
+.mud-comment-highlight.is-active {
+  background-color: #fde047;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mud-comment-highlight.is-active {
+    background-color: rgba(253, 224, 71, 0.4);
+  }
+}
+
+/* The bottom Comments section (every export; `is-print-only` in the live app). */
+.comments {
+  margin-top: 2em;
+  padding-top: 1em;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.9em;
+}
+
+.comments h2 {
+  font-size: 1.1em;
+  margin: 0 0 0.5em;
+}
+
+.comments ol {
+  padding-left: 1.5em;
+}
+
+.comments li {
+  margin-bottom: 1em;
+}
+
+.comments li:target {
+  background-color: var(--code-bg);
+}
+
+.mud-comment-quote {
+  margin: 0 0 0.4em;
+  padding-left: 0.8em;
+  border-left: 3px solid var(--border-color);
+  font-style: italic;
+  color: var(--blockquote-color);
+}
+
+.mud-comment-message {
+  margin: 0.4em 0;
+}
+
+.mud-comment-attribution {
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--blockquote-color);
+  margin-bottom: 0.2em;
+}
+
+.comments.is-print-only { display: none; }
+@media print { .comments.is-print-only { display: block; } }
+
+
 /* -- Horizontal rules ----------------------------------------------------- */
 
 hr {

@@ -154,12 +154,12 @@ These were settled during design; the implementation below assumes them.
 
 ## Data model
 
-The on-disk grammar — one worked example per case with the exact properties it
-parses to — is pinned in `Doc/Examples/comments-spec.md`, the canonical spec.
-This section summarizes it.
+The on-disk grammar[^comment-y] — one worked example per case with the exact
+properties it parses to — is pinned in `Doc/Examples/comments-spec.md`, the
+canonical spec. This section summarizes it.
 
-A comment is a footnote whose label matches `^comment-[\w-]+$`. Its definition
-body is, in order:
+A comment is a footnote[^comment-z] whose label matches `^comment-[\w-]+$`. Its
+definition body is, in order[^comment-za]:
 
 1. an **optional leading blockquote** — the **quotation** (the document text
    the comment refers to). With no blockquote the comment is **general**
@@ -347,6 +347,16 @@ anywhere in the run breaks the exact backward match); it degrades to a general
 comment gracefully, and endpoint anchoring (re-anchoring the run's two ends
 independently) is the planned robustness upgrade.
 
+**Marker-deleted comments are not surfaced (v1).** cmark unlinks an
+_unreferenced_ footnote definition from its tree, so a comment whose inline
+`[^comment-x]` marker was deleted but whose bottom definition survives is
+stripped as an orphan and does **not** appear in the sidebar or section — it is
+indistinguishable from a dangling footnote. The common unanchored case (the
+agent rewrote the _quoted text_ but left the marker) is unaffected: the marker
+is present, the comment still surfaces, and only the highlight is withheld.
+Surfacing marker-deleted definitions would require parsing orphaned defs
+separately and is deferred.
+
 
 ## Implementation
 
@@ -500,13 +510,15 @@ point to also return comments:
 
 ### App
 
-**Entitlements** — Mud has been read-only; writing requires
-`com.apple.security.files.user-selected.read-write` in `App/Mud.entitlements`
-and `App/MudDirect.entitlements`, and retaining **security-scoped** write
-access for the opened file (start/stop access around the write). This is a hard
-prerequisite for the sandboxed (MAS) build; the direct build needs the same
-entitlement for consistency. **Verify** writes succeed in a sandboxed build
-before relying on the feature there.
+**Entitlements** — Mud has been read-only. The MAS build is sandboxed
+(`ENABLE_APP_SANDBOX = YES`), so writing requires swapping
+`com.apple.security.files.user-selected.read-only` for `…read-write` in
+`App/Mud.entitlements` **(done**) and retaining **security-scoped** write
+access for the opened file (start/stop access around the write). The direct
+build is **not** sandboxed (`ENABLE_APP_SANDBOX = NO`,
+`App/MudDirect.entitlements`), so it already writes freely and needs no
+entitlement change. **Verify** writes succeed in a sandboxed build before
+relying on the feature there.
 
 **`App/CommentController.swift`** (new) — owns the write path for a document:
 
@@ -514,48 +526,87 @@ before relying on the feature there.
   `CommentEditor` against that fresh content (never the possibly-stale
   in-memory render), write atomically (temp file + rename), and **suppress the
   self-write reload**.
-- Self-write suppression: record the expected post-write mtime/size (or content
-  hash) and have `FileWatcher` ignore the next change event that matches,
-  rather than blindly pausing the watcher (so a near-simultaneous _external_
-  edit is still caught). Reuse the existing watcher plumbing.
+- Self-write suppression (implemented): the write path records the written
+  content's hash on `DocumentState` via `registerSelfWrite`; the existing
+  `FileWatcher` reload reads the file and calls `consumeSelfWrite`. A match is
+  treated as our own change (refresh the render, but no background-reload
+  badge); a non-match is a genuine external edit (badge raised, stale hashes
+  cleared). The watcher plumbing is untouched — only the reload's
+  classification changed.
 - After a successful write, refresh the in-app render so the new/edited
   highlight and sidebar entry appear.
 
-**`App/CommentEditorPopover.swift`** (new) — an `NSPopover` (`.transient`)
-hosting an editable body (SwiftUI `TextEditor`) with Save, Reply, and Delete,
-anchored at the highlight rect (same web→AppKit rect conversion as the footnote
-popover). It shows the full thread (read), lets the user edit the body, append
-a reply, or delete the comment. Creating a comment shows the same editor
-anchored at the live selection.
+**No editor popover.** Reading _and_ editing a comment both happen in the
+**Comments sidebar** (below), not an anchored popover. An earlier draft used an
+`NSPopover` (`App/CommentEditorPopover.swift`); it was removed after the
+key-window finding below.
 
-**`App/WebView.swift`** — register handlers alongside `mudOpen`/ `mudFootnote`:
+> Build-time learning (2026-06): **an editable `NSPopover` anchored in a
+> document window cannot receive keystrokes.** A popover is hosted in a private
+> `_NSPopoverWindow` that AppKit attaches as a **child** of the anchor view's
+> window. The parent document window keeps `NSApp.keyWindow`, so key events
+> never reach the popover's first responder — even though the popover's window
+> reports `isKeyWindow == true` (a child window is _drawn_ key) and
+> `canBecomeKey == true`. Neither `.transient` nor `.applicationDefined`
+> behavior, nor `makeKey()`, `makeKeyAndOrderFront()`, `makeFirstResponder()`,
+> nor `NSApp.activate()` moves real key status to the popover. The **only**
+> thing that worked was `window.parent?.removeChildWindow(window)` to detach
+> the popover window so it can become the genuine key window — a dependency on
+> Apple's private popover parenting we don't want to ship. (The read-only
+> `FootnotePopover` is unaffected: it never needs key/text input. An all-HTML
+> `<textarea>` in a WKWebView popover hits the **same** wall — keystrokes route
+> to `NSApp.keyWindow` = the parent — so moving the editor into HTML does not
+> escape it; see the cocoa-dev "WKWebView rejecting keyboard input" thread,
+> same root cause.) **Resolution:** editing moves out of the popover entirely —
+> the compose surface lives in the **Comments sidebar**, which is inside the
+> document window (already the key window), so a native SwiftUI text editor
+> there just works with no private-API dependency. See the Sidebar note below.
 
-- `mudCommentDraft` — JS posts the current selection's collapsed `quotation`,
-  block info, and rect when the user invokes "Add Comment"; the controller
-  opens the editor.
-- `mudCommentOpen` — JS posts a comment label + rect on `[⋯]` marker click; the
-  controller opens the editor for that comment.
-- Thread a `commentData` parameter (label → rendered thread HTML, plus the
-  quotation for re-anchoring) into the coordinator in `updateNSView`, beside
-  the footnote map.
+**`App/WebView.swift`** — register handlers alongside `mudOpen`/ `mudFootnote`,
+and surface them as plain closures (no popover anchoring; the sidebar is the
+destination):
 
-**`App/DocumentContentView.swift`** — the live Up path computes one
-`RenderedUpDocument` with `commentMode: .interactive` and feeds the comments
-map to the `WebView`. Heading/outline extraction stays on the original
-`ParsedMarkdown` (`[⋯]` markers and highlights contribute no outline text —
-verify).
+- `mudCommentDraft` — JS posts the current selection's collapsed `quotation`
+  plus its source locator when the user invokes "Add Comment". The coordinator
+  builds a `CommentDraft` and calls `onCommentDraft(draft)`; no rect is needed.
+- `mudCommentOpen` — JS posts a comment label on `[⋯]` marker click; the
+  coordinator calls `onOpenComment(label)`.
+- `revealCommentLabel: String?` (value-diffed in the coordinator) drives
+  `Mud.comments.reveal(label)` — scroll the document to that marker and light
+  its highlight; `nil` clears. This is the sidebar→document direction
+  (selecting a thread reveals it in place).
+
+**`App/DocumentContentView.swift`** — the live Up path renders with
+`commentMode: .interactive` and feeds the parsed `comments` to the `WebView`
+(highlights). `loadFromDisk` also publishes
+`state.comments = MudCore.parseComments(text)` (parallel to `outlineHeadings`)
+so the sidebar has the model. Wires the `WebView` closures: `onOpenComment`
+sets `state.activeCommentLabel` and reveals the sidebar's Comments pane;
+`onCommentDraft` sets `state.pendingDraft` and does likewise. Heading/outline
+extraction stays on the original `ParsedMarkdown` (`[⋯]` markers and highlights
+contribute no outline text — verify).
 
 **Menu / context-menu** — add **"Add Comment…"** to the Edit menu and to
 `MudWebView`'s context menu, enabled only when there is a non-empty Up-mode
 selection (and the document is writable). Hidden where writing can't work.
 
-**Sidebar** — add a `comments` case to `Preferences/SidebarPane.swift` and a
-new **`App/CommentsSidebarView.swift`** (mirroring `ChangesSidebarView`)
-listing comments in document order with a quotation snippet, the thread, and
-`created`. Hovering or selecting a row activates the same bright-yellow
-highlight that marker hover does and scrolls to the `[⋯]` marker; clicking
-opens the editor (unanchored rows open it without scrolling). Wire it into
-`SidebarView.swift`'s pane container.
+**Sidebar** — add a `comments` case to `Preferences/SidebarPane.swift`, a third
+"Comments" segment in `SidebarView.swift`, and a new
+**`App/CommentsSidebarView.swift`**. It is a small master/detail in the sidebar
+(a `NavigationStack`): a **list** of comments in document order (quotation
+snippet, author, `created`), and a **thread view** for the selected comment.
+The thread view renders the existing messages **read-only in a `WKWebView`**
+(`MudCore.renderCommentThreadDocument`, the relocated `CommentThreadWebView`)
+above a native SwiftUI `TextEditor` compose box and the action buttons (create
+→ Add; existing → Reply / Edit last / Delete). Because the sidebar is inside
+the document window (the key window), the native text editor takes keystrokes
+with no popover/key-window workaround. Writes go straight through
+`CommentController(fileURL:)`; the `FileWatcher` reload then refreshes
+`state.comments` and the render. Selecting a row sets
+`state.activeCommentLabel` (→ document reveal); an "Add Comment" selection
+opens the thread view in create mode with the quotation shown and the compose
+box focused. The window controller exposes `revealSidebar(.comments)` to expand
+the split and switch panes. Wire it into `SidebarView.swift`'s pane container.
 
 **Author identity** — a `comment-author` preference (new key in
 `MudPreferences`), defaulting to `NSFullUserName()`, written as the `<author>`
@@ -639,12 +690,16 @@ reads and validates each footnote reference's source columns today
   in footnote labels everywhere; pin `[^comment-a]` with a fixture and confirm
   GitHub/Gist don't mangle the anchor id (the colon-encoding bug that ruled out
   `mud:` doesn't apply to a hyphen).
-- **C2 — sandbox write access.** The read-write entitlement plus
-  security-scoped access actually permit writing the user-opened file in a
+- **C2 — sandbox write access.** ✅ **Verified.** The read-write entitlement
+  plus security-scoped access permit writing the user-opened file in a
   sandboxed build.
-- **C3 — self-write vs. external edit.** Watcher suppression ignores _our_
-  write but still catches a near-simultaneous agent edit (no missed reloads, no
-  flicker).
+- **C3 — self-write vs. external edit.** ✅ **Resolved.** Each successful
+  `CommentController` write registers the exact written content's hash on
+  `DocumentState` (`registerSelfWrite`); the file-watcher reload reads the new
+  text and calls `consumeSelfWrite` — a match still refreshes the render (so
+  the new marker appears) but skips the background-reload badge, while a
+  genuine external edit (no match) raises the badge as before and clears stale
+  pending hashes. The watcher itself is untouched.
 - **C4 — byte-surgical fidelity.** Insert/rewrite/delete preserve line endings,
   trailing-newline state, and all untouched bytes; diffs stay minimal.
 - **C5 — DOM re-anchoring.** The backward walk of `quotation.length` chars from
@@ -774,3 +829,15 @@ Mud, Up mode):
 - Open In Browser → visible Comments section, after footnotes; back-links work.
 - `mud -u` / `mud -f` on the fixture → output contains the Comments section.
 - Quick Look (spacebar in Finder) → Comments section visible.
+
+[^comment-y]: > on-disk grammar
+
+    💬 JP (2026-06-03 08:17:31):
+
+[^comment-z]: > footnote
+
+    💬 JP (2026-06-03 08:18:17):
+
+[^comment-za]: > order
+
+    💬 JP (2026-06-03 08:18:25):

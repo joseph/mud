@@ -108,7 +108,6 @@ struct MudApp: App {
             }
 
             CommandGroup(replacing: .saveItem) { }
-            CommandGroup(replacing: .undoRedo) { }
 
             CommandGroup(before: .toolbar) {
                 Button(appState.sidebarEnabled ? "Hide Sidebar" : "Show Sidebar") {

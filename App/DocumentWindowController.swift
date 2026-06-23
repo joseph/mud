@@ -465,7 +465,7 @@ extension DocumentWindowController: NSToolbarDelegate {
         switch itemIdentifier {
         case .toggleLighting:
             let button = makeToolbarButton(symbolName: "sun.max", action: #selector(toggleLighting(_:)))
-            lightingButton = button
+            if flag { lightingButton = button }
             updateLightingButton(AppState.shared.lighting)
             item.view = button
             item.label = "Lighting"
@@ -473,7 +473,7 @@ extension DocumentWindowController: NSToolbarDelegate {
 
         case .toggleMode:
             let button = makeToolbarButton(symbolName: "arrow.uturn.up.circle", action: #selector(toggleMode(_:)))
-            modeButton = button
+            if flag { modeButton = button }
             updateModeButton(state.mode)
             item.view = button
             item.label = "Mode"
@@ -481,7 +481,7 @@ extension DocumentWindowController: NSToolbarDelegate {
 
         case .toggleChanges:
             let button = makeToolbarButton(symbolName: "clock", action: #selector(toggleChangesBar(_:)))
-            changesButton = button
+            if flag { changesButton = button }
             updateChangesButton(AppState.shared.changesEnabled)
             item.view = button
             item.label = "Changes"
@@ -489,7 +489,7 @@ extension DocumentWindowController: NSToolbarDelegate {
 
         case .toggleFind:
             let button = makeToolbarButton(symbolName: "magnifyingglass.circle", action: #selector(performFindAction(_:)))
-            findButton = button
+            if flag { findButton = button }
             button.toolTip = "Find…"
             item.view = button
             item.label = "Find"
@@ -497,7 +497,7 @@ extension DocumentWindowController: NSToolbarDelegate {
 
         case .toggleReadableColumn:
             let button = makeToolbarButton(symbolName: "rectangle.compress.vertical", action: #selector(toggleReadableColumn(_:)))
-            readableColumnButton = button
+            if flag { readableColumnButton = button }
             updateReadableColumnButton(AppState.shared.viewToggles.contains(.readableColumn))
             item.view = button
             item.label = "Column"
@@ -506,7 +506,7 @@ extension DocumentWindowController: NSToolbarDelegate {
         case .addComment:
             let button = makeToolbarButton(symbolName: "plus.message", action: #selector(addComment(_:)))
             button.toolTip = "Add Comment…"
-            commentButton = button
+            if flag { commentButton = button }
             updateCommentButton()
             item.view = button
             item.label = "Comment"
@@ -514,7 +514,7 @@ extension DocumentWindowController: NSToolbarDelegate {
 
         case .toggleCommentsColumn:
             let button = makeToolbarButton(symbolName: "bubble.left.and.text.bubble.right", action: #selector(toggleCommentsColumn(_:)))
-            commentsColumnButton = button
+            if flag { commentsColumnButton = button }
             updateCommentsColumnButton(state.commentsColumnVisible)
             item.view = button
             item.label = "Comments"
@@ -535,7 +535,7 @@ extension DocumentWindowController: NSToolbarDelegate {
             control.setWidth(0, forSegment: 1)
             control.target = self
             control.action = #selector(zoomAction(_:))
-            zoomControl = control
+            if flag { zoomControl = control }
             item.view = control
             item.label = "Zoom"
             return item

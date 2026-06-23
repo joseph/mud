@@ -365,8 +365,8 @@
       var badge = document.createElement("span");
       badge.className = "mud-comments-count";
       nav.appendChild(prev);
-      nav.appendChild(next);
       nav.appendChild(badge);
+      nav.appendChild(next);
 
       header.appendChild(title);
       header.appendChild(nav);

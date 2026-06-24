@@ -100,8 +100,10 @@ MVP plan.
 - `Date+Formatting.swift` — `shortTimestamp` formatting extension
 - `CheckForUpdatesView.swift` — Sparkle updater owner, KVO observer, and menu
   button (`#if SPARKLE`)
-- `OpenInEditor.swift` — Backs the "Open In…" submenu: registered-handler
-  model, `NSOpenPanel` chooser, launch via `DocumentState.openInEditorRequest`
+- `OpenInEditor.swift` — Backs the "Open In…" submenu and the Open In toolbar
+  button (`NSMenuToolbarItem`): registered-handler model, `NSMenu` builder
+  (`NSMenuDelegate`), `NSOpenPanel` chooser, launch via
+  `DocumentState.openInEditorRequest`
 
 **App/CLI/ key files:**
 
@@ -321,8 +323,8 @@ quotation + threaded messages. `RenderOptions.commentMode` (added to
 `contentIdentity`) selects the output: `.section` emits a visible bottom
 `<section class="comments">` for every export path, while `.interactive` (the
 live app) keeps that section `is-print-only` and instead draws hover-revealed
-highlights and feeds the Comments Column. The bottom section always follows
-any footnotes section.
+highlights and feeds the Comments Column. The bottom section always follows any
+footnotes section.
 
 Comments are **invisible to change tracking**: `BlockMatcher.collectLeafBlocks`
 excludes comment-definition blocks (via

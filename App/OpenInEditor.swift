@@ -33,13 +33,16 @@ struct EditorLaunchRequest {
     let format: EditorFormat
 }
 
-final class OpenInMenuModel: ObservableObject {
+final class OpenInMenuModel: NSObject, ObservableObject, NSMenuDelegate {
     static let shared = OpenInMenuModel()
 
     @Published private(set) var configured: RegisteredMarkdownHandler?
     @Published private(set) var others: [RegisteredMarkdownHandler] = []
 
-    init() { refresh() }
+    override init() {
+        super.init()
+        refresh()
+    }
 
     func refresh() {
         let mudBundleID = Bundle.main.bundleIdentifier
@@ -112,6 +115,79 @@ final class OpenInMenuModel: ObservableObject {
             }
             self.launch(controller: controller, handler: handler, format: format)
         }
+    }
+
+    // MARK: - Menu
+
+    /// One app the Open In menus list: a handler, whether it's the current
+    /// default, and the title to show — the single home for the "(default)"
+    /// marker.
+    struct Entry: Identifiable {
+        let handler: RegisteredMarkdownHandler
+        let isDefault: Bool
+        var id: String { handler.bundleID }
+        var title: String {
+            isDefault ? "\(handler.displayName)  (default)" : handler.displayName
+        }
+    }
+
+    /// The apps both Open In menus list, in order: the configured default first
+    /// (if any), then the rest. Single source so the menu-bar submenu
+    /// (`MudApp.swift`) and the toolbar menu can't drift on ordering or the
+    /// "(default)" marker. Each renderer adds its own separators and "Choose…".
+    var menuApps: [Entry] {
+        var entries: [Entry] = []
+        if let configured {
+            entries.append(Entry(handler: configured, isDefault: true))
+        }
+        entries.append(contentsOf: others.map { Entry(handler: $0, isDefault: false) })
+        return entries
+    }
+
+    /// Rebuilds the toolbar item's menu each time it opens, so a newly installed
+    /// app or a changed default is reflected without any manual reload.
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        refresh()
+        menu.removeAllItems()
+        populate(menu)
+    }
+
+    /// Fills `menu` from `menuApps`, then "Choose…". A separator follows the
+    /// default app (setting it off from the rest) and another precedes
+    /// "Choose…" — except after a default with no other apps, which already has
+    /// its trailing separator.
+    private func populate(_ menu: NSMenu) {
+        let apps = menuApps
+        for entry in apps {
+            let item = NSMenuItem(
+                title: entry.title,
+                action: #selector(launchFromMenu(_:)),
+                keyEquivalent: ""
+            )
+            item.image = entry.handler.icon
+            item.representedObject = entry.handler
+            item.target = self
+            menu.addItem(item)
+            if entry.isDefault { menu.addItem(.separator()) }
+        }
+        if let last = apps.last, !last.isDefault { menu.addItem(.separator()) }
+        let choose = NSMenuItem(
+            title: "Choose…",
+            action: #selector(chooseFromMenu(_:)),
+            keyEquivalent: ""
+        )
+        choose.target = self
+        menu.addItem(choose)
+    }
+
+    @objc private func launchFromMenu(_ sender: NSMenuItem) {
+        guard let handler = sender.representedObject as? RegisteredMarkdownHandler
+        else { return }
+        launch(with: handler)
+    }
+
+    @objc private func chooseFromMenu(_ sender: Any?) {
+        chooseEditor()
     }
 
     /// Persists the choice and routes the launch through `DocumentState`.

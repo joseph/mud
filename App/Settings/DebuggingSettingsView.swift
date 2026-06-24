@@ -3,6 +3,7 @@ import MudPreferences
 
 struct DebuggingSettingsView: View {
     @ObservedObject private var appState = AppState.shared
+    @ObservedObject private var openIn = OpenInMenuModel.shared
     @State private var showingConfirmation = false
     @State private var didReset = false
 
@@ -28,6 +29,19 @@ struct DebuggingSettingsView: View {
                     Text("0%")
                 } maximumValueLabel: {
                     Text("100%")
+                }
+            }
+
+            Section("Open In") {
+                Text("Forget the default editor chosen for “Open In…”, so the toolbar button reverts to offering the full list.")
+                    .foregroundStyle(.secondary)
+
+                HStack {
+                    Spacer()
+                    Button("Clear Choice for “Open In…”") {
+                        clearOpenInChoice()
+                    }
+                    .disabled(openIn.configured == nil)
                 }
             }
 
@@ -58,6 +72,15 @@ struct DebuggingSettingsView: View {
         } message: {
             Text("This will clear all saved settings and quit the app. Your documents will not be affected.")
         }
+    }
+
+    /// Clears the remembered "Open In…" default so the toolbar button drops back
+    /// to the grid icon and the full chooser. `refresh()` republishes
+    /// `configured`, updating every window's button and this pane in step.
+    private func clearOpenInChoice() {
+        MudPreferences.shared.openInDefaultBundleID = nil
+        MudPreferences.shared.openInDefaultFormat = .auto
+        OpenInMenuModel.shared.refresh()
     }
 
     private func resetAllPreferences() {

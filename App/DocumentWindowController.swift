@@ -16,6 +16,7 @@ class DocumentWindowController: NSWindowController {
     private var readableColumnButton: NSButton?
     private var commentButton: NSButton?
     private var commentsColumnButton: NSButton?
+    private var openInItem: NSMenuToolbarItem?
     private var zoomControl: NSSegmentedControl?
 
     private var splitVC: NSSplitViewController?
@@ -161,6 +162,14 @@ class DocumentWindowController: NSWindowController {
             }
             .store(in: &cancellables)
 
+        // Keep the Open In toolbar button's icon and click behavior in step with
+        // the chosen default editor (which any window can change). `$configured`
+        // publishes in willSet, so use the emitted value, not the still-stale
+        // property.
+        OpenInMenuModel.shared.$configured
+            .sink { [weak self] configured in self?.updateOpenInItem(configured: configured) }
+            .store(in: &cancellables)
+
         state.find.$isVisible
             .sink { [weak self] visible in
                 self?.updateFindButton(visible)
@@ -264,6 +273,36 @@ class DocumentWindowController: NSWindowController {
 
     private func updateToggleButton(_ button: NSButton?, on: Bool) {
         button?.state = on ? .on : .off
+    }
+
+    /// Reflects the chosen default editor on the Open In toolbar item. With a
+    /// default set, the body shows that app's icon and launches it directly;
+    /// with none, it shows a grid icon and a click opens the menu (no action).
+    /// The chevron opens the menu in both states.
+    private func updateOpenInItem(
+        _ explicitItem: NSMenuToolbarItem? = nil,
+        configured: RegisteredMarkdownHandler?
+    ) {
+        guard let item = explicitItem ?? openInItem else { return }
+        if let configured {
+            let icon = configured.icon
+            icon.size = NSSize(width: 18, height: 18)
+            item.image = icon
+            item.target = self
+            item.action = #selector(openInDefault(_:))
+            item.toolTip = "Open in \(configured.displayName)"
+        } else {
+            item.image = NSImage(systemSymbolName: "square.grid.3x3.square.badge.ellipsis", accessibilityDescription: nil)
+                ?? NSImage(systemSymbolName: "square.grid.2x2", accessibilityDescription: nil)
+            item.target = nil
+            item.action = nil
+            item.toolTip = "Open In…"
+        }
+    }
+
+    @objc func openInDefault(_ sender: Any?) {
+        guard let configured = OpenInMenuModel.shared.configured else { return }
+        OpenInMenuModel.shared.launch(with: configured)
     }
 
     private func updateZoomLabel(for mode: Mode? = nil) {
@@ -441,6 +480,7 @@ extension DocumentWindowController: NSToolbarDelegate {
             .toggleLighting,
             .toggleFind,
             .toggleChanges,
+            .openIn,
             .toggleMode,
             .settings
         ]
@@ -527,6 +567,17 @@ extension DocumentWindowController: NSToolbarDelegate {
             item.label = "Zoom"
             return item
 
+        case .openIn:
+            let menuItem = NSMenuToolbarItem(itemIdentifier: itemIdentifier)
+            let menu = NSMenu()
+            menu.delegate = OpenInMenuModel.shared
+            menuItem.menu = menu
+            menuItem.showsIndicator = true
+            menuItem.label = "Open In…"
+            if flag { openInItem = menuItem }
+            updateOpenInItem(menuItem, configured: OpenInMenuModel.shared.configured)
+            return menuItem
+
         case .settings:
             let button = makeToolbarButton(symbolName: "gearshape", action: #selector(openSettings(_:)))
             button.toolTip = "Settings…"
@@ -542,6 +593,7 @@ extension DocumentWindowController: NSToolbarDelegate {
 
 extension NSToolbarItem.Identifier {
     static let zoom = NSToolbarItem.Identifier("zoom")
+    static let openIn = NSToolbarItem.Identifier("openIn")
     static let settings = NSToolbarItem.Identifier("settings")
     static let toggleReadableColumn = NSToolbarItem.Identifier("toggleReadableColumn")
     static let addComment = NSToolbarItem.Identifier("addComment")

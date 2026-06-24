@@ -45,31 +45,31 @@ struct MudApp: App {
                 Divider()
 
                 Menu("Open In…") {
-                    if let configured = openIn.configured {
+                    let apps = openIn.menuApps
+                    ForEach(apps) { entry in
                         Button {
-                            openIn.launch(with: configured)
+                            openIn.launch(with: entry.handler)
                         } label: {
                             Label {
-                                Text("\(configured.displayName)  (default)")
+                                Text(entry.title)
                             } icon: {
-                                Image(nsImage: configured.icon)
+                                Image(nsImage: entry.handler.icon)
                             }
                         }
-                        .keyboardShortcut("e", modifiers: [.command, .shift])
+                        .modify { view in
+                            if entry.isDefault {
+                                view.keyboardShortcut("e", modifiers: [.command, .shift])
+                            } else {
+                                view
+                            }
+                        }
+                        if entry.isDefault {
+                            Divider()
+                        }
+                    }
+                    if let last = apps.last, !last.isDefault {
                         Divider()
                     }
-                    ForEach(openIn.others) { handler in
-                        Button {
-                            openIn.launch(with: handler)
-                        } label: {
-                            Label {
-                                Text(handler.displayName)
-                            } icon: {
-                                Image(nsImage: handler.icon)
-                            }
-                        }
-                    }
-                    Divider()
                     Button("Choose…") {
                         openIn.chooseEditor()
                     }

@@ -8,7 +8,7 @@
    controls — live in mud-comments-edit.css and load in the app only. This
    mirrors the mud-comments.js / mud-comments-edit.js split. */
 
-/* The inline `[⋯]` marker: a small grayish chip carrying the middot-ellipsis,
+/* The inline `💬` marker: a small grayish chip carrying the middot-ellipsis,
    in place of a numbered superscript so comments consume no footnote number. */
 .mud-comment-marker {
   display: inline-block;
@@ -108,9 +108,11 @@
    marker visually rather than with `display: none`, so it stays in the
    accessibility tree (screen readers still announce the comment) and in the
    layout (the column reads its position to place a quote-less comment's
-   capsule). Scoped to `@media screen` so print keeps the visible chip. */
+   capsule). Scoped to `@media screen` so print keeps the visible chip. The
+   "Show comment markers" preference (`show-comment-markers`) opts out, letting
+   the marker fall back to its visible base styling. */
 @media screen {
-  .comments-column .mud-comment-marker {
+  .comments-column:not(.show-comment-markers) .mud-comment-marker {
     position: absolute;
     width: 1px;
     height: 1px;

@@ -8,7 +8,7 @@ import cmark_gfm
 /// Parsing goes through cmark with footnotes enabled (the same AST
 /// `FootnoteProcessor` uses), so a `[^label]` reference is a **zero-width** node
 /// with a raw source position. That makes the rendered (marker-free) text align
-/// with the source — the rendered marker glyph (`⋯` / footnote number) has no
+/// with the source — the rendered marker glyph (`💬` / footnote number) has no
 /// counterpart in the source — while the byte offsets stay in **raw** source
 /// coordinates, ready for `CommentEditor.insert`. The JS side computes the block
 /// text and offset with marker glyphs skipped, to match.

@@ -77,6 +77,8 @@ struct DocumentContentView: View {
         if state.commentsColumnVisible { opts.htmlClasses.insert("is-comments-column") }
         // Read live by the compose box's keydown handler (mud-comments-edit.js).
         if appState.commentReturnSaves { opts.htmlClasses.insert("comment-return-saves") }
+        // Shows the inline `💬` markers on screen; read by mud-comments.css/js.
+        if appState.commentsShowMarkers { opts.htmlClasses.insert("show-comment-markers") }
         opts.zoomLevel = modeZoomLevel
         opts.showInlineDeletions = appState.changesShowInlineDeletions
         opts.wordDiffThreshold = appState.changesWordDiffThreshold
@@ -162,6 +164,11 @@ struct DocumentContentView: View {
             },
             onColumnWidthChange: { width in
                 appState.commentColumnWidth = width
+            },
+            onRevealColumn: {
+                // A marker click opened the column in JS; persist the per-window
+                // toggle so the next class sync keeps it up.
+                state.commentsColumnVisible = true
             },
             onSearchResult: { info in
                 findState.matchInfo = info

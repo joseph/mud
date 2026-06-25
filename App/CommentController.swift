@@ -48,7 +48,7 @@ final class CommentController {
     /// Inserts a new comment anchored at the draft's selection end, carrying
     /// `body` as its first message. The marker lands at the quotation's end via
     /// `CommentAnchor`. Returns the new comment's label on success — the caller
-    /// uses it to place the live `[⋯]` marker — or nil when the selection can't
+    /// uses it to place the live `💬` marker — or nil when the selection can't
     /// be anchored (e.g. a code block, or a structure the mapping doesn't yet
     /// handle) or the write fails. v1 has no general-comment fallback.
     @discardableResult

@@ -3,7 +3,7 @@ import Testing
 @testable import MudCore
 
 /// Covers `FootnoteProcessor.process` classifying comment definitions apart from
-/// authorial footnotes: comment references become `[⋯]` markers, comment
+/// authorial footnotes: comment references become `💬` markers, comment
 /// definitions are surfaced as `Comment`s, and authorial footnote numbers count
 /// only authorial references (so comments leave no gap).
 @Suite("Comment classification")

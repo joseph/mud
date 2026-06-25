@@ -224,6 +224,10 @@
     if (name === "is-comments-column" && Mud.comments && Mud.comments.setVisible) {
       Mud.comments.setVisible(enabled);
     }
+    if (name === "show-comment-markers" && Mud.comments &&
+        Mud.comments.setMarkersShown) {
+      Mud.comments.setMarkersShown(enabled);
+    }
   }
 
   // -- Theme ----------------------------------------------------------------

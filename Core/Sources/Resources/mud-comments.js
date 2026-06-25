@@ -58,6 +58,13 @@
       root.classList.contains("is-comments-column");
   }
 
+  // The "Show comment markers" preference: the inline 💬 markers are visible
+  // on screen and interactive (hover highlights the quotation; click opens the
+  // column to the comment). Independent of whether the column is showing.
+  function markersShown() {
+    return document.documentElement.classList.contains("show-comment-markers");
+  }
+
   // -- Highlight anchoring (off the hidden quote markers) -------------------
 
   // Build a whitespace-collapsed flat text of the body with a parallel char →
@@ -398,17 +405,39 @@
     return btn;
   }
 
-  function teardown() {
+  function teardownColumn() {
     var col = document.getElementById("mud-comments-column");
     if (col && col.parentNode) col.parentNode.removeChild(col);
     capsules = {};
     activeLabel = null;
-    clearHighlights();
+  }
+
+  // Populate quotationByLabel from the bottom section and (re)wrap the highlight
+  // marks, independent of the column. With the column closed but the markers
+  // shown, a marker still needs its quotation highlight on hover.
+  function anchorHighlightsOnly() {
+    var sec = section();
+    quotationByLabel = {};
+    if (sec) {
+      var lis = sec.querySelectorAll("li[data-mud-label]");
+      for (var i = 0; i < lis.length; i++) {
+        var q = lis[i].getAttribute("data-mud-quotation");
+        if (q) quotationByLabel[lis[i].getAttribute("data-mud-label")] = q;
+      }
+    }
+    anchorAll();
   }
 
   // (Re)build every capsule from the section, then lay out.
   function project() {
-    if (!enabled()) { teardown(); return; }
+    if (!enabled()) {
+      teardownColumn();
+      // Keep the marks alive for marker hover when the column is closed but the
+      // markers are shown; otherwise drop them.
+      if (markersShown()) anchorHighlightsOnly();
+      else clearHighlights();
+      return;
+    }
     var sec = section();
     var col = ensureColumn();
     var wasActive = activeLabel;
@@ -539,6 +568,17 @@
     });
   }
 
+  // Reproject only when column visibility actually flips. A redundant call (same
+  // value) must not rebuild the column, or it would wipe an open inline compose
+  // box. Called by mud.js on every `is-comments-column` `setClass`, and by the
+  // marker-click reveal below.
+  function syncVisible() {
+    var on = enabled();
+    if (on === lastVisible) return;
+    lastVisible = on;
+    project();
+  }
+
   // -- Hover / activate -----------------------------------------------------
 
   function wireCapsule(cap, label) {
@@ -619,6 +659,62 @@
     scrollToComment(label);
   }
 
+  // -- Inline marker interactions (when shown) ------------------------------
+
+  // With "Show comment markers" on, the inline 💬 chips are visible and
+  // interactive. Handlers are delegated off the container, so the same ones
+  // cover markers from the initial render and from live edits. Hovering previews
+  // the quotation highlight; clicking opens the column to the comment.
+  function markerLabelFor(target) {
+    if (!target || !target.closest) return null;
+    var m = target.closest(".mud-comment-marker");
+    return m && container.contains(m) ? m.getAttribute("data-mud-label") : null;
+  }
+
+  container.addEventListener("mouseover", function (e) {
+    var label = markerLabelFor(e.target);
+    if (label && label !== activeLabel) setHighlight(label, true);
+  });
+
+  container.addEventListener("mouseout", function (e) {
+    var label = markerLabelFor(e.target);
+    if (label && label !== activeLabel) setHighlight(label, false);
+  });
+
+  container.addEventListener("click", function (e) {
+    var label = markerLabelFor(e.target);
+    if (!label) return;
+    e.preventDefault();   // don't follow the marker's #cmt- anchor jump
+    e.stopPropagation();
+    revealComment(label);
+  });
+
+  // Open the column (and tell Swift so it persists the per-window toggle — a
+  // later class sync would otherwise tear the column back down), then expand and
+  // scroll to the comment. With the column already open, this just activates and
+  // scrolls. In a read-only export there is no handler, so the post is skipped.
+  function revealComment(label) {
+    document.documentElement.classList.add("is-comments-column");
+    syncVisible();        // builds the column on an off→on flip
+    var handlers = window.webkit && window.webkit.messageHandlers;
+    if (handlers && handlers.mudRevealColumn) {
+      handlers.mudRevealColumn.postMessage(true);
+    }
+    if (capsules[label]) {
+      activate(label);
+      scrollToComment(label);
+    }
+  }
+
+  // Called by mud.js when the `show-comment-markers` class toggles. With the
+  // column open the highlights are already anchored and marker visibility is
+  // pure CSS, so there is nothing to do; with it closed, (re)anchor or clear the
+  // highlights so the now-shown markers can light their quotation on hover.
+  function setMarkersShown() {
+    if (enabled()) return;
+    project();   // routes to anchorHighlightsOnly() / clearHighlights()
+  }
+
   // -- Reflow ---------------------------------------------------------------
 
   if (window.ResizeObserver) {
@@ -684,7 +780,7 @@
     a.id = "cmtref-" + label;
     a.setAttribute("data-mud-label", label);
     a.setAttribute("href", "#cmt-" + label);
-    a.textContent = "⋯";
+    a.textContent = "💬";
     return a;
   }
 
@@ -827,15 +923,10 @@
     refresh: project,
     // Geometry-only re-solve (zoom, toggle of an unrelated class, etc.).
     relayout: scheduleLayout,
-    // Called by mud.js on every `setClass` for the toggle. Reproject only when
-    // visibility actually flips — a redundant call (same value) must not rebuild
-    // the column, or it would wipe an open inline compose box.
-    setVisible: function () {
-      var on = enabled();
-      if (on === lastVisible) return;
-      lastVisible = on;
-      project();
-    },
+    // Called by mud.js on every `is-comments-column` `setClass`.
+    setVisible: syncVisible,
+    // Called by mud.js on every `show-comment-markers` `setClass`.
+    setMarkersShown: setMarkersShown,
     activate: activate,
     deactivate: deactivate,
     // Step to the previous (-1) or next (+1) comment, wrapping at the ends.
@@ -869,5 +960,5 @@
   window.Mud.comments = api;
 
   lastVisible = enabled();
-  if (lastVisible) project();
+  if (lastVisible || markersShown()) project();
 })();

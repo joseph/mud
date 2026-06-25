@@ -394,7 +394,7 @@ enum FootnoteProcessor {
             // over **authorial** references only — so comments occupy no number
             // and leave no gap. cmark's own per-reference numbering counts every
             // footnote (comments included), so it is deliberately discarded.
-            // Comment references divert to the `[⋯]` marker and never number.
+            // Comment references divert to the `💬` marker and never number.
             // Occurrence index per label drives back-link ids (fnref-N-K, K>1).
             struct Edit { let start: Int; let end: Int; let replacement: [UInt8] }
             var edits: [Edit] = []
@@ -787,7 +787,7 @@ enum FootnoteProcessor {
             + " data-fn-label=\"\(escLabel)\" data-fn-num=\"\(number)\">\(number)</a></sup>"
     }
 
-    /// The inline-HTML marker that replaces a `[^comment-…]` reference: a `[⋯]`
+    /// The inline-HTML marker that replaces a `[^comment-…]` reference: a `💬`
     /// chip carrying the label. Unlike a footnote marker it has no number — so
     /// comments never consume a footnote number — and points at the bottom
     /// Comments section (`#cmt-LABEL`) as the no-JS fallback. The in-app JS reads

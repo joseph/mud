@@ -135,6 +135,7 @@ extension MudPreferences {
         case commentAuthor                 = "comment-author"
         case commentReturnSaves            = "comment-return-saves"
         case commentsIncludeInExport       = "comments-include-in-export"
+        case commentsShowMarkers           = "comments-show-markers"
     }
 }
 
@@ -318,6 +319,17 @@ extension MudPreferences {
     public var commentsIncludeInExport: Bool {
         get { read(.commentsIncludeInExport, default: true) }
         nonmutating set { write(newValue, forKey: .commentsIncludeInExport) }
+    }
+
+    /// When on, the inline `[⋯]` comment markers are shown in the live Up-mode
+    /// view (they are hidden on screen by default, the column and hover
+    /// highlights standing in for them). Hovering a shown marker highlights its
+    /// quotation; clicking one reveals the Comments column, scrolls to the
+    /// comment, and expands it. Applied as the `show-comment-markers` html
+    /// class; an app-only live preference (not in the Quick Look snapshot).
+    public var commentsShowMarkers: Bool {
+        get { read(.commentsShowMarkers, default: false) }
+        nonmutating set { write(newValue, forKey: .commentsShowMarkers) }
     }
 }
 

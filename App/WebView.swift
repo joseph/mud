@@ -168,6 +168,9 @@ struct WebView: NSViewRepresentable {
     /// The Comments Column was resized via its drag handle (the applied width,
     /// already clamped to 200–400 by the page). Persisted by the caller.
     var onColumnWidthChange: ((Double) -> Void)?
+    /// A comment marker was clicked, which opened the column in JS; the caller
+    /// persists the per-window visibility toggle so a later class sync keeps it.
+    var onRevealColumn: (() -> Void)?
     var onSearchResult: ((MatchInfo?) -> Void)?
 
     func makeNSView(context: Context) -> WKWebView {
@@ -200,6 +203,7 @@ struct WebView: NSViewRepresentable {
         config.userContentController.add(context.coordinator, name: "mudComposing")
         config.userContentController.add(context.coordinator, name: "mudSelection")
         config.userContentController.add(context.coordinator, name: "mudColumnWidth")
+        config.userContentController.add(context.coordinator, name: "mudRevealColumn")
 
         let webView = MudWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
@@ -225,6 +229,7 @@ struct WebView: NSViewRepresentable {
         context.coordinator.onComposing = onComposing
         context.coordinator.onCommentableSelection = onCommentableSelection
         context.coordinator.onColumnWidthChange = onColumnWidthChange
+        context.coordinator.onRevealColumn = onRevealColumn
         context.coordinator.commentColumnWidth = commentColumnWidth
         context.coordinator.commentTheme = theme.rawValue
 
@@ -417,6 +422,7 @@ struct WebView: NSViewRepresentable {
         var onComposing: ((Bool) -> Void)?
         var onCommentableSelection: ((Bool) -> Void)?
         var onColumnWidthChange: ((Double) -> Void)?
+        var onRevealColumn: (() -> Void)?
         /// The width last requested by updateNSView; `applyCommentColumnWidth`
         /// pushes only on a change, and `didFinish` reapplies it after a reload.
         var commentColumnWidth: Double = 300
@@ -470,10 +476,12 @@ struct WebView: NSViewRepresentable {
 
         func applyBodyClasses(to webView: WKWebView, classes: Set<String>) {
             // The persisted view-toggle classes, plus `is-comments-column`
-            // (per-window state) and `comment-return-saves` (a preference) —
-            // neither a `ViewToggle`, but applied the same way.
+            // (per-window state) and the `comment-return-saves` /
+            // `show-comment-markers` preferences — none a `ViewToggle`, but
+            // applied the same way.
             let names = ViewToggle.allCases.map(\.className)
-                + ["is-comments-column", "comment-return-saves"]
+                + ["is-comments-column", "comment-return-saves",
+                   "show-comment-markers"]
             for name in names {
                 let on = classes.contains(name)
                 webView.evaluateJavaScript("Mud.setClass('\(name)', \(on))")
@@ -507,7 +515,7 @@ struct WebView: NSViewRepresentable {
         }
 
         /// Hands the parsed comments to `mud-comments.js`, which inserts/removes
-        /// the `[⋯]` markers and (re-)anchors the hover-revealed highlights. Each
+        /// the `💬` markers and (re-)anchors the hover-revealed highlights. Each
         /// entry carries its quotation plus, for a just-added comment, the
         /// DOM-derived locator so the live marker lands byte-exactly.
         fileprivate func applyComments(to webView: WKWebView) {
@@ -581,6 +589,8 @@ struct WebView: NSViewRepresentable {
                 if let width = message.body as? Double {
                     onColumnWidthChange?(width)
                 }
+            case "mudRevealColumn":
+                onRevealColumn?()
             default:
                 break
             }

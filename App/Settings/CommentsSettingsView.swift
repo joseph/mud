@@ -33,6 +33,15 @@ struct CommentsSettingsView: View {
             }
 
             Section {
+                Toggle("Show comment markers", isOn: $appState.commentsShowMarkers)
+                Text("Show the inline 💬 markers in Mark Up. Hover a marker to "
+                     + "highlight its quotation; click one to open the comments "
+                     + "column at that comment.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
                 Toggle("Include comments in export",
                        isOn: $appState.commentsIncludeInExport)
                 Text("Open In Browser includes the read-only comments column. "

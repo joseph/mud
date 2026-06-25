@@ -126,7 +126,8 @@ MVP plan.
 - `ChangesSettingsView.swift` — Changes settings pane (inline deletions, git
   waypoints)
 - `CommentsSettingsView.swift` — Comments settings pane (`comment-author`,
-  `comment-return-saves`, and `comments-include-in-export` preferences)
+  `comment-return-saves`, `comments-show-markers`, and
+  `comments-include-in-export` preferences)
 - `CommandLineSettingsView.swift` — Command Line settings pane
 - `UpdateSettingsView.swift` — Updates pane (`#if SPARKLE`)
 - `SettingsWindowController.swift` — Settings window lifecycle (singleton)

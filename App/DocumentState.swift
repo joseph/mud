@@ -42,6 +42,9 @@ class DocumentState: ObservableObject {
     @Published var openInBrowserID: UUID?
     @Published var openInEditorRequest: EditorLaunchRequest?
     @Published var reloadID: UUID?
+    /// One-shot trigger for "Actual Size": resets the native pinch magnification
+    /// in the webview (the CSS zoom is reset via the per-mode zoom level).
+    @Published var actualSizeID: UUID?
     /// One-shot trigger for the toolbar "Comment" button: opens a compose box on
     /// the current selection (`Mud.comments.addFromSelection`).
     @Published var addCommentID: UUID?

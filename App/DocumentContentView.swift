@@ -143,6 +143,7 @@ struct DocumentContentView: View {
             changeScrollTarget: state.changeScrollTarget,
             reloadID: state.reloadID,
             printID: state.printID,
+            actualSizeID: state.actualSizeID,
             addCommentID: state.addCommentID,
             composeResolution: state.composeResolution,
             externalChangeHeld: state.externalChangeHeld,

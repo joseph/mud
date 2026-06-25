@@ -146,6 +146,9 @@ struct WebView: NSViewRepresentable {
     var changeScrollTarget: ChangeScrollTarget?
     var reloadID: UUID?
     var printID: UUID?
+    /// One-shot trigger to reset the native pinch magnification to 1 (fired by
+    /// "Actual Size", alongside the per-mode CSS-zoom reset).
+    var actualSizeID: UUID?
     var addCommentID: UUID?
     var composeResolution: ComposeResolution?
     var externalChangeHeld: Bool = false
@@ -200,6 +203,10 @@ struct WebView: NSViewRepresentable {
 
         let webView = MudWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
+        // Safari-style trackpad pinch-zoom: a viewport magnification, separate
+        // from and stacking on top of the CSS `zoom` the toolbar/menu drive.
+        // Transient (not persisted); "Actual Size" resets it via `actualSizeID`.
+        webView.allowsMagnification = true
         context.coordinator.webView = webView
         #if DEBUG
         webView.isInspectable = true
@@ -296,6 +303,15 @@ struct WebView: NSViewRepresentable {
             }
         }
 
+        // Reset the native pinch magnification on "Actual Size" (the per-mode CSS
+        // zoom is reset separately via the zoomLevel path). Pinch magnification
+        // stacks on top of CSS zoom, so a true reset clears both.
+        if let actualSizeID = actualSizeID,
+           context.coordinator.lastActualSizeID != actualSizeID {
+            context.coordinator.lastActualSizeID = actualSizeID
+            webView.setMagnification(1, centeredAt: .zero)
+        }
+
         // Handle the toolbar "Comment" action: open a compose box on the current
         // selection. The JS reveals the column itself (native has persisted the
         // toggle), so this works even when the column was hidden.
@@ -385,6 +401,7 @@ struct WebView: NSViewRepresentable {
         var lastChangeScrollTargetID: UUID?
         var lastPrintID: UUID?
         var lastReloadID: UUID?
+        var lastActualSizeID: UUID?
         var lastAddCommentID: UUID?
         var lastComposeResolutionID: UUID?
         var lastExternalChangeHeld: Bool?

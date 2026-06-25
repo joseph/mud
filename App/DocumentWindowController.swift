@@ -389,6 +389,8 @@ class DocumentWindowController: NSWindowController {
         } else {
             app.upModeZoomLevel = 1.0
         }
+        // Also clear any native pinch magnification stacked on top of CSS zoom.
+        state.actualSizeID = UUID()
         updateZoomLabel()
     }
 

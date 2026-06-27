@@ -276,6 +276,17 @@ struct DocumentContentView: View {
         let controller = CommentController(fileURL: fileURL) { state.registerSelfWrite($0) }
         let author = appState.commentAuthor
         let body = submission.body ?? ""
+        // Respect a read-only or locked file: refuse every comment edit with a
+        // clear message rather than atomically replacing a file the user marked
+        // protected (an atomic write can replace a read-only file whose directory
+        // is writable, so without this guard Mud would silently edit it).
+        guard controller.isFileWritable else {
+            if submission.action != .delete {
+                resolveCompose(false, reason: "Cannot save: this file is read-only.")
+            }
+            presentCommentFailure(message: readOnlyFailureMessage, note: body)
+            return
+        }
         switch submission.action {
         case .add:
             guard let draft = submission.draft else { resolveCompose(false); return }
@@ -311,6 +322,13 @@ struct DocumentContentView: View {
     private var replyFailureMessage: String {
         "The comment has changed or been removed, "
             + "so your text couldn't be saved. It is still in the compose box."
+    }
+
+    /// The file is read-only or locked: Mud leaves it untouched and says so,
+    /// rather than atomically replacing a file the user meant to protect.
+    private var readOnlyFailureMessage: String {
+        "This file is read-only, so Mud didn't change it. "
+            + "Make it writable to add comments."
     }
 
     /// The marker couldn't be anchored: the quoted text no longer maps to a spot

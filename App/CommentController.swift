@@ -45,6 +45,21 @@ final class CommentController {
         self.onWrite = onWrite
     }
 
+    /// Whether the file should be treated as editable for comments. False when
+    /// the user marked it read-only — either by clearing the POSIX write bit
+    /// (`chmod`) or by locking it (Finder's Locked checkbox, i.e. the `uchg`
+    /// user-immutable flag). Mud writes atomically (temp file + rename), which
+    /// *can* replace a read-only file when its directory is writable — so without
+    /// this check Mud would silently edit a file the user meant to protect. The
+    /// caller refuses the edit when this is false.
+    var isFileWritable: Bool {
+        if let values = try? fileURL.resourceValues(forKeys: [.isUserImmutableKey]),
+           values.isUserImmutable == true {
+            return false
+        }
+        return FileManager.default.isWritableFile(atPath: fileURL.path)
+    }
+
     /// The outcome of `addComment`, distinguishing the two ways an add can fail.
     /// They look identical to the user but have different causes and fixes, and
     /// the old `nil` return conflated them: `anchorFailed` means the quoted text

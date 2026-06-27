@@ -279,18 +279,18 @@ struct DocumentContentView: View {
         switch submission.action {
         case .add:
             guard let draft = submission.draft else { resolveCompose(false); return }
-            if let label = controller.addComment(draft, author: author, body: body) {
+            switch controller.addComment(draft, author: author, body: body) {
+            case .added(let label):
                 state.pendingCommentLocators[label] = CommentLocator(
                     blockText: draft.blockText, offset: draft.offsetInBlock,
                     occurrence: draft.occurrence)
                 resolveCompose(true)
-            } else {
-                resolveCompose(false)
-                presentCommentFailure(
-                    message: "The text you commented on has changed, "
-                        + "so the comment couldn't be placed. "
-                        + "Your note is still in the compose box.",
-                    note: body)
+            case .anchorFailed:
+                resolveCompose(false, reason: "Cannot save: the highlighted text has changed.")
+                presentCommentFailure(message: anchorFailureMessage, note: body)
+            case .writeFailed:
+                resolveCompose(false, reason: "Cannot save: Mud couldn't write to the file.")
+                presentCommentFailure(message: writeFailureMessage, note: body)
             }
         case .reply:
             guard let label = submission.label else { resolveCompose(false); return }
@@ -313,10 +313,27 @@ struct DocumentContentView: View {
             + "so your text couldn't be saved. It is still in the compose box."
     }
 
+    /// The marker couldn't be anchored: the quoted text no longer maps to a spot
+    /// in the source (it changed on disk, or hit a mapping gap).
+    private var anchorFailureMessage: String {
+        "The text you commented on has changed, so the comment couldn't be "
+            + "placed. Your note is still in the compose box."
+    }
+
+    /// The file itself couldn't be written (permission, lock, or another IO
+    /// problem) — distinct from the text moving.
+    private var writeFailureMessage: String {
+        "Mud couldn't write to this file, so the comment couldn't be saved. "
+            + "Check that the file is writable and not locked. "
+            + "Your note is still in the compose box."
+    }
+
     /// Pushes the submit outcome to the page. A fresh `id` makes `WebView` fire it
-    /// once, so the compose box closes (success) or re-enables (failure).
-    private func resolveCompose(_ success: Bool) {
-        state.composeResolution = ComposeResolution(id: UUID(), success: success)
+    /// once, so the compose box closes (success) or re-enables (failure). On
+    /// failure, `reason` is the short note shown inside the box.
+    private func resolveCompose(_ success: Bool, reason: String? = nil) {
+        state.composeResolution = ComposeResolution(
+            id: UUID(), success: success, reason: reason)
     }
 
     /// Explains a comment write that couldn't be completed, keeping the user's

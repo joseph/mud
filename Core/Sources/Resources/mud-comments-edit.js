@@ -62,11 +62,13 @@
   }
 
   // Called from Swift (via WebView) with the submit outcome. True closes the
-  // box; false leaves it open for another try.
-  col.resolveCompose = function (success) {
+  // box; false leaves it open for another try, with `reason` the short note to
+  // show inside it (why the save failed — the text moved vs the file couldn't
+  // be written). Null/absent on success.
+  col.resolveCompose = function (success, reason) {
     var resolve = pendingResolve;
     pendingResolve = null;
-    if (resolve) resolve(!!success);
+    if (resolve) resolve(!!success, reason || "");
   };
 
   // The "file changed on disk" banner. While a compose box is open, an external
@@ -341,12 +343,12 @@
       composeNew.showError("");
       composeNew.setBusy(true);
       submit({ action: "add", body: body, locator: pending.locator,
-               quotation: pending.quotation }, function (success) {
+               quotation: pending.quotation }, function (success, reason) {
         if (success) { closeNewCompose(); return; }
-        // The write couldn't place the marker (native explains why). Keep the
-        // box and its text; unlock for another try, or Cancel to refresh.
+        // The save failed (native explains why, and an alert says more). Keep
+        // the box and its text; unlock for another try, or Cancel to refresh.
         composeNew.setBusy(false);
-        composeNew.showError("Cannot save: the highlighted text has changed.");
+        composeNew.showError(reason || "Cannot save: the highlighted text has changed.");
         composeNew.focusTextarea();
       });
     }, function () {
@@ -521,11 +523,11 @@
     var box = buildCompose(initial, function (body) {
       box.showError("");
       box.setBusy(true);
-      submit({ action: action, label: label, body: body }, function (success) {
+      submit({ action: action, label: label, body: body }, function (success, reason) {
         // Native reprojects on the write echo; just restore controls meanwhile.
         if (success) { teardownInline(); return; }
         box.setBusy(false);
-        box.showError("Cannot save: the thread has been changed.");
+        box.showError(reason || "Cannot save: the thread has been changed.");
         box.focusTextarea();
       });
     }, function () {

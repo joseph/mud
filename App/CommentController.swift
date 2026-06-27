@@ -45,28 +45,45 @@ final class CommentController {
         self.onWrite = onWrite
     }
 
+    /// The outcome of `addComment`, distinguishing the two ways an add can fail.
+    /// They look identical to the user but have different causes and fixes, and
+    /// the old `nil` return conflated them: `anchorFailed` means the quoted text
+    /// no longer maps to a source byte (it changed, or hit a mapping gap the
+    /// anchor doesn't yet handle); `writeFailed` means the file itself couldn't
+    /// be read or written (permission, lock, IO). Telling them apart lets the
+    /// caller show an accurate message and lets us log distinctly.
+    enum AddResult: Equatable {
+        case added(label: String)
+        case anchorFailed
+        case writeFailed
+    }
+
     /// Inserts a new comment anchored at the draft's selection end, carrying
     /// `body` as its first message. The marker lands at the quotation's end via
-    /// `CommentAnchor`. Returns the new comment's label on success — the caller
-    /// uses it to place the live `💬` marker — or nil when the selection can't
-    /// be anchored (e.g. a code block, or a structure the mapping doesn't yet
-    /// handle) or the write fails. v1 has no general-comment fallback.
-    @discardableResult
-    func addComment(_ draft: CommentDraft, author: String, body: String) -> String? {
-        guard let source = readSource() else { return nil }
+    /// `CommentAnchor`. Returns `.added(label:)` on success — the caller uses the
+    /// label to place the live `💬` marker — or the reason it couldn't. v1 has no
+    /// general-comment fallback for an anchor miss (a code block, or a structure
+    /// the mapping doesn't handle).
+    func addComment(_ draft: CommentDraft, author: String, body: String) -> AddResult {
+        guard let source = readSource() else {
+            NSLog("Mud: comment add failed; couldn't read the file.")
+            return .writeFailed
+        }
         guard let byteOffset = CommentAnchor.insertionOffset(
             in: source, blockText: draft.blockText,
             offsetInBlock: draft.offsetInBlock,
             occurrenceIndex: draft.occurrence)
         else {
-            NSLog("Mud: could not anchor comment; skipping.")
-            return nil
+            NSLog("Mud: comment add failed; the quoted text no longer matches "
+                + "the source, so the marker couldn't be anchored.")
+            return .anchorFailed
         }
         let message = CommentMessage(author: author, created: Date(), body: body)
         let result = CommentEditor.insert(
             into: source, markerByteOffset: byteOffset,
             quotation: draft.quotation, message: message)
-        return write(result.source) ? result.comment.label : nil
+        guard write(result.source) else { return .writeFailed }
+        return .added(label: result.comment.label)
     }
 
     /// Appends a reply message to the `label` comment's thread, preserving its

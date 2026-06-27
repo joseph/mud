@@ -220,6 +220,17 @@ struct WebView: NSViewRepresentable {
         return webView
     }
 
+    /// Encodes a Swift string as a JavaScript string literal (quotes and escapes
+    /// included) for safe interpolation into an `evaluateJavaScript` call. Wraps
+    /// in a JSON array and strips the brackets so it works for a bare string on
+    /// every runtime (top-level JSON fragments aren't universally supported).
+    private static func jsStringLiteral(_ s: String) -> String {
+        guard let data = try? JSONSerialization.data(withJSONObject: [s]),
+              let json = String(data: data, encoding: .utf8), json.count >= 2
+        else { return "\"\"" }
+        return String(json.dropFirst().dropLast())
+    }
+
     func updateNSView(_ webView: WKWebView, context: Context) {
         context.coordinator.onSearchResult = onSearchResult
         context.coordinator.footnoteHTML = footnoteHTML
@@ -333,9 +344,10 @@ struct WebView: NSViewRepresentable {
         if let resolution = composeResolution,
            context.coordinator.lastComposeResolutionID != resolution.id {
             context.coordinator.lastComposeResolutionID = resolution.id
+            let reasonJS = resolution.reason.map { Self.jsStringLiteral($0) } ?? "null"
             webView.evaluateJavaScript(
                 "window.Mud && Mud.comments && Mud.comments.resolveCompose"
-                + " && Mud.comments.resolveCompose(\(resolution.success))")
+                + " && Mud.comments.resolveCompose(\(resolution.success), \(reasonJS))")
         }
 
         // Toggle the "file changed on disk" banner (a held external change during

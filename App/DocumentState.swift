@@ -32,6 +32,11 @@ struct CommentLocator: Equatable {
 struct ComposeResolution: Equatable {
     let id: UUID
     let success: Bool
+    /// On failure, the short note to show inside the compose box (its inline red
+    /// line). Nil on success, where the box just closes. Carries *why* the save
+    /// failed — the text moved vs the file couldn't be written — so the box says
+    /// the same thing the alert does instead of always guessing "text changed".
+    var reason: String? = nil
 }
 
 // MARK: - Document State

@@ -218,7 +218,9 @@
     if (!quotation) return null;
     var locator = endLocator(range);
     if (!locator) return null;
-    return { quotation: quotation, locator: locator, position: rangePosition(range) };
+    // Position is deliberately not measured here: it must be read after the
+    // column opens and the document reflows (see addFromSelection).
+    return { quotation: quotation, locator: locator };
   }
 
   // -- Selection reporting --------------------------------------------------
@@ -389,6 +391,12 @@
     var range = sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
     document.documentElement.classList.add("is-comments-column");
     col.setVisible();
+    // Measure the selection only now: opening the column reserves the gutter and
+    // reflows the document, so the highlight — and the compose form that lines up
+    // with it — sits at a different top than while the column was closed. The
+    // getBoundingClientRect in rangePosition forces the pending layout, so this
+    // reads the post-reflow position.
+    draft.position = range ? rangePosition(range) : 0;
     col.showSelectionDraft(range);
     openNewCompose();
   }

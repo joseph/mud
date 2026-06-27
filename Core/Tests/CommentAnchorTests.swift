@@ -193,4 +193,42 @@ struct CommentAnchorTests {
       in: source, blockText: "Spaced out words.", offsetInBlock: 6)
     #expect(offset != nil)
   }
+
+  @Test func emojiShortcodeBlockMatchesAndOffsetSkipsTheSpan() {
+    // The DOM shows "Hi 🎉 world" (10 chars) where the source has
+    // "Hi :tada: world" (15 bytes). Selecting through "world" must match the
+    // block and map past the substituted `:tada:` to byte 15.
+    let source = "Hi :tada: world\n"
+    let offset = CommentAnchor.insertionOffset(
+      in: source, blockText: "Hi \u{1F389} world", offsetInBlock: 10)
+    #expect(offset == 15)
+  }
+
+  @Test func offsetJustAfterEmojiLandsAfterTheShortcode() {
+    // Selecting "Hi 🎉" (offset 4) places the marker right after `:tada:`
+    // (byte 9), as "Hi :tada:[^…] world".
+    let source = "Hi :tada: world\n"
+    let offset = CommentAnchor.insertionOffset(
+      in: source, blockText: "Hi \u{1F389} world", offsetInBlock: 4)
+    #expect(offset == 9)
+  }
+
+  @Test func offsetBeforeEmojiNeverSplitsTheShortcode() {
+    // Selecting just "Hi " (offset 3, ending right before the emoji) must anchor
+    // before `:tada:` (byte 3), never inside it — splitting it would corrupt
+    // both the emoji and the marker.
+    let source = "Hi :tada: world\n"
+    let offset = CommentAnchor.insertionOffset(
+      in: source, blockText: "Hi \u{1F389} world", offsetInBlock: 3)
+    #expect(offset == 3)
+  }
+
+  @Test func unresolvableOffsetFallsBackToBlockEnd() {
+    // The block matches but the offset overruns its text. Rather than refusing,
+    // the anchor degrades to the block's end (byte 12, just after the period).
+    let source = "Hello world.\n"
+    let offset = CommentAnchor.insertionOffset(
+      in: source, blockText: "Hello world.", offsetInBlock: 999)
+    #expect(offset == 12)
+  }
 }

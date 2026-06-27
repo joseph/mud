@@ -15,12 +15,17 @@ import cmark_gfm
 ///
 /// The selection's block is located by matching its whitespace-collapsed
 /// rendered text; the offset is walked through the block's inline nodes by
-/// rendered length. Text maps exactly; inline code and breaks resolve to their
-/// start. Inside a block quote the rendered text may be a **suffix** of the
-/// source paragraph (a GFM alert / DocC aside title is split off and rewritten),
-/// so a suffix match is accepted and the stripped title is skipped. Returns nil
-/// when no block matches or the position can't be resolved (the caller falls
-/// back).
+/// rendered length. Emoji shortcodes are substituted on the way (the DOM shows
+/// 🎉 where the source has `:tada:`), so a paragraph with shortcodes still
+/// matches and the marker byte still maps back to the raw source without
+/// splitting a shortcode. Inline code and breaks resolve to their start. Inside
+/// a block quote the rendered text may be a **suffix** of the source paragraph
+/// (a GFM alert / DocC aside title is split off and rewritten), so a suffix
+/// match is accepted and the stripped title is skipped.
+///
+/// Returns nil only when **no block matches**. When the block matches but the
+/// exact offset within it can't be resolved, it falls back to the block's end
+/// rather than refusing — the marker still lands in the right paragraph.
 public enum CommentAnchor {
     public static func insertionOffset(
         in source: String, blockText: String, offsetInBlock: Int,
@@ -75,7 +80,16 @@ public enum CommentAnchor {
                 }
                 if matchIndex == occurrenceIndex {
                     var remaining = offsetInBlock + prefixLen
-                    return resolveByte(in: node, remaining: &remaining, geo: geo)
+                    if let byte = resolveByte(
+                        in: node, remaining: &remaining, geo: geo) {
+                        return byte
+                    }
+                    // The block matched but the offset couldn't be pinned down
+                    // (an offset past the block's text, or a rendered/source
+                    // length gap). Degrade rather than refuse: anchor at the
+                    // block's end so the marker still lands in this paragraph.
+                    return endByte(of: node, geo: geo)
+                        ?? startByte(of: node, geo: geo)
                 }
                 matchIndex += 1
             }
@@ -107,7 +121,15 @@ public enum CommentAnchor {
         var child = cmark_node_first_child(node)
         while let current = child {
             switch cmark_node_get_type(current) {
-            case CMARK_NODE_TEXT, CMARK_NODE_CODE:
+            case CMARK_NODE_TEXT:
+                // Mirror the DOM: emoji shortcodes are substituted in rendered
+                // text, so the match (and the offset walk below) count 🎉, not
+                // `:tada:`. Inline code is left literal (it isn't substituted).
+                if let literal = cmark_node_get_literal(current) {
+                    text += EmojiShortcodes.replaceShortcodes(
+                        in: String(cString: literal))
+                }
+            case CMARK_NODE_CODE:
                 if let literal = cmark_node_get_literal(current) {
                     text += String(cString: literal)
                 }
@@ -134,16 +156,26 @@ public enum CommentAnchor {
         while let current = child {
             let type = cmark_node_get_type(current)
             switch type {
-            case CMARK_NODE_TEXT, CMARK_NODE_CODE:
+            case CMARK_NODE_TEXT:
+                let literal = cmark_node_get_literal(current)
+                    .map { String(cString: $0) } ?? ""
+                // `remaining` counts rendered characters (emoji substituted), so
+                // measure and step by the rendered length, then map the offset
+                // back to a raw byte without splitting a shortcode.
+                let renderedCount = EmojiShortcodes
+                    .replaceShortcodes(in: literal).count
+                if remaining <= renderedCount {
+                    guard let base = startByte(of: current, geo: geo)
+                    else { return nil }
+                    let rawChars = EmojiShortcodes.rawOffset(
+                        forRendered: remaining, in: literal)
+                    return base + String(literal.prefix(rawChars)).utf8.count
+                }
+                remaining -= renderedCount
+            case CMARK_NODE_CODE:
                 let literal = cmark_node_get_literal(current)
                     .map { String(cString: $0) } ?? ""
                 if remaining <= literal.count {
-                    if type == CMARK_NODE_TEXT {
-                        // Text source == rendered: advance exactly.
-                        guard let base = startByte(of: current, geo: geo)
-                        else { return nil }
-                        return base + String(literal.prefix(remaining)).utf8.count
-                    }
                     // Inline code: cmark's span covers the content *between* the
                     // backtick runs, so walk past the trailing backticks to land
                     // after the whole span (inserting inside would break it).

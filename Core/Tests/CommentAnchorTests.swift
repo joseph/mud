@@ -231,4 +231,51 @@ struct CommentAnchorTests {
       in: source, blockText: "Hello world.", offsetInBlock: 999)
     #expect(offset == 12)
   }
+
+  // MARK: - Repros for suspected real-world anchor failures
+  //
+  // Each asserts the behavior we *want*. A failure here reproduces a divergence
+  // between the rendered DOM (what the page measures) and cmark's source AST
+  // (what the anchor walks) — a candidate for punya's "couldn't save" report.
+
+  @Test func anchorsParagraphContainingInlineImage() {
+    // cmark keeps an image's alt text as child text nodes, but the DOM's <img>
+    // contributes nothing to textContent. So the page sends "See  here." (the
+    // image collapsed to nothing) and the anchor must skip the alt to match.
+    // Offset 9 ("…here") sits just before the period, which is source byte 26 —
+    // past the whole "![diagram](x.png)" span — placing the marker as "here[^…].".
+    let source = "See ![diagram](x.png) here.\n"
+    let offset = CommentAnchor.insertionOffset(
+      in: source, blockText: "See  here.", offsetInBlock: 9)
+    #expect(offset == 26)
+  }
+
+  @Test func anchorsParagraphWithCRLFLineEndings() {
+    // A Windows-authored file: one paragraph across two CRLF-terminated lines.
+    // The page sends the whitespace-collapsed block text; the anchor must match
+    // and resolve an offset in the second line despite the `\r` bytes in source.
+    let source = "First line here\r\nsecond line here.\r\n"
+    let offset = CommentAnchor.insertionOffset(
+      in: source, blockText: "First line here second line here.",
+      offsetInBlock: 27)
+    #expect(offset != nil)
+  }
+
+  @Test func occurrenceAcrossIdenticalListItems() {
+    // Two list items with identical text. The page counts <li> leaves while the
+    // anchor counts the cmark paragraph inside each item; commenting on the
+    // second must anchor to the second item, not the first.
+    let source = """
+      - Repeated item text.
+      - Repeated item text.
+      """
+    let first = CommentAnchor.insertionOffset(
+      in: source, blockText: "Repeated item text.", offsetInBlock: 9,
+      occurrenceIndex: 0)
+    let second = CommentAnchor.insertionOffset(
+      in: source, blockText: "Repeated item text.", offsetInBlock: 9,
+      occurrenceIndex: 1)
+    #expect(first != nil && second != nil)
+    #expect((first ?? 0) < (second ?? 0))
+  }
 }

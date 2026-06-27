@@ -149,7 +149,12 @@ final class CommentController {
     private func readSource() -> String? {
         let scoped = fileURL.startAccessingSecurityScopedResource()
         defer { if scoped { fileURL.stopAccessingSecurityScopedResource() } }
-        return try? String(contentsOf: fileURL, encoding: .utf8)
+        do {
+            return try String(contentsOf: fileURL, encoding: .utf8)
+        } catch {
+            NSLog("Mud: comment read failed: \(diagnostics(error, scoped: scoped))")
+            return nil
+        }
     }
 
     /// Atomic write (temp file + rename) under security-scoped access — required
@@ -163,8 +168,27 @@ final class CommentController {
             onWrite?(contents)
             return true
         } catch {
-            NSLog("Mud: comment write failed: \(error.localizedDescription)")
+            NSLog("Mud: comment write failed: \(diagnostics(error, scoped: scoped))")
             return false
         }
+    }
+
+    /// One-line diagnostic for a read/write failure, enough to tell the causes
+    /// apart without a debugger: a sandbox denial (`NSCocoaErrorDomain#513`,
+    /// often `POSIX#13`/`#1`) vs a read-only volume (`#642`, `POSIX#30`) vs a
+    /// non-UTF-8 file on read (`#261`). `scoped` is whether
+    /// `startAccessingSecurityScopedResource` returned true — Mud holds no
+    /// bookmark, so it's normally false and the write rides the live powerbox
+    /// grant. The path shows where the file lives: an external, network, or
+    /// iCloud location is itself a strong hint.
+    private func diagnostics(_ error: Error, scoped: Bool) -> String {
+        let ns = error as NSError
+        var line = "sandboxed=\(isSandboxed) scoped=\(scoped) "
+            + "error=\(ns.domain)#\(ns.code) (\(ns.localizedDescription))"
+        if let underlying = ns.userInfo[NSUnderlyingErrorKey] as? NSError {
+            line += " underlying=\(underlying.domain)#\(underlying.code)"
+        }
+        line += " path=\(fileURL.path)"
+        return line
     }
 }

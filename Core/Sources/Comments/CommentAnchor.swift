@@ -112,10 +112,11 @@ public enum CommentAnchor {
         }
     }
 
-    /// The rendered text of a node's inline content: `Text`/`Code` literals,
-    /// breaks → a space, footnote/comment references skipped (they render as a
-    /// marker with no source-text counterpart). Mirrors the DOM's marker-free
-    /// `textContent`.
+    /// The rendered text of a node's inline content: `Text`/`Code` literals
+    /// (emoji shortcodes substituted in `Text`), breaks → a space, footnote/
+    /// comment references and images skipped (a footnote renders as a marker, an
+    /// image as `<img>` — neither adds to the DOM's `textContent`). Mirrors the
+    /// DOM's marker-free `textContent`.
     private static func inlineText(of node: UnsafeMutablePointer<cmark_node>) -> String {
         var text = ""
         var child = cmark_node_first_child(node)
@@ -137,6 +138,9 @@ public enum CommentAnchor {
                 text += " "
             case CMARK_NODE_FOOTNOTE_REFERENCE:
                 break  // zero-width: rendered as a marker
+            case CMARK_NODE_IMAGE:
+                break  // cmark holds the alt as child text, but the DOM's <img>
+                       // adds nothing to textContent — skip it to match.
             default:
                 text += inlineText(of: current)  // emphasis, strong, link, …
             }
@@ -189,6 +193,8 @@ public enum CommentAnchor {
                 remaining -= 1
             case CMARK_NODE_FOOTNOTE_REFERENCE:
                 break  // zero-width
+            case CMARK_NODE_IMAGE:
+                break  // no rendered text (see inlineText): don't walk its alt
             default:
                 if let found = resolveByte(
                     in: current, remaining: &remaining, geo: geo) {

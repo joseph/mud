@@ -1,6 +1,26 @@
 RELEASES
 ===============================================================================
 
+## v3.1.0
+
+[The v3.0.0 release](https://apps.josephpearson.org/mud/releases/v3.0.0.html)
+introduced a major feature: Comments! This release adds a handful of
+refinements:
+
+- **Open In toolbar button** — open the current document in another editor
+  right from the toolbar, without detouring through the File menu. (Add it
+  using Customize Toolbar.)
+- **Pinch to zoom** — zoom a document in and out with a trackpad pinch, the
+  same gesture you use in Preview and Safari.
+- **Comment markers** — a new setting shows a small 💬 marker in the text at
+  each comment, so you can see at a glance which passages are annotated.
+- **Smoother commenting** — the text you're commenting on stays highlighted
+  while you write, and the compose box lines up with it. Commenting now works
+  reliably on passages with emoji shortcodes or inline images, Mud explains why
+  when a comment can't be saved, and it no longer edits a file you've marked
+  read-only or locked.
+
+
 ## v3.0.0
 
 - **Comments!** — select any passage and attach a threaded comment, perfect for

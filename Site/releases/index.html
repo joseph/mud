@@ -674,7 +674,7 @@ img {
    controls — live in mud-comments-edit.css and load in the app only. This
    mirrors the mud-comments.js / mud-comments-edit.js split. */
 
-/* The inline `[⋯]` marker: a small grayish chip carrying the middot-ellipsis,
+/* The inline `💬` marker: a small grayish chip carrying the middot-ellipsis,
    in place of a numbered superscript so comments consume no footnote number. */
 .mud-comment-marker {
   display: inline-block;
@@ -774,9 +774,11 @@ img {
    marker visually rather than with `display: none`, so it stays in the
    accessibility tree (screen readers still announce the comment) and in the
    layout (the column reads its position to place a quote-less comment's
-   capsule). Scoped to `@media screen` so print keeps the visible chip. */
+   capsule). Scoped to `@media screen` so print keeps the visible chip. The
+   "Show comment markers" preference (`show-comment-markers`) opts out, letting
+   the marker fall back to its visible base styling. */
 @media screen {
-  .comments-column .mud-comment-marker {
+  .comments-column:not(.show-comment-markers) .mud-comment-marker {
     position: absolute;
     width: 1px;
     height: 1px;
@@ -1119,6 +1121,28 @@ img {
 <body>
     <article class="up-mode-output">
 <h1 id="releases">RELEASES</h1>
+<h2 id="v310">v3.1.0</h2>
+<p><a href="https://apps.josephpearson.org/mud/releases/v3.0.0.html">The v3.0.0 release</a>
+introduced a major feature: Comments! This release adds a handful of
+refinements:</p>
+<ul>
+<li><strong>Open In toolbar button</strong> — open the current document in another editor
+right from the toolbar, without detouring through the File menu. (Add it
+using Customize Toolbar.)
+</li>
+<li><strong>Pinch to zoom</strong> — zoom a document in and out with a trackpad pinch, the
+same gesture you use in Preview and Safari.
+</li>
+<li><strong>Comment markers</strong> — a new setting shows a small 💬 marker in the text at
+each comment, so you can see at a glance which passages are annotated.
+</li>
+<li><strong>Smoother commenting</strong> — the text you’re commenting on stays highlighted
+while you write, and the compose box lines up with it. Commenting now works
+reliably on passages with emoji shortcodes or inline images, Mud explains why
+when a comment can’t be saved, and it no longer edits a file you’ve marked
+read-only or locked.
+</li>
+</ul>
 <h2 id="v300">v3.0.0</h2>
 <ul>
 <li><strong>Comments!</strong> — select any passage and attach a threaded comment, perfect for

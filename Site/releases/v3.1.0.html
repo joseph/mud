@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src mud-asset: data: https:; style-src 'unsafe-inline'; script-src 'none'">
         
-    <title>v2.0.1</title>
+    <title>v3.1.0</title>
     <style>/* -- Theme: Earthy -------------------------------------------------------- */
 
 :root {
@@ -1120,20 +1120,26 @@ img {
 </head>
 <body>
     <article class="up-mode-output">
-<h1 id="v201">v2.0.1</h1>
-<p><a href="https://apps.josephpearson.org/mud/releases/v2.0.0.html">The v2.0.0 release</a>
-introduced a major feature: Change Tracking! This release adds a handful of
+<h1 id="v310">v3.1.0</h1>
+<p><a href="https://apps.josephpearson.org/mud/releases/v3.0.0.html">The v3.0.0 release</a>
+introduced a major feature: Comments! This release adds a handful of
 refinements:</p>
 <ul>
-<li>New <strong>Auto-expand changes</strong> setting expands deletion and mixed change groups
-by default, so you can see the full diff without clicking each one
+<li><strong>Open In toolbar button</strong> — open the current document in another editor
+right from the toolbar, without detouring through the File menu. (Add it
+using Customize Toolbar.)
 </li>
-<li>Exported HTML (Save as PDF, Open in Browser) no longer includes change
-tracking overlays and scripts
+<li><strong>Pinch to zoom</strong> — zoom a document in and out with a trackpad pinch, the
+same gesture you use in Preview and Safari.
 </li>
-<li>Improved date formatting for older waypoints in the Changes controls
+<li><strong>Comment markers</strong> — a new setting shows a small 💬 marker in the text at
+each comment, so you can see at a glance which passages are annotated.
 </li>
-<li>Spotlight searches for “Markdown” and “GFM” now find Mud in results
+<li><strong>Smoother commenting</strong> — the text you’re commenting on stays highlighted
+while you write, and the compose box lines up with it. Commenting now works
+reliably on passages with emoji shortcodes or inline images, Mud explains why
+when a comment can’t be saved, and it no longer edits a file you’ve marked
+read-only or locked.
 </li>
 </ul>
 <hr />

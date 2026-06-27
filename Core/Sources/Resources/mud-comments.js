@@ -131,8 +131,10 @@
       mark.className = "mud-comment-highlight";
       mark.setAttribute("data-mud-label", label);
       range.surroundContents(mark);
+      return mark;
     } catch (e) {
       /* a slice that can't be wrapped goes un-highlighted */
+      return null;
     }
   }
 
@@ -211,6 +213,97 @@
       'mark.mud-comment-highlight[data-mud-label="' + safe + '"]');
     for (var i = 0; i < marks.length; i++) {
       marks[i].classList.toggle("is-active", on);
+    }
+  }
+
+  // -- Selection draft (write side, while composing) ------------------------
+
+  // While a new comment is being written, the native text selection collapses
+  // the moment the compose box takes focus. To keep the quoted span visible we
+  // paint our own provisional highlight + 💬 marker over the live selection,
+  // under a sentinel label. The highlight carries `.mud-comment-draft` so it
+  // stays painted (not hover-toggled like a real one) until the comment is
+  // saved or dismissed; that styling is app-only (mud-comments-edit.css). A
+  // real `setData` on save drops the unknown-label marker and reprojects the
+  // highlights, so it is swept up even without the explicit clear.
+  var DRAFT_LABEL = "mud-draft";
+
+  // True when a text node sits inside a marker glyph or the hidden bottom
+  // sections — never part of a quotable selection, so it isn't highlighted.
+  function inSkippedRegion(node) {
+    var el = node.parentNode;
+    while (el && el !== container) {
+      if (el.classList && (el.classList.contains("mud-comment-marker") ||
+          el.classList.contains("comments") ||
+          el.classList.contains("footnotes"))) return true;
+      el = el.parentNode;
+    }
+    return false;
+  }
+
+  // The text-node slices a range covers, clipped to its end points: one
+  // {node, start, end} per intersected text node (skipped regions excluded).
+  function collectRangeTextSlices(range) {
+    var slices = [];
+    var common = range.commonAncestorContainer;
+    if (common.nodeType === Node.TEXT_NODE) {
+      if (!inSkippedRegion(common) && range.endOffset > range.startOffset) {
+        slices.push({
+          node: common, start: range.startOffset, end: range.endOffset
+        });
+      }
+      return slices;
+    }
+    var walker = document.createTreeWalker(common, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) {
+        return range.intersectsNode(n) && !inSkippedRegion(n)
+          ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+      }
+    });
+    var n;
+    while ((n = walker.nextNode())) {
+      var s = n === range.startContainer ? range.startOffset : 0;
+      var e = n === range.endContainer ? range.endOffset : n.nodeValue.length;
+      if (e > s) slices.push({ node: n, start: s, end: e });
+    }
+    return slices;
+  }
+
+  // Paint the provisional highlight + marker over `range`: each text-node slice
+  // wrapped in its own <mark> (surroundContents needs a single-node range), then
+  // the marker just after the last slice — the quotation's end, where the saved
+  // marker will land. CSS reveals the marker only when markers are shown.
+  function showSelectionDraft(range) {
+    clearSelectionDraft();
+    if (!range) return;
+    var slices = collectRangeTextSlices(range);
+    var lastMark = null;
+    for (var i = 0; i < slices.length; i++) {
+      var mark = wrapSlice(
+        slices[i].node, slices[i].start, slices[i].end, DRAFT_LABEL);
+      if (mark) { mark.classList.add("mud-comment-draft"); lastMark = mark; }
+    }
+    if (lastMark && lastMark.parentNode) {
+      var marker = makeMarker(DRAFT_LABEL);
+      lastMark.parentNode.insertBefore(marker, lastMark.nextSibling);
+    }
+  }
+
+  // Remove the provisional highlight + marker (Cancel / Escape, or after a save
+  // — where `setData` would also have swept the sentinel).
+  function clearSelectionDraft() {
+    var safe = cssEsc(DRAFT_LABEL);
+    var marker = container.querySelector(
+      '.mud-comment-marker[data-mud-label="' + safe + '"]');
+    if (marker && marker.parentNode) marker.parentNode.removeChild(marker);
+    var marks = container.querySelectorAll(
+      'mark.mud-comment-highlight[data-mud-label="' + safe + '"]');
+    for (var i = 0; i < marks.length; i++) {
+      var mk = marks[i], parent = mk.parentNode;
+      if (!parent) continue;
+      while (mk.firstChild) parent.insertBefore(mk.firstChild, mk);
+      parent.removeChild(mk);
+      parent.normalize();
     }
   }
 
@@ -576,6 +669,10 @@
     var on = enabled();
     if (on === lastVisible) return;
     lastVisible = on;
+    // Closing the column cancels an in-progress new comment: let the write side
+    // tear down the compose box and its provisional draft (highlight + marker)
+    // before `project()` removes the column out from under it.
+    if (!on && api.hooks.onHide) api.hooks.onHide();
     project();
   }
 
@@ -945,6 +1042,10 @@
     matchQuotationStart: matchQuotationStart,
     // Live update from the app: rebuild section + markers + reproject.
     setData: setData,
+    // Provisional highlight + marker over the live selection while a new
+    // comment is composed (the write side drives these).
+    showSelectionDraft: showSelectionDraft,
+    clearSelectionDraft: clearSelectionDraft,
     // Live width change (app load + the write side's drag handle). Clamps to
     // 200–400px, sets the CSS variable, reflows, and returns the applied width.
     setColumnWidth: setColumnWidth,
@@ -954,7 +1055,8 @@
       decorateActive: null,   // add reply/edit/delete to the active capsule
       undecorateActive: null, // remove them
       extraItems: null,       // [{el, preferred, height}] for the compose form
-      ownedNodes: null        // nodes project() must not remove
+      ownedNodes: null,       // nodes project() must not remove
+      onHide: null            // column closing: cancel an in-progress compose
     }
   };
   window.Mud.comments = api;

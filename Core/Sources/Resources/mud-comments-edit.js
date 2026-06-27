@@ -365,6 +365,7 @@
     composeNew = null;
     setComposing(false);
     draft = null;
+    col.clearSelectionDraft();
     col.relayout();
     // Re-evaluate now that compose is closed (the selection is usually gone).
     reportSelection(!!commentableDraft());
@@ -380,8 +381,15 @@
     // Shorten a long quotation now that we're committing to a comment (the
     // marker placement uses the locator, so this only affects the stored text).
     draft.quotation = truncateQuotation(draft.quotation);
+    // Grab the live selection range before the compose box takes focus and
+    // collapses it; we paint our own highlight + marker over it so the quoted
+    // span stays visible (yellow, and the 💬 marker when markers are shown)
+    // while the comment is written.
+    var sel = window.getSelection();
+    var range = sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
     document.documentElement.classList.add("is-comments-column");
     col.setVisible();
+    col.showSelectionDraft(range);
     openNewCompose();
   }
 
@@ -577,6 +585,11 @@
   };
   col.hooks.ownedNodes = function () {
     return composeNew ? [composeNew] : [];
+  };
+  // Closing the column while writing a new comment cancels it — same teardown as
+  // Cancel, so the compose box and its provisional draft marker don't survive.
+  col.hooks.onHide = function () {
+    if (composeNew) closeNewCompose();
   };
 
   // -- Column resize handle -------------------------------------------------

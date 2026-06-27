@@ -14,6 +14,21 @@
   :root { --mud-accent: AccentColor; }
 }
 
+/* The provisional highlight over the text being commented on, shown while a new
+   comment is composed. Unlike a saved quotation highlight (transparent until its
+   marker is hovered), this stays painted yellow the whole time the compose box
+   is open, so the user can see exactly what they selected after the native text
+   selection collapses into the textarea. Mirrors `.mud-comment-highlight.is-active`
+   in mud-comments.css. */
+.mud-comment-highlight.mud-comment-draft {
+  background-color: var(--comment-highlight, #fde047);
+}
+@media (prefers-color-scheme: dark) {
+  .mud-comment-highlight.mud-comment-draft {
+    background-color: var(--comment-highlight-dark, rgba(253, 224, 71, 0.4));
+  }
+}
+
 /* The compose box is positioned in the column like a capsule (the placement
    pass sets its `top`); inline reply / edit forms override this to sit in the
    thread flow instead (see .mud-compose-inline). */

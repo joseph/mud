@@ -47,13 +47,13 @@ final class OpenInMenuModel: NSObject, ObservableObject, NSMenuDelegate {
     func refresh() {
         let mudBundleID = Bundle.main.bundleIdentifier
         let all = NSWorkspace.shared.urlsForApplications(toOpen: UTType.markdown)
-            .compactMap(RegisteredMarkdownHandler.init(appURL:))
+            .compactMap { RegisteredMarkdownHandler(appURL: $0) }
             .filter { $0.bundleID != mudBundleID }
             .sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
 
         let resolved = MudPreferences.shared.openInDefaultBundleID
             .flatMap { NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) }
-            .flatMap(RegisteredMarkdownHandler.init(appURL:))
+            .flatMap { RegisteredMarkdownHandler(appURL: $0) }
 
         // Clear stale preference if the configured app is no longer installed.
         if MudPreferences.shared.openInDefaultBundleID != nil && resolved == nil {

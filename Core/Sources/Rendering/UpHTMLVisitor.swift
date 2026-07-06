@@ -225,6 +225,10 @@ struct UpHTMLVisitor: MarkupWalker {
             }
             if let groupID = line.groupID {
                 dataAttrs += " data-group-id=\"\(groupID)\""
+                if let changeID = line.changeID,
+                   let info = diffContext?.groupInfo(for: changeID) {
+                    dataAttrs += " data-group-type=\"\(info.type.rawValue)\""
+                }
             }
             if let groupIndex = line.groupIndex {
                 dataAttrs += " data-group-index=\"\(groupIndex)\""
@@ -240,7 +244,7 @@ struct UpHTMLVisitor: MarkupWalker {
 
     /// Renders the inner HTML of a code block (`<code>` with optional
     /// language header and syntax highlighting). Shared by
-    /// `visitCodeBlock` and `DiffContext.renderedDeletion`.
+    /// `visitCodeBlock` and `DeletionRenderer.render`.
     static func codeBlockInnerHTML(_ codeBlock: CodeBlock) -> String {
         let lang = codeBlock.language.flatMap { $0.isEmpty ? nil : $0 }
         var html = ""
@@ -499,6 +503,7 @@ struct UpHTMLVisitor: MarkupWalker {
         var dataAttrs = " data-change-id=\"\(changeID)\""
         if let info {
             dataAttrs += " data-group-id=\"\(info.groupID)\""
+            dataAttrs += " data-group-type=\"\(info.type.rawValue)\""
             if info.groupPos == .first || info.groupPos == .sole {
                 dataAttrs += " data-group-index=\"\(info.groupIndex)\""
             }
@@ -564,6 +569,7 @@ struct UpHTMLVisitor: MarkupWalker {
         var attrs = " class=\"\(classes)\" data-change-id=\"\(del.changeID)\""
         if let info {
             attrs += " data-group-id=\"\(info.groupID)\""
+            attrs += " data-group-type=\"\(info.type.rawValue)\""
             if info.groupPos == .first || info.groupPos == .sole {
                 attrs += " data-group-index=\"\(info.groupIndex)\""
             }

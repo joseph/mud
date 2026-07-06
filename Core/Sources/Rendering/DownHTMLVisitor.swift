@@ -26,13 +26,13 @@ public struct DownHTMLVisitor: Sendable {
     /// Renders with change-tracking markers for Down mode.
     ///
     /// Highlights both old and new markdown, builds a `LineDiffMap`
-    /// from block matches, and produces a layout that interleaves
+    /// from the change plan, and produces a layout that interleaves
     /// deleted old-doc lines and annotates inserted/modified new-doc
     /// lines.
     func highlightWithChanges(
         new newMarkdown: String,
         old oldMarkdown: String,
-        matches: [BlockMatch],
+        plan: ChangePlan,
         docCAlertMode: DocCAlertMode = .extended,
         wordDiffThreshold: Double = 0.25,
         frontMatterRendered: [String] = []
@@ -42,7 +42,7 @@ public struct DownHTMLVisitor: Sendable {
         let oldResult = highlightLines(
             oldMarkdown, docCAlertMode: docCAlertMode)
         let diffMap = LineDiffMap(
-            matches: matches,
+            plan: plan,
             wordDiffThreshold: wordDiffThreshold)
         return buildLayoutWithChanges(
             newResult.rendered,

@@ -1,26 +1,24 @@
 import Testing
 @testable import MudCore
 
-/// Change IDs (`change-N`) are minted by two independent counters:
-/// `DiffContext` (used by the Up-mode overlay and, via `ChangeList`,
-/// the sidebar) and `LineDiffMap` (Down mode). A sidebar click finds
-/// its document target by matching `data-change-id`, so both counters
-/// must assign the same ID to the same change. These tests pin that
-/// contract over an edit corpus.
+/// Change IDs (`change-N`) are minted once, in `ChangePlan`, and every
+/// consumer — the Up-mode overlay (`DiffContext`), Down mode
+/// (`LineDiffMap`), and the sidebar (`ChangeList`) — projects from that
+/// plan. A sidebar click finds its document target by matching
+/// `data-change-id`, so all three must assign the same ID to the same
+/// change. These tests pin that contract over an edit corpus.
 ///
-/// Up mode and the sidebar share one `DiffContext`, so their IDs are
-/// compared in full document order. Down mode is compared on (a) the
-/// complete ID set and (b) the document order of insertion IDs — not
-/// deletion positions, because a deletion may legitimately render at a
-/// different position in a line-oriented view than in the sidebar list
-/// (e.g. an unpaired deletion sharing a gap with a code-block pair).
-/// Since both counters number sequentially, any divergence shifts every
-/// later ID, so these two checks catch a numbering split.
+/// Up mode and the sidebar are compared in full document order. Down
+/// mode is compared on (a) the complete ID set and (b) the document
+/// order of insertion IDs — not deletion positions, because a deletion
+/// may legitimately render at a different position in a line-oriented
+/// view than in the sidebar list (e.g. an unpaired deletion sharing a
+/// gap with a code-block pair).
 ///
-/// The corpus avoids gaps where the two code-block pairing policies
-/// differ (`DiffContext` pairs code blocks by type anywhere in a gap;
-/// `LineDiffMap` pairs the i-th deletion with the i-th insertion).
-/// Unifying that policy is Phase 2 of the architecture plan.
+/// The last two corpus cases mix code blocks with other blocks in one
+/// gap — the gaps where the pre-plan pairing policies diverged (the
+/// old `LineDiffMap` paired positionally; `DiffContext` paired code
+/// blocks by type). The plan pairs by type for everyone.
 @Suite("Change ID parity between modes and the sidebar")
 struct ChangeIDParityTests {
   struct EditCase: CustomTestStringConvertible, Sendable {
@@ -67,6 +65,14 @@ struct ChangeIDParityTests {
       label: "multi-cluster code block edit then paragraph edit",
       old: "```\na\nb\nc\nd\ne\n```\n\nTail one.\n",
       new: "```\na\nB\nc\nD\ne\n```\n\nTail two.\n"),
+    EditCase(
+      label: "paragraph and code block swap positions in one gap",
+      old: "Intro.\n\nAlpha beta gamma.\n\n```\nkeep\nold\n```\n\nTail.\n",
+      new: "Intro.\n\n```\nkeep\nnew\n```\n\nDelta epsilon zeta.\n\nTail.\n"),
+    EditCase(
+      label: "paragraph deleted and code block edited in one gap",
+      old: "Gone paragraph.\n\n```\nkeep\nold\n```\n\nTail.\n",
+      new: "```\nkeep\nnew\n```\n\nTail.\n"),
   ]
 
   @Test("Down-mode IDs match sidebar IDs", arguments: corpus)

@@ -4,7 +4,7 @@
 /// that share a `groupID`. The sidebar and changes bar use these for
 /// navigation and counts.
 public struct ChangeGroup: Identifiable, Sendable {
-    /// The first change's ID (used as the group's stable identity).
+    /// The group ID (e.g. "group-1"), the group's stable identity.
     public let id: String
     /// All change IDs in this group.
     public let changeIDs: [String]

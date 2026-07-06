@@ -1,13 +1,11 @@
 import Markdown
 
-/// Maps block-level diff matches to line-level annotations for Down mode
-/// rendering.
+/// Maps a `ChangePlan` to line-level annotations for Down mode rendering.
 ///
-/// Built from `BlockMatcher.match()` results. Paired blocks get
-/// line-level diffs: only actually-changed lines are annotated.
-/// Unchanged lines within a modified block render normally. Code block
-/// pairs use `CodeBlockDiff` for cluster-based ID assignment matching
-/// `DiffContext`.
+/// Paired blocks get line-level diffs: only actually-changed lines are
+/// annotated. Unchanged lines within a modified block render normally.
+/// Code block pairs reuse the plan's cluster lines, so their change IDs
+/// match `DiffContext` (Up mode) and the sidebar by construction.
 struct LineDiffMap {
     private let annotations: [Int: LineAnnotation]
     let deletionGroups: [DeletionGroup]
@@ -62,76 +60,24 @@ struct BlockWordData {
 // MARK: - Construction
 
 extension LineDiffMap {
-    init(matches: [BlockMatch],
-         wordDiffThreshold: Double = 0.25) {
+    init(plan: ChangePlan, wordDiffThreshold: Double = 0.25) {
         var annotations: [Int: LineAnnotation] = [:]
         var groups: [DeletionGroup] = []
         var delWD: [String: [Int: BlockWordData]] = [:]
         var insWD: [String: [Int: BlockWordData]] = [:]
-        var changeCounter = 0
-
-        func nextChangeID() -> String {
-            changeCounter += 1
-            return "change-\(changeCounter)"
-        }
-
-        var pendingDels: [(block: LeafBlock, changeID: String)] = []
-        var pendingIns: [(block: LeafBlock, changeID: String,
-                          lineRange: ClosedRange<Int>)] = []
-
-        // MARK: Gap finalization
-
-        func finalizeGap(beforeNewLine anchorLine: Int) {
-            let pairCount = min(pendingDels.count, pendingIns.count)
-
-            for i in 0..<pairCount {
-                let del = pendingDels[i]
-                let ins = pendingIns[i]
-                if processCodeBlockPair(
-                    del: del, ins: ins,
-                    anchorLine: anchorLine) {
-                    continue
-                }
-                processLineLevelPair(
-                    del: del, ins: ins,
-                    anchorLine: anchorLine)
-            }
-
-            // Unpaired deletions — block-level.
-            for i in pairCount..<pendingDels.count {
-                if let range = Self.lineRange(
-                    for: pendingDels[i].block) {
-                    groups.append(DeletionGroup(
-                        beforeNewLine: anchorLine,
-                        oldLineRange: range,
-                        changeID: pendingDels[i].changeID))
-                }
-            }
-
-            // Unpaired insertions — block-level.
-            for i in pairCount..<pendingIns.count {
-                let ins = pendingIns[i]
-                for line in ins.lineRange {
-                    annotations[line] = LineAnnotation(
-                        changeID: ins.changeID)
-                }
-            }
-
-            pendingDels.removeAll()
-            pendingIns.removeAll()
-        }
 
         // MARK: Line-level pair
 
-        /// Runs `LineLevelDiff` on the paired block's source text and
+        /// Runs `LineLevelDiff` on a paired block's source text and
         /// emits fine-grained annotations, deletion groups, and
         /// per-line word data.
         func processLineLevelPair(
-            del: (block: LeafBlock, changeID: String),
-            ins: (block: LeafBlock, changeID: String,
-                  lineRange: ClosedRange<Int>),
+            _ pair: ChangePlan.Pair,
+            insLineRange: ClosedRange<Int>,
             anchorLine: Int
         ) {
+            let del = pair.deletion
+            let ins = pair.insertion
             let oldLines = del.block.sourceText.split(
                 separator: "\n",
                 omittingEmptySubsequences: false).map(String.init)
@@ -142,8 +88,7 @@ extension LineDiffMap {
             guard let entries = LineLevelDiff.diff(
                 old: oldLines, new: newLines
             ) else {
-                emitBlockLevel(del: del, ins: ins,
-                               anchorLine: anchorLine)
+                emitBlockLevel(pair, insLineRange: insLineRange)
                 return
             }
 
@@ -208,10 +153,10 @@ extension LineDiffMap {
                 let insTexts = gapInsNewLines.map {
                     newLines[$0 - ins.block.sourceLine]
                 }
-                for pair in WordPairing.bestPairs(
+                for linePair in WordPairing.bestPairs(
                     delLines: delTexts, insLines: insTexts) {
-                    let delLine = gapDelOldLines[pair.del]
-                    let insLine = gapInsNewLines[pair.ins]
+                    let delLine = gapDelOldLines[linePair.del]
+                    let insLine = gapInsNewLines[linePair.ins]
                     let di = delLine - del.block.sourceLine
                     let ii = insLine - ins.block.sourceLine
                     guard di < oldLines.count,
@@ -239,32 +184,13 @@ extension LineDiffMap {
 
         // MARK: Code block pair
 
-        /// Handles code block pairs via `CodeBlockDiff` so that
-        /// cluster-based change IDs match `DiffContext`.
+        /// Projects a code block pair's cluster lines (change IDs
+        /// pre-assigned by the plan) onto document line numbers.
         func processCodeBlockPair(
-            del: (block: LeafBlock, changeID: String),
-            ins: (block: LeafBlock, changeID: String,
-                  lineRange: ClosedRange<Int>),
-            anchorLine: Int
-        ) -> Bool {
-            guard let delCB = del.block.markup as? CodeBlock,
-                  let insCB = ins.block.markup as? CodeBlock
-            else { return false }
-
-            let isMermaid =
-                delCB.language?.lowercased() == "mermaid"
-                || insCB.language?.lowercased() == "mermaid"
-            if isMermaid { return false }
-
-            guard let raw = CodeBlockDiff.computeRaw(
-                oldCode: delCB.code, newCode: insCB.code,
-                oldLanguage: delCB.language,
-                newLanguage: insCB.language
-            ) else { return false }
-
-            var codeLines = raw.lines
-            CodeBlockDiff.assignChangeIDs(
-                &codeLines, nextChangeID: { nextChangeID() })
+            _ pair: ChangePlan.CodeBlockPair
+        ) {
+            let del = pair.deletion
+            let ins = pair.insertion
 
             // Content start offsets (fenced blocks skip the fence).
             let delFenced = del.block.sourceText.hasPrefix("`")
@@ -319,11 +245,11 @@ extension LineDiffMap {
                     return si < insSrcLines.count
                         ? insSrcLines[si] : nil
                 }
-                for pair in WordPairing.bestPairs(
+                for linePair in WordPairing.bestPairs(
                     delLines: gapDelTexts,
                     insLines: gapInsTexts) {
-                    let d = gapDels[pair.del]
-                    let i = gapIns[pair.ins]
+                    let d = gapDels[linePair.del]
+                    let i = gapIns[linePair.ins]
                     let dsi = d.code + delFenceOff
                     let isi = i.code + insFenceOff
                     guard dsi < delSrcLines.count,
@@ -354,7 +280,7 @@ extension LineDiffMap {
                 gapChangeID = nil
             }
 
-            for line in codeLines {
+            for line in pair.lines {
                 switch line.annotation {
                 case .unchanged:
                     flushCodeGap()
@@ -373,8 +299,6 @@ extension LineDiffMap {
                 }
             }
             flushCodeGap()
-
-            return true
         }
 
         // MARK: Block-level fallback
@@ -382,11 +306,11 @@ extension LineDiffMap {
         /// Falls back to block-level treatment: all lines of the old
         /// block are deleted, all lines of the new block are inserted.
         func emitBlockLevel(
-            del: (block: LeafBlock, changeID: String),
-            ins: (block: LeafBlock, changeID: String,
-                  lineRange: ClosedRange<Int>),
-            anchorLine: Int
+            _ pair: ChangePlan.Pair,
+            insLineRange: ClosedRange<Int>
         ) {
+            let del = pair.deletion
+            let ins = pair.insertion
             let spans = WordDiff.diff(
                 old: del.block.sourceText,
                 new: ins.block.sourceText)
@@ -409,7 +333,7 @@ extension LineDiffMap {
                             delData
                     }
                 }
-                for line in ins.lineRange {
+                for line in insLineRange {
                     insWD[ins.changeID, default: [:]][line] =
                         insData
                 }
@@ -417,39 +341,69 @@ extension LineDiffMap {
 
             if let range = Self.lineRange(for: del.block) {
                 groups.append(DeletionGroup(
-                    beforeNewLine: ins.lineRange.lowerBound,
+                    beforeNewLine: insLineRange.lowerBound,
                     oldLineRange: range,
                     changeID: del.changeID))
             }
-            for line in ins.lineRange {
+            for line in insLineRange {
                 annotations[line] = LineAnnotation(
                     changeID: ins.changeID)
             }
         }
 
-        // MARK: Match processing
+        // MARK: Gap projection
 
-        for match in matches {
-            switch match {
-            case .unchanged(_, let new):
-                if let range = Self.lineRange(for: new) {
-                    finalizeGap(beforeNewLine: range.lowerBound)
+        for gap in plan.gaps {
+            let anchorLine = gap.followingAnchor
+                .flatMap { Self.lineRange(for: $0)?.lowerBound }
+                ?? Int.max
+
+            // Paired blocks, in document order of their insertions.
+            var pairIndex = 0
+            for slot in gap.insertionSlots {
+                switch slot {
+                case .codeBlockPair(let pair):
+                    processCodeBlockPair(pair)
+
+                case .block(let change):
+                    if pairIndex < gap.pairs.count {
+                        let pair = gap.pairs[pairIndex]
+                        pairIndex += 1
+                        if let insRange = Self.lineRange(
+                            for: pair.insertion.block) {
+                            processLineLevelPair(
+                                pair, insLineRange: insRange,
+                                anchorLine: anchorLine)
+                        } else if let range = Self.lineRange(
+                            for: pair.deletion.block) {
+                            // No line range on the insertion side —
+                            // fall back to a plain deletion group.
+                            groups.append(DeletionGroup(
+                                beforeNewLine: anchorLine,
+                                oldLineRange: range,
+                                changeID: pair.deletion.changeID))
+                        }
+                    } else if let range = Self.lineRange(
+                        for: change.block) {
+                        // Unpaired insertion — block-level.
+                        for line in range {
+                            annotations[line] = LineAnnotation(
+                                changeID: change.changeID)
+                        }
+                    }
                 }
+            }
 
-            case .inserted(let new):
-                let id = nextChangeID()
-                if let range = Self.lineRange(for: new) {
-                    pendingIns.append((
-                        block: new, changeID: id, lineRange: range))
+            // Unpaired deletions — block-level, before the anchor.
+            for del in gap.deletions.dropFirst(gap.pairs.count) {
+                if let range = Self.lineRange(for: del.block) {
+                    groups.append(DeletionGroup(
+                        beforeNewLine: anchorLine,
+                        oldLineRange: range,
+                        changeID: del.changeID))
                 }
-
-            case .deleted(let old):
-                let id = nextChangeID()
-                pendingDels.append((block: old, changeID: id))
             }
         }
-
-        finalizeGap(beforeNewLine: Int.max)
 
         self.annotations = annotations
         self.deletionGroups = groups

@@ -1,42 +1,41 @@
 import Markdown
 
-/// Extracts a flat list of document changes from a `DiffContext`,
+/// Projects a `ChangePlan` into a flat list of document changes,
 /// suitable for populating the sidebar change list.
 enum ChangeList {
     /// Computes a list of changes between old and new documents.
     static func computeChanges(
         old: ParsedMarkdown, new: ParsedMarkdown
     ) -> [DocumentChange] {
-        let context = DiffContext(old: old, new: new)
-        let newBlocks = BlockMatcher.collectLeafBlocks(from: new)
+        computeChanges(plan: ChangePlan.plan(old: old, new: new))
+    }
 
+    /// Projects the plan's gaps, in document order. Within a gap,
+    /// deletions come first (they attach to the block they precede),
+    /// then insertions and code-block pairs in document order.
+    static func computeChanges(plan: ChangePlan) -> [DocumentChange] {
         var changes: [DocumentChange] = []
-        var lastSurvivingLine = 1
         var sawUnchangedSinceLastChange = true
+        var lastSurvivingLine = 1
 
-        for block in newBlocks {
-            let node = block.markup
+        for gap in plan.gaps {
+            // Deletions attach to the first block after them: an
+            // insertion in the same gap, else the following anchor.
+            // Trailing deletions fall back to the last surviving line.
+            let hostLine = gap.insertionSlots.first?.insertionBlock.sourceLine
+                ?? gap.followingAnchor?.sourceLine
+                ?? gap.precedingAnchor?.sourceLine
+                ?? lastSurvivingLine
 
-            let codeDiff = context.codeBlockDiff(for: node)
-            let isUnchanged = context.annotation(for: node) == nil
-                && context.precedingDeletions(before: node).isEmpty
-                && codeDiff == nil
-
-            if isUnchanged {
-                sawUnchangedSinceLastChange = true
-                lastSurvivingLine = block.sourceLine
-                continue
-            }
-
-            // Emit deletions that precede this block.
-            for del in context.precedingDeletions(before: node) {
-                let consecutive = !changes.isEmpty && !sawUnchangedSinceLastChange
-                let info = context.groupInfo(for: del.changeID)
+            for del in gap.deletions {
+                let consecutive = !changes.isEmpty
+                    && !sawUnchangedSinceLastChange
+                let info = plan.groupInfo[del.changeID]
                 changes.append(DocumentChange(
                     id: del.changeID,
                     type: .deletion,
-                    summary: del.summary,
-                    sourceLine: block.sourceLine,
+                    summary: ChangePlan.deletionSummary(del.block),
+                    sourceLine: hostLine,
                     isConsecutive: consecutive,
                     groupID: info?.groupID ?? "",
                     groupIndex: info?.groupIndex ?? 0,
@@ -45,76 +44,56 @@ enum ChangeList {
                 sawUnchangedSinceLastChange = false
             }
 
-            // Check for code block with line-level diff.
-            if let codeDiff {
-                emitCodeBlockChanges(
-                    codeDiff, sourceLine: block.sourceLine,
-                    changes: &changes,
-                    sawUnchangedSinceLastChange: &sawUnchangedSinceLastChange)
-                lastSurvivingLine = block.sourceLine
-                continue
+            for slot in gap.insertionSlots {
+                switch slot {
+                case .block(let change):
+                    let consecutive = !changes.isEmpty
+                        && !sawUnchangedSinceLastChange
+                    let info = plan.groupInfo[change.changeID]
+                    changes.append(DocumentChange(
+                        id: change.changeID,
+                        type: .insertion,
+                        summary: ChangePlan.blockSummary(change.block),
+                        sourceLine: change.block.sourceLine,
+                        isConsecutive: consecutive,
+                        groupID: info?.groupID ?? "",
+                        groupIndex: info?.groupIndex ?? 0,
+                        isMixed: info?.isMixed ?? false
+                    ))
+                    sawUnchangedSinceLastChange = false
+                    lastSurvivingLine = change.block.sourceLine
+
+                case .codeBlockPair(let pair):
+                    emitCodeBlockChanges(
+                        pair.lines,
+                        sourceLine: pair.insertion.block.sourceLine,
+                        changes: &changes,
+                        sawUnchangedSinceLastChange:
+                            &sawUnchangedSinceLastChange)
+                    lastSurvivingLine = pair.insertion.block.sourceLine
+                }
             }
 
-            // The block itself is unchanged — it breaks the
-            // consecutive run even though it hosted deletions.
-            if context.annotation(for: node) == nil {
+            if let anchor = gap.followingAnchor {
                 sawUnchangedSinceLastChange = true
-                lastSurvivingLine = block.sourceLine
-                continue
+                lastSurvivingLine = anchor.sourceLine
             }
-
-            // Emit this block's own change.
-            if let id = context.changeID(for: node) {
-                let type: ChangeType = .insertion
-                let consecutive = !changes.isEmpty && !sawUnchangedSinceLastChange
-                let info = context.groupInfo(for: id)
-                changes.append(DocumentChange(
-                    id: id,
-                    type: type,
-                    summary: DiffContext.blockSummary(block),
-                    sourceLine: block.sourceLine,
-                    isConsecutive: consecutive,
-                    groupID: info?.groupID ?? "",
-                    groupIndex: info?.groupIndex ?? 0,
-                    isMixed: info?.isMixed ?? false
-                ))
-                sawUnchangedSinceLastChange = false
-            }
-
-            lastSurvivingLine = block.sourceLine
-        }
-
-        // Trailing deletions — no following block.
-        for del in context.trailingDeletions() {
-            let consecutive = !changes.isEmpty && !sawUnchangedSinceLastChange
-            let info = context.groupInfo(for: del.changeID)
-            changes.append(DocumentChange(
-                id: del.changeID,
-                type: .deletion,
-                summary: del.summary,
-                sourceLine: lastSurvivingLine,
-                isConsecutive: consecutive,
-                groupID: info?.groupID ?? "",
-                groupIndex: info?.groupIndex ?? 0,
-                isMixed: info?.isMixed ?? false
-            ))
-            sawUnchangedSinceLastChange = false
         }
 
         return changes
     }
 
     /// Emits `DocumentChange` entries for each changed line in a
-    /// code block diff. Lines sharing a change ID are grouped by the
+    /// code block pair. Lines sharing a change ID are grouped by the
     /// sidebar into a single `ChangeGroup` with per-line summaries.
     private static func emitCodeBlockChanges(
-        _ codeDiff: CodeBlockDiff, sourceLine: Int,
+        _ lines: [CodeBlockDiff.CodeLine], sourceLine: Int,
         changes: inout [DocumentChange],
         sawUnchangedSinceLastChange: inout Bool
     ) {
         var currentChangeID: String?
 
-        for line in codeDiff.lines {
+        for line in lines {
             guard let changeID = line.changeID,
                   let groupID = line.groupID
             else {
@@ -182,7 +161,7 @@ public struct DocumentChange: Identifiable, Sendable {
     /// 1-based group index, used for badge numbering.
     public let groupIndex: Int
     /// True when the group contains both deletions and insertions
-    /// (from DiffContext), even if only one type is emitted as a
+    /// (from the change plan), even if only one type is emitted as a
     /// DocumentChange (e.g. mermaid replacements suppress the deletion).
     public let isMixed: Bool
 }

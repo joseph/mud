@@ -120,10 +120,12 @@ public enum MudCore {
             markdown: parsed.markdown,
             lineCount: parsed.frontMatterLineCount)
         if let waypoint = options.waypoint {
-            let matches = BlockMatcher.match(old: waypoint, new: parsed)
+            let plan = ChangePlan.plan(
+                old: waypoint, new: parsed,
+                wordDiffThreshold: options.wordDiffThreshold)
             return downVisitor.highlightWithChanges(
                 new: parsed.body, old: waypoint.body,
-                matches: matches,
+                plan: plan,
                 docCAlertMode: options.docCAlertMode,
                 wordDiffThreshold: options.wordDiffThreshold,
                 frontMatterRendered: fmRendered)

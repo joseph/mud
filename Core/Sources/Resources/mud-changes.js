@@ -30,31 +30,29 @@
     _subOverlays = [];
     _suppressedGroups = {};
 
-    // Discover groups from data-group-id attributes.
+    // Discover groups from data-group-id attributes. The group's type
+    // (ins | del | mix) is computed in Swift and carried on each member
+    // as data-group-type, so members hidden from the DOM (e.g. a
+    // suppressed deletion) still count toward the type.
     var els = container.querySelectorAll("[data-group-id]");
-    var groups = {};  // groupID → { index, hasDel, hasIns }
+    var groups = {};  // groupID → { index, type }
     for (var j = 0; j < els.length; j++) {
       var gid = els[j].dataset.groupId;
       if (!groups[gid]) {
-        groups[gid] = {
-          index: els[j].dataset.groupIndex || "",
-          hasDel: false,
-          hasIns: false
-        };
+        groups[gid] = { index: "", type: "" };
       }
-      if (els[j].classList.contains("mud-change-del")
-          || els[j].classList.contains("cl-del")) {
-        groups[gid].hasDel = true;
-      } else {
-        groups[gid].hasIns = true;
+      if (!groups[gid].index && els[j].dataset.groupIndex) {
+        groups[gid].index = els[j].dataset.groupIndex;
+      }
+      if (!groups[gid].type && els[j].dataset.groupType) {
+        groups[gid].type = els[j].dataset.groupType;
       }
     }
 
     // Create one overlay per group.
     for (var gid in groups) {
       var g = groups[gid];
-      var type = (g.hasDel && g.hasIns) ? "mix"
-               : g.hasIns ? "ins" : "del";
+      var type = g.type || "ins";
       var typeClass = "mud-overlay-" + type;
       _groupTypes[gid] = type;
 

@@ -1,8 +1,9 @@
 #!/bin/sh
 # mud — Mud.app CLI dispatcher
 #
-# With rendering flags (-u, -d, etc.): delegates to the bundled `mud` tool.
-# Without rendering flags: opens files in the Mud GUI via `open`.
+# With any flag: delegates to the bundled `mud` tool, which owns the flag
+# vocabulary (so there is no second flag list here to fall out of date).
+# With only filenames (or nothing): opens the Mud GUI via `open`.
 
 set -eu
 
@@ -27,18 +28,17 @@ if [ ! -x "$MUD_CLI" ]; then
   exit 1
 fi
 
-# If any rendering or meta flag is present, delegate to the bundled mud tool.
+# Any flag at all means the bundled mud tool handles the invocation —
+# including flags this script has never heard of, and its own usage errors.
 for arg in "$@"; do
   case "$arg" in
-    -u|--html-up|-d|--html-down|-b|--browser|-f|--fragment|\
-    --line-numbers|--word-wrap|--readable-column|--theme|\
-    -h|--help|-v|--version|--primer)
+    -*)
       exec "$MUD_CLI" "$@"
       ;;
   esac
 done
 
-# No rendering flags: open in the Mud GUI.
+# Only filenames: open in the Mud GUI.
 if [ $# -eq 0 ]; then
   if [ ! -t 0 ]; then
     # Piped stdin with no render flags — write to temp file and open in GUI

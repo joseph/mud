@@ -168,8 +168,6 @@ MVP plan.
 - `Rendering/HTMLDocument.swift` — Structured HTML document builder
 - `Rendering/HTMLTemplate.swift` — Document wrapping and resource loading
 - `Rendering/MarkdownParser.swift` — swift-cmark wrapper
-- `Rendering/FootnoteProcessor.swift` — Pre-parses footnotes; classifies
-  `^comment-[\w-]+$` labels as comments
 - `Rendering/FootnoteProcessor.swift` — Pre-parses footnotes via cmark;
   classifies `^comment-[\w-]+$` labels as comments (diverted to `[⋯]` markers,
   authorial footnotes renumbered to skip them)
@@ -360,18 +358,18 @@ corresponding `MudPreferences.shared` property.
 
 ## Communication patterns
 
-| Mechanism           | Used for                                         |
-| ------------------- | ------------------------------------------------ |
-| NotificationCenter  | Menu → views (reload, print, browser, zoom)      |
-| Responder chain     | Menu → window controller (toggle, find)          |
-| Combine sinks       | State → AppKit side effects                      |
-| JS bridge (`Mud.*`) | Swift ↔ WKWebView (find, scroll, lighting, zoom) |
-| Direct mutation     | Toolbar buttons → state objects                  |
+| Mechanism           | Used for                                          |
+| ------------------- | ------------------------------------------------- |
+| Responder chain     | Menu and toolbar → window controller              |
+| One-shot triggers   | Window controller → WKWebView via `DocumentState` |
+| Combine sinks       | State → AppKit side effects                       |
+| JS bridge (`Mud.*`) | Swift ↔ WKWebView (find, scroll, lighting, zoom)  |
+| Direct mutation     | Toolbar buttons → state objects                   |
 
-Menu commands that need the WKWebView use notifications so
-`DocumentContentView` can filter by `controlActiveState == .key` (prevents
-multi-window conflicts). Toolbar actions use the responder chain reaching
-`DocumentWindowController`.
+Menu and toolbar commands travel the responder chain (`NSApp.sendAction`) to
+the key window's `DocumentWindowController`, which mutates its `DocumentState`
+— for WKWebView actions, a one-shot `UUID?` trigger (print, reload, add
+comment) that `WebView.updateNSView` fires exactly once.
 
 
 ## Key conventions

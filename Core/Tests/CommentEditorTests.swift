@@ -82,15 +82,15 @@ struct CommentEditorTests {
     #expect(!result.source.hasSuffix("\n\n"))
   }
 
-  @Test func insertThenDelete_restoresOriginal() {
+  @Test func insertThenDelete_restoresOriginal() throws {
     // The README round-trip: adding then removing a comment must leave the file
     // byte-for-byte unchanged, trailing newline and all.
     let original = "# Title\n\nBody text.\n"
     let inserted = CommentEditor.insert(
       into: original, markerByteOffset: 18, quotation: nil,
       message: CommentMessage(author: nil, created: nil, body: "Note."))
-    let restored = CommentEditor.delete(
-      inserted.source, label: inserted.comment.label)
+    let restored = try #require(CommentEditor.delete(
+      inserted.source, label: inserted.comment.label))
 
     #expect(restored == original)
   }
@@ -110,19 +110,19 @@ struct CommentEditorTests {
 
   // MARK: - rewrite
 
-  @Test func rewrite_replacesBodyKeepsMarker() {
+  @Test func rewrite_replacesBodyKeepsMarker() throws {
     let inserted = CommentEditor.insert(
       into: "Hello world.\n", markerByteOffset: 11, quotation: nil,
       message: CommentMessage(author: nil, created: nil, body: "Note."))
 
-    let rewritten = CommentEditor.rewrite(
+    let rewritten = try #require(CommentEditor.rewrite(
       inserted.source, label: "comment-a", quotation: nil,
       messages: [
         CommentMessage(author: "JP", created: ts("2026-06-01 18:33:00"),
           body: "First."),
         CommentMessage(author: "Claude", created: ts("2026-06-01 18:34:00"),
           body: "Second."),
-      ])
+      ]))
 
     #expect(rewritten.contains("Hello world[^comment-a]."))  // marker intact
     #expect(rewritten.contains("💬 {JP @ 2026-06-01 18:33:00}:"))
@@ -132,7 +132,7 @@ struct CommentEditorTests {
     #expect(!rewritten.contains("Note."))  // old body replaced
   }
 
-  @Test func rewrite_keepsBlankLineBeforeFollowingBlock() {
+  @Test func rewrite_keepsBlankLineBeforeFollowingBlock() throws {
     // A comment definition mid-document, with a following paragraph. Rewriting
     // its body must not swallow the blank line that separates the two.
     let source = """
@@ -145,12 +145,12 @@ struct CommentEditorTests {
       Following paragraph.
       """
 
-    let rewritten = CommentEditor.rewrite(
+    let rewritten = try #require(CommentEditor.rewrite(
       source, label: "comment-a", quotation: "here",
       messages: [
         CommentMessage(author: nil, created: nil, body: "A note."),
         CommentMessage(author: nil, created: nil, body: "A reply."),
-      ])
+      ]))
 
     // The reply is a distinct message (bare `💬`), and the following paragraph
     // stays separated by a blank line rather than merging into the definition.
@@ -158,17 +158,17 @@ struct CommentEditorTests {
     #expect(rewritten.contains("    💬 A reply.\n\nFollowing paragraph."))
   }
 
-  @Test func rewrite_atEndOfFileEndsWithSingleNewline() {
+  @Test func rewrite_atEndOfFileEndsWithSingleNewline() throws {
     let inserted = CommentEditor.insert(
       into: "Hello world.\n", markerByteOffset: 11, quotation: nil,
       message: CommentMessage(author: nil, created: nil, body: "Note."))
 
-    let rewritten = CommentEditor.rewrite(
+    let rewritten = try #require(CommentEditor.rewrite(
       inserted.source, label: "comment-a", quotation: nil,
       messages: [
         CommentMessage(author: nil, created: nil, body: "Note."),
         CommentMessage(author: nil, created: nil, body: "Reply."),
-      ])
+      ]))
 
     #expect(rewritten.hasSuffix("    💬 Reply.\n"))
     #expect(!rewritten.hasSuffix("\n\n"))
@@ -176,7 +176,7 @@ struct CommentEditorTests {
 
   // MARK: - delete
 
-  @Test func delete_removesOneCommentLeavesOthers() {
+  @Test func delete_removesOneCommentLeavesOthers() throws {
     let source = """
       Alpha[^comment-a] and beta[^comment-b].
 
@@ -185,7 +185,7 @@ struct CommentEditorTests {
       [^comment-b]: Second comment.
       """
 
-    let after = CommentEditor.delete(source, label: "comment-a")
+    let after = try #require(CommentEditor.delete(source, label: "comment-a"))
 
     #expect(!after.contains("comment-a"))  // marker + definition gone
     #expect(after.contains("beta[^comment-b]."))  // other marker intact
@@ -193,20 +193,20 @@ struct CommentEditorTests {
     #expect(after.contains("Alpha and beta"))  // surrounding text intact
   }
 
-  @Test func delete_collapsesTrailingNewlinesToOne() {
+  @Test func delete_collapsesTrailingNewlinesToOne() throws {
     let source = """
       Body[^comment-a] text.
 
       [^comment-a]: A trailing comment.
       """ + "\n\n\n"
 
-    let after = CommentEditor.delete(source, label: "comment-a")
+    let after = try #require(CommentEditor.delete(source, label: "comment-a"))
 
     #expect(after.hasSuffix("Body text.\n"))
     #expect(!after.hasSuffix("\n\n"))
   }
 
-  @Test func delete_keepsTrailingNewlineWhenCommentNotLast() {
+  @Test func delete_keepsTrailingNewlineWhenCommentNotLast() throws {
     // The definition is followed by more content, so its removal does not reach
     // end-of-file: the file's own trailing newline must survive.
     let source = """
@@ -217,10 +217,27 @@ struct CommentEditorTests {
       More content.
       """ + "\n"
 
-    let after = CommentEditor.delete(source, label: "comment-a")
+    let after = try #require(CommentEditor.delete(source, label: "comment-a"))
 
     #expect(!after.contains("comment-a"))
     #expect(after.contains("Body text."))
     #expect(after.hasSuffix("More content.\n"))
+  }
+
+  // MARK: - Missing label
+
+  @Test func rewrite_missingLabelReturnsNil() {
+    // A vanished definition must be reported, not papered over: returning the
+    // source unchanged would let the caller write it back and claim success.
+    let source = "Plain text, no comments.\n"
+    let result = CommentEditor.rewrite(
+      source, label: "comment-a", quotation: nil,
+      messages: [CommentMessage(author: nil, created: nil, body: "Note.")])
+    #expect(result == nil)
+  }
+
+  @Test func delete_missingLabelReturnsNil() {
+    let source = "Plain text, no comments.\n"
+    #expect(CommentEditor.delete(source, label: "comment-a") == nil)
   }
 }

@@ -263,10 +263,8 @@ extension LineDiffMap {
             ) else { return false }
 
             var codeLines = raw.lines
-            CodeBlockDiff.assignGroups(
-                &codeLines,
-                nextChangeID: { nextChangeID() },
-                nextGroupID: { (id: "", index: 0) })
+            CodeBlockDiff.assignChangeIDs(
+                &codeLines, nextChangeID: { nextChangeID() })
 
             // Content start offsets (fenced blocks skip the fence).
             let delFenced = del.block.sourceText.hasPrefix("`")

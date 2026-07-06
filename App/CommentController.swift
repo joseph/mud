@@ -60,29 +60,30 @@ final class CommentController {
         return FileManager.default.isWritableFile(atPath: fileURL.path)
     }
 
-    /// The outcome of `addComment`, distinguishing the two ways an add can fail.
-    /// They look identical to the user but have different causes and fixes, and
-    /// the old `nil` return conflated them: `anchorFailed` means the quoted text
-    /// no longer maps to a source byte (it changed, or hit a mapping gap the
-    /// anchor doesn't yet handle); `writeFailed` means the file itself couldn't
-    /// be read or written (permission, lock, IO). Telling them apart lets the
-    /// caller show an accurate message and lets us log distinctly.
-    enum AddResult: Equatable {
-        case added(label: String)
+    /// Why a comment mutation failed. The two causes look identical to the user
+    /// but have different fixes, so conflating them (as the old `Bool` returns
+    /// did) shows a wrong diagnosis: `anchorFailed` means the comment no longer
+    /// matches the source — an add's quoted text no longer maps to a source
+    /// byte, or the label's definition is gone (changed or removed on disk
+    /// while the box was open); `writeFailed` means the file itself couldn't be
+    /// read or written (permission, lock, IO). Every mutation returns one of
+    /// these, so the caller shows an accurate message for all four actions.
+    enum CommentWriteError: Error, Equatable {
         case anchorFailed
         case writeFailed
     }
 
     /// Inserts a new comment anchored at the draft's selection end, carrying
     /// `body` as its first message. The marker lands at the quotation's end via
-    /// `CommentAnchor`. Returns `.added(label:)` on success — the caller uses the
-    /// label to place the live `💬` marker — or the reason it couldn't. v1 has no
-    /// general-comment fallback for an anchor miss (a code block, or a structure
-    /// the mapping doesn't handle).
-    func addComment(_ draft: CommentDraft, author: String, body: String) -> AddResult {
+    /// `CommentAnchor`. Returns the new label on success — the caller uses it
+    /// to place the live `💬` marker. v1 has no general-comment fallback for an
+    /// anchor miss (a code block, or a structure the mapping doesn't handle).
+    func addComment(
+        _ draft: CommentDraft, author: String, body: String
+    ) -> Result<String, CommentWriteError> {
         guard let source = readSource() else {
             NSLog("Mud: comment add failed; couldn't read the file.")
-            return .writeFailed
+            return .failure(.writeFailed)
         }
         guard let byteOffset = CommentAnchor.insertionOffset(
             in: source, blockText: draft.blockText,
@@ -91,72 +92,95 @@ final class CommentController {
         else {
             NSLog("Mud: comment add failed; the quoted text no longer matches "
                 + "the source, so the marker couldn't be anchored.")
-            return .anchorFailed
+            return .failure(.anchorFailed)
         }
         let message = CommentMessage(author: author, created: Date(), body: body)
         let result = CommentEditor.insert(
             into: source, markerByteOffset: byteOffset,
             quotation: draft.quotation, message: message)
-        guard write(result.source) else { return .writeFailed }
-        return .added(label: result.comment.label)
+        guard write(result.source) else { return .failure(.writeFailed) }
+        return .success(result.comment.label)
     }
 
     /// Appends a reply message to the `label` comment's thread, preserving its
     /// quotation and existing messages. Re-reads the current thread from disk so
     /// a concurrent external edit isn't lost.
     @discardableResult
-    func reply(toLabel label: String, author: String, body: String) -> Bool {
-        guard let source = readSource(),
-              let comment = MudCore.parseComments(source)
-                .first(where: { $0.label == label })
-        else { return false }
+    func reply(
+        toLabel label: String, author: String, body: String
+    ) -> Result<Void, CommentWriteError> {
+        guard let source = readSource() else { return .failure(.writeFailed) }
+        guard let comment = MudCore.parseComments(source)
+            .first(where: { $0.label == label })
+        else { return .failure(.anchorFailed) }
         var messages = comment.messages
         messages.append(CommentMessage(author: author, created: Date(), body: body))
-        return write(CommentEditor.rewrite(
+        return rewriteAndWrite(
             source, label: label, quotation: comment.quotation,
-            messages: messages))
+            messages: messages)
     }
 
     /// Replaces the body of the `label` comment's most recent message, keeping
     /// that message's author and timestamp (it is the same message, edited).
     @discardableResult
-    func editLastMessage(label: String, body: String) -> Bool {
-        guard let source = readSource(),
-              let comment = MudCore.parseComments(source)
-                .first(where: { $0.label == label }),
-              let last = comment.messages.last
-        else { return false }
+    func editLastMessage(
+        label: String, body: String
+    ) -> Result<Void, CommentWriteError> {
+        guard let source = readSource() else { return .failure(.writeFailed) }
+        guard let comment = MudCore.parseComments(source)
+            .first(where: { $0.label == label }),
+            let last = comment.messages.last
+        else { return .failure(.anchorFailed) }
         var messages = comment.messages
         messages[messages.count - 1] = CommentMessage(
             author: last.author, created: last.created, body: body)
-        return write(CommentEditor.rewrite(
+        return rewriteAndWrite(
             source, label: label, quotation: comment.quotation,
-            messages: messages))
+            messages: messages)
     }
 
     /// Removes the `label` comment entirely — definition and every marker.
     @discardableResult
-    func delete(label: String) -> Bool {
-        guard let source = readSource() else { return false }
-        return write(CommentEditor.delete(source, label: label))
+    func delete(label: String) -> Result<Void, CommentWriteError> {
+        guard let source = readSource() else { return .failure(.writeFailed) }
+        guard let deleted = CommentEditor.delete(source, label: label)
+        else { return .failure(.anchorFailed) }
+        guard write(deleted) else { return .failure(.writeFailed) }
+        return .success(())
     }
 
     /// Removes the most recent message from the `label` comment's thread. When it
     /// was the only message, the whole comment goes (a comment can't be empty).
     @discardableResult
-    func deleteLastMessage(label: String) -> Bool {
-        guard let source = readSource(),
-              let comment = MudCore.parseComments(source)
-                .first(where: { $0.label == label })
-        else { return false }
+    func deleteLastMessage(label: String) -> Result<Void, CommentWriteError> {
+        guard let source = readSource() else { return .failure(.writeFailed) }
+        guard let comment = MudCore.parseComments(source)
+            .first(where: { $0.label == label })
+        else { return .failure(.anchorFailed) }
         guard comment.messages.count > 1 else {
-            return write(CommentEditor.delete(source, label: label))
+            guard let deleted = CommentEditor.delete(source, label: label)
+            else { return .failure(.anchorFailed) }
+            guard write(deleted) else { return .failure(.writeFailed) }
+            return .success(())
         }
         var messages = comment.messages
         messages.removeLast()
-        return write(CommentEditor.rewrite(
+        return rewriteAndWrite(
             source, label: label, quotation: comment.quotation,
-            messages: messages))
+            messages: messages)
+    }
+
+    /// Rewrites the `label` definition and writes the result, telling a
+    /// vanished label apart from a failed disk write.
+    private func rewriteAndWrite(
+        _ source: String, label: String,
+        quotation: String?, messages: [CommentMessage]
+    ) -> Result<Void, CommentWriteError> {
+        guard let rewritten = CommentEditor.rewrite(
+            source, label: label, quotation: quotation, messages: messages)
+        else { return .failure(.anchorFailed) }
+        guard write(rewritten) else { return .failure(.writeFailed) }
+        return .success(())
     }
 
     // MARK: - IO

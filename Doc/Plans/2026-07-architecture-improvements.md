@@ -1,7 +1,7 @@
 Plan: Architecture Improvements
 ===============================================================================
 
-> Status: Planning
+> Status: Underway (Phase 1 implemented, awaiting test run)
 
 A full architecture review of Mud (July 2026), covering the App target, the
 MudCore rendering and diff subsystems, the Preferences package, the CLI / Quick

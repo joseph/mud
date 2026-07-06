@@ -100,18 +100,19 @@ class DocumentState: ObservableObject {
     let changeTracker = ChangeTracker()
 
     /// Hashes of file contents Mud has just written itself (comment edits), each
-    /// awaiting its file-watcher echo. The watcher reload consumes a match and
-    /// suppresses the background-reload badge — the change is ours, not
-    /// external. Plain (non-`@Published`) bookkeeping, mutated only on the main
-    /// thread where both the comment write and the watcher fire.
-    private var pendingSelfWrites: Set<Int> = []
+    /// awaiting its file-watcher echo, oldest first. The watcher reload consumes
+    /// a match and suppresses the background-reload badge — the change is ours,
+    /// not external. Plain (non-`@Published`) bookkeeping, mutated only on the
+    /// main thread where both the comment write and the watcher fire.
+    private var pendingSelfWrites: [Int] = []
 
     /// Record that Mud just wrote `content` to disk, so the matching watcher
     /// event is recognized as a self-write rather than an external edit.
     func registerSelfWrite(_ content: String) {
-        pendingSelfWrites.insert(content.hashValue)
-        // Bound the set: an echo that never lands (e.g. a failed re-watch)
-        // mustn't accumulate. Comment writes are serial, so a few is plenty.
+        pendingSelfWrites.append(content.hashValue)
+        // Bound the list: an echo that never lands (e.g. a failed re-watch)
+        // mustn't accumulate. Comment writes are serial, so a few is plenty;
+        // evict the oldest, whose echo is the least likely still to come.
         if pendingSelfWrites.count > 8 { pendingSelfWrites.removeFirst() }
     }
 
@@ -120,7 +121,10 @@ class DocumentState: ObservableObject {
     /// external-change badge); false for a genuine external edit, which also
     /// clears any stale pending entries (the file has moved past them).
     func consumeSelfWrite(_ content: String) -> Bool {
-        if pendingSelfWrites.remove(content.hashValue) != nil { return true }
+        if let index = pendingSelfWrites.firstIndex(of: content.hashValue) {
+            pendingSelfWrites.remove(at: index)
+            return true
+        }
         pendingSelfWrites.removeAll()
         return false
     }

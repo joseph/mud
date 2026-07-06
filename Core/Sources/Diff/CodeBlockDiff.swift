@@ -143,6 +143,47 @@ extension CodeBlockDiff {
     nextChangeID: () -> String,
     nextGroupID: () -> (id: String, index: Int)
   ) {
+    assignChangeIDs(&lines, nextChangeID: nextChangeID)
+    assignGroupIDs(&lines, nextGroupID: nextGroupID)
+  }
+
+  /// Assigns a change ID to each cluster of consecutive changed lines.
+  ///
+  /// Callers must mint cluster change IDs at gap-finalization time so
+  /// that `DiffContext` and `LineDiffMap` number the same edit
+  /// identically — a sidebar click finds its Down-mode target by
+  /// matching `data-change-id` values.
+  static func assignChangeIDs(
+    _ lines: inout [CodeLine],
+    nextChangeID: () -> String
+  ) {
+    var i = 0
+    while i < lines.count {
+      guard lines[i].annotation != .unchanged else {
+        i += 1
+        continue
+      }
+
+      // Found the start of a cluster.
+      let changeID = nextChangeID()
+      while i < lines.count && lines[i].annotation != .unchanged {
+        lines[i] = CodeLine(
+          highlightedHTML: lines[i].highlightedHTML,
+          annotation: lines[i].annotation,
+          changeID: changeID,
+          groupID: lines[i].groupID,
+          groupIndex: lines[i].groupIndex)
+        i += 1
+      }
+    }
+  }
+
+  /// Assigns a group ID to each cluster of consecutive changed lines,
+  /// with the badge index on the cluster's first line.
+  static func assignGroupIDs(
+    _ lines: inout [CodeLine],
+    nextGroupID: () -> (id: String, index: Int)
+  ) {
     var i = 0
     while i < lines.count {
       guard lines[i].annotation != .unchanged else {
@@ -152,14 +193,12 @@ extension CodeBlockDiff {
 
       // Found the start of a cluster.
       let group = nextGroupID()
-      let changeID = nextChangeID()
       var isFirst = true
-
       while i < lines.count && lines[i].annotation != .unchanged {
         lines[i] = CodeLine(
           highlightedHTML: lines[i].highlightedHTML,
           annotation: lines[i].annotation,
-          changeID: changeID,
+          changeID: lines[i].changeID,
           groupID: group.id,
           groupIndex: isFirst ? group.index : nil)
         isFirst = false

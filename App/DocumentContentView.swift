@@ -291,31 +291,56 @@ struct DocumentContentView: View {
         case .add:
             guard let draft = submission.draft else { resolveCompose(false); return }
             switch controller.addComment(draft, author: author, body: body) {
-            case .added(let label):
+            case .success(let label):
                 state.pendingCommentLocators[label] = CommentLocator(
                     blockText: draft.blockText, offset: draft.offsetInBlock,
                     occurrence: draft.occurrence)
                 resolveCompose(true)
-            case .anchorFailed:
+            case .failure(.anchorFailed):
                 resolveCompose(false, reason: "Cannot save: the highlighted text has changed.")
                 presentCommentFailure(message: anchorFailureMessage, note: body)
-            case .writeFailed:
+            case .failure(.writeFailed):
                 resolveCompose(false, reason: "Cannot save: Mud couldn't write to the file.")
                 presentCommentFailure(message: writeFailureMessage, note: body)
             }
         case .reply:
             guard let label = submission.label else { resolveCompose(false); return }
-            let ok = controller.reply(toLabel: label, author: author, body: body)
-            resolveCompose(ok)
-            if !ok { presentCommentFailure(message: replyFailureMessage, note: body) }
+            resolveThreadEdit(
+                controller.reply(toLabel: label, author: author, body: body),
+                note: body)
         case .edit:
             guard let label = submission.label else { resolveCompose(false); return }
-            let ok = controller.editLastMessage(label: label, body: body)
-            resolveCompose(ok)
-            if !ok { presentCommentFailure(message: replyFailureMessage, note: body) }
+            resolveThreadEdit(
+                controller.editLastMessage(label: label, body: body),
+                note: body)
         case .delete:
             guard let label = submission.label else { return }
-            _ = controller.deleteLastMessage(label: label)
+            // No compose box to resolve. A vanished label means the comment is
+            // already gone — the watcher reload catches the column up, so only
+            // a failed disk write is worth an alert.
+            if case .failure(.writeFailed) =
+                controller.deleteLastMessage(label: label) {
+                presentCommentFailure(message: deleteFailureMessage, note: "")
+            }
+        }
+    }
+
+    /// Acknowledges a reply/edit outcome to the page and, on failure, explains
+    /// the actual cause: the comment vanishing from disk and the file refusing
+    /// the write need different fixes, so they get different messages.
+    private func resolveThreadEdit(
+        _ result: Result<Void, CommentController.CommentWriteError>,
+        note: String
+    ) {
+        switch result {
+        case .success:
+            resolveCompose(true)
+        case .failure(.anchorFailed):
+            resolveCompose(false, reason: "Cannot save: the comment has changed.")
+            presentCommentFailure(message: replyFailureMessage, note: note)
+        case .failure(.writeFailed):
+            resolveCompose(false, reason: "Cannot save: Mud couldn't write to the file.")
+            presentCommentFailure(message: writeFailureMessage, note: note)
         }
     }
 
@@ -344,6 +369,13 @@ struct DocumentContentView: View {
         "Mud couldn't write to this file, so the comment couldn't be saved. "
             + "Check that the file is writable and not locked. "
             + "Your note is still in the compose box."
+    }
+
+    /// A delete that failed at the disk: there is no compose box to keep the
+    /// text in, so this is the only signal the user gets.
+    private var deleteFailureMessage: String {
+        "Mud couldn't write to this file, so the comment couldn't be deleted. "
+            + "Check that the file is writable and not locked."
     }
 
     /// Pushes the submit outcome to the page. A fresh `id` makes `WebView` fire it
@@ -520,11 +552,28 @@ struct DocumentContentView: View {
         )
     }
 
-    private func renderToTempHTML(parsed: ParsedMarkdown) -> URL? {
-        let baseName = fileURL.deletingPathExtension().lastPathComponent
-        let tempURL = URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent(baseName)
+    /// A destination for an exported HTML file: `<basename>.html` (a readable
+    /// browser-tab title) inside a fresh unique subdirectory, so two windows
+    /// exporting same-named files (README.md in different folders) never race
+    /// on one temp path.
+    private func exportTempURL() -> URL? {
+        let dir = URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("MudExport-\(UUID().uuidString)",
+                                    isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(
+                at: dir, withIntermediateDirectories: true)
+        } catch {
+            return nil
+        }
+        return dir
+            .appendingPathComponent(
+                fileURL.deletingPathExtension().lastPathComponent)
             .appendingPathExtension("html")
+    }
+
+    private func renderToTempHTML(parsed: ParsedMarkdown) -> URL? {
+        guard let tempURL = exportTempURL() else { return nil }
         var exportOptions = renderOptions
         exportOptions.standalone = true
         exportOptions.waypoint = nil
@@ -561,11 +610,7 @@ struct DocumentContentView: View {
         // the exported file holds none at all (like the CLI's --exclude-comments).
         let text = appState.commentsIncludeInExport
             ? parsed.markdown : MudCore.removeComments(parsed.markdown)
-        let tempDir = NSTemporaryDirectory()
-        let baseName = fileURL.deletingPathExtension().lastPathComponent
-        let tempURL = URL(fileURLWithPath: tempDir)
-            .appendingPathComponent(baseName)
-            .appendingPathExtension("html")
+        guard let tempURL = exportTempURL() else { return }
         var exportOptions = renderOptions
         exportOptions.standalone = true
         exportOptions.waypoint = nil

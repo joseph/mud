@@ -44,14 +44,16 @@ public enum CommentEditor {
     /// Replaces the body of the `label` definition with a freshly serialized
     /// quotation + messages. Covers edit, reply (caller passes `existing +
     /// [newMessage]`), and removing one message of a thread. The marker and the
-    /// quotation's anchor are untouched. A missing label leaves `source` as-is.
+    /// quotation's anchor are untouched. Returns `nil` when the label has no
+    /// definition (the comment changed or was removed on disk) — writing the
+    /// source back unchanged would falsely report success.
     public static func rewrite(
         _ source: String, label: String,
         quotation: String?, messages: [CommentMessage]
-    ) -> String {
+    ) -> String? {
         guard let loc = FootnoteProcessor.locateComments(source)
             .first(where: { $0.label == label })
-        else { return source }
+        else { return nil }
 
         let body = CommentSerialization.serialize(quotation: quotation, messages)
         let rebuilt = "[^\(label)]:\n" + indentBody(body)
@@ -78,12 +80,12 @@ public enum CommentEditor {
     /// Removes a comment entirely — its definition (and trailing blank lines)
     /// plus every `[^label]` marker — leaving the label gap rather than
     /// renumbering later labels, and normalizing the foot of the file to a single
-    /// trailing newline when the removal reaches it. A missing label leaves
-    /// `source` as-is.
-    public static func delete(_ source: String, label: String) -> String {
+    /// trailing newline when the removal reaches it. Returns `nil` when the
+    /// label has no definition (the comment changed or was removed on disk).
+    public static func delete(_ source: String, label: String) -> String? {
         guard let loc = FootnoteProcessor.locateComments(source)
             .first(where: { $0.label == label })
-        else { return source }
+        else { return nil }
 
         var ranges = loc.refRanges.map { ($0.lowerBound, $0.upperBound) }
         ranges.append((loc.defStart, loc.defDeleteEnd))

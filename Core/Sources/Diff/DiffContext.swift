@@ -39,7 +39,7 @@ struct DiffContext {
             let isConsecutive: Bool
         }
         // Replaces a paired code block's del+ins entries so the
-        // grouping pass can assign IDs in document order.
+        // grouping pass can assign group IDs in document order.
         struct CodeBlockMarker { let sourceKey: SourceKey }
         enum ChangeItem {
             case entry(ChangeEntry)
@@ -170,8 +170,15 @@ struct DiffContext {
 
                 guard let raw else { continue }
 
-                // Store raw diff (IDs assigned during grouping pass).
-                rawCodeBlockDiffs[insKey] = raw
+                // Mint cluster change IDs now, at gap-finalization
+                // time, so the numbering matches LineDiffMap's (Down
+                // mode). Group IDs are assigned in document order
+                // during the grouping pass.
+                var rawLines = raw.lines
+                CodeBlockDiff.assignChangeIDs(
+                    &rawLines, nextChangeID: { nextChangeID() })
+                rawCodeBlockDiffs[insKey] =
+                    CodeBlockDiff.RawDiff(lines: rawLines)
 
                 // Remove block-level annotation for the insertion.
                 annotations.removeValue(forKey: insKey)
@@ -313,12 +320,12 @@ struct DiffContext {
                 // Code block boundary always breaks block-level groups.
                 finalizeGroup()
 
-                // Assign IDs to the raw code block diff's line groups.
+                // Assign group IDs to the raw code block diff's line
+                // clusters (change IDs were minted at gap time).
                 if let raw = rawCodeBlockDiffs[marker.sourceKey] {
                     var lines = raw.lines
-                    CodeBlockDiff.assignGroups(
+                    CodeBlockDiff.assignGroupIDs(
                         &lines,
-                        nextChangeID: { nextChangeID() },
                         nextGroupID: {
                             groupCounter += 1
                             return (id: "group-\(groupCounter)",

@@ -46,8 +46,13 @@ class MudWebView: WKWebView {
     /// "Add Comment…" applies only to a text selection in the rendered (Up-mode)
     /// view of a writable document. A WKWebView selection menu carries a Copy
     /// item (`WKMenuItemIdentifierCopy`); its presence is our selection signal.
+    /// Reads this window's own mode: a control-click opens the menu without
+    /// making the window key, so global active-tab state can belong to another
+    /// window.
     private func canAddComment(in menu: NSMenu) -> Bool {
-        guard AppState.shared.modeInActiveTab == .up,
+        guard let controller = window?.windowController
+                  as? DocumentWindowController,
+              controller.state.mode == .up,
               let url = documentURL, !url.isBundleResource else { return false }
         return menu.items.contains {
             $0.identifier?.rawValue == "WKMenuItemIdentifierCopy"
@@ -249,18 +254,16 @@ struct WebView: NSViewRepresentable {
            context.coordinator.lastSearchID != query.id,
            !query.text.isEmpty {
             context.coordinator.lastSearchID = query.id
-            let escaped = query.text
-                .replacingOccurrences(of: "\\", with: "\\\\")
-                .replacingOccurrences(of: "'", with: "\\'")
+            let literal = Self.jsStringLiteral(query.text)
             let js: String
             switch query.origin {
             case .top:
-                js = "Mud.findFromTop('\(escaped)')"
+                js = "Mud.findFromTop(\(literal))"
             case .refine:
-                js = "Mud.findRefine('\(escaped)')"
+                js = "Mud.findRefine(\(literal))"
             case .advance:
                 let dir = query.direction == .backward ? "backward" : "forward"
-                js = "Mud.findAdvance('\(escaped)', '\(dir)')"
+                js = "Mud.findAdvance(\(literal), '\(dir)')"
             }
             let callback = onSearchResult
             webView.evaluateJavaScript(js) { result, _ in
@@ -282,10 +285,7 @@ struct WebView: NSViewRepresentable {
             if mode == .down {
                 js = "Mud.scrollToLine(\(target.heading.sourceLine))"
             } else {
-                let escaped = target.heading.id
-                    .replacingOccurrences(of: "\\", with: "\\\\")
-                    .replacingOccurrences(of: "'", with: "\\'")
-                js = "Mud.scrollToHeading('\(escaped)')"
+                js = "Mud.scrollToHeading(\(Self.jsStringLiteral(target.heading.id)))"
             }
             webView.evaluateJavaScript(js)
         }
@@ -294,12 +294,9 @@ struct WebView: NSViewRepresentable {
         if let target = changeScrollTarget,
            context.coordinator.lastChangeScrollTargetID != target.id {
             context.coordinator.lastChangeScrollTargetID = target.id
-            let idsJSON = "[" + target.changeIDs.map { id in
-                let escaped = id
-                    .replacingOccurrences(of: "\\", with: "\\\\")
-                    .replacingOccurrences(of: "'", with: "\\'")
-                return "'\(escaped)'"
-            }.joined(separator: ",") + "]"
+            let idsJSON = "[" + target.changeIDs
+                .map { Self.jsStringLiteral($0) }
+                .joined(separator: ",") + "]"
             webView.evaluateJavaScript("Mud.scrollToChange(\(idsJSON))")
         }
 
@@ -465,11 +462,8 @@ struct WebView: NSViewRepresentable {
 
         func applyTheme(to webView: WKWebView, theme: Theme) {
             let css = HTMLTemplate.themeCSS(for: theme.rawValue)
-            let escaped = css
-                .replacingOccurrences(of: "\\", with: "\\\\")
-                .replacingOccurrences(of: "'", with: "\\'")
-                .replacingOccurrences(of: "\n", with: "\\n")
-            webView.evaluateJavaScript("Mud.setTheme('\(escaped)')")
+            webView.evaluateJavaScript(
+                "Mud.setTheme(\(WebView.jsStringLiteral(css)))")
         }
 
         func applyZoom(to webView: WKWebView, level: Double) {

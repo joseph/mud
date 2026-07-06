@@ -372,7 +372,7 @@ struct MudPreferencesTests {
     // MARK: - Key-catalog invariants
 
     @Test func keyCatalogCount() {
-        #expect(MudPreferences.Keys.allCases.count == 30)
+        #expect(MudPreferences.Keys.allCases.count == 32)
     }
 
     @Test func keyRawValuesAreDistinct() {

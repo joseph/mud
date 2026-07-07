@@ -623,13 +623,26 @@ enum FootnoteProcessor {
         return String(decoding: bytes, as: UTF8.self)
     }
 
+    /// The CSS class of a baked comment marker. ``commentMarkerHTML(label:)``
+    /// emits it and ``commentTokenRegexes`` re-recognizes it; both derive from
+    /// this one constant so the emitter and the stripper cannot drift apart.
+    /// The JS layer names the same class (`makeMarker` / `markerFreeText` in
+    /// the comments scripts) — pinned by `CommentResourcesTests`.
+    static let commentMarkerClass = "mud-comment-marker"
+
+    /// The marker glyph, shared by the emitter and the strip pattern.
+    private static let commentMarkerGlyph = "💬"
+
     /// Comment-only regex precompiled once: the raw reference form
-    /// `[^comment-x]` and the baked marker HTML `<a class="mud-comment-marker"
-    /// …>💬</a>`. Used by ``stripCommentTokens(_:)``.
+    /// `[^comment-x]` and the baked marker HTML, whose pattern is built from
+    /// the same constants ``commentMarkerHTML(label:)`` emits. Used by
+    /// ``stripCommentTokens(_:)``.
     private static let commentTokenRegexes: [NSRegularExpression] = {
+        let cls = NSRegularExpression.escapedPattern(for: commentMarkerClass)
+        let glyph = NSRegularExpression.escapedPattern(for: commentMarkerGlyph)
         let patterns = [
             #"\[\^comment-[\w-]+\]"#,
-            #"<a class="mud-comment-marker"[^>]*>💬</a>"#,
+            "<a class=\"\(cls)\"[^>]*>\(glyph)</a>",
         ]
         return patterns.compactMap { try? NSRegularExpression(pattern: $0) }
     }()
@@ -639,7 +652,7 @@ enum FootnoteProcessor {
     /// identically to its pre-comment baseline. Self-gated to a strict no-op on
     /// comment-free input (the diff suite's hot path).
     static func stripCommentTokens(_ s: String) -> String {
-        guard s.contains("[^") || s.contains("mud-comment-marker") else { return s }
+        guard s.contains("[^") || s.contains(commentMarkerClass) else { return s }
         var result = s
         for regex in commentTokenRegexes {
             let range = NSRange(result.startIndex..., in: result)
@@ -687,8 +700,8 @@ enum FootnoteProcessor {
     /// `data-mud-label` to reveal the highlight and open the editor.
     private static func commentMarkerHTML(label: String) -> String {
         let escLabel = HTMLEscaping.escape(label)
-        return "<a class=\"mud-comment-marker\" id=\"cmtref-\(escLabel)\""
-            + " data-mud-label=\"\(escLabel)\" href=\"#cmt-\(escLabel)\">💬</a>"
+        return "<a class=\"\(commentMarkerClass)\" id=\"cmtref-\(escLabel)\""
+            + " data-mud-label=\"\(escLabel)\" href=\"#cmt-\(escLabel)\">\(commentMarkerGlyph)</a>"
     }
 
     /// If the line beginning at `start` is a column-0 footnote-definition

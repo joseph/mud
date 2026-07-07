@@ -167,4 +167,18 @@ struct CommentDiffInvarianceTests {
       + " data-mud-label=\"comment-a\" href=\"#cmt-comment-a\">💬</a> ran."
     #expect(FootnoteProcessor.stripCommentTokens(baked) == "Fox ran.")
   }
+
+  @Test func stripCommentTokensRemovesTheMarkerTheProcessorEmits() {
+    // The strip pattern is built from the same constants the emitter uses;
+    // this pins that derivation against real pipeline output (not a
+    // hand-copied marker string), label variants included.
+    for label in ["comment-a", "comment-intro_2-b"] {
+      let src = "Fox[^\(label)] ran.\n\n[^\(label)]: A note.\n"
+      let processed = FootnoteProcessor.process(src, mode: .popover)
+        .transformedMarkdown
+      let markerLine = String(processed.prefix(while: { $0 != "\n" }))
+      #expect(markerLine.contains(FootnoteProcessor.commentMarkerClass))
+      #expect(FootnoteProcessor.stripCommentTokens(markerLine) == "Fox ran.")
+    }
+  }
 }

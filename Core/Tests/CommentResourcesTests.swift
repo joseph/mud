@@ -45,4 +45,14 @@ struct CommentResourcesTests {
     #expect(html.contains("mud-capsule-puff"))
     #expect(html.contains(".mud-compose"))
   }
+
+  @Test func markerClassAgreesWithTheJSLayer() {
+    // The Swift emitter, the read-side projection (mud-comments.js), and the
+    // write-side locator (mud-comments-edit.js) all name the marker element by
+    // this class; a rename must reach all three.
+    #expect(HTMLTemplate.mudCommentsJS.contains(
+      FootnoteProcessor.commentMarkerClass))
+    #expect(HTMLTemplate.mudCommentsEditJS.contains(
+      FootnoteProcessor.commentMarkerClass))
+  }
 }

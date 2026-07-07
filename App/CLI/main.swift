@@ -1,14 +1,10 @@
 import Foundation
 import MudCore
 
-// MARK: - Types
-
-enum OutputMode { case up, down }
-
 // MARK: - Argument parsing
 
 var files: [String] = []
-var mode: OutputMode?
+var mode: Mode?
 var theme = "earthy"
 var htmlClasses: [String] = []
 var browser = false
@@ -162,24 +158,21 @@ func render(_ markdown: String, baseURL: URL?) -> String {
         return body
     }
 
-    let standalone = browser || standalone
-    if standalone {
-        options.standalone = true
+    if browser || standalone {
+        // Self-contained output: `exportDocument` owns the standalone
+        // wrapping, image inlining, and the read-only Comments column.
+        // Comments were already stripped above when --exclude-comments asked.
         options.extensions = Set(RenderExtension.registry.keys)
+        return MudCore.exportDocument(
+            markdown, mode: mode, options: options, includeComments: true)
     }
-
-    let imageResolver: ((_ source: String, _ baseURL: URL) -> String?)? =
-        standalone
-        ? { source, base in ImageDataURI.encode(source: source, baseURL: base) }
-        : nil
 
     switch mode {
     case .up:
-        // A commented document exports the read-only Comments column (no-op
+        // A commented document renders the read-only Comments column (no-op
         // when there are no comments).
         options = MudCore.showingReadOnlyComments(options, ifPresentIn: markdown)
-        return MudCore.renderUpModeDocument(markdown, options: options,
-            resolveImageSource: imageResolver)
+        return MudCore.renderUpModeDocument(markdown, options: options)
     case .down:
         return MudCore.renderDownModeDocument(markdown, options: options)
     }

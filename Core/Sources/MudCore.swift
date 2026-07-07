@@ -260,6 +260,40 @@ public enum MudCore {
             html: html, footnotes: popovers, comments: pipeline.comments)
     }
 
+    // MARK: - Export
+
+    /// Renders a Markdown source as a self-contained export document — the one
+    /// recipe behind every export path: Open In Browser, the Open In editor
+    /// HTML handoff, the `mud` CLI's standalone output, and Quick Look. It
+    /// forces `standalone` on, drops any change-tracking waypoint, strips every
+    /// comment when `includeComments` is false, and — for an Up-mode document
+    /// that keeps its comments — projects the read-only Comments column and
+    /// inlines local images as data URIs (`ImageDataURI`).
+    public static func exportDocument(
+        _ markdown: String,
+        mode: Mode,
+        options: RenderOptions,
+        includeComments: Bool
+    ) -> String {
+        var options = options
+        options.standalone = true
+        options.waypoint = nil
+        // Unless comments are included, drop every comment at the source so
+        // the exported file holds none at all — no marker, section, or column.
+        let source = includeComments ? markdown : removeComments(markdown)
+        switch mode {
+        case .down:
+            return renderDownModeDocument(source, options: options)
+        case .up:
+            options = showingReadOnlyComments(options, ifPresentIn: source)
+            return renderUpModeDocument(
+                source, options: options,
+                resolveImageSource: { source, baseURL in
+                    ImageDataURI.encode(source: source, baseURL: baseURL)
+                })
+        }
+    }
+
     // MARK: - Comment rendering
 
     /// Renders a single comment's `<li>` exactly as it appears in the bottom
@@ -307,9 +341,10 @@ public enum MudCore {
     }
 
     /// Returns `options` adjusted to project the read-only Comments column, but
-    /// only when `source` actually contains comments. The export paths — the
-    /// `mud -u` CLI and Open In Browser — call this so a self-contained document
-    /// shows the same projected column the app does, read-only: it switches the
+    /// only when `source` actually contains comments. `exportDocument` (and the
+    /// `mud -u` CLI's non-standalone output) call this so a self-contained
+    /// document shows the same projected column the app does, read-only: it
+    /// switches the
     /// comment mode to `.interactive` (hiding the bottom section and the inline
     /// markers in favor of the column) and turns the column on with
     /// `is-comments-column` (an export has no live toggle to set it). The

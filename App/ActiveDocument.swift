@@ -1,6 +1,6 @@
 import AppKit
 import Combine
-import MudPreferences
+import MudCore
 
 /// The per-window facts app-level menus need about the key document window.
 /// `nil` (on the observer) means no document window is key — Settings is

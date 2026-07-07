@@ -1,5 +1,6 @@
 import SwiftUI
 import Combine
+import MudCore
 import MudPreferences
 
 // MARK: - Document Window Controller
@@ -344,7 +345,33 @@ class DocumentWindowController: NSWindowController {
     }
 
     @objc func openInBrowser(_ sender: Any?) {
-        state.openInBrowserID = UUID()
+        exporter()?.openInBrowser()
+    }
+
+    /// The Open In editor handoff (from `OpenInMenuModel`): markdown hands the
+    /// file itself to the app; HTML exports first. `.auto` should be resolved
+    /// to `.markdown` or `.html` upstream; treat it as markdown as a safe
+    /// fallback.
+    func openInEditor(with handler: RegisteredMarkdownHandler, format: EditorFormat) {
+        switch format {
+        case .markdown, .auto:
+            NSWorkspace.shared.open(
+                [fileURL],
+                withApplicationAt: handler.appURL,
+                configuration: NSWorkspace.OpenConfiguration())
+        case .html:
+            exporter()?.open(withApplicationAt: handler.appURL)
+        }
+    }
+
+    /// The exporter for the current content under this window's current render
+    /// configuration — nil while the error page is showing.
+    private func exporter() -> DocumentExporter? {
+        guard case .parsed(let parsed) = model.content else { return nil }
+        return DocumentExporter(
+            fileURL: fileURL, markdown: parsed.markdown, mode: state.mode,
+            options: model.renderOptions,
+            includeComments: AppState.shared.commentsIncludeInExport)
     }
 
     @objc func zoomIn(_ sender: Any?) {

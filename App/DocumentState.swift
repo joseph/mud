@@ -1,6 +1,5 @@
 import Foundation
 import Combine
-import MudPreferences
 import MudCore
 
 // MARK: - Web Commands
@@ -48,8 +47,6 @@ struct CommentLocator: Equatable {
 
 class DocumentState: ObservableObject {
     @Published var mode: Mode = .up
-    @Published var openInBrowserID: UUID?
-    @Published var openInEditorRequest: EditorLaunchRequest?
     /// The command channel to this window's web page. Senders (menu and
     /// toolbar actions, sidebar clicks, the comment write path) fire and
     /// forget; the WebView coordinator subscribes and runs the JS.

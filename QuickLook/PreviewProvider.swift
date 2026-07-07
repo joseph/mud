@@ -55,20 +55,17 @@ final class MudPreviewProvider: NSViewController, QLPreviewingController,
         var options = RenderOptions()
         options.theme = snapshot.theme.rawValue
         options.baseURL = url
-        options.standalone = true
         options.extensions = snapshot.enabledExtensions
         options.htmlClasses = snapshot.upModeHTMLClasses
         options.zoomLevel = snapshot.upModeZoomLevel
         options.blockRemoteContent = !snapshot.upModeAllowRemoteContent
         options.docCAlertMode = snapshot.markdownDocCAlertMode
 
-        let html = MudCore.renderUpModeDocument(
-            source,
-            options: options,
-            resolveImageSource: { imgSource, imgBase in
-                ImageDataURI.encode(source: imgSource, baseURL: imgBase)
-            }
-        )
+        // The shared export recipe: standalone wrapping, images inlined as
+        // data URIs, and — when the file has comments — the same read-only
+        // Comments column an exported document shows.
+        let html = MudCore.exportDocument(
+            source, mode: .up, options: options, includeComments: true)
 
         webView.loadHTMLString(html, baseURL: url.deletingLastPathComponent())
     }

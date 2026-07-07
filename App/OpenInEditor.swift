@@ -27,12 +27,6 @@ struct RegisteredMarkdownHandler: Identifiable {
     }
 }
 
-struct EditorLaunchRequest {
-    let id = UUID()
-    let handler: RegisteredMarkdownHandler
-    let format: EditorFormat
-}
-
 final class OpenInMenuModel: NSObject, ObservableObject, NSMenuDelegate {
     static let shared = OpenInMenuModel()
 
@@ -190,10 +184,9 @@ final class OpenInMenuModel: NSObject, ObservableObject, NSMenuDelegate {
         chooseEditor()
     }
 
-    /// Persists the choice and routes the launch through `DocumentState`.
-    /// `.auto` is resolved to a concrete format here based on the chosen
-    /// app's UTI claims; the view layer only ever sees `.markdown` or
-    /// `.html`.
+    /// Persists the choice and hands the launch to the controller. `.auto` is
+    /// resolved to a concrete format here based on the chosen app's UTI
+    /// claims; the controller only ever sees `.markdown` or `.html`.
     private func launch(
         controller: DocumentWindowController,
         handler: RegisteredMarkdownHandler,
@@ -202,11 +195,8 @@ final class OpenInMenuModel: NSObject, ObservableObject, NSMenuDelegate {
         MudPreferences.shared.openInDefaultBundleID = handler.bundleID
         MudPreferences.shared.openInDefaultFormat = format
         refresh()
-        let concrete = resolveFormat(format, for: handler)
-        controller.state.openInEditorRequest = EditorLaunchRequest(
-            handler: handler,
-            format: concrete
-        )
+        controller.openInEditor(
+            with: handler, format: resolveFormat(format, for: handler))
     }
 
     private func resolveFormat(

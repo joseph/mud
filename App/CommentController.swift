@@ -17,8 +17,8 @@ struct CommentDraft {
 }
 
 /// A column edit posted from the page over the `mudCommentSubmit` bridge,
-/// dispatched to `CommentController` by `DocumentContentView`. `.add` carries the
-/// anchored `draft`; the others identify the comment by `label`.
+/// dispatched to `CommentController` by `CommentSubmissionHandler`. `.add`
+/// carries the anchored `draft`; the others identify the comment by `label`.
 struct CommentSubmission {
     enum Action: String { case add, reply, edit, delete }
     let action: Action

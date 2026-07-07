@@ -1,3 +1,4 @@
+/// The two document views: Mark Up (rendered) and Mark Down (raw source).
 public enum Mode: Sendable {
     case up
     case down

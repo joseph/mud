@@ -11,7 +11,7 @@ import WebKit
 /// | ------------------ | ----------------------------------------------- | ---------------------------------------------- |
 /// | `mudOpen`          | `String` (resolved URL)                         | Link routing (document view, footnote popover) |
 /// | `mudFootnote`      | `{label, num, rect: {x, y, width, height}}`     | Footnote popover presentation                  |
-/// | `mudCommentSubmit` | `{action, label?, body?, quotation?, locator?}` | Comment write path (`handleCommentSubmit`)     |
+/// | `mudCommentSubmit` | `{action, label?, body?, quotation?, locator?}` | Comment write path (`CommentSubmissionHandler`)|
 /// | `mudComposing`     | `Bool`                                          | `DocumentState.isColumnComposing`              |
 /// | `mudSelection`     | `Bool`                                          | `DocumentState.commentableSelection`           |
 /// | `mudColumnWidth`   | `Double`                                        | Persisted Comments Column width                |

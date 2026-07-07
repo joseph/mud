@@ -11,9 +11,9 @@ import MudPreferences
 /// observes it and keeps layout, key handling, and callback plumbing.
 ///
 /// The cache is what keeps the full markdown render out of SwiftUI `body`:
-/// `display(mode:options:)` re-renders only when the content or the
-/// content-affecting options change, so selection churn, zoom, and other
-/// view updates cost a key comparison, not a render.
+/// `display()` re-renders only when the content or the content-affecting
+/// options change, so selection churn, zoom, and other view updates cost a
+/// key comparison, not a render.
 final class DocumentModel: ObservableObject {
 
     /// What the window shows: a parsed document, or the error page that took
@@ -109,7 +109,59 @@ final class DocumentModel: ObservableObject {
             .store(in: &cancellables)
     }
 
+    // MARK: Render options
+
+    /// The window's current render configuration, built from the app-wide
+    /// preferences and this window's state. Read by the live view (which
+    /// layers `displayOptions` on top) and by the export path
+    /// (`DocumentWindowController` hands it to `DocumentExporter`, where
+    /// `MudCore.exportDocument` drops the export-inapplicable parts).
+    var renderOptions: RenderOptions {
+        let appState = AppState.shared
+        var opts = RenderOptions()
+        opts.baseURL = fileURL
+        opts.theme = appState.theme.rawValue
+        opts.blockRemoteContent = !appState.upModeAllowRemoteContent
+        opts.docCAlertMode = appState.markdownDocCAlertMode
+        opts.extensions = appState.enabledExtensions
+        opts.htmlClasses = Set(appState.viewToggles.map(\.className))
+        // Column visibility is per-window state, not a persisted view toggle.
+        if state.commentsColumnVisible { opts.htmlClasses.insert("is-comments-column") }
+        // Read live by the compose box's keydown handler (mud-comments-edit.js).
+        if appState.commentReturnSaves { opts.htmlClasses.insert("comment-return-saves") }
+        // Shows the inline `💬` markers on screen; read by mud-comments.css/js.
+        if appState.commentsShowMarkers { opts.htmlClasses.insert("show-comment-markers") }
+        opts.zoomLevel = state.mode == .down
+            ? appState.downModeZoomLevel
+            : appState.upModeZoomLevel
+        opts.showInlineDeletions = appState.changesShowInlineDeletions
+        opts.wordDiffThreshold = appState.changesWordDiffThreshold
+        if appState.changesEnabled && !changeTracker.changes.isEmpty {
+            opts.waypoint = changeTracker.activeWaypoint
+        }
+        return opts
+    }
+
+    /// The options for the live view. Up mode renders via the footnote API in
+    /// `.popover` / `.interactive` modes so a single render yields the page,
+    /// the popover bodies, and the comment model.
+    private var displayOptions: RenderOptions {
+        var opts = renderOptions
+        guard state.mode == .up else { return opts }
+        opts.footnoteMode = .popover
+        opts.commentMode = .interactive
+        // The live view is editable, so embed the write-side comment styles.
+        opts.commentsEditable = true
+        return opts
+    }
+
     // MARK: Rendering
+
+    /// The rendered document for the window's current mode and display
+    /// options, from the cache below.
+    func display() -> RenderedDisplay {
+        display(mode: state.mode, options: displayOptions)
+    }
 
     /// The rendered document for `mode` under `options`, cached until the
     /// content or the content-affecting options change. Display-only options
@@ -117,7 +169,7 @@ final class DocumentModel: ObservableObject {
     /// are applied to the live page via JS, so a cached page with a stale
     /// zoom baked in is exactly as correct as the freshly rendered page the
     /// WebView would have discarded (the contentID matches either way).
-    func display(mode: Mode, options: RenderOptions) -> RenderedDisplay {
+    private func display(mode: Mode, options: RenderOptions) -> RenderedDisplay {
         switch content {
         case .error(let html):
             return RenderedDisplay(

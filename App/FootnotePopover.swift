@@ -6,11 +6,15 @@ import MudCore
 /// footnote body as Up-mode Markdown HTML. Anchored at the clicked footnote
 /// marker. Links inside the footnote route through the same `openURL` handler
 /// the main view uses (external → browser, `.md` → new Mud document).
-final class FootnotePopoverController: NSObject, WKNavigationDelegate, WKScriptMessageHandler,
+final class FootnotePopoverController: NSObject, WKNavigationDelegate,
                                       NSPopoverDelegate {
     private let popover = NSPopover()
+    /// The bridge to the popover's page: `mudOpen` link routing inbound, the
+    /// height measurement outbound. Same type the document view uses.
+    private let bridge = MudJSBridge()
     private var webView: WKWebView!
     private var onOpenURL: ((URL) -> Void)?
+    private var baseURL: URL?
 
     /// Local event monitor that dismisses the popover when the host content
     /// scrolls (matching Safari's Lookup popover). Installed while showing,
@@ -35,20 +39,20 @@ final class FootnotePopoverController: NSObject, WKNavigationDelegate, WKScriptM
     override init() {
         super.init()
 
-        let config = WKWebViewConfiguration()
-        config.setURLSchemeHandler(LocalFileSchemeHandler(),
-                                   forURLScheme: "mud-asset")
-        for source in [HTMLTemplate.mudJS, HTMLTemplate.mudUpJS] {
-            config.userContentController.addUserScript(WKUserScript(
-                source: source, injectionTime: .atDocumentEnd,
-                forMainFrameOnly: true))
+        let config = MudJSBridge.makeConfiguration(
+            scripts: [HTMLTemplate.mudJS, HTMLTemplate.mudUpJS])
+        bridge.register([.open], on: config.userContentController)
+        bridge.onMessage = { [weak self] message in
+            guard case .open(let url) = message else { return }
+            self?.popover.performClose(nil)
+            self?.onOpenURL?(url)
         }
-        config.userContentController.add(self, name: "mudOpen")
 
         webView = WKWebView(
             frame: NSRect(x: 0, y: 0, width: Self.width, height: Self.maxHeight),
             configuration: config)
         webView.navigationDelegate = self
+        bridge.webView = webView
         #if DEBUG
         webView.isInspectable = true
         #endif
@@ -69,6 +73,7 @@ final class FootnotePopoverController: NSObject, WKNavigationDelegate, WKScriptM
     ) {
         self.onOpenURL = onOpenURL
         self.anchorView = view
+        self.baseURL = baseURL
         accumulatedScroll = 0
         popover.contentSize = NSSize(width: Self.width, height: Self.minHeight)
         webView.loadHTMLString(html, baseURL: baseURL)
@@ -113,7 +118,7 @@ final class FootnotePopoverController: NSObject, WKNavigationDelegate, WKScriptM
         let measureHeight =
             "document.body.scrollHeight"
             + " * (parseFloat(document.documentElement.style.zoom) || 1)"
-        webView.evaluateJavaScript(measureHeight) { [weak self] result, _ in
+        bridge.evaluate(measureHeight) { [weak self] result in
             guard let self, let raw = result as? CGFloat else { return }
             let height = min(max(raw + Self.heightPadding, Self.minHeight),
                              Self.maxHeight)
@@ -126,26 +131,7 @@ final class FootnotePopoverController: NSObject, WKNavigationDelegate, WKScriptM
         decidePolicyFor navigationAction: WKNavigationAction,
         decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
     ) {
-        // Allow the initial load and same-document anchor scrolls; everything
-        // else is handled by the JS click interceptor (posts to mudOpen).
-        if navigationAction.navigationType == .other
-            || navigationAction.request.url?.fragment != nil {
-            decisionHandler(.allow)
-        } else {
-            decisionHandler(.cancel)
-        }
-    }
-
-    // MARK: WKScriptMessageHandler — link routing from inside the footnote
-
-    func userContentController(
-        _ controller: WKUserContentController,
-        didReceive message: WKScriptMessage
-    ) {
-        guard message.name == "mudOpen",
-              let urlString = message.body as? String,
-              let url = URL(string: urlString) else { return }
-        popover.performClose(nil)
-        onOpenURL?(url)
+        decisionHandler(MudJSBridge.navigationPolicy(
+            for: navigationAction, baseURL: baseURL))
     }
 }

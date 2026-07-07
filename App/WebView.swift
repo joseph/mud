@@ -176,36 +176,18 @@ struct WebView: NSViewRepresentable {
     var onSearchResult: ((MatchInfo?) -> Void)?
 
     func makeNSView(context: Context) -> WKWebView {
-        let config = WKWebViewConfiguration()
-        config.setURLSchemeHandler(LocalFileSchemeHandler(),
-                                   forURLScheme: "mud-asset")
-
         // Inject JS files; they auto-detect context via DOM.
-        // Mermaid is injected on demand via evaluateJavaScript.
-        let scripts = [
+        // Mermaid is injected on demand via the bridge.
+        let config = MudJSBridge.makeConfiguration(scripts: [
             HTMLTemplate.mudJS,
             HTMLTemplate.mudChangesJS,
             HTMLTemplate.mudUpJS,
             HTMLTemplate.mudDownJS,
             HTMLTemplate.mudCommentsJS,
             HTMLTemplate.mudCommentsEditJS,
-        ]
-        for source in scripts {
-            let script = WKUserScript(
-                source: source,
-                injectionTime: .atDocumentEnd,
-                forMainFrameOnly: true
-            )
-            config.userContentController.addUserScript(script)
-        }
-
-        config.userContentController.add(context.coordinator, name: "mudOpen")
-        config.userContentController.add(context.coordinator, name: "mudFootnote")
-        config.userContentController.add(context.coordinator, name: "mudCommentSubmit")
-        config.userContentController.add(context.coordinator, name: "mudComposing")
-        config.userContentController.add(context.coordinator, name: "mudSelection")
-        config.userContentController.add(context.coordinator, name: "mudColumnWidth")
-        config.userContentController.add(context.coordinator, name: "mudRevealColumn")
+        ])
+        context.coordinator.bridge.register(
+            MudJSBridge.Handler.allCases, on: config.userContentController)
 
         let webView = MudWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = context.coordinator
@@ -215,6 +197,7 @@ struct WebView: NSViewRepresentable {
         // `.resetMagnification` command.
         webView.allowsMagnification = true
         context.coordinator.webView = webView
+        context.coordinator.bridge.webView = webView
         context.coordinator.subscribe(to: commands)
         #if DEBUG
         webView.isInspectable = true
@@ -222,17 +205,6 @@ struct WebView: NSViewRepresentable {
         webView.alphaValue = 0
 
         return webView
-    }
-
-    /// Encodes a Swift string as a JavaScript string literal (quotes and escapes
-    /// included) for safe interpolation into an `evaluateJavaScript` call. Wraps
-    /// in a JSON array and strips the brackets so it works for a bare string on
-    /// every runtime (top-level JSON fragments aren't universally supported).
-    private static func jsStringLiteral(_ s: String) -> String {
-        guard let data = try? JSONSerialization.data(withJSONObject: [s]),
-              let json = String(data: data, encoding: .utf8), json.count >= 2
-        else { return "\"\"" }
-        return String(json.dropFirst().dropLast())
     }
 
     func updateNSView(_ webView: WKWebView, context: Context) {
@@ -254,10 +226,10 @@ struct WebView: NSViewRepresentable {
         if let query = searchQuery,
            context.coordinator.lastSearchID != query.id,
            !query.text.isEmpty {
-            context.coordinator.runSearch(query, in: webView)
+            context.coordinator.runSearch(query)
         } else if searchQuery == nil && context.coordinator.lastSearchID != nil {
             context.coordinator.lastSearchID = nil
-            webView.evaluateJavaScript("Mud.findClear()")
+            context.coordinator.bridge.call("findClear")
         }
 
         // Toggle the "file changed on disk" banner (a held external change during
@@ -265,9 +237,8 @@ struct WebView: NSViewRepresentable {
         // is held and off when the box closes. Pushed without a reload.
         if context.coordinator.lastExternalChangeHeld != externalChangeHeld {
             context.coordinator.lastExternalChangeHeld = externalChangeHeld
-            webView.evaluateJavaScript(
-                "window.Mud && Mud.comments && Mud.comments.setHoldBanner"
-                + " && Mud.comments.setHoldBanner(\(externalChangeHeld))")
+            context.coordinator.bridge.call(
+                "comments.setHoldBanner", externalChangeHeld)
         }
 
         // Reload content if the contentID or mode changed. (A forced reload —
@@ -278,12 +249,11 @@ struct WebView: NSViewRepresentable {
 
         if !modeChanged && !contentChanged {
             // Only theme/zoom/classes/width changed — apply without reload.
-            context.coordinator.applyTheme(to: webView, theme: theme)
-            context.coordinator.applyBodyClasses(to: webView, classes: bodyClasses)
-            context.coordinator.applyZoom(to: webView, level: zoomLevel)
+            context.coordinator.applyTheme(theme)
+            context.coordinator.applyBodyClasses(bodyClasses)
+            context.coordinator.applyZoom(zoomLevel)
             if context.coordinator.lastCommentColumnWidth != commentColumnWidth {
-                context.coordinator.applyCommentColumnWidth(
-                    to: webView, width: commentColumnWidth)
+                context.coordinator.applyCommentColumnWidth(commentColumnWidth)
             }
             // A comment add/remove changes the comment set but not the (Up-mode
             // comment-invariant) contentID, so no reload fires. Re-push the
@@ -291,13 +261,13 @@ struct WebView: NSViewRepresentable {
             // re-anchors the highlight in place.
             if context.coordinator.lastCommentSignature
                 != Coordinator.commentSignature(comments) {
-                context.coordinator.applyComments(to: webView)
+                context.coordinator.applyComments()
             }
             return
         }
 
         // Save scroll fraction before loading new content
-        context.coordinator.saveScrollPosition(from: webView)
+        context.coordinator.saveScrollPosition()
         context.coordinator.lastContentID = contentID
         context.coordinator.lastMode = mode
         context.coordinator.activeExtensions = extensions.compactMap {
@@ -320,7 +290,10 @@ struct WebView: NSViewRepresentable {
         return MatchInfo(current: current, total: total)
     }
 
-    class Coordinator: NSObject, WKNavigationDelegate, WKScriptMessageHandler {
+    class Coordinator: NSObject, WKNavigationDelegate {
+        /// The Swift ↔ page JS bridge: outbound `Mud.*` calls and the typed
+        /// inbound messages, routed to the callbacks below via `handle(_:)`.
+        let bridge = MudJSBridge()
         var lastContentID: String?
         var lastMode: Mode?
         var lastSearchID: UUID?
@@ -355,6 +328,30 @@ struct WebView: NSViewRepresentable {
 
         init(baseURL: URL?) {
             self.baseURL = baseURL
+            super.init()
+            bridge.onMessage = { [weak self] message in
+                self?.handle(message)
+            }
+        }
+
+        /// Routes a decoded page message to its consumer callback.
+        private func handle(_ message: MudJSMessage) {
+            switch message {
+            case .open(let url):
+                openURL(url)
+            case .footnoteClick(let click):
+                presentFootnote(click)
+            case .commentSubmit(let submission):
+                onCommentSubmit?(submission)
+            case .composing(let composing):
+                onComposing?(composing)
+            case .commentableSelection(let has):
+                onCommentableSelection?(has)
+            case .columnWidth(let width):
+                onColumnWidthChange?(width)
+            case .revealColumn:
+                onRevealColumn?()
+            }
         }
 
         // MARK: Command channel
@@ -389,89 +386,75 @@ struct WebView: NSViewRepresentable {
             case .addCommentFromSelection:
                 // The JS reveals the column itself (native has persisted the
                 // toggle), so this works even when the column was hidden.
-                webView.evaluateJavaScript(
-                    "window.Mud && Mud.comments && Mud.comments.addFromSelection"
-                    + " && Mud.comments.addFromSelection()")
+                bridge.call("comments.addFromSelection")
             case .resolveCompose(let success, let reason):
-                let reasonJS = reason.map { WebView.jsStringLiteral($0) } ?? "null"
-                webView.evaluateJavaScript(
-                    "window.Mud && Mud.comments && Mud.comments.resolveCompose"
-                    + " && Mud.comments.resolveCompose(\(success), \(reasonJS))")
+                bridge.call("comments.resolveCompose", success, reason)
             case .scrollToHeading(let heading):
                 // Keyed off the loaded page's mode (`lastMode`), which is what
                 // the scroll JS must match.
-                let js = lastMode == .down
-                    ? "Mud.scrollToLine(\(heading.sourceLine))"
-                    : "Mud.scrollToHeading(\(WebView.jsStringLiteral(heading.id)))"
-                webView.evaluateJavaScript(js)
+                if lastMode == .down {
+                    bridge.call("scrollToLine", heading.sourceLine)
+                } else {
+                    bridge.call("scrollToHeading", heading.id)
+                }
             case .scrollToChanges(let ids):
-                let idsJSON = "[" + ids
-                    .map { WebView.jsStringLiteral($0) }
-                    .joined(separator: ",") + "]"
-                webView.evaluateJavaScript("Mud.scrollToChange(\(idsJSON))")
+                bridge.call("scrollToChange", ids)
             }
         }
 
         /// Runs a find query in the page and reports the match counts back.
         /// All three origins rebuild highlights when the page has none
         /// (a fresh load), so this doubles as the after-reload re-apply.
-        func runSearch(_ query: SearchQuery, in webView: WKWebView) {
+        func runSearch(_ query: SearchQuery) {
             lastSearchID = query.id
-            let literal = WebView.jsStringLiteral(query.text)
-            let js: String
+            let callback = onSearchResult
+            let report: (Any?) -> Void = { result in
+                callback?(WebView.parseMatchInfo(result))
+            }
             switch query.origin {
             case .top:
-                js = "Mud.findFromTop(\(literal))"
+                bridge.call("findFromTop", query.text, completion: report)
             case .refine:
-                js = "Mud.findRefine(\(literal))"
+                bridge.call("findRefine", query.text, completion: report)
             case .advance:
-                let dir = query.direction == .backward ? "backward" : "forward"
-                js = "Mud.findAdvance(\(literal), '\(dir)')"
-            }
-            let callback = onSearchResult
-            webView.evaluateJavaScript(js) { result, _ in
-                let info = WebView.parseMatchInfo(result)
-                DispatchQueue.main.async {
-                    callback?(info)
-                }
+                let direction = query.direction == .backward
+                    ? "backward" : "forward"
+                bridge.call("findAdvance", query.text, direction,
+                            completion: report)
             }
         }
 
-        func saveScrollPosition(from webView: WKWebView) {
-            webView.evaluateJavaScript("Mud.getScrollFraction()") { [weak self] result, _ in
+        func saveScrollPosition() {
+            bridge.call("getScrollFraction", completion: { [weak self] result in
                 if let fraction = result as? CGFloat {
                     self?.savedFraction = fraction
                 }
-            }
+            })
         }
 
-        func restoreScrollPosition(to webView: WKWebView) {
+        func restoreScrollPosition() {
             guard let fraction = savedFraction, fraction > 0 else { return }
-            webView.evaluateJavaScript("Mud.setScrollFraction(\(fraction))")
+            bridge.call("setScrollFraction", fraction)
             savedFraction = nil
         }
 
-        func applyTheme(to webView: WKWebView, theme: Theme) {
-            let css = HTMLTemplate.themeCSS(for: theme.rawValue)
-            webView.evaluateJavaScript(
-                "Mud.setTheme(\(WebView.jsStringLiteral(css)))")
+        func applyTheme(_ theme: Theme) {
+            bridge.call("setTheme", HTMLTemplate.themeCSS(for: theme.rawValue))
         }
 
-        func applyZoom(to webView: WKWebView, level: Double) {
-            webView.evaluateJavaScript("Mud.setZoom(\(level))")
+        func applyZoom(_ level: Double) {
+            bridge.call("setZoom", level)
         }
 
         /// Push the persisted Comments Column width to the page. A fresh load
         /// resets the column to its CSS default, so `didFinish` always reapplies;
         /// the no-reload path applies only on a change. The page re-clamps.
-        func applyCommentColumnWidth(to webView: WKWebView, width: Double) {
+        func applyCommentColumnWidth(_ width: Double) {
             lastCommentColumnWidth = width
-            webView.evaluateJavaScript(
-                "window.Mud && Mud.comments && Mud.comments.setColumnWidth"
-                + " && Mud.comments.setColumnWidth(\(width))")
+            bridge.call("comments.setColumnWidth", width)
         }
 
-        func applyBodyClasses(to webView: WKWebView, classes: Set<String>) {
+        func applyBodyClasses(_ classes: Set<String>) {
             // The persisted view-toggle classes, plus `is-comments-column`
             // (per-window state) and the `comment-return-saves` /
             // `show-comment-markers` preferences — none a `ViewToggle`, but
@@ -480,8 +463,7 @@ struct WebView: NSViewRepresentable {
                 + ["is-comments-column", "comment-return-saves",
                    "show-comment-markers"]
             for name in names {
-                let on = classes.contains(name)
-                webView.evaluateJavaScript("Mud.setClass('\(name)', \(on))")
+                bridge.call("setClass", name, classes.contains(name))
             }
         }
 
@@ -492,15 +474,15 @@ struct WebView: NSViewRepresentable {
             // `updateNSView` re-apply is not enough — after an external-edit
             // reload no further SwiftUI update may come.)
             if let query = currentSearchQuery, !query.text.isEmpty {
-                runSearch(query, in: webView)
+                runSearch(query)
             } else {
                 lastSearchID = nil
             }
-            restoreScrollPosition(to: webView)
-            applyComments(to: webView)
-            applyCommentColumnWidth(to: webView, width: commentColumnWidth)
+            restoreScrollPosition()
+            applyComments()
+            applyCommentColumnWidth(commentColumnWidth)
             for ext in activeExtensions {
-                injectExtension(ext, into: webView)
+                injectExtension(ext)
             }
             if webView.alphaValue == 0 {
                 webView.alphaValue = 1
@@ -524,7 +506,7 @@ struct WebView: NSViewRepresentable {
         /// the `💬` markers and (re-)anchors the hover-revealed highlights. Each
         /// entry carries its quotation plus, for a just-added comment, the
         /// DOM-derived locator so the live marker lands byte-exactly.
-        fileprivate func applyComments(to webView: WKWebView) {
+        fileprivate func applyComments() {
             lastCommentSignature = Self.commentSignature(comments)
             struct Payload: Encodable {
                 let label: String
@@ -551,95 +533,31 @@ struct WebView: NSViewRepresentable {
                     blockText: locator?.blockText, offset: locator?.offset,
                     occurrence: locator?.occurrence)
             }
-            guard let data = try? JSONEncoder().encode(payload),
-                  let json = String(data: data, encoding: .utf8) else { return }
-            // `Mud.comments` exists only in Up mode (mud-comments.js early-returns
-            // in Down mode), so guard before calling.
-            webView.evaluateJavaScript(
-                "window.Mud && Mud.comments && Mud.comments.setData(\(json))")
+            // `Mud.comments` exists only in Up mode (mud-comments.js
+            // early-returns in Down mode), so the namespaced call no-ops there.
+            bridge.call("comments.setData", payload)
         }
 
-        private func injectExtension(_ ext: RenderExtension, into webView: WKWebView) {
-            let scripts = ext.runtimeJS()
-            injectSequentially(scripts, into: webView)
+        private func injectExtension(_ ext: RenderExtension) {
+            injectSequentially(ext.runtimeJS())
         }
 
-        private func injectSequentially(_ scripts: [String], into webView: WKWebView) {
+        private func injectSequentially(_ scripts: [String]) {
             guard let first = scripts.first else { return }
-            webView.evaluateJavaScript(first) { _, _ in
-                self.injectSequentially(Array(scripts.dropFirst()), into: webView)
+            bridge.evaluate(first) { [weak self] _ in
+                self?.injectSequentially(Array(scripts.dropFirst()))
             }
         }
 
-        // MARK: WKScriptMessageHandler — link routing and footnotes from JS
-
-        func userContentController(
-            _ controller: WKUserContentController,
-            didReceive message: WKScriptMessage
-        ) {
-            switch message.name {
-            case "mudOpen":
-                if let urlString = message.body as? String,
-                   let url = URL(string: urlString) {
-                    openURL(url)
-                }
-            case "mudFootnote":
-                presentFootnote(message.body)
-            case "mudCommentSubmit":
-                handleCommentSubmit(message.body)
-            case "mudComposing":
-                onComposing?((message.body as? Bool) ?? false)
-            case "mudSelection":
-                onCommentableSelection?((message.body as? Bool) ?? false)
-            case "mudColumnWidth":
-                if let width = message.body as? Double {
-                    onColumnWidthChange?(width)
-                }
-            case "mudRevealColumn":
-                onRevealColumn?()
-            default:
-                break
-            }
-        }
-
-        /// Parses the `mudCommentSubmit` payload into a `CommentSubmission` and
-        /// hands it to the write path. `.add` carries `quotation` + a `locator`;
-        /// reply/edit/delete carry only `label`.
-        private func handleCommentSubmit(_ body: Any) {
-            guard let dict = body as? [String: Any],
-                  let actionRaw = dict["action"] as? String,
-                  let action = CommentSubmission.Action(rawValue: actionRaw)
-            else { return }
-            var draft: CommentDraft?
-            if action == .add,
-               let quotation = dict["quotation"] as? String,
-               let locator = dict["locator"] as? [String: Any],
-               let blockText = locator["blockText"] as? String,
-               let offset = locator["offset"] as? Int {
-                draft = CommentDraft(
-                    quotation: quotation, blockText: blockText,
-                    offsetInBlock: offset,
-                    occurrence: locator["occurrence"] as? Int ?? 0)
-            }
-            onCommentSubmit?(CommentSubmission(
-                action: action,
-                label: dict["label"] as? String,
-                body: dict["body"] as? String,
-                draft: draft))
-        }
-
-        /// Converts a JS `{x,y,width,height}` rect (top-left origin, zoom-
-        /// normalized CSS pixels) into an `NSRect` in the WebView's AppKit space.
+        /// Converts the JS click rect (top-left origin, zoom-normalized CSS
+        /// pixels) into an `NSRect` in the WebView's AppKit space.
         private func anchorRect(
-            from rectDict: [String: Any], in webView: WKWebView
+            from rect: FootnoteClick.Rect, in webView: WKWebView
         ) -> NSRect {
-            func value(_ key: String) -> CGFloat {
-                CGFloat((rectDict[key] as? Double) ?? 0)
-            }
-            let x = value("x"), y = value("y")
-            let w = value("width"), h = value("height")
-            let appKitY = webView.isFlipped ? y : webView.bounds.height - (y + h)
-            return NSRect(x: x, y: appKitY, width: w, height: h)
+            let appKitY = webView.isFlipped
+                ? rect.y : webView.bounds.height - (rect.y + rect.height)
+            return NSRect(x: rect.x, y: appKitY,
+                          width: rect.width, height: rect.height)
         }
 
         /// Routes a link: local `.md`/`.markdown` open a new Mud document;
@@ -655,19 +573,15 @@ struct WebView: NSViewRepresentable {
             }
         }
 
-        /// Shows the footnote popover anchored at the clicked marker. `body` is
-        /// the JS payload `{label, num, rect:{x,y,width,height}}` where the rect
-        /// is in visual (zoomed) viewport coordinates with a top-left origin.
-        private func presentFootnote(_ body: Any) {
-            guard let dict = body as? [String: Any],
-                  let label = dict["label"] as? String,
-                  let rectDict = dict["rect"] as? [String: Any],
-                  let html = footnoteHTML[label.lowercased()],
+        /// Shows the footnote popover anchored at the clicked marker.
+        private func presentFootnote(_ click: FootnoteClick) {
+            guard let html = footnoteHTML[click.label.lowercased()],
                   let webView = webView else { return }
 
             footnotePopover.show(
                 html: html, baseURL: baseURL,
-                relativeTo: anchorRect(from: rectDict, in: webView), of: webView,
+                relativeTo: anchorRect(from: click.rect, in: webView),
+                of: webView,
                 onOpenURL: { [weak self] url in self?.openURL(url) })
         }
 
@@ -678,22 +592,8 @@ struct WebView: NSViewRepresentable {
             decidePolicyFor navigationAction: WKNavigationAction,
             decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
         ) {
-            // Allow initial page load and same-document navigation
-            if navigationAction.navigationType == .other {
-                decisionHandler(.allow)
-                return
-            }
-
-            // Allow anchor scrolls
-            if let url = navigationAction.request.url,
-               url.fragment != nil, url.path == baseURL?.path {
-                decisionHandler(.allow)
-                return
-            }
-
-            // Everything else is handled by the JS click interceptor;
-            // cancel as a safety net.
-            decisionHandler(.cancel)
+            decisionHandler(MudJSBridge.navigationPolicy(
+                for: navigationAction, baseURL: baseURL))
         }
     }
 }

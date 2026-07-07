@@ -6,7 +6,8 @@ import MudPreferences
 
 class DocumentWindowController: NSWindowController {
     let fileURL: URL
-    let state = DocumentState()
+    let state: DocumentState
+    let model: DocumentModel
     var onClose: ((DocumentWindowController) -> Void)?
 
     private var lightingButton: NSButton?
@@ -24,6 +25,10 @@ class DocumentWindowController: NSWindowController {
 
     init(url: URL) {
         self.fileURL = url
+        let state = DocumentState()
+        self.state = state
+        self.model = DocumentModel(
+            fileURL: url, state: state, changeTracker: state.changeTracker)
 
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 860, height: 740),
@@ -76,7 +81,7 @@ class DocumentWindowController: NSWindowController {
         )
         let sidebarHost = NSHostingController(rootView: sidebarView)
 
-        let contentView = DocumentContentView(fileURL: fileURL, state: state, findState: state.find, changeTracker: state.changeTracker)
+        let contentView = DocumentContentView(model: model, state: state, findState: state.find, changeTracker: state.changeTracker)
         let contentHost = NSHostingController(rootView: contentView)
 
         let sidebarItem = NSSplitViewItem(sidebarWithViewController: sidebarHost)
@@ -188,7 +193,7 @@ class DocumentWindowController: NSWindowController {
             }
             .store(in: &cancellables)
 
-        state.$hasBackgroundReload
+        model.$hasBackgroundReload
             .sink { [weak self] hasReload in
                 self?.updateTabReloadBadge(hasReload)
             }
@@ -439,7 +444,7 @@ extension DocumentWindowController: NSWindowDelegate {
         AppState.shared.activeDocumentEditable = !fileURL.isBundleResource
         AppState.shared.activeCommentsColumnVisible = state.commentsColumnVisible
         updateCommentButton()
-        state.hasBackgroundReload = false
+        model.hasBackgroundReload = false
     }
 
     func windowWillClose(_ notification: Notification) {

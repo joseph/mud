@@ -63,29 +63,12 @@ class DocumentState: ObservableObject {
     /// subject, not `@Published`, so selection churn doesn't re-render the
     /// document view (which would re-run the markdown render).
     let commentableSelection = CurrentValueSubject<Bool, Never>(false)
-    /// Parsed comments, refreshed on load; drive the Comments column.
-    @Published var comments: [Comment] = []
     /// Whether the Comments column is shown in this window. Per-window and not
     /// persisted (unlike the app's view toggles): revealed when a document with
     /// comments first opens or when you add a comment, toggled via the View menu,
     /// and gone again on the next document that has none. Feeds the
     /// `is-comments-column` body class for this window's webview.
     @Published var commentsColumnVisible: Bool = false
-    /// DOM-derived locators for just-added comments, keyed by label, so the live
-    /// `💬` marker lands byte-exactly without a reload. Pruned to live labels on
-    /// each load; a stale entry is harmless (the JS skips insert when the marker
-    /// already exists). Plain bookkeeping, read during the view's render.
-    var pendingCommentLocators: [String: CommentLocator] = [:]
-    /// A change arrived while a compose box was open and was held rather than
-    /// applied (applying would reload the page and destroy the box).
-    /// `DocumentContentView` re-reads disk and applies it when composing ends.
-    /// Plain bookkeeping, read and written on the main thread.
-    var pendingExternalReload: Bool = false
-    /// True while a held change is specifically an *external* edit (not our own
-    /// comment echo). Drives the "file changed on disk" banner in the page, so
-    /// you know the view is showing a stale version until you finish the comment.
-    /// Published so a change reaches the WebView; cleared when composing ends.
-    @Published var externalChangeHeld: Bool = false
     /// True while an in-column compose box (new comment, reply, or edit) owns the
     /// keyboard. Set from the page over the `mudComposing` bridge; folded into
     /// `isComposingComment` so the focus trap leaves the textarea alone.
@@ -94,40 +77,9 @@ class DocumentState: ObservableObject {
     @Published var scrollTarget: ScrollTarget?
     @Published var changeScrollTarget: ChangeScrollTarget?
     @Published var contentTitle: String?
-    @Published var hasBackgroundReload: Bool = false
     weak var windowController: DocumentWindowController?
     let find = FindState()
     let changeTracker = ChangeTracker()
-
-    /// Hashes of file contents Mud has just written itself (comment edits), each
-    /// awaiting its file-watcher echo, oldest first. The watcher reload consumes
-    /// a match and suppresses the background-reload badge — the change is ours,
-    /// not external. Plain (non-`@Published`) bookkeeping, mutated only on the
-    /// main thread where both the comment write and the watcher fire.
-    private var pendingSelfWrites: [Int] = []
-
-    /// Record that Mud just wrote `content` to disk, so the matching watcher
-    /// event is recognized as a self-write rather than an external edit.
-    func registerSelfWrite(_ content: String) {
-        pendingSelfWrites.append(content.hashValue)
-        // Bound the list: an echo that never lands (e.g. a failed re-watch)
-        // mustn't accumulate. Comment writes are serial, so a few is plenty;
-        // evict the oldest, whose echo is the least likely still to come.
-        if pendingSelfWrites.count > 8 { pendingSelfWrites.removeFirst() }
-    }
-
-    /// Consume a pending self-write matching `content`. Returns true when this
-    /// load is the echo of a write Mud made (the caller then skips the
-    /// external-change badge); false for a genuine external edit, which also
-    /// clears any stale pending entries (the file has moved past them).
-    func consumeSelfWrite(_ content: String) -> Bool {
-        if let index = pendingSelfWrites.firstIndex(of: content.hashValue) {
-            pendingSelfWrites.remove(at: index)
-            return true
-        }
-        pendingSelfWrites.removeAll()
-        return false
-    }
 
     /// True while an in-column compose box owns first responder.
     /// `DocumentContentView`'s focus trap exempts this so the textarea can be

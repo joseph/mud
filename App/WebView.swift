@@ -547,7 +547,7 @@ struct WebView: NSViewRepresentable {
                     label: comment.label, quotation: comment.quotation ?? "",
                     html: MudCore.renderCommentItem(
                         comment, options: opts,
-                        resolveImageSource: DocumentContentView.mudAssetResolver),
+                        resolveImageSource: DocumentModel.mudAssetResolver),
                     blockText: locator?.blockText, offset: locator?.offset,
                     occurrence: locator?.occurrence)
             }

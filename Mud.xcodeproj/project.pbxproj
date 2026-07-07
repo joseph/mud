@@ -17,6 +17,7 @@
 		7C1B6E922F96F1E800BF5254 /* MarkdownDocument.icns in Resources */ = {isa = PBXBuildFile; fileRef = 7C1B6E912F96F1E800BF5254 /* MarkdownDocument.icns */; };
 		7C1FD9812F44FAC200BB4076 /* LocalFileSchemeHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C1FD9802F44FAC200BB4076 /* LocalFileSchemeHandler.swift */; };
 		7C2665942F3D6216004C8D74 /* DocumentState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C2665932F3D6216004C8D74 /* DocumentState.swift */; };
+		7CDA11012FA30D0100000002 /* DocumentModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CDA11002FA30D0100000001 /* DocumentModel.swift */; };
 		7C282AD82F4F542E00611919 /* ThemePreviewCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C282AD52F4F542E00611919 /* ThemePreviewCard.swift */; };
 		7C282AD92F4F542E00611919 /* UpModeSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C282AD72F4F542E00611919 /* UpModeSettingsView.swift */; };
 		7C282ADA2F4F542E00611919 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C282AD42F4F542E00611919 /* SettingsView.swift */; };
@@ -142,6 +143,7 @@
 		7C1B6E912F96F1E800BF5254 /* MarkdownDocument.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; name = MarkdownDocument.icns; path = Resources/MarkdownDocument.icns; sourceTree = "<group>"; };
 		7C1FD9802F44FAC200BB4076 /* LocalFileSchemeHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalFileSchemeHandler.swift; sourceTree = "<group>"; };
 		7C2665932F3D6216004C8D74 /* DocumentState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentState.swift; sourceTree = "<group>"; };
+		7CDA11002FA30D0100000001 /* DocumentModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentModel.swift; sourceTree = "<group>"; };
 		7C282AD22F4F542E00611919 /* DownModeSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownModeSettingsView.swift; sourceTree = "<group>"; };
 		7C282AD32F4F542E00611919 /* GeneralSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsView.swift; sourceTree = "<group>"; };
 		7C282AD42F4F542E00611919 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -359,6 +361,7 @@
 				7C6B316D2F3A228000F6A4E8 /* DeferMutation.swift */,
 				7C134FC32F813A020020BF91 /* View+Modify.swift */,
 				7C2665932F3D6216004C8D74 /* DocumentState.swift */,
+				7CDA11002FA30D0100000001 /* DocumentModel.swift */,
 				7C442A642F3457C20046E0CD /* DocumentController.swift */,
 				7C442A672F34BB7E0046E0CD /* DocumentWindowController.swift */,
 				7C442A662F34BB7E0046E0CD /* DocumentContentView.swift */,
@@ -691,6 +694,7 @@
 				7CC6E6B72F657A2200FE7D66 /* DebuggingSettingsView.swift in Sources */,
 				7C442A622F3450190046E0CD /* AppDelegate.swift in Sources */,
 				7C2665942F3D6216004C8D74 /* DocumentState.swift in Sources */,
+				7CDA11012FA30D0100000002 /* DocumentModel.swift in Sources */,
 				7CC9753D2F340286001C3BB7 /* MudApp.swift in Sources */,
 				7C282ADF2F50063900611919 /* CommandLineSettingsView.swift in Sources */,
 				7C442A652F3457C20046E0CD /* DocumentController.swift in Sources */,

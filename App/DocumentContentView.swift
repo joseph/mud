@@ -5,63 +5,24 @@ import MudCore
 
 // MARK: - Document Content View
 
-private enum DocumentContent {
-    case parsed(ParsedMarkdown)
-    case error(String)  // pre-rendered error page HTML
-}
-
+/// The SwiftUI layer of a document window: layout, key handling, and the
+/// plumbing between `DocumentModel` / `DocumentState` and `WebView`. The
+/// document's data — disk reads, the file watcher, the cached render — lives
+/// on `DocumentModel`.
 struct DocumentContentView: View {
-    let fileURL: URL
+    @ObservedObject var model: DocumentModel
     @ObservedObject var state: DocumentState
     @ObservedObject var findState: FindState
     @ObservedObject var changeTracker: ChangeTracker
     @ObservedObject private var appState = AppState.shared
 
-    @State private var content: DocumentContent = .parsed(ParsedMarkdown(""))
-    @State private var fileWatcher: FileWatcher?
     @FocusState private var contentFocused: Bool
     @Environment(\.colorScheme) private var environmentColorScheme
 
-    /// The HTML to display plus the footnote popover map (label → popover
-    /// document HTML) and the parsed comments (for the Comments column). Up mode
-    /// renders via the footnote API in `.popover` / `.interactive` modes so a
-    /// single render yields the page, the popover bodies, and the comment model.
-    private struct RenderedDisplay {
-        let html: String
-        let footnoteHTML: [String: String]
-        var comments: [Comment] = []
-    }
-
-    private var renderedDisplay: RenderedDisplay {
-        switch content {
-        case .error(let html):
-            return RenderedDisplay(html: html, footnoteHTML: [:])
-        case .parsed(let parsed):
-            if state.mode == .down {
-                return RenderedDisplay(
-                    html: MudCore.renderDownModeDocument(parsed, options: renderOptions),
-                    footnoteHTML: [:])
-            }
-            var opts = renderOptions
-            opts.footnoteMode = .popover
-            opts.commentMode = .interactive
-            // The live view is editable, so embed the write-side comment styles.
-            opts.commentsEditable = true
-            let document = MudCore.renderUpModeDocumentWithFootnotes(
-                parsed.markdown, options: opts,
-                resolveImageSource: Self.mudAssetResolver)
-            var map: [String: String] = [:]
-            for footnote in document.footnotes {
-                map[footnote.label.lowercased()] = footnote.html
-            }
-            return RenderedDisplay(
-                html: document.html, footnoteHTML: map,
-                comments: document.comments)
-        }
-    }
+    private var fileURL: URL { model.fileURL }
 
     private var displayTheme: Theme {
-        if case .error = content { return .system }
+        if case .error = model.content { return .system }
         return appState.theme
     }
 
@@ -88,42 +49,17 @@ struct DocumentContentView: View {
         return opts
     }
 
-    private var displayContentID: String {
-        switch content {
-        case .parsed(let parsed):
-            // Up mode is comment-invariant: a comment add/remove leaves the ID
-            // unchanged, so the WebView doesn't reload — `mud-comments.js` syncs
-            // the marker in place. Down mode keeps the full markdown so its raw
-            // source reflects the comment (un-highlighted, via the diff fix).
-            let body = state.mode == .up
-                ? MudCore.removeComments(parsed.markdown)
-                : parsed.markdown
-            // The body stays exact; the options join as the identity struct's
-            // hash (stable within the process, which is all the WebView's
-            // reload dedup compares against).
-            return "\(body)\(renderOptions.contentIdentity.hashValue)"
-        case .error:              return "load-error"
-        }
-    }
-
-    /// Rewrites local image paths to `mud-asset:` URLs for WKWebView. Also used
-    /// by the coordinator when rendering comment items for the column.
-    nonisolated static func mudAssetResolver(
-        source: String, baseURL: URL
-    ) -> String? {
-        guard !ImageDataURI.isExternal(source) else { return nil }
-        let resolved = baseURL.deletingLastPathComponent()
-            .appendingPathComponent(source)
-            .standardized
-        let ext = resolved.pathExtension.lowercased()
-        guard ImageDataURI.mimeTypes[ext] != nil else { return nil }
-        guard FileManager.default.fileExists(atPath: resolved.path) else {
-            return nil
-        }
-        var components = URLComponents()
-        components.scheme = "mud-asset"
-        components.path = resolved.path
-        return components.url?.absoluteString ?? nil
+    /// The options for the live view. Up mode renders via the footnote API in
+    /// `.popover` / `.interactive` modes so a single render yields the page,
+    /// the popover bodies, and the comment model.
+    private var displayOptions: RenderOptions {
+        var opts = renderOptions
+        guard state.mode == .up else { return opts }
+        opts.footnoteMode = .popover
+        opts.commentMode = .interactive
+        // The live view is editable, so embed the write-side comment styles.
+        opts.commentsEditable = true
+        return opts
     }
 
     private var modeZoomLevel: Double {
@@ -133,11 +69,11 @@ struct DocumentContentView: View {
     }
 
     var body: some View {
-        let display = renderedDisplay
+        let display = model.display(mode: state.mode, options: displayOptions)
         return WebView(
             html: display.html,
             baseURL: fileURL,
-            contentID: displayContentID,
+            contentID: display.contentID,
             mode: state.mode,
             theme: displayTheme,
             bodyClasses: renderOptions.htmlClasses,
@@ -151,11 +87,11 @@ struct DocumentContentView: View {
             actualSizeID: state.actualSizeID,
             addCommentID: state.addCommentID,
             composeResolution: state.composeResolution,
-            externalChangeHeld: state.externalChangeHeld,
+            externalChangeHeld: model.externalChangeHeld,
             extensions: appState.enabledExtensions,
             footnoteHTML: display.footnoteHTML,
             comments: display.comments,
-            commentLocators: state.pendingCommentLocators,
+            commentLocators: model.pendingCommentLocators,
             onCommentSubmit: { submission in
                 handleCommentSubmit(submission)
             },
@@ -215,16 +151,9 @@ struct DocumentContentView: View {
         }
         .onChange(of: state.isComposingComment) { _, composing in
             // When the compose box closes, take keyboard focus back so document
-            // shortcuts resume, and apply any external change held while it was
-            // open (re-reading disk so a successful comment write is included).
-            if !composing {
-                contentFocused = true
-                state.externalChangeHeld = false  // banner goes with the box
-                if state.pendingExternalReload {
-                    state.pendingExternalReload = false
-                    loadFromDisk()
-                }
-            }
+            // shortcuts resume. Applying a change held while it was open is the
+            // model's job — it watches the same flag.
+            if !composing { contentFocused = true }
         }
         .onChange(of: contentFocused) { _, focused in
             // Reclaim focus so document keyboard shortcuts (space, `/`) keep
@@ -236,17 +165,13 @@ struct DocumentContentView: View {
         }
         .onAppear {
             contentFocused = true
-            loadFromDisk()
-            setupFileWatcher()
+            model.load()
         }
         .onDisappear {
-            fileWatcher = nil
+            model.stopWatching()
         }
         .onChange(of: state.reloadID) { _, id in
-            if id != nil {
-                loadFromDisk()
-                setupFileWatcher()
-            }
+            if id != nil { model.load() }
         }
         .onChange(of: state.openInBrowserID) { _, id in
             if id != nil { openInBrowser() }
@@ -258,25 +183,19 @@ struct DocumentContentView: View {
         }
         #if GIT_PROVIDER
         .onChange(of: appState.changesShowGitWaypoints) { _, enabled in
-            if enabled {
-                if case .parsed(let parsed) = content {
-                    refreshGitWaypoints(for: parsed.markdown)
-                }
-            } else {
-                changeTracker.setExternalWaypoints([])
-            }
+            model.gitWaypointsSettingChanged(enabled: enabled)
         }
         #endif
     }
 
     /// Dispatches a column edit to `CommentController`, then acknowledges the
     /// outcome back to the page (`resolveCompose`). On success the write echoes
-    /// through the `FileWatcher`, refreshing `state.comments`, which re-pushes the
-    /// comment data so the column reprojects in place (no reload). On failure the
-    /// box stays open with its text and we explain why (the most likely cause is
-    /// the quoted text changing on disk while the box was held open).
+    /// through the `FileWatcher`, refreshing the comment data so the column
+    /// reprojects in place (no reload). On failure the box stays open with its
+    /// text and we explain why (the most likely cause is the quoted text
+    /// changing on disk while the box was held open).
     private func handleCommentSubmit(_ submission: CommentSubmission) {
-        let controller = CommentController(fileURL: fileURL) { state.registerSelfWrite($0) }
+        let controller = CommentController(fileURL: fileURL) { model.registerSelfWrite($0) }
         let author = appState.commentAuthor
         let body = submission.body ?? ""
         // Respect a read-only or locked file: refuse every comment edit with a
@@ -295,7 +214,7 @@ struct DocumentContentView: View {
             guard let draft = submission.draft else { resolveCompose(false); return }
             switch controller.addComment(draft, author: author, body: body) {
             case .success(let label):
-                state.pendingCommentLocators[label] = CommentLocator(
+                model.pendingCommentLocators[label] = CommentLocator(
                     blockText: draft.blockText, offset: draft.offsetInBlock,
                     occurrence: draft.occurrence)
                 resolveCompose(true)
@@ -409,132 +328,6 @@ struct DocumentContentView: View {
         }
     }
 
-    private func setupFileWatcher() {
-        guard !fileURL.isBundleResource else { return }
-        fileWatcher = FileWatcher(url: fileURL) {
-            let read = readDisk()
-            // While a compose box is open, hold the change instead of applying
-            // it: applying would move `displayContentID`, reload the page, and
-            // destroy the box and its unsaved text. A read failure (e.g. a
-            // transient gap mid atomic-save) is held the same way, so it can't
-            // tear the box down either. The held change applies when composing
-            // ends (`onChange(of: state.isComposingComment)`).
-            guard case .text(let text) = read else {
-                if state.isComposingComment {
-                    state.pendingExternalReload = true
-                } else if case .failure(let html) = read {
-                    content = .error(html)
-                }
-                return
-            }
-            // Consume a pending self-write (our own comment echo) so the set
-            // stays bounded and a later genuine edit isn't misread.
-            let isSelfWrite = state.consumeSelfWrite(text)
-            // While composing, hold *every* change — external edits and our own
-            // comment echo alike — so the page and the open box are never torn
-            // down mid-edit. One `loadFromDisk` at compose-end applies whatever
-            // is on disk by then (held prose, the new marker, or both). Holding
-            // the self-write too matters: when a held external change and the
-            // comment land in the same write, applying its echo now would change
-            // the prose, reload the page, and strand the box.
-            if state.isComposingComment {
-                state.pendingExternalReload = true
-                // Only a genuine external edit raises the banner; our own comment
-                // echo is held too but isn't "the file changed under you".
-                if !isSelfWrite { state.externalChangeHeld = true }
-                return
-            }
-            applyLoaded(text)
-            if !isSelfWrite, state.windowController?.window?.isKeyWindow != true {
-                state.hasBackgroundReload = true
-            }
-        }
-    }
-
-    /// The outcome of reading the document off disk: the decoded source, or the
-    /// error-page HTML to show. Pure — it does not mutate `content` — so the
-    /// file-watcher can classify a change (self-write? composing?) before
-    /// deciding whether to apply or hold it.
-    private enum DiskRead {
-        case text(String)
-        case failure(String)  // pre-rendered error page HTML
-    }
-
-    private func readDisk() -> DiskRead {
-        do {
-            let data = try Data(contentsOf: fileURL)
-            guard let text = String(data: data, encoding: .utf8) else {
-                return .failure(ErrorPage.fileEncodingError())
-            }
-            return .text(text)
-        } catch let cocoaError as CocoaError where cocoaError.code == .fileReadNoSuchFile {
-            return .failure(ErrorPage.fileNotFound(error: cocoaError))
-        } catch {
-            return .failure(
-                ErrorPage.filePermissionDenied(path: fileURL.path, error: error))
-        }
-    }
-
-    /// Reads the file and applies it. Returns the loaded source text (nil on a
-    /// read/decoding failure), used by callers that need it; others discard it.
-    @discardableResult
-    private func loadFromDisk() -> String? {
-        switch readDisk() {
-        case .text(let text):
-            applyLoaded(text)
-            return text
-        case .failure(let html):
-            content = .error(html)
-            return nil
-        }
-    }
-
-    /// Parses `text` and refreshes per-document state (the render, headings,
-    /// comments, title, change tracking). The single place a successful disk
-    /// read becomes the displayed document.
-    private func applyLoaded(_ text: String) {
-        let parsed = ParsedMarkdown(text)
-        content = .parsed(parsed)
-        state.outlineHeadings = parsed.headings
-        let hadComments = !state.comments.isEmpty
-        state.comments = MudCore.parseComments(text)
-        // Reveal the Comments Column when a document gains its first comment —
-        // whether on first open or on a reload that adds one. A reload that
-        // keeps existing comments (1+ → 1+) makes no change here, so a column
-        // the user has hidden stays hidden.
-        if !hadComments, !state.comments.isEmpty {
-            state.commentsColumnVisible = true
-        }
-        // Drop locators for comments that no longer exist (e.g. deleted), so
-        // a never-reused label can't misdirect a future live insert.
-        let liveLabels = Set(state.comments.map(\.label))
-        state.pendingCommentLocators = state.pendingCommentLocators
-            .filter { liveLabels.contains($0.key) }
-        state.contentTitle = parsed.title
-        changeTracker.update(parsed)
-        #if GIT_PROVIDER
-        refreshGitWaypoints(for: text)
-        #endif
-    }
-
-    #if GIT_PROVIDER
-    private func refreshGitWaypoints(for text: String) {
-        guard appState.changesShowGitWaypoints,
-              !fileURL.isBundleResource else {
-            changeTracker.setExternalWaypoints([])
-            return
-        }
-        let url = fileURL
-        let tracker = changeTracker
-        Task {
-            let waypoints = await Task.detached {
-                GitProvider(fileURL: url).queryWaypoints(currentContent: text)
-            }.value
-            tracker.setExternalWaypoints(waypoints)
-        }
-    }
-    #endif
-
     private func openInEditor(_ request: EditorLaunchRequest) {
         let target: URL
         switch request.format {
@@ -543,7 +336,7 @@ struct DocumentContentView: View {
             // treat as markdown as a safe fallback.
             target = fileURL
         case .html:
-            guard case .parsed(let parsed) = content,
+            guard case .parsed(let parsed) = model.content,
                   let url = renderToTempHTML(parsed: parsed)
             else { return }
             target = url
@@ -608,7 +401,7 @@ struct DocumentContentView: View {
     }
 
     private func openInBrowser() {
-        guard case .parsed(let parsed) = content else { return }
+        guard case .parsed(let parsed) = model.content else { return }
         // Unless comments are included, drop every comment from the source so
         // the exported file holds none at all (like the CLI's --exclude-comments).
         let text = appState.commentsIncludeInExport

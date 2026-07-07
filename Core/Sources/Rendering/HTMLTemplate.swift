@@ -145,11 +145,32 @@ public enum HTMLTemplate {
     }
 
 
+    private static let resourceLock = NSLock()
+    nonisolated(unsafe) private static var resourceCache: [String: String?] = [:]
+
+    /// Loads a bundle resource, memoized for the process lifetime: resources
+    /// are immutable once the bundle is built, and one render of a
+    /// footnote-heavy document used to re-read the same CSS/JS files over a
+    /// hundred times.
     static func loadResource(_ name: String, type: String) -> String? {
-        guard let url = Bundle.module.url(forResource: name, withExtension: type),
-              let contents = try? String(contentsOf: url, encoding: .utf8) else {
-            return nil
+        let key = "\(name).\(type)"
+        resourceLock.lock()
+        if let cached = resourceCache[key] {
+            resourceLock.unlock()
+            return cached
         }
+        resourceLock.unlock()
+
+        let contents: String?
+        if let url = Bundle.module.url(forResource: name, withExtension: type) {
+            contents = try? String(contentsOf: url, encoding: .utf8)
+        } else {
+            contents = nil
+        }
+
+        resourceLock.lock()
+        resourceCache[key] = contents
+        resourceLock.unlock()
         return contents
     }
 }

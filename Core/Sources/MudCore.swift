@@ -65,10 +65,42 @@ public enum MudCore {
     private static func processingWaypoint(_ options: RenderOptions) -> RenderOptions {
         guard let waypoint = options.waypoint else { return options }
         var options = options
-        let processed = FootnoteProcessor.process(
-            waypoint.markdown, mode: options.footnoteMode)
-        options.waypoint = ParsedMarkdown(processed.transformedMarkdown)
+        options.waypoint = processedWaypoint(waypoint, mode: options.footnoteMode)
         return options
+    }
+
+    private static let waypointCacheLock = NSLock()
+    nonisolated(unsafe) private static var waypointCache:
+        [(source: String, parsed: ParsedMarkdown)] = []
+    private static let waypointCacheLimit = 4
+
+    /// The processed-and-reparsed waypoint, computed at most once per waypoint
+    /// text (LRU-bounded): the waypoint changes only when the user moves it,
+    /// but every render used to reprocess and re-parse it. Keyed by the source
+    /// alone — `FootnoteProcessor.process` output is mode-independent.
+    private static func processedWaypoint(
+        _ waypoint: ParsedMarkdown, mode: FootnoteMode
+    ) -> ParsedMarkdown {
+        waypointCacheLock.lock()
+        if let index = waypointCache.firstIndex(
+            where: { $0.source == waypoint.markdown }) {
+            let entry = waypointCache.remove(at: index)
+            waypointCache.insert(entry, at: 0)
+            waypointCacheLock.unlock()
+            return entry.parsed
+        }
+        waypointCacheLock.unlock()
+
+        let processed = FootnoteProcessor.process(waypoint.markdown, mode: mode)
+        let parsed = ParsedMarkdown(processed.transformedMarkdown)
+
+        waypointCacheLock.lock()
+        waypointCache.insert((waypoint.markdown, parsed), at: 0)
+        if waypointCache.count > waypointCacheLimit {
+            waypointCache.removeLast(waypointCache.count - waypointCacheLimit)
+        }
+        waypointCacheLock.unlock()
+        return parsed
     }
 
     /// Renders a parsed Markdown document to a complete HTML document

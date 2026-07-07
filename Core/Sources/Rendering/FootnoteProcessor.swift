@@ -287,21 +287,25 @@ enum FootnoteProcessor {
         return body(root)
     }
 
+    /// The result is `mode`-independent: markers and section content are
+    /// identical either way (the mode only selects section visibility at
+    /// render time), so the underlying ``FootnoteScan`` memo keys on the
+    /// source alone.
     static func process(
         _ source: String, mode: FootnoteMode
     ) -> FootnoteProcessingResult {
-        // Fast path: no possible footnote syntax → skip the cmark parse.
+        // Fast path: no possible footnote syntax → skip the scan.
         guard source.contains("[^") else {
             return FootnoteProcessingResult(
                 transformedMarkdown: source, footnotes: [], comments: [])
         }
 
-        let geo = SourceGeometry(Array(source.utf8))
+        let facts = FootnoteScan.scan(source)
+        let geo = facts.geometry
         let bytes = geo.bytes
         let lastLine = geo.lastLine
 
         struct RefHit {
-            let number: Int
             let label: String
             let line: Int
             let start: Int   // byte range of `[^label]`
@@ -312,403 +316,291 @@ enum FootnoteProcessor {
             let endLine: Int
         }
 
-        let result: FootnoteProcessingResult? = withFootnoteAST(bytes) { root in
-            var refs: [RefHit] = []
-            var defEntries: [FootnoteEntry] = []   // authorial footnotes only
-            var commentDefs: [(label: String, startLine: Int, body: String)] = []
-            var defLineRanges: [DefRange] = []
-            var referencedLabels = Set<String>()   // lowercased
-            var codeBlockLines: [(Int, Int)] = []
-
-            let iter = cmark_iter_new(root)
-            defer { cmark_iter_free(iter) }
-
-            while true {
-                let ev = cmark_iter_next(iter)
-                if ev == CMARK_EVENT_DONE { break }
-                guard ev == CMARK_EVENT_ENTER else { continue }
-                let node = cmark_iter_get_node(iter)
-                let type = cmark_node_get_type(node)
-
-                switch type {
-                case CMARK_NODE_FOOTNOTE_REFERENCE:
-                    // cmark replaces the reference's literal with its assigned
-                    // number; the label lives on the parent definition.
-                    guard let defNode = cmark_node_parent_footnote_def(node),
-                          let numberCStr = cmark_node_get_literal(node),
-                          let number = Int(String(cString: numberCStr)),
-                          let labelCStr = cmark_node_get_literal(defNode)
-                    else { continue }
-                    let label = String(cString: labelCStr)
-                    let startLine = Int(cmark_node_get_start_line(node))
-                    let startCol = Int(cmark_node_get_start_column(node))
-                    let endLine = Int(cmark_node_get_end_line(node))
-                    let endCol = Int(cmark_node_get_end_column(node))
-                    guard startLine == endLine, startLine >= 1, startLine <= lastLine
-                    else { continue }
-                    let start = geo.offset(line: startLine, column: startCol)
-                    let end = geo.offset(line: endLine, column: endCol) + 1
-                    guard geo.delimitsFootnoteRef(start: start, end: end)
-                    else { continue }
-                    refs.append(RefHit(
-                        number: number, label: label, line: startLine,
-                        start: start, end: end))
-                    referencedLabels.insert(label.lowercased())
-
-                case CMARK_NODE_FOOTNOTE_DEFINITION:
-                    guard let labelCStr = cmark_node_get_literal(node) else { continue }
-                    let label = String(cString: labelCStr)
-                    let startLine = Int(cmark_node_get_start_line(node))
-                    let endLine = Int(cmark_node_get_end_line(node))
-                    guard startLine >= 1, endLine <= lastLine else { continue }
-                    defLineRanges.append(DefRange(startLine: startLine, endLine: endLine))
-                    let body = renderDefinitionBody(node)
-                    // Classify by label: a comment definition is diverted to the
-                    // comment model; everything else is an authorial footnote.
-                    if isCommentLabel(label) {
-                        commentDefs.append(
-                            (label: label, startLine: startLine, body: body))
-                    } else {
-                        defEntries.append(FootnoteEntry(
-                            label: label, number: 0, bodyMarkdown: body))
-                    }
-
-                case CMARK_NODE_CODE_BLOCK, CMARK_NODE_HTML_BLOCK:
-                    let s = Int(cmark_node_get_start_line(node))
-                    let e = Int(cmark_node_get_end_line(node))
-                    if s >= 1 && e >= s { codeBlockLines.append((s, e)) }
-
-                default:
-                    break
-                }
-            }
-
-            // Drop any references that live inside a definition body (the v1
-            // limitation: nested footnotes are not recursively processed, and
-            // their whole def block is deleted anyway).
-            let bodyRefs = refs.filter { ref in
-                !defLineRanges.contains { ref.line >= $0.startLine && ref.line <= $0.endLine }
-            }
-
-            // Assign authorial footnote numbers Mud-side — first-reference order
-            // over **authorial** references only — so comments occupy no number
-            // and leave no gap. cmark's own per-reference numbering counts every
-            // footnote (comments included), so it is deliberately discarded.
-            // Comment references divert to the `💬` marker and never number.
-            // Occurrence index per label drives back-link ids (fnref-N-K, K>1).
-            struct Edit { let start: Int; let end: Int; let replacement: [UInt8] }
-            var edits: [Edit] = []
-            var authorialNumber: [String: Int] = [:]
-            var nextNumber = 1
-            var occurrence: [String: Int] = [:]
-            let orderedRefs = bodyRefs.sorted(by: { $0.start < $1.start })
-            for ref in orderedRefs {
-                let marker: String
-                if isCommentLabel(ref.label) {
-                    marker = commentMarkerHTML(label: ref.label)
-                } else {
-                    let number = authorialNumber[ref.label] ?? nextNumber
-                    if authorialNumber[ref.label] == nil {
-                        authorialNumber[ref.label] = number
-                        nextNumber += 1
-                    }
-                    let k = (occurrence[ref.label] ?? 0) + 1
-                    occurrence[ref.label] = k
-                    marker = markerHTML(
-                        number: number, label: ref.label, occurrence: k)
-                }
-                edits.append(Edit(start: ref.start, end: ref.end,
-                                  replacement: Array(marker.utf8)))
-            }
-
-            // Delete each referenced definition block, consuming trailing blanks.
-            for range in defLineRanges {
-                var stop = range.endLine + 1
-                while stop <= lastLine, geo.lineIsBlank(stop) { stop += 1 }
-                let end = stop <= lastLine ? geo.lineStart[stop] : bytes.count
-                edits.append(Edit(start: geo.lineStart[range.startLine], end: end,
-                                  replacement: []))
-            }
-
-            // Strip orphan (unreferenced) definitions, which cmark unlinks from
-            // the tree. Scan column-0 `[^label]:` openers, skipping anything
-            // inside a code/HTML block or already covered by a referenced
-            // definition.
-            func insideCodeBlock(_ line: Int) -> Bool {
-                codeBlockLines.contains { line >= $0.0 && line <= $0.1 }
-            }
-            func insideReferencedDef(_ line: Int) -> Bool {
-                defLineRanges.contains { line >= $0.startLine && line <= $0.endLine }
-            }
-            var line = 1
-            while line <= lastLine {
-                if !insideCodeBlock(line), !insideReferencedDef(line),
-                   let label = openerLabel(at: geo.lineStart[line], bytes: bytes,
-                                           lineEnd: geo.lineEnd(line)),
-                   !referencedLabels.contains(label.lowercased()) {
-                    var stop = line + 1
-                    while stop <= lastLine, geo.isContinuation(stop) { stop += 1 }
-                    let end = stop <= lastLine ? geo.lineStart[stop] : bytes.count
-                    edits.append(Edit(start: geo.lineStart[line], end: end,
-                                      replacement: []))
-                    line = stop
-                } else {
-                    line += 1
-                }
-            }
-
-            // Apply edits in descending start order so offsets stay valid.
-            var out = bytes
-            for edit in edits.sorted(by: { $0.start > $1.start }) {
-                out.replaceSubrange(edit.start..<edit.end, with: edit.replacement)
-            }
-            let transformed = String(decoding: out, as: UTF8.self)
-
-            let footnotes = defEntries
-                .compactMap { entry -> FootnoteEntry? in
-                    guard let number = authorialNumber[entry.label] else { return nil }
-                    return FootnoteEntry(label: entry.label, number: number,
-                                         bodyMarkdown: entry.bodyMarkdown)
-                }
-                .sorted { $0.number < $1.number }
-
-            // Order comments by their first reference's position (the rendered
-            // ordinal), falling back to definition order for any comment whose
-            // reference cmark did not surface.
-            var commentFirstRef: [String: Int] = [:]
-            for ref in orderedRefs where isCommentLabel(ref.label) {
-                if commentFirstRef[ref.label] == nil {
-                    commentFirstRef[ref.label] = ref.start
-                }
-            }
-            let comments = commentDefs
-                .sorted {
-                    let a = commentFirstRef[$0.label] ?? Int.max
-                    let b = commentFirstRef[$1.label] ?? Int.max
-                    return a != b ? a < b : $0.startLine < $1.startLine
-                }
-                .enumerated()
-                .map { index, def -> Comment in
-                    let (quotation, messages) =
-                        CommentSerialization.parse(def.body)
-                    return Comment(
-                        label: def.label, ordinal: index + 1,
-                        quotation: quotation, messages: messages)
-                }
-
-            return FootnoteProcessingResult(
-                transformedMarkdown: transformed, footnotes: footnotes,
-                comments: comments)
+        // cmark replaces a reference's literal with its assigned number and
+        // keeps the label on the parent definition; a ref lacking either is
+        // skipped, as is any whose sourcepos does not delimit `[^…]`.
+        var refs: [RefHit] = []
+        var referencedLabels = Set<String>()   // lowercased
+        for ref in facts.refs {
+            guard let label = ref.label, ref.hasValidNumber,
+                  ref.startLine == ref.endLine,
+                  ref.startLine >= 1, ref.startLine <= lastLine
+            else { continue }
+            let start = geo.offset(line: ref.startLine, column: ref.startColumn)
+            let end = geo.offset(line: ref.endLine, column: ref.endColumn) + 1
+            guard geo.delimitsFootnoteRef(start: start, end: end)
+            else { continue }
+            refs.append(RefHit(
+                label: label, line: ref.startLine, start: start, end: end))
+            referencedLabels.insert(label.lowercased())
         }
 
-        return result ?? FootnoteProcessingResult(
-            transformedMarkdown: source, footnotes: [], comments: [])
+        // Classify definitions by label: a comment definition is diverted to
+        // the comment model; everything else is an authorial footnote.
+        var defEntries: [FootnoteEntry] = []   // authorial footnotes only
+        var commentDefs: [(label: String, startLine: Int, body: String)] = []
+        var defLineRanges: [DefRange] = []
+        for def in facts.defs {
+            guard def.startLine >= 1, def.endLine <= lastLine else { continue }
+            defLineRanges.append(
+                DefRange(startLine: def.startLine, endLine: def.endLine))
+            if isCommentLabel(def.label) {
+                commentDefs.append((
+                    label: def.label, startLine: def.startLine,
+                    body: def.bodyMarkdown))
+            } else {
+                defEntries.append(FootnoteEntry(
+                    label: def.label, number: 0, bodyMarkdown: def.bodyMarkdown))
+            }
+        }
+
+        // Drop any references that live inside a definition body (the v1
+        // limitation: nested footnotes are not recursively processed, and
+        // their whole def block is deleted anyway).
+        let bodyRefs = refs.filter { ref in
+            !defLineRanges.contains { ref.line >= $0.startLine && ref.line <= $0.endLine }
+        }
+
+        // Assign authorial footnote numbers Mud-side — first-reference order
+        // over **authorial** references only — so comments occupy no number
+        // and leave no gap. cmark's own per-reference numbering counts every
+        // footnote (comments included), so it is deliberately discarded.
+        // Comment references divert to the `💬` marker and never number.
+        // Occurrence index per label drives back-link ids (fnref-N-K, K>1).
+        struct Edit { let start: Int; let end: Int; let replacement: [UInt8] }
+        var edits: [Edit] = []
+        var authorialNumber: [String: Int] = [:]
+        var nextNumber = 1
+        var occurrence: [String: Int] = [:]
+        let orderedRefs = bodyRefs.sorted(by: { $0.start < $1.start })
+        for ref in orderedRefs {
+            let marker: String
+            if isCommentLabel(ref.label) {
+                marker = commentMarkerHTML(label: ref.label)
+            } else {
+                let number = authorialNumber[ref.label] ?? nextNumber
+                if authorialNumber[ref.label] == nil {
+                    authorialNumber[ref.label] = number
+                    nextNumber += 1
+                }
+                let k = (occurrence[ref.label] ?? 0) + 1
+                occurrence[ref.label] = k
+                marker = markerHTML(
+                    number: number, label: ref.label, occurrence: k)
+            }
+            edits.append(Edit(start: ref.start, end: ref.end,
+                              replacement: Array(marker.utf8)))
+        }
+
+        // Delete each referenced definition block, consuming trailing blanks.
+        for range in defLineRanges {
+            var stop = range.endLine + 1
+            while stop <= lastLine, geo.lineIsBlank(stop) { stop += 1 }
+            let end = stop <= lastLine ? geo.lineStart[stop] : bytes.count
+            edits.append(Edit(start: geo.lineStart[range.startLine], end: end,
+                              replacement: []))
+        }
+
+        // Strip orphan (unreferenced) definitions, which cmark unlinks from
+        // the tree. Scan column-0 `[^label]:` openers, skipping anything
+        // inside a code/HTML block or already covered by a referenced
+        // definition.
+        func insideCodeBlock(_ line: Int) -> Bool {
+            facts.codeBlocks.contains { line >= $0.start && line <= $0.end }
+        }
+        func insideReferencedDef(_ line: Int) -> Bool {
+            defLineRanges.contains { line >= $0.startLine && line <= $0.endLine }
+        }
+        var line = 1
+        while line <= lastLine {
+            if !insideCodeBlock(line), !insideReferencedDef(line),
+               let label = openerLabel(at: geo.lineStart[line], bytes: bytes,
+                                       lineEnd: geo.lineEnd(line)),
+               !referencedLabels.contains(label.lowercased()) {
+                var stop = line + 1
+                while stop <= lastLine, geo.isContinuation(stop) { stop += 1 }
+                let end = stop <= lastLine ? geo.lineStart[stop] : bytes.count
+                edits.append(Edit(start: geo.lineStart[line], end: end,
+                                  replacement: []))
+                line = stop
+            } else {
+                line += 1
+            }
+        }
+
+        // Apply edits in descending start order so offsets stay valid.
+        var out = bytes
+        for edit in edits.sorted(by: { $0.start > $1.start }) {
+            out.replaceSubrange(edit.start..<edit.end, with: edit.replacement)
+        }
+        let transformed = String(decoding: out, as: UTF8.self)
+
+        let footnotes = defEntries
+            .compactMap { entry -> FootnoteEntry? in
+                guard let number = authorialNumber[entry.label] else { return nil }
+                return FootnoteEntry(label: entry.label, number: number,
+                                     bodyMarkdown: entry.bodyMarkdown)
+            }
+            .sorted { $0.number < $1.number }
+
+        // Order comments by their first reference's position (the rendered
+        // ordinal), falling back to definition order for any comment whose
+        // reference cmark did not surface.
+        var commentFirstRef: [String: Int] = [:]
+        for ref in orderedRefs where isCommentLabel(ref.label) {
+            if commentFirstRef[ref.label] == nil {
+                commentFirstRef[ref.label] = ref.start
+            }
+        }
+        let comments = commentDefs
+            .sorted {
+                let a = commentFirstRef[$0.label] ?? Int.max
+                let b = commentFirstRef[$1.label] ?? Int.max
+                return a != b ? a < b : $0.startLine < $1.startLine
+            }
+            .enumerated()
+            .map { index, def -> Comment in
+                let (quotation, messages) =
+                    CommentSerialization.parse(def.body)
+                return Comment(
+                    label: def.label, ordinal: index + 1,
+                    quotation: quotation, messages: messages)
+            }
+
+        return FootnoteProcessingResult(
+            transformedMarkdown: transformed, footnotes: footnotes,
+            comments: comments)
     }
 
     /// Scans `source` for footnote references and definition blocks, returning
-    /// their positions for Down-mode highlighting. Shares the `cmark-gfm`
-    /// footnote parse used by ``process(_:mode:)`` but rewrites nothing.
+    /// their positions for Down-mode highlighting. Derives from the cached
+    /// ``FootnoteScan`` shared with ``process(_:mode:)`` and rewrites nothing.
     static func scan(_ source: String) -> FootnoteLayout {
-        // Fast path: no possible footnote syntax → skip the cmark parse.
+        // Fast path: no possible footnote syntax → skip the scan.
         guard source.contains("[^") else { return .empty }
 
-        let geo = SourceGeometry(Array(source.utf8))
+        let facts = FootnoteScan.scan(source)
+        let geo = facts.geometry
         let lastLine = geo.lastLine
 
-        return withFootnoteAST(geo.bytes) { root in
-            struct DefRange { let startLine: Int; let endLine: Int }
-            var refHits: [(line: Int, startCol: Int, endCol: Int)] = []
-            var defs: [FootnoteLayout.Def] = []
-            var defRanges: [DefRange] = []
+        struct DefRange { let startLine: Int; let endLine: Int }
+        var defs: [FootnoteLayout.Def] = []
+        var defRanges: [DefRange] = []
+        for def in facts.defs {
+            guard def.startLine >= 1, def.endLine <= lastLine,
+                  def.endLine >= def.startLine else { continue }
+            defRanges.append(
+                DefRange(startLine: def.startLine, endLine: def.endLine))
+            // cmark's definition start_column points at the *body*, not
+            // the marker, so locate the `[` as the opener line's first
+            // non-whitespace byte.
+            let startColumn = geo.firstNonSpaceColumn(line: def.startLine)
+            // `[^` + label + `]:` → label.utf8.count + 4 chars.
+            let markerEndColumn = startColumn + def.label.utf8.count + 4
+            let contentStartColumn = geo.firstContentColumn(
+                line: def.startLine, from: markerEndColumn)
+            let contentIndent = geo.continuationIndent(
+                startLine: def.startLine, endLine: def.endLine)
+            defs.append(FootnoteLayout.Def(
+                startLine: def.startLine, endLine: def.endLine,
+                startColumn: startColumn,
+                markerEndColumn: markerEndColumn,
+                contentStartColumn: contentStartColumn,
+                contentIndent: contentIndent))
+        }
 
-            let iter = cmark_iter_new(root)
-            defer { cmark_iter_free(iter) }
-            while true {
-                let ev = cmark_iter_next(iter)
-                if ev == CMARK_EVENT_DONE { break }
-                guard ev == CMARK_EVENT_ENTER else { continue }
-                let node = cmark_iter_get_node(iter)
+        // Sanity: a ref's range must actually delimit `[^…]`. `endColumn` is
+        // the column of the closing `]`, so the half-open end is its offset
+        // plus one. Drop references that live inside a definition body —
+        // those are handled by re-parsing the body, not as standalone markers.
+        var refs: [FootnoteLayout.Ref] = []
+        for ref in facts.refs {
+            guard ref.startLine >= 1, ref.startLine <= lastLine,
+                  ref.startColumn >= 1, ref.endColumn >= ref.startColumn
+            else { continue }
+            let s = geo.offset(line: ref.startLine, column: ref.startColumn)
+            let e = geo.offset(line: ref.startLine, column: ref.endColumn)
+            guard geo.delimitsFootnoteRef(start: s, end: e + 1)
+            else { continue }
+            guard !defRanges.contains(where: {
+                ref.startLine >= $0.startLine && ref.startLine <= $0.endLine
+            }) else { continue }
+            refs.append(FootnoteLayout.Ref(
+                line: ref.startLine, startColumn: ref.startColumn,
+                endColumn: ref.endColumn))
+        }
 
-                switch cmark_node_get_type(node) {
-                case CMARK_NODE_FOOTNOTE_REFERENCE:
-                    let line = Int(cmark_node_get_start_line(node))
-                    let startCol = Int(cmark_node_get_start_column(node))
-                    let endCol = Int(cmark_node_get_end_column(node))
-                    guard line >= 1, line <= lastLine,
-                          startCol >= 1, endCol >= startCol else { continue }
-                    // Sanity: the range must actually delimit `[^…]`. `endCol`
-                    // is the column of the closing `]`, so the half-open end is
-                    // its offset plus one.
-                    let s = geo.offset(line: line, column: startCol)
-                    let e = geo.offset(line: line, column: endCol)
-                    guard geo.delimitsFootnoteRef(start: s, end: e + 1)
-                    else { continue }
-                    refHits.append((line, startCol, endCol))
-
-                case CMARK_NODE_FOOTNOTE_DEFINITION:
-                    guard let labelCStr = cmark_node_get_literal(node)
-                    else { continue }
-                    let label = String(cString: labelCStr)
-                    let startLine = Int(cmark_node_get_start_line(node))
-                    let endLine = Int(cmark_node_get_end_line(node))
-                    guard startLine >= 1, endLine <= lastLine,
-                          endLine >= startLine else { continue }
-                    defRanges.append(
-                        DefRange(startLine: startLine, endLine: endLine))
-                    // cmark's definition start_column points at the *body*, not
-                    // the marker, so locate the `[` as the opener line's first
-                    // non-whitespace byte.
-                    let startColumn = geo.firstNonSpaceColumn(line: startLine)
-                    // `[^` + label + `]:` → label.utf8.count + 4 chars.
-                    let markerEndColumn = startColumn + label.utf8.count + 4
-                    let contentStartColumn = geo.firstContentColumn(
-                        line: startLine, from: markerEndColumn)
-                    let contentIndent = geo.continuationIndent(
-                        startLine: startLine, endLine: endLine)
-                    defs.append(FootnoteLayout.Def(
-                        startLine: startLine, endLine: endLine,
-                        startColumn: startColumn,
-                        markerEndColumn: markerEndColumn,
-                        contentStartColumn: contentStartColumn,
-                        contentIndent: contentIndent))
-
-                default:
-                    break
-                }
-            }
-
-            // Drop references that live inside a definition body — those are
-            // handled by re-parsing the body, not as standalone markers.
-            let refs = refHits
-                .filter { hit in
-                    !defRanges.contains {
-                        hit.line >= $0.startLine && hit.line <= $0.endLine
-                    }
-                }
-                .map {
-                    FootnoteLayout.Ref(
-                        line: $0.line, startColumn: $0.startCol,
-                        endColumn: $0.endCol)
-                }
-
-            return FootnoteLayout(refs: refs, defs: defs)
-        } ?? .empty
+        return FootnoteLayout(refs: refs, defs: defs)
     }
 
     /// Locates every comment (a footnote whose label matches
     /// `^comment-[\w-]+$`) in `source` by byte range, for byte-surgical edits.
-    /// Shares the `cmark-gfm` footnote parse with ``process(_:mode:)`` and
-    /// ``scan(_:)`` but rewrites nothing.
+    /// Derives from the cached ``FootnoteScan`` shared with
+    /// ``process(_:mode:)`` and ``scan(_:)`` but rewrites nothing.
     static func locateComments(_ source: String) -> [CommentLocation] {
         guard source.contains("[^") else { return [] }
-        let geo = SourceGeometry(Array(source.utf8))
+        let facts = FootnoteScan.scan(source)
+        let geo = facts.geometry
         let lastLine = geo.lastLine
 
-        struct DefHit { let label: String; let startLine: Int; let endLine: Int }
+        var refsByLabel: [String: [Range<Int>]] = [:]
+        for ref in facts.refs {
+            guard let label = ref.label, isCommentLabel(label),
+                  ref.startLine == ref.endLine,
+                  ref.startLine >= 1, ref.startLine <= lastLine
+            else { continue }
+            let start = geo.offset(line: ref.startLine, column: ref.startColumn)
+            let end = geo.offset(line: ref.endLine, column: ref.endColumn) + 1
+            guard geo.delimitsFootnoteRef(start: start, end: end)
+            else { continue }
+            refsByLabel[label, default: []].append(start..<end)
+        }
 
-        return withFootnoteAST(geo.bytes) { root in
-            var defs: [DefHit] = []
-            var refsByLabel: [String: [Range<Int>]] = [:]
-
-            let iter = cmark_iter_new(root)
-            defer { cmark_iter_free(iter) }
-            while true {
-                let ev = cmark_iter_next(iter)
-                if ev == CMARK_EVENT_DONE { break }
-                guard ev == CMARK_EVENT_ENTER else { continue }
-                let node = cmark_iter_get_node(iter)
-
-                switch cmark_node_get_type(node) {
-                case CMARK_NODE_FOOTNOTE_REFERENCE:
-                    guard let defNode = cmark_node_parent_footnote_def(node),
-                          let labelCStr = cmark_node_get_literal(defNode)
-                    else { continue }
-                    let label = String(cString: labelCStr)
-                    guard isCommentLabel(label) else { continue }
-                    let startLine = Int(cmark_node_get_start_line(node))
-                    let startCol = Int(cmark_node_get_start_column(node))
-                    let endLine = Int(cmark_node_get_end_line(node))
-                    let endCol = Int(cmark_node_get_end_column(node))
-                    guard startLine == endLine, startLine >= 1, startLine <= lastLine
-                    else { continue }
-                    let start = geo.offset(line: startLine, column: startCol)
-                    let end = geo.offset(line: endLine, column: endCol) + 1
-                    guard geo.delimitsFootnoteRef(start: start, end: end)
-                    else { continue }
-                    refsByLabel[label, default: []].append(start..<end)
-
-                case CMARK_NODE_FOOTNOTE_DEFINITION:
-                    guard let labelCStr = cmark_node_get_literal(node) else { continue }
-                    let label = String(cString: labelCStr)
-                    guard isCommentLabel(label) else { continue }
-                    let startLine = Int(cmark_node_get_start_line(node))
-                    let endLine = Int(cmark_node_get_end_line(node))
-                    guard startLine >= 1, endLine <= lastLine, endLine >= startLine
-                    else { continue }
-                    defs.append(DefHit(
-                        label: label, startLine: startLine, endLine: endLine))
-
-                default:
-                    break
-                }
+        return facts.defs.compactMap { def in
+            guard isCommentLabel(def.label),
+                  def.startLine >= 1, def.endLine <= lastLine,
+                  def.endLine >= def.startLine
+            else { return nil }
+            var stop = def.endLine + 1
+            while stop <= lastLine, geo.lineIsBlank(stop) { stop += 1 }
+            let deleteEnd = stop <= lastLine ? geo.lineStart[stop] : geo.bytes.count
+            // cmark can fold a trailing blank line into the definition's end
+            // line. Back up to the last non-blank line so `defContentEnd` is
+            // the true end of content (before its newline); otherwise a
+            // rewrite would swallow the blank line separating the definition
+            // from the block after it.
+            var contentLine = def.endLine
+            while contentLine > def.startLine, geo.lineIsBlank(contentLine) {
+                contentLine -= 1
             }
-
-            return defs.map { def in
-                var stop = def.endLine + 1
-                while stop <= lastLine, geo.lineIsBlank(stop) { stop += 1 }
-                let deleteEnd = stop <= lastLine ? geo.lineStart[stop] : geo.bytes.count
-                // cmark can fold a trailing blank line into the definition's end
-                // line. Back up to the last non-blank line so `defContentEnd` is
-                // the true end of content (before its newline); otherwise a
-                // rewrite would swallow the blank line separating the definition
-                // from the block after it.
-                var contentLine = def.endLine
-                while contentLine > def.startLine, geo.lineIsBlank(contentLine) {
-                    contentLine -= 1
-                }
-                return CommentLocation(
-                    label: def.label,
-                    defStart: geo.lineStart[def.startLine],
-                    defContentEnd: geo.contentEnd(contentLine),
-                    defDeleteEnd: deleteEnd,
-                    refRanges: refsByLabel[def.label] ?? [])
-            }
-        } ?? []
+            return CommentLocation(
+                label: def.label,
+                defStart: geo.lineStart[def.startLine],
+                defContentEnd: geo.contentEnd(contentLine),
+                defDeleteEnd: deleteEnd,
+                refRanges: refsByLabel[def.label] ?? [])
+        }
     }
 
     /// The 1-based line ranges (`startLine...endLine`) of every comment
     /// definition block in `source`, for diff consumers that need to exclude
-    /// those lines from change tracking. Shares the `cmark-gfm` footnote parse
-    /// with ``process(_:mode:)`` and ``locateComments(_:)`` but rewrites
-    /// nothing. Empty when the source contains no comments.
+    /// those lines from change tracking. Derives from the cached
+    /// ``FootnoteScan`` shared with ``process(_:mode:)`` and
+    /// ``locateComments(_:)`` but rewrites nothing. Empty when the source
+    /// contains no comments.
     static func commentDefinitionLineRanges(
         _ source: String
     ) -> [ClosedRange<Int>] {
         guard source.contains("[^") else { return [] }
-        let geo = SourceGeometry(Array(source.utf8))
-        let lastLine = geo.lastLine
-
-        return withFootnoteAST(geo.bytes) { root in
-            var ranges: [ClosedRange<Int>] = []
-            let iter = cmark_iter_new(root)
-            defer { cmark_iter_free(iter) }
-            while true {
-                let ev = cmark_iter_next(iter)
-                if ev == CMARK_EVENT_DONE { break }
-                guard ev == CMARK_EVENT_ENTER else { continue }
-                let node = cmark_iter_get_node(iter)
-                guard cmark_node_get_type(node) == CMARK_NODE_FOOTNOTE_DEFINITION,
-                      let labelCStr = cmark_node_get_literal(node) else { continue }
-                let label = String(cString: labelCStr)
-                guard isCommentLabel(label) else { continue }
-                let startLine = Int(cmark_node_get_start_line(node))
-                let endLine = Int(cmark_node_get_end_line(node))
-                guard startLine >= 1, endLine >= startLine,
-                      endLine <= lastLine else { continue }
-                ranges.append(startLine...endLine)
-            }
-            return ranges
-        } ?? []
+        let facts = FootnoteScan.scan(source)
+        let lastLine = facts.geometry.lastLine
+        return facts.defs.compactMap { def in
+            guard isCommentLabel(def.label),
+                  def.startLine >= 1, def.endLine >= def.startLine,
+                  def.endLine <= lastLine
+            else { return nil }
+            return def.startLine...def.endLine
+        }
     }
 
     /// Removes every comment from `source` — all `[^comment-x]` references and
@@ -761,7 +653,8 @@ enum FootnoteProcessor {
     /// joins them with a blank line. Rendering children individually avoids
     /// the `[^label]:` prefix and continuation indentation that
     /// `cmark_render_commonmark` emits for the definition node itself.
-    private static func renderDefinitionBody(
+    /// Fileprivate so ``FootnoteScan`` can pre-render bodies during its walk.
+    fileprivate static func renderDefinitionBody(
         _ defNode: UnsafeMutablePointer<cmark_node>?
     ) -> String {
         var parts: [String] = []
@@ -819,5 +712,141 @@ enum FootnoteProcessor {
         guard i < lineEnd, bytes[i] == 0x3A else { return nil }  // need :
         guard !label.isEmpty else { return nil }
         return String(decoding: label, as: UTF8.self)
+    }
+}
+
+// MARK: - FootnoteScan
+
+/// The raw facts one footnote-aware `cmark-gfm` parse of a source yields,
+/// computed at most once per source (see ``scan(_:)``). Every
+/// `FootnoteProcessor` entry point — `process`, `scan`, `locateComments`,
+/// `commentDefinitionLineRanges`, and (via `locateComments`) `removeComments`
+/// — derives its result from these facts instead of re-parsing; one live-edit
+/// render cycle used to parse the same text up to eight times. The facts are
+/// mode-independent (`FootnoteMode` only selects section visibility at render
+/// time), so the memo keys on the source alone. A failed cmark parse yields an
+/// empty scan, which each derivation turns into its no-footnotes fallback.
+struct FootnoteScan {
+    /// One `[^label]` reference node, raw from cmark. Consumers apply their
+    /// own validity guards (line bounds, the `[^…]` delimiter check).
+    struct Ref {
+        /// The label of the definition the reference resolves to (cmark keeps
+        /// it on the parent definition node); nil when cmark supplies none.
+        let label: String?
+        /// Whether cmark's number literal for the reference parses as an
+        /// integer. Mud assigns its own numbers, but `process` skips refs
+        /// without a valid literal.
+        let hasValidNumber: Bool
+        let startLine: Int
+        let endLine: Int
+        let startColumn: Int
+        let endColumn: Int
+    }
+
+    /// One `[^label]:` definition block, raw from cmark, with its body
+    /// pre-rendered to clean CommonMark.
+    struct Def {
+        let label: String
+        let startLine: Int
+        let endLine: Int
+        let bodyMarkdown: String
+    }
+
+    let geometry: FootnoteProcessor.SourceGeometry
+    let refs: [Ref]
+    let defs: [Def]
+    /// Code/HTML block line spans, for orphan-definition stripping.
+    let codeBlocks: [(start: Int, end: Int)]
+}
+
+extension FootnoteScan {
+    private static let cacheLock = NSLock()
+    nonisolated(unsafe) private static var cache:
+        [(source: String, scan: FootnoteScan)] = []
+    private static let cacheLimit = 8
+
+    /// Returns the scan for `source`, computing it at most once per source
+    /// (keyed by the source text, LRU-bounded — the same pattern as
+    /// `ChangePlan.plan`).
+    static func scan(_ source: String) -> FootnoteScan {
+        cacheLock.lock()
+        if let index = cache.firstIndex(where: { $0.source == source }) {
+            let entry = cache.remove(at: index)
+            cache.insert(entry, at: 0)
+            cacheLock.unlock()
+            return entry.scan
+        }
+        cacheLock.unlock()
+
+        let scan = compute(source)
+
+        cacheLock.lock()
+        cache.insert((source, scan), at: 0)
+        if cache.count > cacheLimit {
+            cache.removeLast(cache.count - cacheLimit)
+        }
+        cacheLock.unlock()
+        return scan
+    }
+
+    /// One iterator pass over the footnote-aware AST, collecting reference
+    /// and definition facts plus code-block spans.
+    private static func compute(_ source: String) -> FootnoteScan {
+        let geo = FootnoteProcessor.SourceGeometry(Array(source.utf8))
+        var refs: [Ref] = []
+        var defs: [Def] = []
+        var codeBlocks: [(start: Int, end: Int)] = []
+
+        _ = FootnoteProcessor.withFootnoteAST(geo.bytes) { root -> Void in
+            let iter = cmark_iter_new(root)
+            defer { cmark_iter_free(iter) }
+            while true {
+                let ev = cmark_iter_next(iter)
+                if ev == CMARK_EVENT_DONE { break }
+                guard ev == CMARK_EVENT_ENTER else { continue }
+                let node = cmark_iter_get_node(iter)
+
+                switch cmark_node_get_type(node) {
+                case CMARK_NODE_FOOTNOTE_REFERENCE:
+                    var label: String?
+                    if let defNode = cmark_node_parent_footnote_def(node),
+                       let labelCStr = cmark_node_get_literal(defNode) {
+                        label = String(cString: labelCStr)
+                    }
+                    var hasValidNumber = false
+                    if let numberCStr = cmark_node_get_literal(node),
+                       Int(String(cString: numberCStr)) != nil {
+                        hasValidNumber = true
+                    }
+                    refs.append(Ref(
+                        label: label, hasValidNumber: hasValidNumber,
+                        startLine: Int(cmark_node_get_start_line(node)),
+                        endLine: Int(cmark_node_get_end_line(node)),
+                        startColumn: Int(cmark_node_get_start_column(node)),
+                        endColumn: Int(cmark_node_get_end_column(node))))
+
+                case CMARK_NODE_FOOTNOTE_DEFINITION:
+                    guard let labelCStr = cmark_node_get_literal(node)
+                    else { break }
+                    defs.append(Def(
+                        label: String(cString: labelCStr),
+                        startLine: Int(cmark_node_get_start_line(node)),
+                        endLine: Int(cmark_node_get_end_line(node)),
+                        bodyMarkdown:
+                            FootnoteProcessor.renderDefinitionBody(node)))
+
+                case CMARK_NODE_CODE_BLOCK, CMARK_NODE_HTML_BLOCK:
+                    let s = Int(cmark_node_get_start_line(node))
+                    let e = Int(cmark_node_get_end_line(node))
+                    if s >= 1 && e >= s { codeBlocks.append((start: s, end: e)) }
+
+                default:
+                    break
+                }
+            }
+        }
+
+        return FootnoteScan(
+            geometry: geo, refs: refs, defs: defs, codeBlocks: codeBlocks)
     }
 }

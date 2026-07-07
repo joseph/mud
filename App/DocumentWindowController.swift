@@ -72,11 +72,10 @@ class DocumentWindowController: NSWindowController {
             state: state,
             changeTracker: state.changeTracker,
             onSelectHeading: { [weak self] heading in
-                self?.state.scrollTarget = ScrollTarget(id: UUID(), heading: heading)
+                self?.state.webCommands.send(.scrollToHeading(heading))
             },
             onSelectChange: { [weak self] changeIDs in
-                self?.state.changeScrollTarget = ChangeScrollTarget(
-                    id: UUID(), changeIDs: changeIDs)
+                self?.state.webCommands.send(.scrollToChanges(changeIDs))
             }
         )
         let sidebarHost = NSHostingController(rootView: sidebarView)
@@ -326,7 +325,7 @@ class DocumentWindowController: NSWindowController {
     /// it shown) and opens a compose box on the current selection.
     @objc func addComment(_ sender: Any?) {
         state.commentsColumnVisible = true
-        state.addCommentID = UUID()
+        state.webCommands.send(.addCommentFromSelection)
     }
 
     /// Shows or hides the Comments column for this window only.
@@ -352,7 +351,7 @@ class DocumentWindowController: NSWindowController {
     }
 
     @objc func printCurrentDocument(_ sender: Any?) {
-        state.printID = UUID()
+        state.webCommands.send(.print)
     }
 
     @objc func openInBrowser(_ sender: Any?) {
@@ -395,12 +394,12 @@ class DocumentWindowController: NSWindowController {
             app.upModeZoomLevel = 1.0
         }
         // Also clear any native pinch magnification stacked on top of CSS zoom.
-        state.actualSizeID = UUID()
+        state.webCommands.send(.resetMagnification)
         updateZoomLabel()
     }
 
     @objc func reloadDocument(_ sender: Any?) {
-        state.reloadID = UUID()
+        model.load(forced: true)
     }
 
     @objc func performFindAction(_ sender: Any?) {

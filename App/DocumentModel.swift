@@ -78,12 +78,17 @@ final class DocumentModel: ObservableObject {
 
     private struct DisplayKey: Equatable {
         let contentVersion: Int
+        let loadToken: Int
         let mode: Mode
         let identity: RenderOptions.ContentIdentity
     }
     /// Bumped on every content change so the cache key needs no content
     /// comparison of its own.
     private var contentVersion = 0
+    /// Bumped by a forced load (Cmd+R) and appended to the contentID, so the
+    /// WebView reloads the page even when the re-read produced identical
+    /// text (the user expects a real reload — e.g. images changed on disk).
+    private var loadToken = 0
     private var cachedKey: DisplayKey?
     private var cachedDisplay: RenderedDisplay?
 
@@ -119,8 +124,8 @@ final class DocumentModel: ObservableObject {
                 html: html, contentID: "load-error", footnoteHTML: [:])
         case .parsed(let parsed):
             let key = DisplayKey(
-                contentVersion: contentVersion, mode: mode,
-                identity: options.contentIdentity)
+                contentVersion: contentVersion, loadToken: loadToken,
+                mode: mode, identity: options.contentIdentity)
             if let cached = cachedDisplay, cachedKey == key { return cached }
             let display = render(parsed, mode: mode, options: options)
             cachedKey = key
@@ -142,7 +147,7 @@ final class DocumentModel: ObservableObject {
         let body = mode == .up
             ? MudCore.removeComments(parsed.markdown)
             : parsed.markdown
-        let contentID = "\(body)\(options.contentIdentity.hashValue)"
+        let contentID = "\(body)\(options.contentIdentity.hashValue)#\(loadToken)"
         if mode == .down {
             return RenderedDisplay(
                 html: MudCore.renderDownModeDocument(parsed, options: options),
@@ -183,9 +188,11 @@ final class DocumentModel: ObservableObject {
     // MARK: Loading and watching
 
     /// Reads the file and (re-)establishes the watcher. Called on appear and
-    /// for Cmd+R, where the re-watch revives a watch lost to e.g. an
-    /// exhausted atomic-save retry.
-    func load() {
+    /// for Cmd+R (`forced: true`), where the re-watch revives a watch lost to
+    /// e.g. an exhausted atomic-save retry, and the bumped `loadToken` makes
+    /// the page reload even when the file's text hasn't changed.
+    func load(forced: Bool = false) {
+        if forced { loadToken += 1 }
         loadFromDisk()
         setupFileWatcher()
     }

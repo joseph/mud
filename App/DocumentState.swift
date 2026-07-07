@@ -3,16 +3,35 @@ import Combine
 import MudPreferences
 import MudCore
 
-// MARK: - Scroll Target
+// MARK: - Web Commands
 
-struct ScrollTarget: Equatable {
-    let id: UUID
-    let heading: OutlineHeading
-}
-
-struct ChangeScrollTarget: Equatable {
-    let id: UUID
-    let changeIDs: [String]
+/// A one-shot command for the document's web page, sent over
+/// `DocumentState.webCommands` and executed by `WebView.Coordinator` (which
+/// holds the `WKWebView`). Fire-and-forget: nothing is queued for a page
+/// that doesn't exist yet, and nothing re-fires after a reload. Sustained
+/// facts (theme, zoom, body classes, the hold banner) are declarative
+/// `WebView` parameters instead, diffed in `updateNSView`.
+enum WebCommand {
+    /// Run the print panel for the current page (Cmd+P).
+    case print
+    /// Reset the native pinch magnification to 1. Fired by "Actual Size";
+    /// the per-mode CSS-zoom reset travels the declarative zoom path, and a
+    /// true reset needs both because pinch magnification stacks on CSS zoom.
+    case resetMagnification
+    /// Open a compose box on the current selection (the toolbar "Comment"
+    /// button and menu equivalents). The JS reveals the column itself.
+    case addCommentFromSelection
+    /// Acknowledge a comment submission to the page: close the compose box
+    /// on success, or re-enable it (text intact) on failure. On failure,
+    /// `reason` is the short note shown inside the box (its inline red line)
+    /// — carrying *why* the save failed, so the box says the same thing the
+    /// alert does instead of always guessing "text changed".
+    case resolveCompose(success: Bool, reason: String?)
+    /// Scroll to a heading (sidebar click). Mode-dependent: Down mode
+    /// scrolls to the heading's source line, Up mode to its slug ID.
+    case scrollToHeading(OutlineHeading)
+    /// Scroll to the first visible change of a sidebar group and flash it.
+    case scrollToChanges([String])
 }
 
 /// A DOM-derived anchor for placing a comment's `💬` marker live, without a
@@ -25,38 +44,16 @@ struct CommentLocator: Equatable {
     let occurrence: Int
 }
 
-/// The native acknowledgement of a comment submission, delivered back to the
-/// page so the compose box knows whether to close (`success`) or stay open with
-/// its text for another try (failure). A one-shot trigger: the `id` makes each
-/// resolution distinct so `WebView` fires it exactly once.
-struct ComposeResolution: Equatable {
-    let id: UUID
-    let success: Bool
-    /// On failure, the short note to show inside the compose box (its inline red
-    /// line). Nil on success, where the box just closes. Carries *why* the save
-    /// failed — the text moved vs the file couldn't be written — so the box says
-    /// the same thing the alert does instead of always guessing "text changed".
-    var reason: String? = nil
-}
-
 // MARK: - Document State
 
 class DocumentState: ObservableObject {
     @Published var mode: Mode = .up
-    @Published var printID: UUID?
     @Published var openInBrowserID: UUID?
     @Published var openInEditorRequest: EditorLaunchRequest?
-    @Published var reloadID: UUID?
-    /// One-shot trigger for "Actual Size": resets the native pinch magnification
-    /// in the webview (the CSS zoom is reset via the per-mode zoom level).
-    @Published var actualSizeID: UUID?
-    /// One-shot trigger for the toolbar "Comment" button: opens a compose box on
-    /// the current selection (`Mud.comments.addFromSelection`).
-    @Published var addCommentID: UUID?
-    /// One-shot ack of a comment submission, pushed to the page so the compose
-    /// box closes on success or stays open (text intact) on failure. Set by
-    /// `DocumentContentView.handleCommentSubmit`; fired by `WebView`.
-    @Published var composeResolution: ComposeResolution?
+    /// The command channel to this window's web page. Senders (menu and
+    /// toolbar actions, sidebar clicks, the comment write path) fire and
+    /// forget; the WebView coordinator subscribes and runs the JS.
+    let webCommands = PassthroughSubject<WebCommand, Never>()
     /// Whether the rendered (Up-mode) view currently holds a commentable
     /// selection. Pushed from the page over the `mudSelection` bridge and read by
     /// the window controller to enable the toolbar "Comment" button. A plain
@@ -74,8 +71,6 @@ class DocumentState: ObservableObject {
     /// `isComposingComment` so the focus trap leaves the textarea alone.
     @Published var isColumnComposing: Bool = false
     @Published var outlineHeadings: [OutlineHeading] = []
-    @Published var scrollTarget: ScrollTarget?
-    @Published var changeScrollTarget: ChangeScrollTarget?
     @Published var contentTitle: String?
     weak var windowController: DocumentWindowController?
     let find = FindState()

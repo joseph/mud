@@ -80,13 +80,7 @@ struct DocumentContentView: View {
             zoomLevel: renderOptions.zoomLevel,
             commentColumnWidth: appState.commentColumnWidth,
             searchQuery: findState.currentQuery,
-            scrollTarget: state.scrollTarget,
-            changeScrollTarget: state.changeScrollTarget,
-            reloadID: state.reloadID,
-            printID: state.printID,
-            actualSizeID: state.actualSizeID,
-            addCommentID: state.addCommentID,
-            composeResolution: state.composeResolution,
+            commands: state.webCommands,
             externalChangeHeld: model.externalChangeHeld,
             extensions: appState.enabledExtensions,
             footnoteHTML: display.footnoteHTML,
@@ -121,8 +115,7 @@ struct DocumentContentView: View {
             changeTracker: changeTracker,
             commentsColumnVisible: state.commentsColumnVisible,
             onSelectChange: { changeIDs in
-                state.changeScrollTarget = ChangeScrollTarget(
-                    id: UUID(), changeIDs: changeIDs)
+                state.webCommands.send(.scrollToChanges(changeIDs))
             }
         )
         .frame(minWidth: 500, minHeight: 400)
@@ -169,9 +162,6 @@ struct DocumentContentView: View {
         }
         .onDisappear {
             model.stopWatching()
-        }
-        .onChange(of: state.reloadID) { _, id in
-            if id != nil { model.load() }
         }
         .onChange(of: state.openInBrowserID) { _, id in
             if id != nil { openInBrowser() }
@@ -300,19 +290,18 @@ struct DocumentContentView: View {
             + "Check that the file is writable and not locked."
     }
 
-    /// Pushes the submit outcome to the page. A fresh `id` makes `WebView` fire it
-    /// once, so the compose box closes (success) or re-enables (failure). On
-    /// failure, `reason` is the short note shown inside the box.
+    /// Pushes the submit outcome to the page, so the compose box closes
+    /// (success) or re-enables (failure). On failure, `reason` is the short
+    /// note shown inside the box.
     private func resolveCompose(_ success: Bool, reason: String? = nil) {
-        state.composeResolution = ComposeResolution(
-            id: UUID(), success: success, reason: reason)
+        state.webCommands.send(.resolveCompose(success: success, reason: reason))
     }
 
     /// Explains a comment write that couldn't be completed, keeping the user's
     /// text recoverable: the box stays open (the page re-enables it on the false
     /// resolve) and "Copy Note" puts the body on the clipboard. Deferred past the
-    /// current run loop so the `resolveCompose` render lands — and re-enables the
-    /// box — before this modal blocks the main thread.
+    /// current run loop so the `resolveCompose` JS reaches the page — and
+    /// re-enables the box — before this modal blocks the main thread.
     private func presentCommentFailure(message: String, note: String) {
         DispatchQueue.main.async {
             let alert = NSAlert()

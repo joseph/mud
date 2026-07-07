@@ -1,3 +1,4 @@
+import Combine
 import MudPreferences
 import MudCore
 import SwiftUI
@@ -147,15 +148,11 @@ struct WebView: NSViewRepresentable {
     /// (no reload). The drag handle reports changes back via `onColumnWidthChange`.
     var commentColumnWidth: Double = 300
     var searchQuery: SearchQuery?
-    var scrollTarget: ScrollTarget?
-    var changeScrollTarget: ChangeScrollTarget?
-    var reloadID: UUID?
-    var printID: UUID?
-    /// One-shot trigger to reset the native pinch magnification to 1 (fired by
-    /// "Actual Size", alongside the per-mode CSS-zoom reset).
-    var actualSizeID: UUID?
-    var addCommentID: UUID?
-    var composeResolution: ComposeResolution?
+    /// The window's command channel: one-shot page actions (print, scroll,
+    /// compose acknowledgements, …) sent by menu/toolbar/sidebar handlers.
+    /// The coordinator subscribes in `makeNSView` and runs each command as it
+    /// arrives, so `updateNSView` diffs only the declarative state below.
+    let commands: PassthroughSubject<WebCommand, Never>
     var externalChangeHeld: Bool = false
     var extensions: Set<String> = []
     var footnoteHTML: [String: String] = [:]
@@ -214,9 +211,11 @@ struct WebView: NSViewRepresentable {
         webView.navigationDelegate = context.coordinator
         // Safari-style trackpad pinch-zoom: a viewport magnification, separate
         // from and stacking on top of the CSS `zoom` the toolbar/menu drive.
-        // Transient (not persisted); "Actual Size" resets it via `actualSizeID`.
+        // Transient (not persisted); "Actual Size" resets it via the
+        // `.resetMagnification` command.
         webView.allowsMagnification = true
         context.coordinator.webView = webView
+        context.coordinator.subscribe(to: commands)
         #if DEBUG
         webView.isInspectable = true
         #endif
@@ -249,102 +248,16 @@ struct WebView: NSViewRepresentable {
         context.coordinator.commentColumnWidth = commentColumnWidth
         context.coordinator.commentTheme = theme.rawValue
 
-        // Handle search
+        // Handle search. The coordinator keeps the current query so didFinish
+        // can re-apply it to a freshly loaded page.
+        context.coordinator.currentSearchQuery = searchQuery
         if let query = searchQuery,
            context.coordinator.lastSearchID != query.id,
            !query.text.isEmpty {
-            context.coordinator.lastSearchID = query.id
-            let literal = Self.jsStringLiteral(query.text)
-            let js: String
-            switch query.origin {
-            case .top:
-                js = "Mud.findFromTop(\(literal))"
-            case .refine:
-                js = "Mud.findRefine(\(literal))"
-            case .advance:
-                let dir = query.direction == .backward ? "backward" : "forward"
-                js = "Mud.findAdvance(\(literal), '\(dir)')"
-            }
-            let callback = onSearchResult
-            webView.evaluateJavaScript(js) { result, _ in
-                let info = Self.parseMatchInfo(result)
-                DispatchQueue.main.async {
-                    callback?(info)
-                }
-            }
+            context.coordinator.runSearch(query, in: webView)
         } else if searchQuery == nil && context.coordinator.lastSearchID != nil {
             context.coordinator.lastSearchID = nil
             webView.evaluateJavaScript("Mud.findClear()")
-        }
-
-        // Handle outline scroll target
-        if let target = scrollTarget,
-           context.coordinator.lastScrollTargetID != target.id {
-            context.coordinator.lastScrollTargetID = target.id
-            let js: String
-            if mode == .down {
-                js = "Mud.scrollToLine(\(target.heading.sourceLine))"
-            } else {
-                js = "Mud.scrollToHeading(\(Self.jsStringLiteral(target.heading.id)))"
-            }
-            webView.evaluateJavaScript(js)
-        }
-
-        // Handle change scroll target
-        if let target = changeScrollTarget,
-           context.coordinator.lastChangeScrollTargetID != target.id {
-            context.coordinator.lastChangeScrollTargetID = target.id
-            let idsJSON = "[" + target.changeIDs
-                .map { Self.jsStringLiteral($0) }
-                .joined(separator: ",") + "]"
-            webView.evaluateJavaScript("Mud.scrollToChange(\(idsJSON))")
-        }
-
-        // Handle print via WKWebView.printOperation(with:)
-        if let printID = printID,
-           context.coordinator.lastPrintID != printID {
-            context.coordinator.lastPrintID = printID
-            let printOp = webView.printOperation(with: .shared)
-            printOp.view?.frame = webView.bounds
-            if let window = webView.window {
-                printOp.runModal(
-                    for: window,
-                    delegate: nil,
-                    didRun: nil,
-                    contextInfo: nil
-                )
-            }
-        }
-
-        // Reset the native pinch magnification on "Actual Size" (the per-mode CSS
-        // zoom is reset separately via the zoomLevel path). Pinch magnification
-        // stacks on top of CSS zoom, so a true reset clears both.
-        if let actualSizeID = actualSizeID,
-           context.coordinator.lastActualSizeID != actualSizeID {
-            context.coordinator.lastActualSizeID = actualSizeID
-            webView.setMagnification(1, centeredAt: .zero)
-        }
-
-        // Handle the toolbar "Comment" action: open a compose box on the current
-        // selection. The JS reveals the column itself (native has persisted the
-        // toggle), so this works even when the column was hidden.
-        if let addCommentID = addCommentID,
-           context.coordinator.lastAddCommentID != addCommentID {
-            context.coordinator.lastAddCommentID = addCommentID
-            webView.evaluateJavaScript(
-                "window.Mud && Mud.comments && Mud.comments.addFromSelection"
-                + " && Mud.comments.addFromSelection()")
-        }
-
-        // Acknowledge a comment submission to the page: close the compose box on
-        // success, or re-enable it (text intact) on failure.
-        if let resolution = composeResolution,
-           context.coordinator.lastComposeResolutionID != resolution.id {
-            context.coordinator.lastComposeResolutionID = resolution.id
-            let reasonJS = resolution.reason.map { Self.jsStringLiteral($0) } ?? "null"
-            webView.evaluateJavaScript(
-                "window.Mud && Mud.comments && Mud.comments.resolveCompose"
-                + " && Mud.comments.resolveCompose(\(resolution.success), \(reasonJS))")
         }
 
         // Toggle the "file changed on disk" banner (a held external change during
@@ -357,12 +270,13 @@ struct WebView: NSViewRepresentable {
                 + " && Mud.comments.setHoldBanner(\(externalChangeHeld))")
         }
 
-        // Reload content if contentID, mode, or reloadID changed
+        // Reload content if the contentID or mode changed. (A forced reload —
+        // Cmd+R with unchanged text — arrives as a new contentID: the model
+        // appends its load token to it.)
         let modeChanged = context.coordinator.lastMode != mode
         let contentChanged = context.coordinator.lastContentID != contentID
-        let reloadForced = reloadID != nil && context.coordinator.lastReloadID != reloadID
 
-        if !modeChanged && !contentChanged && !reloadForced {
+        if !modeChanged && !contentChanged {
             // Only theme/zoom/classes/width changed — apply without reload.
             context.coordinator.applyTheme(to: webView, theme: theme)
             context.coordinator.applyBodyClasses(to: webView, classes: bodyClasses)
@@ -386,7 +300,6 @@ struct WebView: NSViewRepresentable {
         context.coordinator.saveScrollPosition(from: webView)
         context.coordinator.lastContentID = contentID
         context.coordinator.lastMode = mode
-        context.coordinator.lastReloadID = reloadID
         context.coordinator.activeExtensions = extensions.compactMap {
                 RenderExtension.registry[$0]
             }
@@ -411,13 +324,10 @@ struct WebView: NSViewRepresentable {
         var lastContentID: String?
         var lastMode: Mode?
         var lastSearchID: UUID?
-        var lastScrollTargetID: UUID?
-        var lastChangeScrollTargetID: UUID?
-        var lastPrintID: UUID?
-        var lastReloadID: UUID?
-        var lastActualSizeID: UUID?
-        var lastAddCommentID: UUID?
-        var lastComposeResolutionID: UUID?
+        /// The active find query, mirrored from `updateNSView` so `didFinish`
+        /// can re-apply it to a freshly loaded page (a reload discards the
+        /// DOM highlights).
+        var currentSearchQuery: SearchQuery?
         var lastExternalChangeHeld: Bool?
         var activeExtensions: [RenderExtension] = []
         var onSearchResult: ((MatchInfo?) -> Void)?
@@ -441,9 +351,90 @@ struct WebView: NSViewRepresentable {
         private var savedFraction: CGFloat?
         private let baseURL: URL?
         private lazy var footnotePopover = FootnotePopoverController()
+        private var commandSubscription: AnyCancellable?
 
         init(baseURL: URL?) {
             self.baseURL = baseURL
+        }
+
+        // MARK: Command channel
+
+        func subscribe(to commands: PassthroughSubject<WebCommand, Never>) {
+            commandSubscription = commands
+                .sink { [weak self] command in self?.handle(command) }
+        }
+
+        /// Runs a one-shot page command. Commands arrive from menu, toolbar,
+        /// and sidebar handlers — outside SwiftUI's update pass, so the print
+        /// modal's nested run loop can't stall a view update.
+        private func handle(_ command: WebCommand) {
+            guard let webView else { return }
+            switch command {
+            case .print:
+                let printOp = webView.printOperation(with: .shared)
+                printOp.view?.frame = webView.bounds
+                if let window = webView.window {
+                    printOp.runModal(
+                        for: window,
+                        delegate: nil,
+                        didRun: nil,
+                        contextInfo: nil
+                    )
+                }
+            case .resetMagnification:
+                // The per-mode CSS zoom is reset separately via the zoomLevel
+                // path; pinch magnification stacks on top of it, so a true
+                // reset clears both.
+                webView.setMagnification(1, centeredAt: .zero)
+            case .addCommentFromSelection:
+                // The JS reveals the column itself (native has persisted the
+                // toggle), so this works even when the column was hidden.
+                webView.evaluateJavaScript(
+                    "window.Mud && Mud.comments && Mud.comments.addFromSelection"
+                    + " && Mud.comments.addFromSelection()")
+            case .resolveCompose(let success, let reason):
+                let reasonJS = reason.map { WebView.jsStringLiteral($0) } ?? "null"
+                webView.evaluateJavaScript(
+                    "window.Mud && Mud.comments && Mud.comments.resolveCompose"
+                    + " && Mud.comments.resolveCompose(\(success), \(reasonJS))")
+            case .scrollToHeading(let heading):
+                // Keyed off the loaded page's mode (`lastMode`), which is what
+                // the scroll JS must match.
+                let js = lastMode == .down
+                    ? "Mud.scrollToLine(\(heading.sourceLine))"
+                    : "Mud.scrollToHeading(\(WebView.jsStringLiteral(heading.id)))"
+                webView.evaluateJavaScript(js)
+            case .scrollToChanges(let ids):
+                let idsJSON = "[" + ids
+                    .map { WebView.jsStringLiteral($0) }
+                    .joined(separator: ",") + "]"
+                webView.evaluateJavaScript("Mud.scrollToChange(\(idsJSON))")
+            }
+        }
+
+        /// Runs a find query in the page and reports the match counts back.
+        /// All three origins rebuild highlights when the page has none
+        /// (a fresh load), so this doubles as the after-reload re-apply.
+        func runSearch(_ query: SearchQuery, in webView: WKWebView) {
+            lastSearchID = query.id
+            let literal = WebView.jsStringLiteral(query.text)
+            let js: String
+            switch query.origin {
+            case .top:
+                js = "Mud.findFromTop(\(literal))"
+            case .refine:
+                js = "Mud.findRefine(\(literal))"
+            case .advance:
+                let dir = query.direction == .backward ? "backward" : "forward"
+                js = "Mud.findAdvance(\(literal), '\(dir)')"
+            }
+            let callback = onSearchResult
+            webView.evaluateJavaScript(js) { result, _ in
+                let info = WebView.parseMatchInfo(result)
+                DispatchQueue.main.async {
+                    callback?(info)
+                }
+            }
         }
 
         func saveScrollPosition(from webView: WKWebView) {
@@ -495,7 +486,16 @@ struct WebView: NSViewRepresentable {
         }
 
         func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            lastSearchID = nil
+            // A fresh page has no find highlights: re-run the active query
+            // here, deterministically, so matches and the match counter
+            // survive a reload. (Nil-ing `lastSearchID` and letting the next
+            // `updateNSView` re-apply is not enough — after an external-edit
+            // reload no further SwiftUI update may come.)
+            if let query = currentSearchQuery, !query.text.isEmpty {
+                runSearch(query, in: webView)
+            } else {
+                lastSearchID = nil
+            }
             restoreScrollPosition(to: webView)
             applyComments(to: webView)
             applyCommentColumnWidth(to: webView, width: commentColumnWidth)

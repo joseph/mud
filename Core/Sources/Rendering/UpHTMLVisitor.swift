@@ -32,19 +32,19 @@ struct UpHTMLVisitor: MarkupWalker {
 
     /// When non-nil, change attributes are emitted on native elements
     /// for blocks that differ from the waypoint document.
-    var diffContext: DiffContext?
+    var diffContext: DiffContext? {
+        didSet {
+            deletionPlacer = diffContext.map { DeletionPlacer(diffContext: $0) }
+        }
+    }
+
+    /// Renders deletions into the output stream and owns their
+    /// exactly-once bookkeeping. Created alongside `diffContext`.
+    private var deletionPlacer: DeletionPlacer?
 
     /// When false, non-consuming `<del>` spans in paired insertion
     /// blocks are silently skipped instead of emitted inline.
     var showInlineDeletions = false
-
-    /// Change IDs already emitted by peek-ahead in `visitListItem`,
-    /// preventing double emission in `emitPrecedingDeletions`.
-    private var consumedDeletionIDs: Set<String> = []
-
-    /// Non-`<tr>` deletions encountered inside a table body, deferred
-    /// until after `</table>` to avoid invalid HTML.
-    private var deferredDeletions: [RenderedDeletion] = []
 
     // MARK: - Block containers
 
@@ -100,14 +100,9 @@ struct UpHTMLVisitor: MarkupWalker {
         // first child (e.g. a Paragraph inside a complex item with a
         // nested list), emit it here — before the <li> — so it
         // becomes a valid sibling rather than nesting inside this item.
-        if let diffContext,
+        if deletionPlacer != nil,
            let firstChild = listItem.children.first(where: { _ in true }) {
-            for del in diffContext.precedingDeletions(before: firstChild) {
-                if del.tag == "li" {
-                    emitDeletion(del)
-                    consumedDeletionIDs.insert(del.changeID)
-                }
-            }
+            result += deletionPlacer!.listItemHTML(before: firstChild)
         }
         let attrs = changeAttributes(for: listItem)
         if inTightList {
@@ -144,7 +139,7 @@ struct UpHTMLVisitor: MarkupWalker {
         activateWordSpans(for: paragraph)
         // List items store their annotation on the ListItem node,
         // not the inner Paragraph. Fall back to the parent.
-        if wordSpans == nil, let listItem = paragraph.parent as? ListItem {
+        if spanEmitter == nil, let listItem = paragraph.parent as? ListItem {
             activateWordSpans(for: listItem)
         }
         if inTightList && paragraph.parent is ListItem {
@@ -294,31 +289,10 @@ struct UpHTMLVisitor: MarkupWalker {
         tableColumnAlignments = table.columnAlignments
 
         // Emit preceding deletions BEFORE opening <table> so they don't
-        // become invalid children of the table element.  <tr> deletions
-        // (from a fully-replaced table) are wrapped in their own table;
-        // other block-level deletions are emitted directly.
-        if let diffContext,
+        // become invalid children of the table element.
+        if deletionPlacer != nil,
            let head = table.children.first(where: { $0 is Table.Head }) {
-            let deletions = diffContext.precedingDeletions(before: head)
-            if !deletions.isEmpty {
-                var trDeletions: [RenderedDeletion] = []
-                for del in deletions {
-                    if del.tag == "tr" {
-                        trDeletions.append(del)
-                    } else {
-                        emitDeletion(del)
-                        consumedDeletionIDs.insert(del.changeID)
-                    }
-                }
-                if !trDeletions.isEmpty {
-                    result += "<table>\n<tbody>\n"
-                    for del in trDeletions {
-                        emitDeletion(del)
-                        consumedDeletionIDs.insert(del.changeID)
-                    }
-                    result += "</tbody>\n</table>\n"
-                }
-            }
+            result += deletionPlacer!.hoistedHTML(beforeHead: head)
         }
 
         result += "<table>\n"
@@ -327,12 +301,10 @@ struct UpHTMLVisitor: MarkupWalker {
         tableColumnAlignments = []
 
         // Emit non-<tr> deletions that were deferred from inside
-        // the table body (e.g. a paragraph deleted after a table
-        // whose deletion is attached to the last body row).
-        for del in deferredDeletions {
-            emitDeletion(del)
+        // the table body.
+        if deletionPlacer != nil {
+            result += deletionPlacer!.deferredHTML()
         }
-        deferredDeletions.removeAll()
     }
 
     mutating func visitTableHead(_ tableHead: Table.Head) {
@@ -428,9 +400,9 @@ struct UpHTMLVisitor: MarkupWalker {
     // MARK: - Inline leaves
 
     mutating func visitText(_ text: Text) {
-        if wordSpans != nil {
-            advanceWordSpans(charCount: text.string.count, emit: true)
-            closeInlineTag()
+        if spanEmitter != nil {
+            result += spanEmitter!.advance(by: text.string.count, emit: true)
+            result += spanEmitter!.closeOpenTag()
         } else {
             result += HTMLEscaping.escape(
                 EmojiShortcodes.replaceShortcodes(in: text.string)
@@ -439,11 +411,12 @@ struct UpHTMLVisitor: MarkupWalker {
     }
 
     mutating func visitInlineCode(_ inlineCode: InlineCode) {
-        if wordSpans != nil { closeInlineTag() }
+        if spanEmitter != nil { result += spanEmitter!.closeOpenTag() }
         result += "<code>"
-        if wordSpans != nil {
-            advanceWordSpans(charCount: inlineCode.code.count, emit: true)
-            closeInlineTag()
+        if spanEmitter != nil {
+            result += spanEmitter!.advance(
+                by: inlineCode.code.count, emit: true)
+            result += spanEmitter!.closeOpenTag()
         } else {
             result += HTMLEscaping.escape(inlineCode.code)
         }
@@ -455,17 +428,17 @@ struct UpHTMLVisitor: MarkupWalker {
     }
 
     mutating func visitLineBreak(_ lineBreak: LineBreak) {
-        if wordSpans != nil {
-            advanceWordSpans(charCount: 1, emit: false)
-            closeInlineTag()
+        if spanEmitter != nil {
+            result += spanEmitter!.advance(by: 1, emit: false)
+            result += spanEmitter!.closeOpenTag()
         }
         result += "<br />\n"
     }
 
     mutating func visitSoftBreak(_ softBreak: SoftBreak) {
-        if wordSpans != nil {
-            advanceWordSpans(charCount: 1, emit: false)
-            closeInlineTag()
+        if spanEmitter != nil {
+            result += spanEmitter!.advance(by: 1, emit: false)
+            result += spanEmitter!.closeOpenTag()
         }
         result += "\n"
     }
@@ -491,7 +464,9 @@ struct UpHTMLVisitor: MarkupWalker {
         guard let diffContext else { return nil }
 
         // Emit preceding deletions as native elements.
-        emitPrecedingDeletions(before: node)
+        if let placer = deletionPlacer {
+            result += placer.precedingHTML(before: node)
+        }
 
         guard let annotation = diffContext.annotation(for: node),
               let changeID = diffContext.changeID(for: node) else {
@@ -511,87 +486,20 @@ struct UpHTMLVisitor: MarkupWalker {
         return ChangeAttrs(classes: "mud-change-ins", dataAttrs: dataAttrs)
     }
 
-    /// Emits preceding deletions as native HTML elements.
-    private mutating func emitPrecedingDeletions(before node: Markup) {
-        guard let diffContext else { return }
-        let deletions = diffContext.precedingDeletions(before: node)
-            .filter { !consumedDeletionIDs.contains($0.changeID) }
-        emitDeletionsWrappingTableRows(deletions)
-    }
-
     /// Emits trailing deletions (after the last surviving block).
     mutating func emitTrailingDeletions() {
-        guard let diffContext else { return }
-        let deletions = diffContext.trailingDeletions()
-            .filter { !consumedDeletionIDs.contains($0.changeID) }
-        emitDeletionsWrappingTableRows(deletions)
-    }
-
-    /// Emits a list of deletions, wrapping any `<tr>` deletions in
-    /// `<table><tbody>…</tbody></table>` so they produce valid HTML
-    /// even when emitted outside a table context.
-    private mutating func emitDeletionsWrappingTableRows(
-        _ deletions: [RenderedDeletion]
-    ) {
-        var pendingTRs: [RenderedDeletion] = []
-        for del in deletions {
-            if del.tag == "tr" {
-                pendingTRs.append(del)
-            } else {
-                flushPendingTRs(&pendingTRs)
-                emitDeletion(del)
-            }
-        }
-        flushPendingTRs(&pendingTRs)
-    }
-
-    /// Flushes accumulated `<tr>` deletions wrapped in a table.
-    private mutating func flushPendingTRs(
-        _ pending: inout [RenderedDeletion]
-    ) {
-        guard !pending.isEmpty else { return }
-        result += "<table>\n<tbody>\n"
-        for del in pending {
-            emitDeletion(del)
-        }
-        result += "</tbody>\n</table>\n"
-        pending.removeAll()
-    }
-
-    /// Emits a single deletion as a native HTML element with change
-    /// attributes.
-    private mutating func emitDeletion(_ del: RenderedDeletion) {
-        let info = diffContext?.groupInfo(for: del.changeID)
-        var classes = "mud-change-del"
-        if let extra = del.extraClasses {
-            classes = "\(extra) \(classes)"
-        }
-        var attrs = " class=\"\(classes)\" data-change-id=\"\(del.changeID)\""
-        if let info {
-            attrs += " data-group-id=\"\(info.groupID)\""
-            attrs += " data-group-type=\"\(info.type.rawValue)\""
-            if info.groupPos == .first || info.groupPos == .sole {
-                attrs += " data-group-index=\"\(info.groupIndex)\""
-            }
-        }
-        if del.tag == "hr" {
-            result += "<hr\(attrs) />\n"
-        } else {
-            result += "<\(del.tag)\(attrs)>\(del.html)</\(del.tag)>\n"
-        }
+        guard let placer = deletionPlacer else { return }
+        result += placer.trailingHTML()
     }
 
     /// Walks the table body's rows, emitting preceding deleted rows
-    /// as `<tr>` siblings inside `<tbody>`.  Non-`<tr>` deletions
-    /// (e.g. a paragraph that followed the old table) are deferred
-    /// to `deferredDeletions` so they emit after `</table>`.
+    /// as `<tr>` siblings inside `<tbody>`. Non-`<tr>` deletions are
+    /// deferred by the placer so they emit after `</table>`.
     ///
     /// After all surviving rows, reclaims any `<tr>` deletions that
-    /// follow the last row (these would otherwise be emitted outside
-    /// the table as preceding deletions of the next block, or as
-    /// trailing deletions).
+    /// follow the last row.
     private mutating func emitTableBodyDeletions(in tableBody: Table.Body) {
-        guard let diffContext else {
+        guard deletionPlacer != nil else {
             descendInto(tableBody)
             return
         }
@@ -601,26 +509,14 @@ struct UpHTMLVisitor: MarkupWalker {
                 visit(child)
                 continue
             }
-            for del in diffContext.precedingDeletions(before: row) {
-                if del.tag == "tr" {
-                    emitDeletion(del)
-                } else {
-                    deferredDeletions.append(del)
-                }
-                consumedDeletionIDs.insert(del.changeID)
-            }
+            result += deletionPlacer!.rowHTML(before: row)
             visitTableRow(row)
             lastRow = row
         }
 
         // Reclaim <tr> deletions that follow the last surviving row.
         if let lastRow {
-            for del in diffContext.followingDeletions(after: lastRow) {
-                if del.tag == "tr" {
-                    emitDeletion(del)
-                    consumedDeletionIDs.insert(del.changeID)
-                }
-            }
+            result += deletionPlacer!.reclaimedRowHTML(after: lastRow)
         }
     }
 
@@ -769,44 +665,11 @@ struct UpHTMLVisitor: MarkupWalker {
 
     // MARK: - Word-level diff rendering
 
-    /// Role determines how word spans are emitted.
-    enum WordSpanRole {
-        /// Blue block (paired insertion): unchanged as-is, inserted in
-        /// `<ins>`, deleted in `<del>`.
-        case insertion
-        /// Red block (paired deletion): unchanged as-is, deleted in
-        /// `<del>`, inserted spans are skipped.
-        case deletion
-    }
-
-    /// Active word spans for the current block, or `nil`.
-    private var wordSpans: [WordSpan]?
-    private var wordSpanCursor = 0
-    private var wordSpanRole: WordSpanRole = .insertion
-
-    /// Currently open inline tag (`<del>` or `<ins>`). Consecutive
-    /// spans of the same type share a single tag, producing cleaner
-    /// HTML (e.g., `<del>quick brown</del>` instead of
-    /// `<del>quick</del><del> </del><del>brown</del>`).
-    private var openInlineTag: InlineTag?
-
-    private enum InlineTag {
-        case del, ins
-
-        var open: String {
-            switch self {
-            case .del: return "<del>"
-            case .ins: return "<ins>"
-            }
-        }
-
-        var close: String {
-            switch self {
-            case .del: return "</del>"
-            case .ins: return "</ins>"
-            }
-        }
-    }
+    /// Active word-span emitter for the current block, or `nil`. The
+    /// visitor owns block structure (which nodes have spans, when a
+    /// block starts and ends); the cursor machine lives in
+    /// `WordSpanEmitter`.
+    private var spanEmitter: WordSpanEmitter?
 
     /// Activates word spans for a DocC aside's inner paragraph,
     /// advancing the cursor past the tag prefix that the Aside parser
@@ -817,7 +680,7 @@ struct UpHTMLVisitor: MarkupWalker {
     ) {
         guard let para = paragraph else { return }
         activateWordSpans(for: para)
-        guard wordSpans != nil else { return }
+        guard spanEmitter != nil else { return }
         skipAlertPrefix(originalParagraph: para, content: content)
     }
 
@@ -835,160 +698,24 @@ struct UpHTMLVisitor: MarkupWalker {
         }
         let prefixLen = fullLen - contentLen
         if prefixLen > 0 {
-            advancePrefixSpans(charCount: prefixLen)
-        }
-    }
-
-    /// Advances the cursor past `charCount` consuming characters
-    /// without emitting anything. Non-consuming spans within the
-    /// prefix are silently skipped. Used to skip the tag prefix in
-    /// aside rendering so non-consuming spans (deleted/inserted
-    /// words) don't appear before the alert title.
-    private mutating func advancePrefixSpans(charCount: Int) {
-        guard wordSpans != nil else { return }
-        var remaining = charCount
-        while wordSpanCursor < wordSpans!.count && remaining > 0 {
-            let span = wordSpans![wordSpanCursor]
-
-            // Non-consuming spans in the prefix: skip silently.
-            switch (span, wordSpanRole) {
-            case (.deleted, .insertion), (.inserted, .deletion):
-                wordSpanCursor += 1
-                continue
-            default:
-                break
-            }
-
-            let text = span.text
-            if text.count <= remaining {
-                wordSpanCursor += 1
-                remaining -= text.count
-            } else {
-                wordSpans![wordSpanCursor] = span.withText(
-                    String(text.dropFirst(remaining)))
-                remaining = 0
-            }
+            spanEmitter?.skipPrefix(charCount: prefixLen)
         }
     }
 
     /// Activates word-span rendering if the block has word spans.
     private mutating func activateWordSpans(for node: Markup) {
         if let spans = diffContext?.wordSpans(for: node), !spans.isEmpty {
-            wordSpans = spans
-            wordSpanCursor = 0
-            wordSpanRole = .insertion
+            spanEmitter = WordSpanEmitter(
+                spans: spans, role: .insertion,
+                showInlineDeletions: showInlineDeletions)
         }
     }
 
-    /// Flushes trailing non-consuming spans and clears word-span state.
+    /// Flushes trailing non-consuming spans and clears the emitter.
     private mutating func deactivateWordSpans() {
-        guard wordSpans != nil else { return }
-        flushNonConsumingWordSpans()
-        closeInlineTag()
-        wordSpans = nil
-    }
-
-    /// Advances the word span cursor by `charCount` characters.
-    ///
-    /// When `emit` is true (used by `visitText` and `visitInlineCode`),
-    /// consuming spans are rendered to the output. When false (used by
-    /// `visitSoftBreak` and `visitLineBreak`), characters are consumed
-    /// silently — the break's own HTML handles the visual whitespace.
-    ///
-    /// Non-consuming spans (deleted in blue mode, inserted in red mode)
-    /// are always handled eagerly: emitted or skipped.
-    /// If a consuming span is larger than the remaining character count,
-    /// it is split and the remainder stays at the cursor.
-    private mutating func advanceWordSpans(
-        charCount: Int, emit: Bool
-    ) {
-        guard wordSpans != nil else { return }
-        var remaining = charCount
-
-        while wordSpanCursor < wordSpans!.count {
-            let span = wordSpans![wordSpanCursor]
-
-            // Non-consuming: deleted in blue, inserted in red.
-            switch (span, wordSpanRole) {
-            case (.deleted(let text), .insertion):
-                if showInlineDeletions {
-                    setInlineTag(.del)
-                    result += escapeSpanText(text)
-                }
-                wordSpanCursor += 1
-                continue
-            case (.inserted, .deletion):
-                wordSpanCursor += 1
-                continue
-            default:
-                break
-            }
-
-            guard remaining > 0 else { return }
-
-            let text = span.text
-            if text.count <= remaining {
-                if emit { emitSpan(span) }
-                wordSpanCursor += 1
-                remaining -= text.count
-            } else {
-                let consumed = String(text.prefix(remaining))
-                let rest = String(text.dropFirst(remaining))
-                if emit { emitSpan(span.withText(consumed)) }
-                wordSpans![wordSpanCursor] = span.withText(rest)
-                return
-            }
-        }
-    }
-
-    /// Emits any remaining non-consuming spans after the last text node.
-    private mutating func flushNonConsumingWordSpans() {
-        guard let spans = wordSpans else { return }
-        while wordSpanCursor < spans.count {
-            switch (spans[wordSpanCursor], wordSpanRole) {
-            case (.deleted(let text), .insertion):
-                if showInlineDeletions {
-                    setInlineTag(.del)
-                    result += escapeSpanText(text)
-                }
-                wordSpanCursor += 1
-            case (.inserted, .deletion):
-                wordSpanCursor += 1
-            default:
-                return
-            }
-        }
-    }
-
-    /// Sets the currently open inline tag, closing the previous one
-    /// if needed. Consecutive same-type spans share a single tag.
-    private mutating func setInlineTag(_ tag: InlineTag?) {
-        guard tag != openInlineTag else { return }
-        closeInlineTag()
-        if let tag {
-            result += tag.open
-            openInlineTag = tag
-        }
-    }
-
-    private mutating func closeInlineTag() {
-        if let tag = openInlineTag {
-            result += tag.close
-            openInlineTag = nil
-        }
-    }
-
-    private mutating func emitSpan(_ span: WordSpan) {
-        switch span {
-        case .unchanged: setInlineTag(nil)
-        case .inserted:  setInlineTag(.ins)
-        case .deleted:   setInlineTag(.del)
-        }
-        result += escapeSpanText(span.text)
-    }
-
-    private func escapeSpanText(_ text: String) -> String {
-        HTMLEscaping.escape(EmojiShortcodes.replaceShortcodes(in: text))
+        guard spanEmitter != nil else { return }
+        result += spanEmitter!.finish()
+        spanEmitter = nil
     }
 
     /// Renders the inner HTML of a blockquote alert for deletion
@@ -1014,9 +741,9 @@ struct UpHTMLVisitor: MarkupWalker {
             if let spans = wordSpans, !spans.isEmpty,
                let para = blockQuote.children
                    .first(where: { $0 is Paragraph }) {
-                visitor.wordSpans = spans
-                visitor.wordSpanCursor = 0
-                visitor.wordSpanRole = .deletion
+                visitor.spanEmitter = WordSpanEmitter(
+                    spans: spans, role: .deletion,
+                    showInlineDeletions: false)
                 visitor.skipAlertPrefix(
                     originalParagraph: para, content: content)
             }
@@ -1033,12 +760,11 @@ struct UpHTMLVisitor: MarkupWalker {
     /// Used by `DiffContext` to render deletion HTML with word-level
     /// `<del>` markers for the red block.
     static func renderWithWordSpans(
-        _ markup: Markup, spans: [WordSpan], role: WordSpanRole
+        _ markup: Markup, spans: [WordSpan], role: WordSpanEmitter.Role
     ) -> String {
         var visitor = UpHTMLVisitor()
-        visitor.wordSpans = spans
-        visitor.wordSpanCursor = 0
-        visitor.wordSpanRole = role
+        visitor.spanEmitter = WordSpanEmitter(
+            spans: spans, role: role, showInlineDeletions: false)
         for child in markup.children { visitor.visit(child) }
         visitor.deactivateWordSpans()
         return visitor.result

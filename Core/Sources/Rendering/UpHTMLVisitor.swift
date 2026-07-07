@@ -1083,3 +1083,36 @@ struct UpHTMLVisitor: MarkupWalker {
         return false
     }
 }
+
+// MARK: - Body rendering entry point
+
+extension UpHTMLVisitor {
+    /// The visitor + frontmatter-prefix core shared by Up-mode body rendering,
+    /// footnote-body rendering, and comment-body rendering. Configures a
+    /// visitor from `options` (including the diff context when a waypoint is
+    /// set), walks the document, and prefixes the rendered frontmatter block
+    /// when the source has frontmatter.
+    static func renderBody(
+        _ parsed: ParsedMarkdown,
+        options: RenderOptions,
+        resolveImageSource: ((_ source: String, _ baseURL: URL) -> String?)? = nil
+    ) -> String {
+        var upVisitor = UpHTMLVisitor()
+        upVisitor.baseURL = options.baseURL
+        upVisitor.resolveImageSource = resolveImageSource
+        upVisitor.alertDetector.docCAlertMode = options.docCAlertMode
+        upVisitor.showInlineDeletions = options.showInlineDeletions
+        if let waypoint = options.waypoint {
+            upVisitor.diffContext = DiffContext(
+                old: waypoint, new: parsed,
+                wordDiffThreshold: options.wordDiffThreshold)
+        }
+        upVisitor.visit(parsed.document)
+        upVisitor.emitTrailingDeletions()
+
+        if let yaml = parsed.frontMatter {
+            return FrontMatterHTMLRenderer.upModeHTML(yaml) + upVisitor.result
+        }
+        return upVisitor.result
+    }
+}

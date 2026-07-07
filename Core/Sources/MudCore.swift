@@ -46,7 +46,9 @@ public enum MudCore {
     /// This overload is footnote-unaware: it renders whatever AST it is given.
     /// Footnote preprocessing happens at the String boundary (sourcepos needs
     /// raw bytes) — see ``renderUpModeDocumentWithFootnotes(_:options:resolveImageSource:)``.
-    public static func renderUpToHTML(
+    /// Internal because nothing in the types distinguishes a raw parse from a
+    /// processed one; the String overloads are the public entry points.
+    static func renderUpToHTML(
         _ parsed: ParsedMarkdown,
         options: RenderOptions = .init(),
         resolveImageSource: ((_ source: String, _ baseURL: URL) -> String?)? = nil
@@ -96,8 +98,10 @@ public enum MudCore {
 
     /// Renders a parsed Markdown document to a complete HTML document
     /// with styles. When `options.title` is empty, the title is
-    /// auto-extracted from the first heading.
-    public static func renderUpModeDocument(
+    /// auto-extracted from the first heading. Internal for the same reason as
+    /// the `ParsedMarkdown` overload of `renderUpToHTML` above: it skips
+    /// footnote preprocessing, so it must not be a public entry point.
+    static func renderUpModeDocument(
         _ parsed: ParsedMarkdown,
         options: RenderOptions = .init(),
         resolveImageSource: ((_ source: String, _ baseURL: URL) -> String?)? = nil
@@ -152,14 +156,30 @@ public enum MudCore {
 
     // MARK: - String convenience API
 
-    /// Renders Markdown text to HTML body content, including footnote
-    /// preprocessing and the bottom footnotes section (if any).
-    public static func renderUpToHTML(
-        _ markdown: String,
-        options: RenderOptions = .init(),
+    /// Everything one Up-mode render of a Markdown source produces: the HTML
+    /// body (with the bottom footnotes and comments sections appended), the
+    /// processed footnotes and comments, the parsed document, and the options
+    /// after waypoint reprocessing. Both public Up-mode entry points project
+    /// from one of these.
+    struct UpRenderPipeline {
+        let body: String
+        let footnotes: [FootnoteEntry]
+        let comments: [Comment]
+        let parsed: ParsedMarkdown
+        let options: RenderOptions
+    }
+
+    /// The single Up-mode orchestration: footnote/comment preprocessing at the
+    /// String boundary, waypoint reprocessing, parse, body render, and the
+    /// bottom footnotes and comments sections. Every public Up-mode String
+    /// entry point runs this once and projects what it needs, so a pipeline
+    /// change is made in one place.
+    static func renderUpPipeline(
+        _ source: String,
+        options: RenderOptions,
         resolveImageSource: ((_ source: String, _ baseURL: URL) -> String?)? = nil
-    ) -> String {
-        let result = FootnoteProcessor.process(markdown, mode: options.footnoteMode)
+    ) -> UpRenderPipeline {
+        let result = FootnoteProcessor.process(source, mode: options.footnoteMode)
         let options = processingWaypoint(options)
         let parsed = ParsedMarkdown(result.transformedMarkdown)
         var body = renderUpBody(parsed, options: options,
@@ -168,7 +188,20 @@ public enum MudCore {
                                        resolveImageSource: resolveImageSource)
         body += renderCommentsSection(result.comments, options: options,
                                       resolveImageSource: resolveImageSource)
-        return body
+        return UpRenderPipeline(
+            body: body, footnotes: result.footnotes,
+            comments: result.comments, parsed: parsed, options: options)
+    }
+
+    /// Renders Markdown text to HTML body content, including footnote
+    /// preprocessing and the bottom footnotes section (if any).
+    public static func renderUpToHTML(
+        _ markdown: String,
+        options: RenderOptions = .init(),
+        resolveImageSource: ((_ source: String, _ baseURL: URL) -> String?)? = nil
+    ) -> String {
+        renderUpPipeline(markdown, options: options,
+                         resolveImageSource: resolveImageSource).body
     }
 
     /// Renders Markdown text to a complete HTML document with styles,
@@ -196,23 +229,17 @@ public enum MudCore {
         options: RenderOptions = .init(),
         resolveImageSource: ((_ source: String, _ baseURL: URL) -> String?)? = nil
     ) -> RenderedUpDocument {
-        let result = FootnoteProcessor.process(source, mode: options.footnoteMode)
-        let parsed = ParsedMarkdown(result.transformedMarkdown)
-        var options = processingWaypoint(options)
+        let pipeline = renderUpPipeline(source, options: options,
+                                        resolveImageSource: resolveImageSource)
+        var options = pipeline.options
         if options.title.isEmpty {
-            options.title = parsed.title ?? ""
+            options.title = pipeline.parsed.title ?? ""
         }
-        var body = renderUpBody(parsed, options: options,
-                                resolveImageSource: resolveImageSource)
-        body += renderFootnotesSection(result.footnotes, options: options,
-                                       resolveImageSource: resolveImageSource)
-        body += renderCommentsSection(result.comments, options: options,
-                                      resolveImageSource: resolveImageSource)
-        let html = HTMLTemplate.wrapUp(body: body, options: options)
+        let html = HTMLTemplate.wrapUp(body: pipeline.body, options: options)
 
         var popovers: [RenderedFootnote] = []
         if options.footnoteMode == .popover {
-            popovers = result.footnotes.map { entry in
+            popovers = pipeline.footnotes.map { entry in
                 RenderedFootnote(
                     label: entry.label, number: entry.number,
                     html: renderPopoverDocument(
@@ -221,7 +248,7 @@ public enum MudCore {
             }
         }
         return RenderedUpDocument(
-            html: html, footnotes: popovers, comments: result.comments)
+            html: html, footnotes: popovers, comments: pipeline.comments)
     }
 
     // MARK: - Footnote rendering

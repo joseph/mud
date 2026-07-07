@@ -98,7 +98,10 @@ struct DocumentContentView: View {
             let body = state.mode == .up
                 ? MudCore.removeComments(parsed.markdown)
                 : parsed.markdown
-            return "\(body)\(renderOptions.contentIdentity)"
+            // The body stays exact; the options join as the identity struct's
+            // hash (stable within the process, which is all the WebView's
+            // reload dedup compares against).
+            return "\(body)\(renderOptions.contentIdentity.hashValue)"
         case .error:              return "load-error"
         }
     }

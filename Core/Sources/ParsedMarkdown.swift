@@ -60,3 +60,12 @@ extension ParsedMarkdown: Equatable {
         lhs.markdown == rhs.markdown
     }
 }
+
+extension ParsedMarkdown: Hashable {
+    /// Hashes by the source text, consistent with `==` above. Lets a
+    /// waypoint participate in `RenderOptions.ContentIdentity`'s synthesized
+    /// conformance.
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(markdown)
+    }
+}

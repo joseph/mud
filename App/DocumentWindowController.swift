@@ -129,11 +129,6 @@ class DocumentWindowController: NSWindowController {
                 self?.updateModeButton(mode)
                 self?.updateZoomLabel(for: mode)
                 self?.updateCommentButton()
-                if self?.window?.isKeyWindow == true {
-                    deferMutation {
-                        AppState.shared.modeInActiveTab = mode
-                    }
-                }
             }
             .store(in: &cancellables)
 
@@ -143,14 +138,12 @@ class DocumentWindowController: NSWindowController {
             .sink { [weak self] _ in self?.updateCommentButton() }
             .store(in: &cancellables)
 
-        // Keep this window's Comments-column toolbar button in step with its own
-        // visibility, and mirror that visibility into AppState for the View-menu
-        // label, but only while it is the key window.
+        // Keep this window's Comments-column toolbar button in step with its
+        // own visibility. (The View-menu label reads the key window's
+        // visibility off `ActiveDocumentObserver`.)
         state.$commentsColumnVisible
             .sink { [weak self] visible in
                 self?.updateCommentsColumnButton(visible)
-                guard self?.window?.isKeyWindow == true else { return }
-                AppState.shared.activeCommentsColumnVisible = visible
             }
             .store(in: &cancellables)
 
@@ -245,17 +238,13 @@ class DocumentWindowController: NSWindowController {
     }
 
     /// The "Comment" button adds a comment to the selection, so it is live only
-    /// for a commentable selection in a writable Up-mode document. Mirrors the
-    /// same condition into `AppState` for the key window so the "Add Comment"
-    /// menu item (and its shortcut) gates in step with the button.
+    /// for a commentable selection in a writable Up-mode document. (The "Add
+    /// Comment" menu item applies the same condition via
+    /// `ActiveDocumentSnapshot.canAddComment`.)
     private func updateCommentButton() {
-        let canAdd = state.mode == .up
+        commentButton?.isEnabled = state.mode == .up
             && state.commentableSelection.value
             && !fileURL.isBundleResource
-        commentButton?.isEnabled = canAdd
-        if window?.isKeyWindow == true {
-            AppState.shared.canAddComment = canAdd
-        }
     }
 
     private func updateChangesButton(_ enabled: Bool) {
@@ -439,10 +428,8 @@ class DocumentWindowController: NSWindowController {
 
 extension DocumentWindowController: NSWindowDelegate {
     func windowDidBecomeKey(_ notification: Notification) {
-        AppState.shared.modeInActiveTab = state.mode
-        AppState.shared.activeDocumentEditable = !fileURL.isBundleResource
-        AppState.shared.activeCommentsColumnVisible = state.commentsColumnVisible
-        updateCommentButton()
+        // Menu state follows automatically: `ActiveDocumentObserver` watches
+        // the same notification and re-attaches to this window's state.
         model.hasBackgroundReload = false
     }
 

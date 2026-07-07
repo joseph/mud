@@ -9,6 +9,8 @@ struct MudApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @ObservedObject private var appState = AppState.shared
     @ObservedObject private var openIn = OpenInMenuModel.shared
+    /// The key document window's snapshot; `nil` disables document menu items.
+    @ObservedObject private var activeDocument = ActiveDocumentObserver.shared
 
     var body: some Scene {
         // No windows managed by SwiftUI — DocumentController handles them.
@@ -120,16 +122,17 @@ struct MudApp: App {
                 }
                 .keyboardShortcut("c", modifiers: [.command, .control])
 
-                Button(appState.activeCommentsColumnVisible ? "Hide Comments" : "Show Comments") {
+                Button(activeDocument.snapshot?.commentsColumnVisible == true
+                       ? "Hide Comments" : "Show Comments") {
                     NSApp.sendAction(#selector(DocumentWindowController.toggleCommentsColumn(_:)), to: nil, from: nil)
                 }
                 .keyboardShortcut("k", modifiers: [.command, .control])
-                .disabled(appState.modeInActiveTab != .up)
+                .disabled(activeDocument.snapshot?.mode != .up)
 
                 Divider()
 
                 Toggle("Mark Up", isOn: Binding(
-                    get: { appState.modeInActiveTab == .up },
+                    get: { activeDocument.snapshot?.mode == .up },
                     set: { newValue in
                         if newValue {
                             NSApp.sendAction(
@@ -141,7 +144,7 @@ struct MudApp: App {
                 ))
 
                 Toggle("Mark Down", isOn: Binding(
-                    get: { appState.modeInActiveTab == .down },
+                    get: { activeDocument.snapshot?.mode == .down },
                     set: { newValue in
                         if newValue {
                             NSApp.sendAction(
@@ -210,7 +213,7 @@ struct MudApp: App {
                     Label("Add Comment…", systemImage: "plus.message")
                 }
                 .keyboardShortcut("k", modifiers: [.command, .shift])
-                .disabled(!appState.canAddComment)
+                .disabled(!(activeDocument.snapshot?.canAddComment ?? false))
 
                 Divider()
 

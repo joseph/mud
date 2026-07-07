@@ -160,17 +160,34 @@ MVP plan.
 - `ParsedMarkdown.swift` — Parse-once handle: AST, headings, title
 - `RenderExtension.swift` — Client-side rendering extension type and registry
 - `RenderOptions.swift` — Rendering configuration value type
-- `MudCore.swift` — Public API: rendering functions (String and ParsedMarkdown
-  overloads), extractHeadings and parseComments convenience, comment thread /
-  bottom-section rendering
-- `Rendering/UpHTMLVisitor.swift` — AST → rendered HTML
+- `MudCore.swift` — Public API facade: rendering entry points (dispatch only —
+  HTML emission lives in `Rendering/`), the shared Up-mode pipeline,
+  extractHeadings / parseComments / removeComments convenience
+- `Rendering/UpHTMLVisitor.swift` — AST → rendered HTML; `renderBody` is the
+  visitor + frontmatter-prefix core every Up-mode fragment render goes through
 - `Rendering/DownHTMLVisitor.swift` — AST → syntax-highlighted raw HTML
+- `Rendering/WordSpanEmitter.swift` — Word-level `<ins>`/ `<del>` cursor
+  machine; advances through a block's `[WordSpan]` in step with the visitor's
+  character stream (aligned with `WordDiff.inlineText`)
+- `Rendering/DeletionPlacer.swift` — Places pre-rendered deletions into the
+  Up-mode stream: exactly-once bookkeeping, `<tr>` wrapping, deferral around
+  `</table>`
+- `Rendering/DeletionRenderer.swift` — Renders deleted blocks to HTML for the
+  Up-mode overlay; injected into `DiffContext` so `Diff/` never calls rendering
+  code
+- `Rendering/FootnoteHTMLRenderer.swift` — Bottom footnotes section and the
+  per-footnote popover documents
+- `Rendering/CommentHTMLRenderer.swift` — Bottom comments section, single
+  comment `<li>` items, thread popover documents
+- `Rendering/FrontMatterHTMLRenderer.swift` — Frontmatter for both modes: Up's
+  collapsible table, Down's highlighted source lines
 - `Rendering/HTMLDocument.swift` — Structured HTML document builder
 - `Rendering/HTMLTemplate.swift` — Document wrapping and resource loading
 - `Rendering/MarkdownParser.swift` — swift-cmark wrapper
 - `Rendering/FootnoteProcessor.swift` — Pre-parses footnotes via cmark;
   classifies `^comment-[\w-]+$` labels as comments (diverted to `[⋯]` markers,
-  authorial footnotes renumbered to skip them)
+  authorial footnotes renumbered to skip them). All entry points derive from
+  one memoized `FootnoteScan` per source
 - `Rendering/SlugGenerator.swift` — Heading ID generation
 - `Rendering/HeadingExtractor.swift` — Heading extraction for sidebar
 - `Rendering/CodeHighlighter.swift` — Syntax highlighting via highlight.js
@@ -189,16 +206,22 @@ MVP plan.
 - `Comments/CommentAnchor.swift` — Maps a rendered-DOM selection end to a
   source UTF-8 byte (via the cmark footnote AST) so the marker lands where the
   quotation ends
-- `Diff/BlockMatcher.swift` — Block-level diff: leaf collection,
+- `Diff/BlockMatcher.swift` — Block-level diff: leaf collection, fingerprint
+  matching, and gap ordering between two parsed documents
+- `Diff/ChangePlan.swift` — The single diff pass every consumer projects from:
+  change-ID minting, gap pairing, code-block pairs, word spans, and grouping;
+  memoized per (waypoint, content) pair
 - `Diff/LineLevelDiff.swift` — Shared line-level diff algorithm
-- `Diff/LineDiffMap.swift` — Down mode change tracking
+- `Diff/LineDiffMap.swift` — Down mode change tracking (projects `ChangePlan`
+  onto line numbers)
 - `Diff/CodeBlockDiff.swift` — Line-level diff within paired code blocks (Up
   mode)
-- `Diff/DiffContext.swift` — Up mode change tracking
+- `Diff/DiffContext.swift` — Up mode change tracking (projects `ChangePlan`
+  into annotation lookups and rendered deletions)
 - `Diff/WordDiff.swift` — Word-level diff and inline text extraction
 - `Diff/WordPairing.swift` — Greedy best-match pairing of deleted/inserted
   lines
-- `Diff/ChangeList.swift` — Sidebar change list computed from `DiffContext`
+- `Diff/ChangeList.swift` — Sidebar change list projected from `ChangePlan`
 - `Diff/ChangeGroup.swift` — Groups consecutive changes by `groupID`
 - `ChangeTracker.swift` — Waypoint history and active-waypoint selection
 

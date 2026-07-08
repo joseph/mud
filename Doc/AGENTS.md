@@ -45,7 +45,9 @@ MVP plan.
 
 - **Mud** (App/) -- macOS app, SwiftUI + AppKit hybrid
 - **Mud CLI** (App/CLI/) -- standalone Swift CLI tool (`mud`), bundled in
-  Mud.app
+  Mud.app. Its Swift module is named `MudCLI` (`PRODUCT_MODULE_NAME`) so its
+  products-dir swiftmodule can't collide case-insensitively with the app's
+  `Mud.swiftmodule` — the binary is still `mud`.
 - **MudCore** (Core/) -- Swift Package, platform-independent rendering and
   syntax highlighting
 - **MudPreferences** (Preferences/) -- Swift Package, Foundation-only

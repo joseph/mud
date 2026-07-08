@@ -226,6 +226,47 @@ struct WordDiffTests {
     }
   }
 
+  // MARK: - CMark port parity (Stage 2)
+
+  /// Footnote-bearing corpus documents are excluded: swift-markdown never
+  /// sees footnote syntax (it's preprocessed away before swift-markdown
+  /// parses), while cmark parses it as real footnote-reference nodes, so the
+  /// two trees diverge there by design — the same exclusion
+  /// `CMarkDocumentTests.textLiteralsMatchSwiftMarkdown` uses.
+  @Test(arguments: ParityCorpus.all.filter { !$0.markdown.contains("[^") })
+  func inlineTextMatchesLegacyOverCorpus(
+    _ corpusDocument: ParityCorpus.Document
+  ) throws {
+    struct LegacyTextCollector: MarkupWalker {
+      var texts: [String] = []
+      mutating func defaultVisit(_ markup: Markup) {
+        if markup is Paragraph || markup is Heading {
+          texts.append(WordDiff.inlineText(of: markup))
+        }
+        descendInto(markup)
+      }
+    }
+    var legacy = LegacyTextCollector()
+    legacy.visit(MarkdownParser.parse(corpusDocument.markdown))
+
+    struct PortedTextCollector: CMarkWalker {
+      var texts: [String] = []
+      mutating func defaultVisit(_ node: CMarkNode) {
+        if node.kind == .paragraph || node.kind == .heading {
+          texts.append(WordDiff.inlineText(of: node))
+        }
+        descendInto(node)
+      }
+    }
+    let document = try #require(
+      CMarkDocument(parsing: corpusDocument.markdown))
+    var ported = PortedTextCollector()
+    ported.visit(document.root)
+
+    #expect(ported.texts.map(\.count) == legacy.texts.map(\.count))
+    #expect(ported.texts == legacy.texts)
+  }
+
 }
 
 // MARK: - Test helpers

@@ -172,4 +172,78 @@ struct AlertDetector {
         shiftedStart.column += shiftCount
         return shiftedStart <= range.upperBound
     }
+
+    // MARK: - CMark port (Stage 2 of the single-parser-rendering plan)
+
+    /// `CMarkNode` counterpart of `detectGFMAlert(_:)` above.
+    func detectGFMAlert(_ blockQuote: CMarkNode) -> (AlertCategory, String)? {
+        guard let paragraph = blockQuote.firstChild,
+              paragraph.kind == .paragraph else { return nil }
+        let text = paragraph.plainText
+        guard text.hasPrefix("[!") else { return nil }
+        for (tag, category) in Self.gfmAlertTags where text.hasPrefix(tag) {
+            return (category, category.title)
+        }
+        return nil
+    }
+
+    /// `CMarkNode` counterpart of `detectDocCAlert(_:)` above. Parses the
+    /// leading `Kind:` tag itself instead of using swift-markdown's `Aside`,
+    /// so there is no crash to guard against: rather than splicing a
+    /// shortened text node into a rebuilt tree — `Aside`'s approach, and the
+    /// source of the range-shift crash `asideTagShiftIsInBounds` guards
+    /// against above — it reports the tag's UTF-8 byte length for the caller
+    /// to skip when it renders the first paragraph.
+    func detectDocCAlert(
+        _ blockQuote: CMarkNode
+    ) -> (category: AlertCategory, title: String, tagByteLength: Int)? {
+        guard docCAlertMode != .off else { return nil }
+        guard let (tag, byteLength) = Self.parseAsideTag(blockQuote) else {
+            return nil
+        }
+        if let category = Self.coreMap[tag] {
+            return (category, Self.docCDisplayName(for: tag), byteLength)
+        }
+        if docCAlertMode == .extended, let category = Self.extendedMap[tag] {
+            return (category, Self.docCDisplayName(for: tag), byteLength)
+        }
+        return nil
+    }
+
+    /// Parses a leading `Kind:` tag off `blockQuote`'s first paragraph's
+    /// first text node. Returns the raw tag and the UTF-8 byte length of the
+    /// tag plus its colon and any trailing spaces/tabs, or nil if there's no
+    /// leading text node or no colon in it.
+    ///
+    /// Unlike `Aside.parseAsideTag`, this never compares the decoded string
+    /// against a source byte range — it only measures substrings of the
+    /// (already smart-typography-substituted) literal itself — so there is
+    /// no arithmetic that can invert and crash.
+    private static func parseAsideTag(
+        _ blockQuote: CMarkNode
+    ) -> (tag: String, byteLength: Int)? {
+        guard let paragraph = blockQuote.firstChild,
+              paragraph.kind == .paragraph,
+              let text = paragraph.firstChild, text.kind == .text,
+              let literal = text.literal,
+              let colonIndex = literal.firstIndex(of: ":")
+        else { return nil }
+
+        let tag = String(literal[..<colonIndex])
+        let afterColon = literal[literal.index(after: colonIndex)...]
+        let trailingWhitespace = afterColon.prefix { $0 == " " || $0 == "\t" }
+        return (tag, tag.utf8.count + 1 + trailingWhitespace.utf8.count)
+    }
+
+    /// The aside's display title — matches swift-markdown's
+    /// `Aside.Kind.displayName` for the tags this app recognizes.
+    private static func docCDisplayName(for tag: String) -> String {
+        switch tag {
+        case "SeeAlso": return "See Also"
+        case "NonMutatingVariant": return "Non-Mutating Variant"
+        case "MutatingVariant": return "Mutating Variant"
+        case "ToDo": return "To Do"
+        default: return tag
+        }
+    }
 }

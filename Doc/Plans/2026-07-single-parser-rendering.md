@@ -1,8 +1,8 @@
 Plan: Single-Parser Rendering
 ===============================================================================
 
-> Status: Underway (Stages 0–1 landed: the corpus and the `CMarkDocument`
-> wrapper; Stage 2's leaf consumers are next)
+> Status: Underway (Stages 0–2 landed: the corpus, the `CMarkDocument` wrapper,
+> and the leaf-consumer ports; Stage 3's `UpHTMLVisitor` port is next)
 
 Whether and how to consolidate Mud's rendering on one Markdown parser. Today
 every Up-mode render parses the document twice: once with cmark-gfm (via
@@ -291,6 +291,35 @@ second Up renderer to compare.
 the corpus), `WordDiff.inlineText` (with a count-parity test against the old
 implementation), `AlertDetector` (own DocC tag parser). Each is small,
 independently revertible, and proves the wrapper.
+
+**Landed (July 2026):** `CMarkNode` gained a `plainText` accessor matching
+swift-markdown's `Markup.plainText` (inline code keeps its backtick delimiters,
+unlike `WordDiff.inlineText`), shared by the two consumers below that need it.
+`HeadingExtractor` ported onto `CMarkWalker` for real: `ParsedMarkdown.init`
+now runs a second, temporary `CMarkDocument` parse of the body purely for
+headings, alongside the swift-markdown parse `UpHTMLVisitor`/ `BlockMatcher`
+still use for everything else — the duplicate parse goes away once Stage 3
+lands. `HeadingExtractorTests` gained a slug/segment parity test over the
+corpus against a kept-verbatim copy of the swift-markdown extractor it
+replaced.
+
+`WordDiff.inlineText` and `AlertDetector`'s DocC detection could not cut over
+the same way: their real callers (`ChangePlan`, `UpHTMLVisitor`,
+`DownHTMLVisitor`) are still swift-markdown-based until Stages 3–5, so wiring
+in a cmark version now isn't possible. Both gained a parallel `CMarkNode`
+overload instead, proven against the existing swift-markdown implementation and
+left unwired: `WordDiff.inlineText(of: CMarkNode)` (a count- and text-parity
+test over the non-footnote corpus in `WordDiffTests`), and
+`AlertDetector.detectGFMAlert` / `detectDocCAlert` taking a `CMarkNode` (parity
+tests in the new `AlertDetectorTests.swift`). The DocC detector is also the
+"own tag parser" promised above: it parses the leading `Kind:` tag directly off
+the text literal and returns the tag's byte length for the caller to skip,
+rather than using swift-markdown's `Aside` type and rebuilding a node with a
+shifted source range — the operation that crashes on smart-typography input
+(`asideTagShiftIsInBounds` guards the legacy path against it). The new parser
+never builds that range, so it has no equivalent risk to guard against; a
+regression test using that same crash input (`> Don't: x`) checks it returns
+the same result the guard produces instead.
 
 **Stage 3 — UpHTMLVisitor.** Port the 24 visit methods; footnote and comment
 references become visit cases emitting the existing marker HTML (numbering

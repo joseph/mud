@@ -1,37 +1,37 @@
-import Markdown
-
-/// Walks a swift-markdown `Document` and collects headings for the
-/// outline sidebar.
-struct HeadingExtractor: MarkupWalker {
+/// Walks a `CMarkDocument` and collects headings for the outline sidebar
+/// (Doc/Plans/2026-07-single-parser-rendering.md, Stage 2).
+struct HeadingExtractor: CMarkWalker {
     var headings: [OutlineHeading] = []
     private var slugTracker = SlugGenerator.Tracker()
 
-    mutating func visitHeading(_ heading: Heading) {
-        let slug = slugTracker.slug(for: heading.plainText)
-        let line = heading.range?.lowerBound.line ?? 0
-        let segments = Self.extractSegments(from: heading)
+    mutating func visitHeading(_ node: CMarkNode) {
+        let text = node.plainText
+        let slug = slugTracker.slug(for: text)
+        let line = node.range?.lowerBound.line ?? 0
+        let segments = Self.extractSegments(from: node)
         headings.append(OutlineHeading(
-            id: slug, level: heading.level,
-            text: heading.plainText, segments: segments,
+            id: slug, level: node.headingLevel,
+            text: text, segments: segments,
             sourceLine: line
         ))
     }
 
-    /// Walks inline children of a markup node and produces styled
+    /// Walks inline children of a heading node and produces styled
     /// text segments.  Code spans become `.code`; everything else
     /// (plain text, emphasis, strong, links, etc.) becomes `.plain`.
     private static func extractSegments(
-        from node: Markup
+        from node: CMarkNode
     ) -> [OutlineTextSegment] {
         var segments: [OutlineTextSegment] = []
         for child in node.children {
-            if let code = child as? InlineCode {
-                segments.append(.code(code.code))
-            } else if let text = child as? Markdown.Text {
-                segments.append(.plain(text.string))
-            } else if child is SoftBreak {
+            switch child.kind {
+            case .inlineCode:
+                segments.append(.code(child.literal ?? ""))
+            case .text:
+                segments.append(.plain(child.literal ?? ""))
+            case .softBreak:
                 segments.append(.plain(" "))
-            } else {
+            default:
                 // Emphasis, Strong, Link, etc. — recurse.
                 segments.append(contentsOf: extractSegments(from: child))
             }

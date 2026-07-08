@@ -289,6 +289,29 @@ enum WordDiff {
         return result
     }
 
+    /// `CMarkNode` counterpart of `inlineText(of:)` above — Stage 2 of
+    /// Doc/Plans/2026-07-single-parser-rendering.md. Not wired to any
+    /// caller yet: `ChangePlan` and `UpHTMLVisitor` still hand this function
+    /// swift-markdown nodes until Stage 4 ports the diff layer onto cmark.
+    static func inlineText(of node: CMarkNode) -> String {
+        var result = ""
+        for child in node.children {
+            switch child.kind {
+            case .text:
+                result += child.literal ?? ""
+            case .inlineCode:
+                result += child.literal ?? ""
+            case .softBreak:
+                result += " "
+            case .lineBreak:
+                result += "\n"
+            default:
+                result += inlineText(of: child)
+            }
+        }
+        return result
+    }
+
     // MARK: - Tokenization
 
     /// Returns the run of leading spaces/tabs from `text` and the

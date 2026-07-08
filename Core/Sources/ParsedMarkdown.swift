@@ -42,8 +42,16 @@ public struct ParsedMarkdown {
         }
 
         self.document = MarkdownParser.parse(body)
+
+        // Headings port onto the CMark wrapper ahead of the rest of the
+        // render pipeline (Stage 2 of
+        // Doc/Plans/2026-07-single-parser-rendering.md). This is a second,
+        // temporary parse of `body` — it goes away once Stage 3 makes
+        // `document` itself a `CMarkDocument`.
         var extractor = HeadingExtractor()
-        extractor.visit(document)
+        if let cmarkDocument = CMarkDocument(parsing: body) {
+            extractor.visit(cmarkDocument.root)
+        }
         self.headings = extractor.headings
     }
 }

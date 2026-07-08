@@ -197,6 +197,36 @@ struct CMarkNode {
         }
     }
 
+    // MARK: - Plain text
+
+    /// The node's plain-text content, matching swift-markdown's
+    /// `Markup.plainText`: inline code keeps its backtick delimiters, a soft
+    /// break becomes a space, a hard break becomes a newline, and other
+    /// inline containers (emphasis, strong, links, images, strikethrough)
+    /// join their children's plain text. Distinct from
+    /// `WordDiff.inlineText(of:)`, which strips the backticks to match the
+    /// rendering visitor's character count.
+    var plainText: String {
+        var result = ""
+        for child in children {
+            switch child.kind {
+            case .text:
+                result += child.literal ?? ""
+            case .inlineCode:
+                result += "`\(child.literal ?? "")`"
+            case .softBreak:
+                result += " "
+            case .lineBreak:
+                result += "\n"
+            case .inlineHTML, .customInline:
+                result += child.literal ?? ""
+            default:
+                result += child.plainText
+            }
+        }
+        return result
+    }
+
     // MARK: - Structure
 
     var parent: CMarkNode? { wrap(cmark_node_parent(raw)) }

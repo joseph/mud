@@ -20,9 +20,6 @@ class AppState: ObservableObject {
     @Published var sidebarEnabled: Bool {
         didSet { MudPreferences.shared.sidebarEnabled = sidebarEnabled }
     }
-    @Published var sidebarPane: SidebarPane {
-        didSet { MudPreferences.shared.sidebarPane = sidebarPane }
-    }
     @Published var changesEnabled: Bool {
         didSet { MudPreferences.shared.changesEnabled = changesEnabled }
     }
@@ -78,7 +75,6 @@ class AppState: ObservableObject {
         self.viewToggles = config.viewToggles
         self.commentColumnWidth = config.commentColumnWidth
         self.sidebarEnabled = config.sidebarEnabled
-        self.sidebarPane = config.sidebarPane
         self.changesEnabled = config.changesEnabled
         self.changesShowInlineDeletions = config.changesShowInlineDeletions
         self.quitOnClose = config.quitOnClose
@@ -125,7 +121,6 @@ class AppState: ObservableObject {
         case .upModeAllowRemoteContent:   self.upModeAllowRemoteContent = c.upModeAllowRemoteContent
         case .uiCommentColumnWidth:       self.commentColumnWidth = c.commentColumnWidth
         case .sidebarEnabled:             self.sidebarEnabled = c.sidebarEnabled
-        case .sidebarPane:                self.sidebarPane = c.sidebarPane
         case .markdownDocCAlertMode:      self.markdownDocCAlertMode = c.markdownDocCAlertMode
         case .uiUseHeadingAsTitle:        self.uiUseHeadingAsTitle = c.uiUseHeadingAsTitle
         case .uiFloatingControlsPosition: self.uiFloatingControlsPosition = c.uiFloatingControlsPosition
@@ -144,9 +139,10 @@ class AppState: ObservableObject {
              .downModeWrapLines,
              .uiShowReadableColumn:
             self.viewToggles = c.viewToggles
-        // Zoom is per-window (DocumentState), not mirrored here; each window
-        // reads MudPreferences directly when it's created.
-        case .upModeZoomLevel, .downModeZoomLevel:
+        // Zoom and the sidebar-pane selection are per-window (DocumentState),
+        // not mirrored here; each window reads MudPreferences directly when
+        // it's created.
+        case .upModeZoomLevel, .downModeZoomLevel, .sidebarPane:
             break
         // internal.* — not exposed on AppState; mirror already updated.
         case .hasLaunched, .cliInstalled, .cliSymlinkPath:

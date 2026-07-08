@@ -418,10 +418,11 @@ Five ObservableObject classes, no nesting:
   `ActiveDocumentSnapshot?` of the key document window (mode, editable,
   commentable, column visibility) for app-menu labels and enablement; `nil`
   when no document window is key
-- **DocumentState** (per-window) -- `mode`, per-window zoom levels (seeded from
-  `MudPreferences` at window creation, re-persisted on change so the next
-  window opens at the last-used zoom), the `webCommands` channel,
-  `outlineHeadings`, `contentTitle`, comments-column state, owns `FindState`
+- **DocumentState** (per-window) -- `mode`, per-window zoom levels and
+  sidebar-pane selection (each seeded from `MudPreferences` at window creation,
+  re-persisted on change so the next window opens at the last-used value), the
+  `webCommands` channel, `outlineHeadings`, `contentTitle`, comments-column
+  state, owns `FindState`
 - **DocumentModel** (per-window) -- the loaded content, disk reads, the file
   watcher with its hold/echo policy, and the cached render; renders run only
   when the content or the content-affecting options change, never per view

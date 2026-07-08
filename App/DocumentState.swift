@@ -59,6 +59,14 @@ class DocumentState: ObservableObject {
     @Published var downModeZoomLevel: Double = MudPreferences.shared.downModeZoomLevel {
         didSet { MudPreferences.shared.downModeZoomLevel = downModeZoomLevel }
     }
+    /// Which sidebar tab (Outline or Changes) this window shows, seeded from
+    /// the persisted value when the window is created; each change
+    /// re-persists it, so the next new window opens on the most-recently-used
+    /// tab. Independent per window from here on — switching tabs in one
+    /// window no longer switches every other open window's sidebar too.
+    @Published var sidebarPane: SidebarPane = MudPreferences.shared.sidebarPane {
+        didSet { MudPreferences.shared.sidebarPane = sidebarPane }
+    }
     /// The command channel to this window's web page. Senders (menu and
     /// toolbar actions, sidebar clicks, the comment write path) fire and
     /// forget; the WebView coordinator subscribes and runs the JS.

@@ -752,6 +752,14 @@ overwrites another window's saved frame.
   without the `@Pref` property-wrapper work planned for Phase 5). Window-frame
   autosave is AppKit-owned behavior with no Swift-visible seam to assert
   against either.
+- A user-reported bug (GitHub issue 10) turned out to be the same defect in a
+  third property: `sidebarPane` (which sidebar tab a window shows) also lived
+  on `AppState` and was bound directly in `SidebarView`, so switching tabs in
+  one window switched every open window's sidebar too. Moved to `DocumentState`
+  alongside the zoom levels, same shape: seeded from
+  `MudPreferences.shared.sidebarPane` at window creation, re-persisted on
+  change. `AppState.reloadPreference` folds `.sidebarPane` into the same
+  per-window no-op case as the zoom keys.
 
 
 ## Phase 5: preference plumbing

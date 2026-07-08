@@ -3,7 +3,6 @@ import MudPreferences
 import MudCore
 
 struct SidebarView: View {
-    @ObservedObject private var appState = AppState.shared
     @ObservedObject var state: DocumentState
     @ObservedObject var changeTracker: ChangeTracker
     var onSelectHeading: (OutlineHeading) -> Void
@@ -11,7 +10,7 @@ struct SidebarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            Picker("", selection: $appState.sidebarPane) {
+            Picker("", selection: $state.sidebarPane) {
                 Text("Outline").tag(SidebarPane.outline)
                 Text("Changes").tag(SidebarPane.changes)
             }
@@ -19,7 +18,7 @@ struct SidebarView: View {
             .padding(8)
 
             Group {
-                switch appState.sidebarPane {
+                switch state.sidebarPane {
                 case .outline:
                     OutlineSidebarView(state: state, onSelect: onSelectHeading)
                 case .changes:
@@ -27,7 +26,7 @@ struct SidebarView: View {
                                        onSelectChange: onSelectChange)
                 }
             }
-            .animation(.none, value: appState.sidebarPane)
+            .animation(.none, value: state.sidebarPane)
         }
     }
 }

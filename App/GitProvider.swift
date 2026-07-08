@@ -7,7 +7,15 @@ import MudCore
 /// Queries git history for a file and produces external waypoints
 /// for the "Changes since…" menu.
 nonisolated struct GitProvider: Sendable {
+    /// Runs one git invocation (arguments, working directory) and returns the
+    /// exit status with trimmed stdout. Injected so tests can script git's
+    /// output — `stagedMtime` scrapes undocumented `ls-files --debug` text
+    /// that only a fake runner can pin down.
+    typealias Runner =
+        @Sendable ([String], URL) throws -> (status: Int32, output: String?)
+
     let fileURL: URL
+    var runner: Runner = GitProvider.systemGit
 
     /// Maximum number of commits to fetch from the log.
     static let commitLimit = 5
@@ -190,6 +198,11 @@ nonisolated struct GitProvider: Sendable {
     private func git(
         _ arguments: [String], in directory: URL
     ) throws -> (status: Int32, output: String?) {
+        try runner(arguments, directory)
+    }
+
+    /// The default runner: spawn `/usr/bin/git` and capture stdout.
+    private static let systemGit: Runner = { arguments, directory in
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/git")
         process.arguments = arguments

@@ -162,28 +162,14 @@ final class MudJSBridge: NSObject, WKScriptMessageHandler {
     func call(_ function: String, _ args: (any Encodable)...,
               completion: ((Any?) -> Void)? = nil) {
         guard let webView else { return }
-        let argList: String
+        let js: String
         do {
-            // Encode all arguments as one JSON array, then strip the brackets:
-            // the remainder is a valid JS argument list. (Also sidesteps
-            // top-level-fragment limits for single scalar arguments.)
-            let data = try JSONEncoder().encode(args.map(AnyEncodable.init))
-            argList = String(String(decoding: data, as: UTF8.self)
-                .dropFirst().dropLast())
+            js = try Self.script(for: function, args: args)
         } catch {
             NSLog("Mud: JS call \(function) dropped; "
                 + "argument encoding failed: \(error)")
             return
         }
-        var namespace = "Mud"
-        var clauses = ["window.Mud"]
-        let parts = function.split(separator: ".")
-        for step in parts.dropLast() {
-            namespace += ".\(step)"
-            clauses.append(namespace)
-        }
-        let js = (clauses + ["\(namespace).\(parts.last ?? "")(\(argList))"])
-            .joined(separator: " && ")
         webView.evaluateJavaScript(js) { result, error in
             if let error {
                 NSLog("Mud: JS call \(function) failed: "
@@ -207,6 +193,27 @@ final class MudJSBridge: NSObject, WKScriptMessageHandler {
             }
             completion?(result)
         }
+    }
+
+    /// Builds the guarded call script `call` evaluates: each namespace step
+    /// checked, every argument JSON-encoded. Throws when an argument fails to
+    /// encode. Internal so tests can pin the escaping and guard structure.
+    static func script(for function: String, args: [any Encodable]) throws -> String {
+        // Encode all arguments as one JSON array, then strip the brackets:
+        // the remainder is a valid JS argument list. (Also sidesteps
+        // top-level-fragment limits for single scalar arguments.)
+        let data = try JSONEncoder().encode(args.map(AnyEncodable.init))
+        let argList = String(String(decoding: data, as: UTF8.self)
+            .dropFirst().dropLast())
+        var namespace = "Mud"
+        var clauses = ["window.Mud"]
+        let parts = function.split(separator: ".")
+        for step in parts.dropLast() {
+            namespace += ".\(step)"
+            clauses.append(namespace)
+        }
+        return (clauses + ["\(namespace).\(parts.last ?? "")(\(argList))"])
+            .joined(separator: " && ")
     }
 
     /// Type-erases a call argument so a heterogeneous argument list encodes
@@ -235,7 +242,9 @@ final class MudJSBridge: NSObject, WKScriptMessageHandler {
 
     /// Decodes a raw message body: scalar payloads cast directly; dictionary
     /// payloads round-trip through JSON into their `Decodable` structs.
-    private func decode(_ body: Any, for handler: Handler) -> MudJSMessage? {
+    /// Internal so tests can drive it with raw bodies (the real entry point
+    /// needs a `WKScriptMessage`, which can't be constructed in a test).
+    func decode(_ body: Any, for handler: Handler) -> MudJSMessage? {
         switch handler {
         case .open:
             guard let string = body as? String,

@@ -17,11 +17,6 @@
 		7C1B6E922F96F1E800BF5254 /* MarkdownDocument.icns in Resources */ = {isa = PBXBuildFile; fileRef = 7C1B6E912F96F1E800BF5254 /* MarkdownDocument.icns */; };
 		7C1FD9812F44FAC200BB4076 /* LocalFileSchemeHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C1FD9802F44FAC200BB4076 /* LocalFileSchemeHandler.swift */; };
 		7C2665942F3D6216004C8D74 /* DocumentState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C2665932F3D6216004C8D74 /* DocumentState.swift */; };
-		7CDA11012FA30D0100000002 /* DocumentModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CDA11002FA30D0100000001 /* DocumentModel.swift */; };
-		7CDA11032FA30D0100000004 /* MudJSBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CDA11022FA30D0100000003 /* MudJSBridge.swift */; };
-		7CDA11052FA30D0100000006 /* ActiveDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CDA11042FA30D0100000005 /* ActiveDocument.swift */; };
-		7CDA11072FA30D0100000008 /* CommentSubmissionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CDA11062FA30D0100000007 /* CommentSubmissionHandler.swift */; };
-		7CDA11092FA30D010000000A /* DocumentExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CDA11082FA30D0100000009 /* DocumentExporter.swift */; };
 		7C282AD82F4F542E00611919 /* ThemePreviewCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C282AD52F4F542E00611919 /* ThemePreviewCard.swift */; };
 		7C282AD92F4F542E00611919 /* UpModeSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C282AD72F4F542E00611919 /* UpModeSettingsView.swift */; };
 		7C282ADA2F4F542E00611919 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C282AD42F4F542E00611919 /* SettingsView.swift */; };
@@ -72,9 +67,16 @@
 		7CCH00000000000000000002 /* ChangesSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CCH00000000000000000001 /* ChangesSettingsView.swift */; };
 		7CD093082F587185003E4037 /* ErrorPage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CD093072F587185003E4037 /* ErrorPage.swift */; };
 		7CD0930C2F58F9B7003E4037 /* LightingPreviewCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CD0930B2F58F9B7003E4037 /* LightingPreviewCard.swift */; };
+		7CDA11012FA30D0100000002 /* DocumentModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CDA11002FA30D0100000001 /* DocumentModel.swift */; };
+		7CDA11032FA30D0100000004 /* MudJSBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CDA11022FA30D0100000003 /* MudJSBridge.swift */; };
+		7CDA11052FA30D0100000006 /* ActiveDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CDA11042FA30D0100000005 /* ActiveDocument.swift */; };
+		7CDA11072FA30D0100000008 /* CommentSubmissionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CDA11062FA30D0100000007 /* CommentSubmissionHandler.swift */; };
+		7CDA11092FA30D010000000A /* DocumentExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CDA11082FA30D0100000009 /* DocumentExporter.swift */; };
 		7CE6B5A82F833DB3006A9BCA /* Date+Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CE6B5A72F833DB3006A9BCA /* Date+Formatting.swift */; };
 		7CE6B5B02F83E899006A9BCA /* GitProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CE6B5AF2F83E899006A9BCA /* GitProvider.swift */; };
 		7CED000000000000000A0002 /* OpenInEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CED000000000000000A0001 /* OpenInEditor.swift */; };
+		7CF4F00000000000000000C3 /* MudCore in Frameworks */ = {isa = PBXBuildFile; productRef = 7CF4F00000000000000000C1 /* MudCore */; };
+		7CF4F00000000000000000C4 /* MudPreferences in Frameworks */ = {isa = PBXBuildFile; productRef = 7CF4F00000000000000000C2 /* MudPreferences */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -98,6 +100,13 @@
 			proxyType = 1;
 			remoteGlobalIDString = 7C8FC03F2F932DFC003B14D4;
 			remoteInfo = QuickLook;
+		};
+		7CF4F00000000000000000A5 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 7CC975192F3401F4001C3BB7 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7CC975202F3401F4001C3BB7;
+			remoteInfo = Mud;
 		};
 /* End PBXContainerItemProxy section */
 
@@ -147,11 +156,6 @@
 		7C1B6E912F96F1E800BF5254 /* MarkdownDocument.icns */ = {isa = PBXFileReference; lastKnownFileType = image.icns; name = MarkdownDocument.icns; path = Resources/MarkdownDocument.icns; sourceTree = "<group>"; };
 		7C1FD9802F44FAC200BB4076 /* LocalFileSchemeHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocalFileSchemeHandler.swift; sourceTree = "<group>"; };
 		7C2665932F3D6216004C8D74 /* DocumentState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentState.swift; sourceTree = "<group>"; };
-		7CDA11002FA30D0100000001 /* DocumentModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentModel.swift; sourceTree = "<group>"; };
-		7CDA11022FA30D0100000003 /* MudJSBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MudJSBridge.swift; sourceTree = "<group>"; };
-		7CDA11042FA30D0100000005 /* ActiveDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveDocument.swift; sourceTree = "<group>"; };
-		7CDA11062FA30D0100000007 /* CommentSubmissionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommentSubmissionHandler.swift; sourceTree = "<group>"; };
-		7CDA11082FA30D0100000009 /* DocumentExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentExporter.swift; sourceTree = "<group>"; };
 		7C282AD22F4F542E00611919 /* DownModeSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DownModeSettingsView.swift; sourceTree = "<group>"; };
 		7C282AD32F4F542E00611919 /* GeneralSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeneralSettingsView.swift; sourceTree = "<group>"; };
 		7C282AD42F4F542E00611919 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -198,9 +202,15 @@
 		7CCH00000000000000000001 /* ChangesSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChangesSettingsView.swift; sourceTree = "<group>"; };
 		7CD093072F587185003E4037 /* ErrorPage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorPage.swift; sourceTree = "<group>"; };
 		7CD0930B2F58F9B7003E4037 /* LightingPreviewCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LightingPreviewCard.swift; sourceTree = "<group>"; };
+		7CDA11002FA30D0100000001 /* DocumentModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentModel.swift; sourceTree = "<group>"; };
+		7CDA11022FA30D0100000003 /* MudJSBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MudJSBridge.swift; sourceTree = "<group>"; };
+		7CDA11042FA30D0100000005 /* ActiveDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveDocument.swift; sourceTree = "<group>"; };
+		7CDA11062FA30D0100000007 /* CommentSubmissionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommentSubmissionHandler.swift; sourceTree = "<group>"; };
+		7CDA11082FA30D0100000009 /* DocumentExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentExporter.swift; sourceTree = "<group>"; };
 		7CE6B5A72F833DB3006A9BCA /* Date+Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+Formatting.swift"; sourceTree = "<group>"; };
 		7CE6B5AF2F83E899006A9BCA /* GitProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitProvider.swift; sourceTree = "<group>"; };
 		7CED000000000000000A0001 /* OpenInEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenInEditor.swift; sourceTree = "<group>"; };
+		7CF4F00000000000000000A1 /* MudTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MudTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -252,6 +262,11 @@
 			path = QuickLook;
 			sourceTree = "<group>";
 		};
+		7CF4F00000000000000000A2 /* MudTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = MudTests;
+			sourceTree = "<group>";
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -289,6 +304,15 @@
 			files = (
 				7CC975592F34038A001C3BB7 /* MudCore in Frameworks */,
 				7CCF00000000000000000003 /* MudPreferences in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7CF4F00000000000000000A4 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7CF4F00000000000000000C3 /* MudCore in Frameworks */,
+				7CF4F00000000000000000C4 /* MudPreferences in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -335,6 +359,7 @@
 				7CC975382F340286001C3BB7 /* App */,
 				7C8FC0432F932DFD003B14D4 /* QuickLook */,
 				7C33EC162F97143F00B293B6 /* Thumbnail */,
+				7CF4F00000000000000000A2 /* MudTests */,
 				7C6532AF2F585CEE00B71730 /* Frameworks */,
 				7CC975222F3401F4001C3BB7 /* Products */,
 			);
@@ -347,6 +372,7 @@
 				7C6532A82F585CA100B71730 /* mud */,
 				7C8FC0402F932DFC003B14D4 /* MudQuickLook.appex */,
 				7C33EC122F97143F00B293B6 /* MudThumbnail.appex */,
+				7CF4F00000000000000000A1 /* MudTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -503,6 +529,30 @@
 			productReference = 7CC975212F3401F4001C3BB7 /* Mud.app */;
 			productType = "com.apple.product-type.application";
 		};
+		7CF4F00000000000000000A0 /* MudTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7CF4F00000000000000000B5 /* Build configuration list for PBXNativeTarget "MudTests" */;
+			buildPhases = (
+				7CF4F00000000000000000A3 /* Sources */,
+				7CF4F00000000000000000A4 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				7CF4F00000000000000000A6 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				7CF4F00000000000000000A2 /* MudTests */,
+			);
+			name = MudTests;
+			packageProductDependencies = (
+				7CF4F00000000000000000C1 /* MudCore */,
+				7CF4F00000000000000000C2 /* MudPreferences */,
+			);
+			productName = MudTests;
+			productReference = 7CF4F00000000000000000A1 /* MudTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -524,6 +574,10 @@
 					};
 					7CC975202F3401F4001C3BB7 = {
 						CreatedOnToolsVersion = 26.2;
+					};
+					7CF4F00000000000000000A0 = {
+						CreatedOnToolsVersion = 26.4;
+						TestTargetID = 7CC975202F3401F4001C3BB7;
 					};
 				};
 			};
@@ -549,6 +603,7 @@
 				7C6532A72F585CA100B71730 /* Mud CLI */,
 				7C8FC03F2F932DFC003B14D4 /* MudQuickLook */,
 				7C33EC112F97143F00B293B6 /* MudThumbnail */,
+				7CF4F00000000000000000A0 /* MudTests */,
 			);
 		};
 /* End PBXProject section */
@@ -740,6 +795,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		7CF4F00000000000000000A3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -757,6 +819,11 @@
 			isa = PBXTargetDependency;
 			target = 7C8FC03F2F932DFC003B14D4 /* MudQuickLook */;
 			targetProxy = 7C8FC04C2F932DFD003B14D4 /* PBXContainerItemProxy */;
+		};
+		7CF4F00000000000000000A6 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7CC975202F3401F4001C3BB7 /* Mud */;
+			targetProxy = 7CF4F00000000000000000A5 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -1928,6 +1995,94 @@
 			};
 			name = "Release-AppStore";
 		};
+		7CF4F00000000000000000B1 /* Debug-AppStore */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 15;
+				DEVELOPMENT_TEAM = XVL2AFNXH5;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 3.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.josephpearson.MudTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Mud.app/Contents/MacOS/Mud";
+			};
+			name = "Debug-AppStore";
+		};
+		7CF4F00000000000000000B2 /* Debug-Direct */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 15;
+				DEVELOPMENT_TEAM = XVL2AFNXH5;
+				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Vendor/Sparkle";
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 3.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.josephpearson.MudTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "GIT_PROVIDER $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Mud.app/Contents/MacOS/Mud";
+			};
+			name = "Debug-Direct";
+		};
+		7CF4F00000000000000000B3 /* Release-AppStore */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 15;
+				DEVELOPMENT_TEAM = XVL2AFNXH5;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 3.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.josephpearson.MudTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Mud.app/Contents/MacOS/Mud";
+			};
+			name = "Release-AppStore";
+		};
+		7CF4F00000000000000000B4 /* Release-Direct */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 15;
+				DEVELOPMENT_TEAM = XVL2AFNXH5;
+				FRAMEWORK_SEARCH_PATHS = "$(PROJECT_DIR)/Vendor/Sparkle";
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MARKETING_VERSION = 3.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.josephpearson.MudTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "GIT_PROVIDER $(inherited)";
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Mud.app/Contents/MacOS/Mud";
+			};
+			name = "Release-Direct";
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -1986,6 +2141,17 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = "Release-Direct";
 		};
+		7CF4F00000000000000000B5 /* Build configuration list for PBXNativeTarget "MudTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7CF4F00000000000000000B1 /* Debug-AppStore */,
+				7CF4F00000000000000000B2 /* Debug-Direct */,
+				7CF4F00000000000000000B3 /* Release-AppStore */,
+				7CF4F00000000000000000B4 /* Release-Direct */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = "Release-Direct";
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -2025,6 +2191,16 @@
 			productName = MudCore;
 		};
 		7CCF00000000000000000002 /* MudPreferences */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7CCF00000000000000000001 /* XCLocalSwiftPackageReference "Preferences" */;
+			productName = MudPreferences;
+		};
+		7CF4F00000000000000000C1 /* MudCore */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 7CC975572F34038A001C3BB7 /* XCLocalSwiftPackageReference "Core" */;
+			productName = MudCore;
+		};
+		7CF4F00000000000000000C2 /* MudPreferences */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 7CCF00000000000000000001 /* XCLocalSwiftPackageReference "Preferences" */;
 			productName = MudPreferences;

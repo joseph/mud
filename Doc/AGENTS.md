@@ -59,6 +59,10 @@ MVP plan.
 - **Thumbnail** (Thumbnail/) -- `.appex` Quick Look thumbnail extension,
   bundled in `Mud.app/Contents/PlugIns/`. Renders a portrait thumbnail from the
   file's first heading. Sandboxed; no app-group entitlement.
+- **MudTests** (MudTests/) -- unit-test bundle for the App target, hosted in
+  Mud.app (`@testable import Mud`). Swift Testing, like the Core and
+  Preferences suites; Cmd+U on either scheme runs it. The folder is a
+  file-system-synchronized group, so new test files need no project edit.
 
 
 ## File quick reference
@@ -274,6 +278,23 @@ MVP plan.
   heading.
 - `Resources/thumbnail-static.svg` — Source for the static `.icns` document
   icon.
+
+**MudTests/ key files:**
+
+- `TestSupport.swift` — Async pumping helpers (`pump`, `pumpUntil`), the
+  temp-directory fixture, and the `MudComment` alias
+- `FindStateTests.swift` — The find state machine: origin classification,
+  navigation, reset behavior
+- `DocumentModelTests.swift` — The self-write dedup policy and the watcher
+  hold/echo policy against real temp files
+- `CommentControllerTests.swift` — Comment mutations on disk and the
+  `anchorFailed` / `writeFailed` matrix
+- `OpenInFormatTests.swift` — The Open In `.auto` format truth table
+- `WebViewParsingTests.swift` — `parseMatchInfo` and `commentSignature`
+- `MudJSBridgeTests.swift` — Outbound script building (escaping) and inbound
+  message decoding
+- `GitProviderTests.swift` — Waypoint assembly and git-output parsing over a
+  scripted runner (`#if GIT_PROVIDER`)
 
 **Resources:**
 

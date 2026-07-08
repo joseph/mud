@@ -268,7 +268,8 @@ final class DocumentModel: ObservableObject {
     /// this load is the echo of a write Mud made (the caller then skips the
     /// external-change badge); false for a genuine external edit, which also
     /// clears any stale pending entries (the file has moved past them).
-    private func consumeSelfWrite(_ content: String) -> Bool {
+    /// Internal (not private) so tests can exercise the dedup policy.
+    func consumeSelfWrite(_ content: String) -> Bool {
         if let index = pendingSelfWrites.firstIndex(of: content.hashValue) {
             pendingSelfWrites.remove(at: index)
             return true

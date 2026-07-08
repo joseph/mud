@@ -203,15 +203,25 @@ final class OpenInMenuModel: NSObject, ObservableObject, NSMenuDelegate {
         _ format: EditorFormat,
         for handler: RegisteredMarkdownHandler
     ) -> EditorFormat {
+        guard format == .auto else { return format }
+        return Self.resolveFormat(
+            format,
+            claimsMarkdown: appClaims(bundleID: handler.bundleID, type: .markdown),
+            claimsHTML: appClaims(bundleID: handler.bundleID, type: .html))
+    }
+
+    /// The `.auto` resolution rule, separated from the `NSWorkspace` lookups
+    /// so it can be tested: only send HTML when the app accepts it and
+    /// doesn't claim markdown — that's the niche (e.g. a browser) where
+    /// markdown wouldn't reach the editor in a useful state. Markdown is the
+    /// safer default for anything that handles markdown directly or claims
+    /// neither type.
+    static func resolveFormat(
+        _ format: EditorFormat,
+        claimsMarkdown: Bool, claimsHTML: Bool
+    ) -> EditorFormat {
         switch format {
         case .auto:
-            // Only send HTML when the app accepts it and doesn't claim
-            // markdown — that's the niche (e.g. a browser) where markdown
-            // wouldn't reach the editor in a useful state. Markdown is the
-            // safer default for anything that handles markdown directly or
-            // claims neither type.
-            let claimsMarkdown = appClaims(bundleID: handler.bundleID, type: .markdown)
-            let claimsHTML = appClaims(bundleID: handler.bundleID, type: .html)
             return (claimsHTML && !claimsMarkdown) ? .html : .markdown
         case .markdown, .html:
             return format

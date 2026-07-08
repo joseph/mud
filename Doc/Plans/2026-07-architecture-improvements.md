@@ -608,6 +608,67 @@ the watcher hold policy, the comment failure matrix, and export shaping
 testable. Also give `GitProvider` an injected `runGit` closure so its output
 parsing (which scrapes undocumented `ls-files --debug` output) is testable.
 
+**Implementation notes (July 2026):**
+
+- The `MudTests` target is a unit-test bundle hosted in Mud.app (`TEST_HOST`),
+  so tests reach the app module via `@testable import Mud`. Its `MudTests/`
+  folder is a file-system-synchronized group — adding a test file needs no
+  project edit. All four build configurations exist; the two Direct
+  configurations define `GIT_PROVIDER` so the `GitProvider` tests (whole-file
+  `#if GIT_PROVIDER`-guarded, like the source) compile there. Both schemes list
+  the bundle in their test action, so Cmd+U runs it. Swift Testing, matching
+  the Core and Preferences test suites.
+- Coverage, by file: `FindStateTests` (the origin/direction state machine —
+  typing classifies top/refine, Enter and the arrows advance, close/clear
+  reset; the typing path goes through a Combine sink received on
+  `RunLoop.main`, so the tests pump the run loop), `DocumentModelTests` (the
+  self-write registry policy — match consumed once, external edit clears the
+  backlog, ninth entry evicts the oldest — plus the watcher policy against real
+  temp files: external reload badges a non-key window, an atomic save is picked
+  up via the re-watch, a self-write echo doesn't badge, composing holds changes
+  with the banner only for external edits, a forced load changes the contentID
+  on identical text, and a document's first comment reveals the column and
+  prunes stale locators), `CommentControllerTests` (each mutation's success
+  shape on disk plus the `anchorFailed` / `writeFailed` matrix from Phase 1 fix
+  4), `OpenInFormatTests` (the `.auto` truth table), `WebViewParsingTests`
+  (`parseMatchInfo`, `commentSignature`), `MudJSBridgeTests` (outbound script
+  building — newline/quote escaping pinned, plus a JSON round-trip of the
+  argument list — and inbound decoding of all seven handlers), and
+  `GitProviderTests` (waypoint assembly, content dedup, the staged rules, the
+  `ls-files --debug` mtime scrape, and both `%aI` date formats, all over a
+  scripted runner).
+- Enabling refactors, behavior unchanged: `GitProvider` gained an injected
+  `Runner` closure (the default spawns `/usr/bin/git` as before);
+  `MudJSBridge.call`'s script assembly moved to an internal `script(for:args:)`
+  and `decode(_:for:)` became internal (the real entry point needs a
+  `WKScriptMessage`, which tests can't construct);
+  `OpenInMenuModel.resolveFormat` became a static function over the two
+  UTI-claim booleans, with the instance method doing the `NSWorkspace` lookups;
+  `DocumentModel.consumeSelfWrite` went from private to internal.
+- Landing the target surfaced four constraints worth remembering:
+
+  - The first `@testable import Mud` ever compiled exposed a products-directory
+    collision: the app emits `Mud.swiftmodule` and the CLI emits
+    `mud.swiftmodule` — the same path on a case-insensitive disk, so the import
+    found a module whose recorded name didn't match. Fixed with
+    `PRODUCT_MODULE_NAME = MudCLI` on the CLI target (the `mud` binary name is
+    unchanged; nothing imports the CLI's module). Same collision class that
+    moved the CLI binary to `Contents/Helpers/`.
+  - Under the Direct configurations the test target needs the app's Sparkle
+    framework search path (`Vendor/Sparkle`): a `@testable` import must resolve
+    the app module's internal imports too, and the explicit-modules scanner
+    reports that failure as being unable to resolve `Mud` itself.
+  - Swift Testing main-actor test bodies run as blocks on the serial main
+    queue, so a synchronous `RunLoop.main.run(until:)` can never deliver
+    main-queue work (the file watcher's DispatchSource handler, `deferMutation`
+    blocks). The `pump` / `pumpUntil` helpers suspend with `Task.sleep` instead
+    — awaiting frees the main queue, and the host app's run loop keeps
+    delivering `RunLoop.main` Combine values.
+  - Swift Testing exports its own `Comment` type, and the `MudCore` facade enum
+    shadows the module name, so neither `Comment` nor `MudCore.Comment` can be
+    written in a test file. `TestSupport.swift` (which doesn't import Testing)
+    declares `typealias MudComment = Comment` for the tests to use.
+
 
 ### 4g. Contain `#if GIT_PROVIDER`
 

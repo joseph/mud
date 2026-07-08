@@ -18,12 +18,12 @@ struct ChangesSettingsView: View {
                     Text("Auto-expand changes")
                     Text("Expand deletion and mixed change groups by default, rather than collapsing them.")
                 }
-                #if GIT_PROVIDER
-                Toggle(isOn: $appState.changesShowGitWaypoints) {
-                    Text("Git commits")
-                    Text("Show comparisons against git history in the Changes menu.")
+                if WaypointProviders.isAvailable {
+                    Toggle(isOn: $appState.changesShowGitWaypoints) {
+                        Text("Git commits")
+                        Text("Show comparisons against git history in the Changes menu.")
+                    }
                 }
-                #endif
             }
         }
         .formStyle(.grouped)

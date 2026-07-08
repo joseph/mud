@@ -2,6 +2,21 @@
 import Foundation
 import MudCore
 
+// MARK: - Waypoint Provider conformance
+
+/// The `WaypointProvider` for git-enabled builds: turned on by the "Git
+/// commits" setting, querying the file's repository via `GitProvider`.
+nonisolated struct GitWaypointProvider: WaypointProvider {
+    @MainActor var isEnabled: Bool {
+        AppState.shared.changesShowGitWaypoints
+    }
+
+    func queryWaypoints(for fileURL: URL, currentContent: String) -> [Waypoint] {
+        GitProvider(fileURL: fileURL)
+            .queryWaypoints(currentContent: currentContent)
+    }
+}
+
 // MARK: - Git Provider
 
 /// Queries git history for a file and produces external waypoints

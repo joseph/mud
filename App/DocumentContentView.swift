@@ -123,11 +123,9 @@ struct DocumentContentView: View {
         .onDisappear {
             model.stopWatching()
         }
-        #if GIT_PROVIDER
         .onChange(of: appState.changesShowGitWaypoints) { _, enabled in
-            model.gitWaypointsSettingChanged(enabled: enabled)
+            model.externalWaypointsSettingChanged(enabled: enabled)
         }
-        #endif
     }
 }
 

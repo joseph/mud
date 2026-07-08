@@ -73,6 +73,7 @@
 		7CDA11072FA30D0100000008 /* CommentSubmissionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CDA11062FA30D0100000007 /* CommentSubmissionHandler.swift */; };
 		7CDA11092FA30D010000000A /* DocumentExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CDA11082FA30D0100000009 /* DocumentExporter.swift */; };
 		7CE6B5A82F833DB3006A9BCA /* Date+Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CE6B5A72F833DB3006A9BCA /* Date+Formatting.swift */; };
+		7CDA110B2FA30D010000000C /* WaypointProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CDA110A2FA30D010000000B /* WaypointProvider.swift */; };
 		7CE6B5B02F83E899006A9BCA /* GitProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CE6B5AF2F83E899006A9BCA /* GitProvider.swift */; };
 		7CED000000000000000A0002 /* OpenInEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CED000000000000000A0001 /* OpenInEditor.swift */; };
 		7CF4F00000000000000000C3 /* MudCore in Frameworks */ = {isa = PBXBuildFile; productRef = 7CF4F00000000000000000C1 /* MudCore */; };
@@ -208,6 +209,7 @@
 		7CDA11062FA30D0100000007 /* CommentSubmissionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommentSubmissionHandler.swift; sourceTree = "<group>"; };
 		7CDA11082FA30D0100000009 /* DocumentExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentExporter.swift; sourceTree = "<group>"; };
 		7CE6B5A72F833DB3006A9BCA /* Date+Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+Formatting.swift"; sourceTree = "<group>"; };
+		7CDA110A2FA30D010000000B /* WaypointProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaypointProvider.swift; sourceTree = "<group>"; };
 		7CE6B5AF2F83E899006A9BCA /* GitProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitProvider.swift; sourceTree = "<group>"; };
 		7CED000000000000000A0001 /* OpenInEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenInEditor.swift; sourceTree = "<group>"; };
 		7CF4F00000000000000000A1 /* MudTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MudTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -406,6 +408,7 @@
 				7CAA0000000000000000BADF /* TabReloadBadgeView.swift */,
 				7C1FD9802F44FAC200BB4076 /* LocalFileSchemeHandler.swift */,
 				7CE6B5AF2F83E899006A9BCA /* GitProvider.swift */,
+				7CDA110A2FA30D010000000B /* WaypointProvider.swift */,
 				7CC975652F340904001C3BB7 /* WebView.swift */,
 				7CCF00000000000000000010 /* Lighting+AppKit.swift */,
 				7C8D102F2F34CF0400F359C8 /* FindFeature.swift */,
@@ -774,6 +777,7 @@
 				7C3640C52F60FCF400364BEC /* MarkdownSettingsView.swift in Sources */,
 				7C573B5D2FD0072100646B07 /* CommentsSettingsView.swift in Sources */,
 				7CE6B5B02F83E899006A9BCA /* GitProvider.swift in Sources */,
+				7CDA110B2FA30D010000000C /* WaypointProvider.swift in Sources */,
 				7C3640B52F60DC2C00364BEC /* AppState.swift in Sources */,
 				7C573B4F2FD0072100646B07 /* CommentController.swift in Sources */,
 				7C442A682F34BB7E0046E0CD /* DocumentWindowController.swift in Sources */,

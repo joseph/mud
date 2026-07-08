@@ -107,8 +107,11 @@ MVP plan.
 - `OutlineNode.swift` — Sidebar data model
 - `FindFeature.swift` — Search state and UI
 - `ChangesFeature.swift` — Floating Changes bar and overlay
-- `GitProvider.swift` — Git history queries for external waypoints
-  (`#if GIT_PROVIDER`)
+- `GitProvider.swift` — Git history queries for external waypoints, conforming
+  as `GitWaypointProvider` (`#if GIT_PROVIDER`)
+- `WaypointProvider.swift` — `WaypointProvider` protocol, its no-op default,
+  and the build's provider factory (`WaypointProviders`) — the one
+  `#if GIT_PROVIDER` outside the whole-file-guarded git files
 - `FileWatcher.swift` — DispatchSource file monitoring
 - `CommandLineInstaller.swift` — CLI symlink creation with elevation support
 - `LocalFileSchemeHandler.swift` — `mud-asset:` URL scheme for local images
@@ -285,8 +288,8 @@ MVP plan.
   temp-directory fixture, and the `MudComment` alias
 - `FindStateTests.swift` — The find state machine: origin classification,
   navigation, reset behavior
-- `DocumentModelTests.swift` — The self-write dedup policy and the watcher
-  hold/echo policy against real temp files
+- `DocumentModelTests.swift` — The self-write dedup policy, the watcher
+  hold/echo policy against real temp files, and the waypoint-provider seam
 - `CommentControllerTests.swift` — Comment mutations on disk and the
   `anchorFailed` / `writeFailed` matrix
 - `OpenInFormatTests.swift` — The Open In `.auto` format truth table

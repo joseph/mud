@@ -174,3 +174,65 @@ private extension DocumentModel.Content {
         #expect(model.pendingCommentLocators.isEmpty)
     }
 }
+
+// MARK: - External waypoint provider
+
+/// The `WaypointProvider` seam (Phase 4g): a load queries the injected
+/// provider and hands its waypoints to the change tracker; a disabled
+/// provider clears them instead.
+@MainActor
+@Suite struct DocumentModelWaypointTests {
+    private nonisolated struct FakeProvider: WaypointProvider {
+        let enabled: Bool
+        let waypoints: [Waypoint]
+        @MainActor var isEnabled: Bool { enabled }
+        func queryWaypoints(
+            for fileURL: URL, currentContent: String
+        ) -> [Waypoint] {
+            waypoints
+        }
+    }
+
+    private let fileURL: URL
+    private let state = DocumentState()
+
+    init() throws {
+        let directory = try makeTempDirectory()
+        fileURL = directory.appendingPathComponent("tracked.md")
+        try "current".write(to: fileURL, atomically: true, encoding: .utf8)
+    }
+
+    private func makeModel(_ provider: FakeProvider) -> DocumentModel {
+        DocumentModel(
+            fileURL: fileURL, state: state,
+            changeTracker: state.changeTracker, waypointProvider: provider)
+    }
+
+    private var externalWaypointIDs: [UUID] {
+        state.changeTracker.waypoints.compactMap {
+            if case .external = $0.kind { return $0.id }
+            return nil
+        }
+    }
+
+    @Test func loadHandsProviderWaypointsToTheTracker() async {
+        let external = Waypoint(
+            parsed: ParsedMarkdown("older"), timestamp: Date(),
+            kind: .external(label: "since commit abc1234", detail: "Old."))
+        let model = makeModel(FakeProvider(enabled: true, waypoints: [external]))
+        model.load()
+        // The query hops off the main thread; wait for it to land.
+        #expect(await pumpUntil { externalWaypointIDs == [external.id] })
+    }
+
+    @Test func disabledProviderClearsExternalWaypoints() {
+        let stale = Waypoint(
+            parsed: ParsedMarkdown("older"), timestamp: Date(),
+            kind: .external(label: "since commit abc1234", detail: nil))
+        state.changeTracker.setExternalWaypoints([stale])
+        let model = makeModel(FakeProvider(enabled: false, waypoints: [stale]))
+        model.load()
+        // The disabled guard clears synchronously — no query to wait for.
+        #expect(externalWaypointIDs.isEmpty)
+    }
+}

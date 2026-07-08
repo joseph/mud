@@ -618,6 +618,7 @@ parsing (which scrapes undocumented `ls-files --debug` output) is testable.
   `#if GIT_PROVIDER`-guarded, like the source) compile there. Both schemes list
   the bundle in their test action, so Cmd+U runs it. Swift Testing, matching
   the Core and Preferences test suites.
+
 - Coverage, by file: `FindStateTests` (the origin/direction state machine —
   typing classifies top/refine, Enter and the arrows advance, close/clear
   reset; the typing path goes through a Combine sink received on
@@ -637,6 +638,7 @@ parsing (which scrapes undocumented `ls-files --debug` output) is testable.
   `GitProviderTests` (waypoint assembly, content dedup, the staged rules, the
   `ls-files --debug` mtime scrape, and both `%aI` date formats, all over a
   scripted runner).
+
 - Enabling refactors, behavior unchanged: `GitProvider` gained an injected
   `Runner` closure (the default spawns `/usr/bin/git` as before);
   `MudJSBridge.call`'s script assembly moved to an internal `script(for:args:)`
@@ -645,6 +647,7 @@ parsing (which scrapes undocumented `ls-files --debug` output) is testable.
   `OpenInMenuModel.resolveFormat` became a static function over the two
   UTI-claim booleans, with the instance method doing the `NSWorkspace` lookups;
   `DocumentModel.consumeSelfWrite` went from private to internal.
+
 - Landing the target surfaced four constraints worth remembering:
 
   - The first `@testable import Mud` ever compiled exposed a products-directory
@@ -675,6 +678,32 @@ parsing (which scrapes undocumented `ls-files --debug` output) is testable.
 Three conditional blocks leak into `DocumentContentView`. Give the model a
 `WaypointProvider` protocol with a no-op default so the `#if` collapses to one
 factory site in `GitProvider.swift` (already whole-file-guarded).
+
+**Implementation notes (July 2026):**
+
+- Landed as `App/WaypointProvider.swift`: the `WaypointProvider` protocol (an
+  `isEnabled` read on the main thread, a blocking `queryWaypoints` called off
+  it), the `NoWaypointProvider` no-op, and the `WaypointProviders` factory.
+  `DocumentModel` takes the provider as an init parameter (defaulting to the
+  factory) and no longer mentions git at all — the enabled check moved onto the
+  provider, so the preference name lives with the git code.
+- One deviation: the factory could not live in `GitProvider.swift` as written
+  above, because that file is whole-file-guarded and the `#else` branch has to
+  compile exactly when the file doesn't. The single `#if/#else` sits next to
+  the protocol instead; `GitProvider.swift` adds the thin `GitWaypointProvider`
+  conformer, and `GitProvider` itself is unchanged (it still binds the file URL
+  at init, as its tests expect).
+- The settings pane's conditional went too: `WaypointProviders.isAvailable`
+  replaces the `#if` around the "Git commits" toggle, and the view's
+  `.onChange` plumbing (calling the renamed `externalWaypointsSettingChanged`)
+  is now unconditional. The remaining `#if GIT_PROVIDER` sites are the
+  whole-file guards on `GitProvider.swift` / `GitProviderTests.swift`, the
+  factory, and the build settings that define the flag.
+- New `DocumentModelWaypointTests` pin the seam with an injected fake: a load
+  hands the provider's waypoints to the change tracker, and a disabled provider
+  clears them. Testing this without flipping the persisted
+  `changesShowGitWaypoints` preference (the test host is the real app) is what
+  putting `isEnabled` on the provider buys.
 
 
 ### 4h. Per-window zoom and window-frame autosave

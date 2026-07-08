@@ -38,6 +38,7 @@ final class DocumentModel: ObservableObject {
     let fileURL: URL
     private let state: DocumentState
     private let changeTracker: ChangeTracker
+    private let waypointProvider: any WaypointProvider
 
     @Published private(set) var content: Content = .parsed(ParsedMarkdown(""))
     /// True while a held change is specifically an *external* edit (not our
@@ -92,10 +93,14 @@ final class DocumentModel: ObservableObject {
     private var cachedKey: DisplayKey?
     private var cachedDisplay: RenderedDisplay?
 
-    init(fileURL: URL, state: DocumentState, changeTracker: ChangeTracker) {
+    init(
+        fileURL: URL, state: DocumentState, changeTracker: ChangeTracker,
+        waypointProvider: any WaypointProvider = WaypointProviders.makeDefault()
+    ) {
         self.fileURL = fileURL
         self.state = state
         self.changeTracker = changeTracker
+        self.waypointProvider = waypointProvider
 
         // When the compose box closes, apply any external change held while
         // it was open (re-reading disk so a successful comment write is
@@ -386,9 +391,7 @@ final class DocumentModel: ObservableObject {
             .filter { liveLabels.contains($0.key) }
         state.contentTitle = parsed.title
         changeTracker.update(parsed)
-        #if GIT_PROVIDER
-        refreshGitWaypoints(for: text)
-        #endif
+        refreshExternalWaypoints(for: text)
     }
 
     private func setContent(_ newContent: Content) {
@@ -396,36 +399,36 @@ final class DocumentModel: ObservableObject {
         content = newContent
     }
 
-    // MARK: Git waypoints
+    // MARK: External waypoints
 
-    #if GIT_PROVIDER
-    /// Responds to the "show git waypoints" setting changing: on enable,
-    /// query for the current content; on disable, drop the external
-    /// waypoints.
-    func gitWaypointsSettingChanged(enabled: Bool) {
+    /// Responds to the provider's setting changing: on enable, query for the
+    /// current content; on disable, drop the external waypoints.
+    func externalWaypointsSettingChanged(enabled: Bool) {
         if enabled {
             if case .parsed(let parsed) = content {
-                refreshGitWaypoints(for: parsed.markdown)
+                refreshExternalWaypoints(for: parsed.markdown)
             }
         } else {
             changeTracker.setExternalWaypoints([])
         }
     }
 
-    private func refreshGitWaypoints(for text: String) {
-        guard AppState.shared.changesShowGitWaypoints,
-              !fileURL.isBundleResource else {
+    /// Queries the waypoint provider off the main thread and hands the
+    /// result to the change tracker — or clears the external waypoints when
+    /// the provider is off or the file is a bundled guide.
+    private func refreshExternalWaypoints(for text: String) {
+        guard waypointProvider.isEnabled, !fileURL.isBundleResource else {
             changeTracker.setExternalWaypoints([])
             return
         }
         let url = fileURL
         let tracker = changeTracker
+        let provider = waypointProvider
         Task {
             let waypoints = await Task.detached {
-                GitProvider(fileURL: url).queryWaypoints(currentContent: text)
+                provider.queryWaypoints(for: url, currentContent: text)
             }.value
             tracker.setExternalWaypoints(waypoints)
         }
     }
-    #endif
 }

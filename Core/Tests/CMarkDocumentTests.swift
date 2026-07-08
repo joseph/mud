@@ -332,25 +332,48 @@ struct CMarkDocumentTests {
         }
     }
 
-    /// The wrapper's range conventions must equal swift-markdown's exactly —
-    /// including the multibyte characters that make byte columns diverge from
-    /// character columns, and the backtick widening on inline code.
-    @Test func rangeConventionsMatchSwiftMarkdown() throws {
-        let source = """
-            # Héading
-
-            Para *em* **st** `cö` [li](u) and ~~sk~~ døne.
-            """
-
-        let document = try #require(CMarkDocument(parsing: source))
+    /// Parses `source` with both parsers and asserts the collected range
+    /// records match exactly.
+    private func expectRangesMatchSwiftMarkdown(
+        _ source: String,
+        sourceLocation: Testing.SourceLocation = #_sourceLocation
+    ) throws {
+        let document = try #require(
+            CMarkDocument(parsing: source), sourceLocation: sourceLocation)
         var cmarkSide = CMarkRangeCollector()
         cmarkSide.visit(document.root)
 
         var swiftMarkdownSide = SwiftMarkdownRangeCollector()
         swiftMarkdownSide.visit(Markdown.Document(parsing: source))
 
-        #expect(!cmarkSide.records.isEmpty)
-        #expect(cmarkSide.records == swiftMarkdownSide.records)
+        #expect(!cmarkSide.records.isEmpty, sourceLocation: sourceLocation)
+        #expect(
+            cmarkSide.records == swiftMarkdownSide.records,
+            sourceLocation: sourceLocation)
+    }
+
+    /// The wrapper's range conventions must equal swift-markdown's exactly —
+    /// including the multibyte characters that make byte columns diverge from
+    /// character columns, and the backtick widening on inline code. The
+    /// corpus documents are ASCII-only sources, so this hand-written document
+    /// keeps the multibyte case covered.
+    @Test func rangeConventionsMatchSwiftMarkdown() throws {
+        try expectRangesMatchSwiftMarkdown("""
+            # Héading
+
+            Para *em* **st** `cö` [li](u) and ~~sk~~ døne.
+            """)
+    }
+
+    /// The same range comparison over the whole corpus. Footnote-bearing
+    /// documents are excluded for the same reason as
+    /// `textLiteralsMatchSwiftMarkdown` below: swift-markdown is
+    /// footnote-unaware, so its tree differs there by design.
+    @Test(arguments: ParityCorpus.all.filter { !$0.markdown.contains("[^") })
+    func rangeConventionsMatchSwiftMarkdownOverCorpus(
+        _ corpusDocument: ParityCorpus.Document
+    ) throws {
+        try expectRangesMatchSwiftMarkdown(corpusDocument.markdown)
     }
 
     /// Both parsers must yield byte-identical text-node literals — the

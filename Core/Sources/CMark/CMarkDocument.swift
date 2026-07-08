@@ -112,13 +112,17 @@ final class CMarkDocument {
     ///   the range includes the ticks (cmark's raw span covers only the
     ///   content between them).
     ///
-    /// Returns nil when cmark tracked no position for the node. One deliberate
-    /// divergence: an inverted position pair (end before start — garbage
-    /// sourcepos) returns nil instead of trapping in `Range.init`.
+    /// Returns nil when cmark tracked no start position for the node. The
+    /// **end** is converted blindly — raw column plus one, no zero check —
+    /// exactly as swift-markdown does, because a raw end column of 0 can be
+    /// meaningful rather than untracked: a setext heading ends at (line after
+    /// the underline, 0), which converts to an exclusive bound at that line's
+    /// first byte. One deliberate divergence: an inverted position pair (end
+    /// before start — a fully untracked end, or garbage sourcepos) returns
+    /// nil instead of trapping in `Range.init`.
     func range(of node: CMarkNode) -> Range<CMarkSourceLocation>? {
         guard node.startLine > 0, node.startColumn > 0 else { return nil }
         let endColumn = node.endColumn + 1
-        guard node.endLine > 0, endColumn > 0 else { return nil }
         let backticks = node.backtickCount
         let lower = CMarkSourceLocation(
             line: node.startLine, column: node.startColumn - backticks)

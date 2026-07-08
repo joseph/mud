@@ -77,7 +77,8 @@ struct AlertDetector {
 
     /// Core DocC kinds — the six canonical categories in their DocC form.
     /// Active when `docCAlertMode` is `.common` or `.extended`.
-    private static let coreMap: [String: AlertCategory] = [
+    /// Internal (not private) so the parity tests can sweep every tag.
+    static let coreMap: [String: AlertCategory] = [
         "Note":      .note,
         "Tip":       .tip,
         "Important": .important,
@@ -88,7 +89,8 @@ struct AlertDetector {
 
     /// Extended DocC aliases — non-canonical kinds that map to a common
     /// category. Active only when `docCAlertMode` is `.extended`.
-    private static let extendedMap: [String: AlertCategory] = [
+    /// Internal (not private) so the parity tests can sweep every tag.
+    static let extendedMap: [String: AlertCategory] = [
         // Note
         "Remark":             .note,
         "Complexity":         .note,

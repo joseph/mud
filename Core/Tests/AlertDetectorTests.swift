@@ -54,18 +54,17 @@ struct AlertDetectorTests {
 
     // MARK: - DocC asides
 
-    @Test(arguments: [
-        "> Note: Body.\n",
-        "> Tip: Body.\n",
-        "> Important: Body.\n",
-        "> Warning: Body.\n",
-        "> Caution: Body.\n",
-        "> Status: Body.\n",
-        "> SeeAlso: Body.\n",
-        "> Bug: Body.\n",
-        "> Unrecognized: Body.\n",
-        "> Plain quote, no tag.\n",
-    ])
+    /// Every recognized DocC tag from both maps — so the sweep pins each of
+    /// `docCDisplayName`'s hard-coded titles ("See Also", "To Do", …) against
+    /// `Aside.Kind.displayName` — plus an unrecognized tag and a tagless
+    /// quote.
+    private static let docCCases: [String] =
+        (AlertDetector.coreMap.keys.sorted()
+            + AlertDetector.extendedMap.keys.sorted())
+        .map { "> \($0): Body.\n" }
+        + ["> Unrecognized: Body.\n", "> Plain quote, no tag.\n"]
+
+    @Test(arguments: docCCases)
     func docCAlertMatchesLegacy(_ markdown: String) throws {
         let (legacyQuote, portedQuote) = try parseFirstBlockQuote(markdown)
         let detector = AlertDetector()

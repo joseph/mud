@@ -133,6 +133,23 @@ enum ParityCorpus {
       Wait for it... the ellipsis converts too.
       """)
 
+  /// A setext heading's raw cmark end position is (line after the underline,
+  /// column 0) — the one node shape whose end column is 0 — so this document
+  /// pins the blind end-position conversion `CMarkDocument.range(of:)` shares
+  /// with swift-markdown. The frontMatter document below also hits it, but
+  /// only by accident (its YAML block parses as a setext heading).
+  static let setextHeadings = Document(
+    name: "setextHeadings",
+    markdown: """
+      Top-level setext heading
+      ========================
+
+      Second-level *setext* heading
+      -----------------------------
+
+      A paragraph between the setext headings.
+      """)
+
   static let frontMatter = Document(
     name: "frontMatter",
     markdown: """
@@ -163,6 +180,7 @@ enum ParityCorpus {
   static let all: [Document] = [
     paragraphsWithInlineSyntax, hardBreakParagraph, headings, listItems,
     taskListItems, blockquoteParagraphs, alertBodyParagraphs, tableCells,
-    duplicateBlocks, smartTypography, frontMatter, codeBlockAndThematicBreak,
+    duplicateBlocks, smartTypography, setextHeadings, frontMatter,
+    codeBlockAndThematicBreak,
   ]
 }

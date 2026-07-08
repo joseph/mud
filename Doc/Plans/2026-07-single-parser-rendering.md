@@ -1,7 +1,8 @@
 Plan: Single-Parser Rendering
 ===============================================================================
 
-> Status: Planning
+> Status: Underway (Stage 0's corpus landed; the dual-pipeline comparison waits
+> on Stage 1)
 
 Whether and how to consolidate Mud's rendering on one Markdown parser. Today
 every Up-mode render parses the document twice: once with cmark-gfm (via
@@ -118,7 +119,7 @@ what the replacement needs:
 | `DiffContext`               | moderate        | `SourceKey` range join survives as-is                     |
 | `LineDiffMap`, `ChangeList` | trivial         | follow `LeafBlock`                                        |
 | `WordDiff.inlineText`       | small, exacting | counts must match the Up visitor's cursor arithmetic      |
-| `CommentSerialization`      | **hardest**     | `format()` output is written into users' files; see below |
+| `CommentSerialization`      | small, exacting | `parse` slices bodies by sourcepos; see below             |
 | `CommentAnchor`             | none            | already cmark-only                                        |
 
 
@@ -140,16 +141,24 @@ what the replacement needs:
    the line. The existing multi-line strikethrough workaround
    (`DownHTMLVisitor.swift:491-504`) papers over a cmark _extension_ sourcepos
    bug, so it survives the port unchanged.
-3. **`CommentSerialization.format()`.** The one true Markdown re-serialization
-   of a subtree, whose output `CommentEditor` writes back into the user's file
-   under a `parse(serialize(x)) == x` invariant. `cmark_render_commonmark`
-   formats differently (escaping, wrapping, list markers), so a drop-in swap
-   would churn bytes in users' documents. Mitigation: this file parses tiny,
-   de-indented comment bodies, not the document — it has **no position coupling
-   to the render parse**. So it can keep swift-markdown after everything else
-   has moved (the seam is gone even if the dependency lingers), and be ported
-   last with a hand-rolled serializer for the four block kinds comment bodies
-   use, or not at all.
+3. **`CommentSerialization` writes into users' files.** `CommentEditor` writes
+   its output back into the user's `.md` under the round-trip invariant
+   `parse(serialize(x)) == x`, so the port must not change the bytes of message
+   bodies. The risk is smaller than it first looked: `serialize()` is already
+   hand-rolled string building for Mud's own comment grammar (the `💬 {…}:`
+   headers, the quotation line, blank-line joins), and the only real Markdown
+   re-serialization in the file is `formatBlock` inside `parse` —
+   swift-markdown's `format()`, which today re-formats existing message bodies
+   whenever a thread is rewritten. The port deletes it: `parse` instead slices
+   each message's body straight out of the de-indented body string by block
+   sourcepos (full lines, from the group's first block through its last),
+   checked with `verifiedRange(of:)`. Untouched messages then round-trip
+   byte-for-byte — better than today. `cmark_render_commonmark` was considered
+   and rejected: it formats differently (escaping, wrapping, list markers), and
+   the write path holds body _strings_, not an AST, so there is nothing for a
+   serializer to serialize.[^comment-y] The file still ports last — it parses
+   tiny, de-indented comment bodies, not the document, so it has **no position
+   coupling to the render parse**.
 
 
 ### Node lifetime
@@ -213,11 +222,39 @@ exported constants in the public module map; identify them by
 Strangler-style: both pipelines coexist behind a differential harness until the
 last stage; every stage lands independently and keeps the app shipping.
 
-**Stage 0 — the harness.** A corpus (start from `Doc/Examples/` plus the
-rendering tests' fixtures; add documents exercising every node type, smart
-typography, footnotes, comments, alerts, tables, task lists) and a test that
-renders each document through both pipelines and asserts byte-identical HTML.
-This is also Phase 3e of the architecture plan doing double duty.
+**Stage 0 — the corpus.** Assemble one shared, loadable corpus of markdown
+documents — start from `Doc/Examples/` plus the rendering tests' fixtures; add
+documents exercising every node type, smart typography, footnotes, comments,
+alerts, tables, task lists. Phase 3e's `CommentAnchorParityTests` already
+covers most node types this way, but as markdown string literals inside one
+test file, with no smart-typography cases and nothing another test can load.
+Pull that corpus into its own shared fixtures, add the missing smart-typography
+documents, and wire in `Doc/Examples/`.
+
+The dual-pipeline, byte-identical comparison test can't be written yet: it
+needs a second pipeline to compare against, and that pipeline is Stage 1's
+`CMarkDocument` wrapper, which doesn't exist yet. Add the comparison test once
+Stage 1 lands. Until then, Stage 0 delivers the corpus only — not the harness
+the name implies.
+
+**Landed (July 2026):** `Core/Tests/ParityCorpus.swift` holds the shared corpus
+— twelve named documents, each isolating one feature or node type, so a failure
+names what broke. Nine come from `CommentAnchorParityTests`' existing per-test
+markdown (moved here, not duplicated); three are new: `smartTypography`
+(straight quotes, an apostrophe, an en dash, an em dash, an ellipsis — every
+literal `CMARK_OPT_SMART` rewrites, deliberately absent elsewhere in the
+corpus), `frontMatter`, and `codeBlockAndThematicBreak`.
+`CommentAnchorParityTests` now reads its markdown from the shared constants
+instead of inline literals, and gained a `smartTypographyAnchors` case, since
+smart typography is exactly what `CommentAnchor.fold()` exists to undo.
+`ParityCorpusTests.swift` is a smoke test (`@Test(arguments:)` over
+`ParityCorpus.all`) asserting every document renders to non-empty HTML today —
+a placeholder consumer so the corpus is exercised by the suite now, not inert
+until Stage 1. `Doc/Examples/` was not loaded directly: those files live
+outside `Core/`'s directory tree, so Swift Package Manager can't bundle them
+into the `Core` test target without copying or symlinking across the package
+boundary. Representative content (front matter, a fenced code block, a thematic
+break) was ported into the corpus by hand instead.
 
 **Stage 1 — the wrapper.** `CMarkDocument` in Core: owning class over the
 parsed tree, typed node enum (by type string for extension nodes), a walker
@@ -254,10 +291,15 @@ share one parse. The byte-geometry functions (`locateComments`,
 design — but now read positions from the same single parse. Delete the
 swift-markdown pipeline and the harness's old side.
 
-**Stage 7 (optional, separable) — CommentSerialization.** Hand-rolled
-serializer for comment bodies with round-trip tests, then drop the
-swift-markdown dependency from `Package.swift`. Until then the dependency
-remains for this one leaf use, with zero position coupling.
+**Stage 7 (separable) — CommentSerialization.** Port `parse` onto the cmark
+wrapper, replacing `formatBlock` with sourcepos slicing of the de-indented body
+string (`serialize` is already hand-rolled and does not change), then drop the
+swift-markdown dependency from `Package.swift`. Two tests gate the switch: the
+existing round-trip suite (`parse(serialize(x)) == x`) and a new byte-identity
+test that a reply to a hand-written fixture leaves the earlier messages' bytes
+unchanged. This stage can trail the rest — the file has zero position coupling
+to the render parse, so the two-parser seam is gone even while the dependency
+lingers.
 
 
 ## Recommendation
@@ -279,3 +321,106 @@ plus the parity corpus — but it is mechanical under a harness that fails
 loudly, and each stage is useful on its own. The alternative (waiting for
 swift-markdown to gain footnotes) has no timeline: the request has been open
 upstream since 2022 with no in-flight work as of July 2026.
+
+[^comment-y]: > cmark_render_commonmark formats differently (escaping,
+    > wrapping, list … would churn bytes in users’ documents.
+
+    💬 {JP @ 2026-07-08 10:43:26}:
+
+    How much is this really likely to matter in practice? Almost all
+    comments are created via Mud, rather than hand-written. I guess
+    there’s a slight back-compatibility aspect for existing documents
+    with comments, but for new comments in any doc (if we switched to
+    `cmark_render_commonmark`) would there really be much ongoing
+    churn? Am I being to optimistic about this? Give me your
+    realistic assessment and advice.
+
+    💬 {Claude @ 2026-07-08 05:47:12}:
+
+    You’re not being too optimistic — the plan overweights this.
+    Three facts size the churn:
+
+    1. Mud only rewrites a definition when the user acts on that
+       specific thread (reply, edit, delete-one). Rendering never
+       writes. So churn in existing documents is zero until the next
+       edit to that thread, and then the diff is confined to that one
+       definition block.
+    2. Normalization-on-rewrite already exists today.
+       `CommentEditor.rewrite` rebuilds the whole definition from
+       parsed messages, and `parse` runs every body block through
+       swift-markdown’s `format()`
+       (`CommentSerialization.swift:262`). A reply to a hand-written
+       thread already reformats the earlier messages into
+       swift-markdown’s canonical form. Switching to
+       `cmark_render_commonmark` would change the canonical form, not
+       introduce normalization. For Mud-authored threads the switch
+       shows up once — the first write under the new serializer
+       re-canonicalizes the thread — and is stable after that,
+       provided round-trips are idempotent.
+    3. The residual risks are narrow but real: (a) idempotence —
+       cmark’s commonmark renderer backslash-escapes more
+       aggressively (punctuation that could open a construct), and if
+       an escape isn’t stripped symmetrically on re-parse,
+       backslashes compound on every edit; (b) readability — those
+       escapes land in the raw file, which humans and agents read on
+       GitHub, and Mud’s comments are deliberately GitHub-readable.
+
+    But I think the debate mostly dissolves on a closer look at the
+    file: `serialize()` is already hand-rolled string building. The
+    only true Markdown re-serialization is `formatBlock` inside
+    `parse`. So Stage 7 needs neither `cmark_render_commonmark` nor a
+    hand-written block serializer — `parse` can slice each message’s
+    body straight out of the de-indented body string by block
+    sourcepos (full lines, first block of the group through the
+    last), guarded by the wrapper’s `verifiedRange`. Untouched
+    messages then round-trip byte-for-byte — strictly better than
+    today, where `format()` normalizes them — and the dependency
+    drops.
+
+    Advice: keep Stage 7 late as planned, but reframe it as “port
+    `parse` onto the cmark wrapper and slice bodies by sourcepos,”
+    with two tests: `parse(serialize(x)) == x`, and a byte-identity
+    test that a reply to a hand-written fixture leaves the earlier
+    messages’ bytes unchanged.
+
+    💬 {JP @ 2026-07-08 10:49:38}:
+
+    > serialize() is already hand-rolled string building.
+
+    _Should_ it be?
+
+    💬 {Claude @ 2026-07-08 05:51:09}:
+
+    Yes — because `serialize()` is not a Markdown serializer. It is
+    the writer for Mud's own comment grammar (the
+    `💬 {author @ timestamp}:` convention in `Doc/Spec/comments.md`):
+    a `> ` quotation line, header paragraphs, blank-line joins. The
+    only real Markdown in the output — the message bodies — passes
+    through **verbatim as strings**. There is no AST anywhere on the
+    write path: bodies arrive as text from the compose box or from
+    `parse` of the on-disk file.
+
+    That framing answers the question two ways:
+
+    1. A "real" serializer has nothing to serialize. To use one you
+       would first have to parse each body into an AST and re-emit it
+       — which manufactures exactly the normalization churn we just
+       agreed to avoid, and adds an escaping risk surface instead of
+       removing one. Verbatim pass-through _is_ the desirable
+       property: the user's typed bytes reach the file unchanged.
+    2. No off-the-shelf serializer knows the `💬 {…}:` grammar. That
+       container syntax would be hand-rolled regardless — and it is
+       nearly the whole function. What remains is small and rigid
+       enough to be correct by construction.
+
+    The obligation that comes with verbatim pass-through is that
+    `serialize` trusts bodies not to break the container, and the
+    round-trip suite is the enforcement — `CommentSerializationTests`
+    has ten `roundTrip_*` cases asserting `parse(serialize(x)) == x`.
+    One residual edge I'd note rather than fix: a body whose _second
+    or later_ paragraph begins with `{` or `💬` would split into a new
+    message on re-parse. That is an ambiguity in Mud's grammar, not
+    in Markdown — a Markdown serializer would not prevent it either.
+    Content survives (only the attribution boundary shifts), so I'd
+    leave it as a documented limitation unless it ever bites; the fix
+    would be an escape convention in the grammar, not a serializer.

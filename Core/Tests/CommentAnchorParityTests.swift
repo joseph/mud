@@ -19,87 +19,30 @@ import Testing
 @Suite("CommentAnchor parity with the JS extraction")
 struct CommentAnchorParityTests {
 
-  // MARK: - Corpus
+  // MARK: - Tests, over ParityCorpus (Doc/Plans/2026-07-single-parser-rendering.md, Stage 0)
 
   @Test func paragraphsWithInlineSyntaxAnchor() {
-    let markdown = """
-      The quick *brown* **fox** jumps over the `lazy` dog.
-
-      A [link](https://example.org) and an image ![drip](drip.png) inline.
-
-      Ampersand & angle < bracket > text with "quotes" and it's fine.
-
-      Emoji :tada: shortcode and ~~struck~~ text.
-
-      A paragraph that continues
-      across two source lines.
-
-      A footnote[^1] and a comment[^comment-a] reference.
-
-      [^1]: The footnote body.
-
-      [^comment-a]: A comment body.
-      """
-    #expect(failingBlocks(markdown).isEmpty)
+    #expect(failingBlocks(ParityCorpus.paragraphsWithInlineSyntax.markdown).isEmpty)
   }
 
   @Test func hardBreakParagraphAnchors() {
-    let markdown = "Line one  \nLine two continues.\n"
-    #expect(failingBlocks(markdown).isEmpty)
+    #expect(failingBlocks(ParityCorpus.hardBreakParagraph.markdown).isEmpty)
   }
 
   @Test func headingsAnchor() {
-    let markdown = """
-      # Top heading
-
-      ## Second *level* heading
-
-      ### Third with `code`
-
-      #### Fourth
-
-      ##### Fifth
-
-      ###### Sixth
-      """
-    #expect(failingBlocks(markdown).isEmpty)
+    #expect(failingBlocks(ParityCorpus.headings.markdown).isEmpty)
   }
 
   @Test func listItemsAnchor() {
-    let markdown = """
-      - First tight item
-      - Second tight item with **bold**
-        - Nested item
-
-      1. Ordered one
-      2. Ordered two
-
-      - Loose item one
-
-        Second paragraph of the loose item.
-
-      - Loose item two
-      """
-    #expect(failingBlocks(markdown).isEmpty)
+    #expect(failingBlocks(ParityCorpus.listItems.markdown).isEmpty)
   }
 
   @Test func taskListItemsAnchor() {
-    let markdown = """
-      - [ ] Unchecked task
-      - [x] Checked task
-      """
-    #expect(failingBlocks(markdown).isEmpty)
+    #expect(failingBlocks(ParityCorpus.taskListItems.markdown).isEmpty)
   }
 
   @Test func blockquoteParagraphsAnchor() {
-    let markdown = """
-      > A quoted paragraph.
-      >
-      > A second quoted paragraph.
-
-      Plain text after.
-      """
-    #expect(failingBlocks(markdown).isEmpty)
+    #expect(failingBlocks(ParityCorpus.blockquoteParagraphs.markdown).isEmpty)
   }
 
   @Test func alertBodyParagraphsAnchor() {
@@ -107,37 +50,24 @@ struct CommentAnchorParityTests {
     // matching source block) and is excluded below; the body paragraphs anchor
     // via CommentAnchor's in-blockquote suffix rule (the rendered body is a
     // suffix of cmark's paragraph, which still carries the title line).
-    let markdown = """
-      > [!NOTE]
-      > The note body paragraph.
-
-      > Warning: This DocC aside body is long enough that the renderer keeps it
-      > roman in its own paragraph instead of bolding it on the title line.
-      """
-    #expect(failingBlocks(markdown).isEmpty)
+    #expect(failingBlocks(ParityCorpus.alertBodyParagraphs.markdown).isEmpty)
   }
 
   @Test func tableCellsAnchor() {
-    let markdown = """
-      | Name | Value |
-      | ----- | ------ |
-      | alpha | **one** |
-      | beta | two |
-      """
-    #expect(failingBlocks(markdown).isEmpty)
+    #expect(failingBlocks(ParityCorpus.tableCells.markdown).isEmpty)
   }
 
   @Test func duplicateBlocksAnchorByOccurrence() {
     // Identical-text blocks disambiguate by occurrence index; the JS counts
     // matching innermost leaves in document order, and so must Swift.
-    let markdown = """
-      Repeated text.
+    #expect(failingBlocks(ParityCorpus.duplicateBlocks.markdown).isEmpty)
+  }
 
-      Unique middle.
-
-      Repeated text.
-      """
-    #expect(failingBlocks(markdown).isEmpty)
+  @Test func smartTypographyAnchors() {
+    // Smart typography is exactly what CommentAnchor.fold() exists to undo:
+    // curly quotes/dashes/ellipsis in the rendered DOM must still resolve
+    // back to their straight ASCII source.
+    #expect(failingBlocks(ParityCorpus.smartTypography.markdown).isEmpty)
   }
 
   // MARK: - Driver

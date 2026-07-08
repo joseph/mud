@@ -1,7 +1,7 @@
 Plan: Architecture Improvements
 ===============================================================================
 
-> Status: Underway (Phases 1–2 landed; Phase 3 underway)
+> Status: Underway (Phases 1–3 landed; Phase 4 underway)
 
 A full architecture review of Mud (July 2026), covering the App target, the
 MudCore rendering and diff subsystems, the Preferences package, the CLI / Quick
@@ -387,6 +387,35 @@ FileWatcher and its hold/echo policy, and a cached `RenderedDisplay`
 invalidated on (content, options-identity) change. The view keeps layout, key
 handling, and callback plumbing.
 
+**Implementation notes (July 2026):**
+
+- Landed as `App/DocumentModel.swift`, created by `DocumentWindowController`
+  beside `DocumentState` and observed by `DocumentContentView`. The view keeps
+  layout, key handling, callback plumbing, comment-submit dispatch (which 4c
+  moves onto the typed bridge), and the two export paths (which 4e
+  consolidates).
+- The model owns the content enum, disk reads, and the file watcher with the
+  whole hold/echo policy: the self-write registry, `pendingExternalReload`,
+  `externalChangeHeld`, and `hasBackgroundReload` all moved off
+  `DocumentState`, along with the pending comment locators, the parsed-comment
+  bookkeeping (reveal-on-first-comment, locator pruning), and the git waypoint
+  refresh. The model subscribes to `state.$isColumnComposing` directly, so a
+  change held during composing is applied by the model at compose-end; the
+  view's `onChange` keeps only focus reclaim.
+- `display(mode:options:)` returns a cached `RenderedDisplay` (html, contentID,
+  footnote popover map, comments) keyed on (content version, mode,
+  `RenderOptions.ContentIdentity`), so a SwiftUI `body` evaluation costs a key
+  comparison, not a render. Display-only options (htmlClasses, zoomLevel) are
+  left out of the key on purpose: they are applied to the live page via JS, so
+  a cached page with a stale zoom baked in is exactly as correct as the fresh
+  render the WebView would have discarded.
+- The contentID moved into the cache next to the html it identifies; the old
+  `displayContentID` recomputed `removeComments` over the whole source on every
+  view update.
+- 3d's deferred `DiffRequest` split stays deferred: the cache keys on
+  `ContentIdentity` directly, so 4a did not need the split after all. Fold it
+  into the single-parser signature churn.
+
 
 ### 4b. Replace the UUID-trigger dispatcher with a command channel
 
@@ -403,6 +432,43 @@ Replace with one `enum WebCommand` and a `PassthroughSubject` on
 (html/contentID/mode/theme/zoom/classes). Move the print modal off the update
 pass. This also normalizes the find/changes/comments features, which each
 repeat the state-holder + JS-namespace + params + dedup quartet today.
+
+**Implementation notes (July 2026):**
+
+- `WebCommand` (in `DocumentState.swift`) has six cases: `print`,
+  `resetMagnification`, `addCommentFromSelection`, `resolveCompose`,
+  `scrollToHeading`, `scrollToChanges`. Senders fire
+  `state.webCommands.send(...)` from menu/toolbar actions, sidebar clicks, and
+  the comment write path; the coordinator subscribes in `makeNSView` and runs
+  each command as it arrives. The `ScrollTarget`, `ChangeScrollTarget`, and
+  `ComposeResolution` structs existed only to carry a dedup `UUID` and are
+  deleted, along with the seven `lastXID` coordinator fields.
+- The print modal now runs from the command sink — a plain responder-chain call
+  path — instead of inside `updateNSView`. The channel also fixes a latent
+  replay bug: a recreated coordinator (fresh `lastXID` fields) would have
+  re-fired whatever `UUID?` triggers were still set on the state.
+- `scrollToHeading` picks its JS by the coordinator's `lastMode` (the mode of
+  the page actually loaded) rather than the view's in-flight mode parameter.
+- **Reload is not a command** — it became declarative. Cmd+R calls
+  `DocumentModel.load(forced: true)`, which bumps a `loadToken` appended to the
+  contentID, so the WebView reloads even when the re-read text is identical;
+  `reloadID` disappeared from state, view, and WebView. One edge intentionally
+  changed: Cmd+R while the error page is showing and the file is still
+  unreadable no longer re-loads the (identical) error page.
+- Search stays a declarative diffed parameter, not a command, because it has a
+  re-apply-after-reload semantic a fire-and-forget command can't express.
+  Testing exposed that the original mechanism (`didFinish` nil-ing
+  `lastSearchID` and waiting for the next `updateNSView`) had always been lazy:
+  it only re-applied when some unrelated SwiftUI update happened to arrive
+  after the page finished loading, and once 4a/4b removed the incidental
+  `@Published` churn that used to supply those updates, it visibly stopped
+  working. Fixed deterministically: the coordinator mirrors the current query
+  (`currentSearchQuery`) and `didFinish` re-runs it directly via the extracted
+  `runSearch`, refreshing the match counter too. The find/changes/comments
+  normalization beyond that is 4c's bridge work.
+- `openInBrowserID` / `openInEditorRequest` remain one-shot triggers for the
+  view (not the page); they dissolve in 4e when the export paths leave
+  `DocumentContentView`.
 
 
 ### 4c. One typed JS bridge
@@ -421,6 +487,38 @@ Build a `MudJSBridge` owning both directions:
 Document the full message table (handler name → payload → consumer) in one
 place, either atop the registration site or in `Doc/`.
 
+**Implementation notes (July 2026):**
+
+- Landed as `App/MudJSBridge.swift`. Outbound, `call("comments.setData", …)`
+  encodes all arguments as one JSON array and strips the brackets to get the
+  argument list — this replaces `jsStringLiteral` and every hand-interpolated
+  call. Each namespace step is guarded (`window.Mud && Mud.comments && …`)
+  because namespaces are legitimately absent (`Mud` before the page loads,
+  `Mud.comments` in Down mode); the function itself is deliberately not
+  guarded, so a renamed or removed JS function raises a TypeError that the
+  bridge logs. Previously about half the call sites had no guard and none
+  checked the error.
+- Inbound, the seven handler names decode into the `MudJSMessage` enum: scalar
+  bodies cast directly, dictionary bodies (`mudFootnote`, `mudCommentSubmit`)
+  round-trip through `JSONSerialization` into `Decodable` payload structs
+  (`FootnoteClick`; `CommentSubmission` gained a `Decodable` init that
+  assembles the `CommentDraft` for `.add`). Malformed payloads are logged and
+  dropped where they were silently ignored before. The message table lives in
+  the doc comment on `MudJSMessage`.
+- The coordinator no longer conforms to `WKScriptMessageHandler`; the bridge
+  does, and hands each decoded message to a single `handle(_:)` switch. The
+  `apply*` / scroll helpers dropped their `webView` parameters — the bridge
+  holds the (weak) page reference.
+- `FootnotePopoverController` now shares the bridge type: the
+  `WKWebViewConfiguration` factory (scheme handler + user scripts), the
+  `mudOpen` decoding, and `navigationPolicy`. One deliberate tightening: the
+  popover previously allowed any fragment navigation; it now requires the
+  fragment URL's path to match the document's, same as the main view.
+- The comment-submit _dispatch_ (routing a `CommentSubmission` to
+  `CommentController` and acknowledging with `.resolveCompose`) stays in
+  `DocumentContentView` — only the wire parsing moved. It leaves the view with
+  the export paths in 4e.
+
 
 ### 4d. One key-window snapshot instead of four hand mirrors
 
@@ -432,6 +530,27 @@ observer of `NSWindow.didBecomeKeyNotification` publishing an
 `nil` = no document). Window controllers stop writing globals; menus read the
 snapshot.
 
+**Implementation notes (July 2026):**
+
+- Landed as `App/ActiveDocument.swift`: `ActiveDocumentSnapshot` (mode,
+  editable, `canAddComment`, `commentsColumnVisible`) plus
+  `ActiveDocumentObserver.shared`, observed by `MudApp` next to `AppState`. The
+  four `AppState` mirrors and their five write sites are gone;
+  `windowDidBecomeKey` keeps only the background-reload badge reset.
+- The observer does more than the plan sentence: on `didBecomeKey` it
+  subscribes to the key controller's `$mode` + `commentableSelection` +
+  `$commentsColumnVisible` (combineLatest), so the snapshot tracks in-window
+  changes too — the job the per-controller "if key window, write the global"
+  sinks used to do. `willCloseNotification` on the attached window clears the
+  snapshot, covering the last-window close, where no `didBecomeKey` follows.
+- Snapshot publishes are wrapped in `deferMutation` because the state
+  publishers fire on `willSet`, sometimes from a menu `Binding` setter mid view
+  update — the same reason the old `$mode` sink deferred its mirror write.
+- Two deliberate behavior changes: menu state now _clears_ when a non-document
+  window (Settings) is key or the last window closes, instead of going stale
+  with a checkmark on "Mark Up"; and the never-read `activeDocumentEditable`
+  mirror is deleted outright (the snapshot's `editable` feeds `canAddComment`).
+
 
 ### 4e. One exporter
 
@@ -441,17 +560,53 @@ standalone + read-only comments column + `ImageDataURI` inlining) and a small
 app-side `DocumentExporter` (temp file + `NSWorkspace.open`). Callers: Open In
 Browser, Open In editor, the CLI, Quick Look.
 
+**Implementation notes (July 2026):**
+
+- `Mode` moved from MudPreferences to MudCore (`Preferences/Sources/Mode.swift`
+  → `Core/Sources/Mode.swift`): `exportDocument`'s signature needs it, nothing
+  inside Preferences used it, and the CLI — which links only MudCore — could
+  then delete its duplicate `OutputMode` enum. Same direction as the phase 5
+  decision that moves `Theme` into MudCore.
+- `MudCore.exportDocument(_:mode:options:includeComments:)` owns the whole
+  recipe: it forces `standalone` on, clears the change-tracking waypoint,
+  strips comments when `includeComments` is false, projects the read-only
+  Comments column for an Up-mode document that keeps its comments, and inlines
+  local images as data URIs.
+- App side: `DocumentExporter` (fresh temp subdirectory + write +
+  `NSWorkspace.open`) is created on demand by `DocumentWindowController`.
+  `openInBrowser` now exports directly, and a new `openInEditor(with:format:)`
+  replaces the `EditorLaunchRequest` hand-off from `OpenInMenuModel` — so the
+  `openInBrowserID` / `openInEditorRequest` one-shot view triggers are gone
+  (4b's last leftover), and `EditorLaunchRequest` with them.
+- To give the controller the same configuration the view displays,
+  `renderOptions` / `displayOptions` moved from `DocumentContentView` onto
+  `DocumentModel`; the view's render call is now `model.display()` (no
+  arguments — the model knows its window's mode and options).
+- The comment-submit dispatch left the view too, as promised in the 4c notes:
+  `CommentSubmissionHandler` (new file) routes a `CommentSubmission` to
+  `CommentController`, resolves the compose box, and presents the failure
+  alert. `DocumentContentView` is down to layout, key handling, and callback
+  plumbing (~140 lines).
+- The CLI's non-standalone stdout output deliberately does **not** go through
+  `exportDocument` (that would force image inlining into stdout output); only
+  the `--browser` / `--standalone` path does, so plain `mud -u file.md` output
+  is unchanged.
+- One deliberate behavior change: a Quick Look preview of a commented document
+  now shows the projected read-only Comments column (the inlined
+  `mud-comments.js` builds it on load), where it previously showed the visible
+  bottom Comments section. This matches exported documents.
+
 
 ### 4f. An App test bundle
 
 There are no App-target tests today (~6,500 untested lines). Add `MudTests`.
 Immediately testable with no refactor: `FindState`'s state machine, the
 self-write dedup policy, `OpenInMenuModel.resolveFormat`,
-`WebView.parseMatchInfo`, `jsStringLiteral`, `commentSignature`. The
-extractions above (4a, 4c, 4e) are what make the watcher hold policy, the
-comment failure matrix, and export shaping testable. Also give `GitProvider` an
-injected `runGit` closure so its output parsing (which scrapes undocumented
-`ls-files --debug` output) is testable.
+`WebView.parseMatchInfo`, `MudJSBridge`'s argument encoding and message
+decoding, `commentSignature`. The extractions above (4a, 4c, 4e) are what make
+the watcher hold policy, the comment failure matrix, and export shaping
+testable. Also give `GitProvider` an injected `runGit` closure so its output
+parsing (which scrapes undocumented `ls-files --debug` output) is testable.
 
 
 ### 4g. Contain `#if GIT_PROVIDER`

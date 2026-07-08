@@ -66,18 +66,37 @@ MVP plan.
 - `MudApp.swift` — @main, menu commands
 - `AppState.swift` — Singleton observable state; persistence delegated to
   `MudPreferences.shared`
+- `ActiveDocument.swift` — `ActiveDocumentSnapshot` (the key document window's
+  menu-relevant facts) and `ActiveDocumentObserver`, the key-window watcher
+  that publishes it
 - `AppDelegate.swift` — Lifecycle and document handling
 - `DocumentController.swift` — NSDocumentController subclass
 - `DocumentWindowController.swift` — Per-window state, toolbar, zoom, lighting
-- `DocumentState.swift` — Per-window observable state
-- `DocumentContentView.swift` — Main SwiftUI view for a document
-- `WebView.swift` — WKWebView wrapper, JS bridge
+- `DocumentState.swift` — Per-window observable state, the `WebCommand` enum,
+  and the `webCommands` channel
+- `DocumentModel.swift` — Per-window document data: the loaded content, disk
+  reads, the file watcher with its hold/echo policy, the render configuration
+  (`renderOptions`, shared with exports), and the cached render (`display()`)
+- `DocumentContentView.swift` — Main SwiftUI view for a document: layout, key
+  handling, and the plumbing between the model/state objects and `WebView`
+- `DocumentExporter.swift` — App side of the export path: writes
+  `MudCore.exportDocument` output to a temp file and hands it to a browser or
+  editor via `NSWorkspace` (created on demand by `DocumentWindowController`)
+- `WebView.swift` — WKWebView wrapper: declarative state diffing, the
+  `WebCommand` sink, navigation delegate
+- `MudJSBridge.swift` — The one Swift ↔ page JS bridge: outbound `Mud.*` calls
+  (JSON-encoded arguments, namespace guards, error logging), typed inbound
+  messages (`MudJSMessage`, with the full message table), the shared
+  `WKWebViewConfiguration` factory and link `navigationPolicy`
 - `FootnotePopover.swift` — Transient `NSPopover` hosting a `WKWebView` that
-  renders a footnote body
+  renders a footnote body; shares `MudJSBridge` with the main view
 - `CommentController.swift` — `CommentDraft` model plus `CommentController`:
   the comment write path (re-read from disk, byte-surgical edit via
   `CommentEditor`, atomic security-scoped write). Add / reply / edit-last /
   delete
+- `CommentSubmissionHandler.swift` — Routes a page `CommentSubmission` to
+  `CommentController`, resolves the compose box (`resolveCompose`), and
+  presents the failure alert
 - `OutlineSidebarView.swift` — Table of contents sidebar
 - `OutlineNode.swift` — Sidebar data model
 - `FindFeature.swift` — Search state and UI
@@ -103,7 +122,7 @@ MVP plan.
 - `OpenInEditor.swift` — Backs the "Open In…" submenu and the Open In toolbar
   button (`NSMenuToolbarItem`): registered-handler model, `NSMenu` builder
   (`NSMenuDelegate`), `NSOpenPanel` chooser, launch via
-  `DocumentState.openInEditorRequest`
+  `DocumentWindowController.openInEditor(with:format:)`
 
 **App/CLI/ key files:**
 
@@ -148,7 +167,6 @@ MVP plan.
 - `Theme.swift` — austere/blues/earthy/riot enum
 - `Lighting.swift` — auto/bright/dark enum (bare; AppKit behavior in
   `App/Lighting+AppKit.swift`)
-- `Mode.swift` — up/down enum
 - `ViewToggle.swift` — readableColumn/lineNumbers/wordWrap/codeHeader/
   autoExpandChanges toggles
 - `SidebarPane.swift` — outline/changes enum
@@ -160,9 +178,11 @@ MVP plan.
 - `ParsedMarkdown.swift` — Parse-once handle: AST, headings, title
 - `RenderExtension.swift` — Client-side rendering extension type and registry
 - `RenderOptions.swift` — Rendering configuration value type
+- `Mode.swift` — up/down enum (Mark Up / Mark Down)
 - `MudCore.swift` — Public API facade: rendering entry points (dispatch only —
   HTML emission lives in `Rendering/`), the shared Up-mode pipeline,
-  extractHeadings / parseComments / removeComments convenience
+  `exportDocument` (the one self-contained export recipe), extractHeadings /
+  parseComments / removeComments convenience
 - `Rendering/UpHTMLVisitor.swift` — AST → rendered HTML; `renderBody` is the
   visitor + frontmatter-prefix core every Up-mode fragment render goes through
 - `Rendering/DownHTMLVisitor.swift` — AST → syntax-highlighted raw HTML
@@ -230,7 +250,8 @@ MVP plan.
 - `PreviewProvider.swift` — `MudPreviewProvider`, a view-based
   `QLPreviewingController` (not data-based — required for Finder's column-view
   pane to live-render) hosting a `WKWebView`. Renders self-contained HTML via
-  MudCore, inlining local images as data URIs.
+  `MudCore.exportDocument` (images inlined as data URIs, read-only Comments
+  column for commented files).
 - `Info.plist` — Quick Look preview extension point; principal class
   `MudPreviewProvider`; supports `net.daringfireball.markdown`.
 - `QuickLook.entitlements` / `QuickLookDirect.entitlements` — Sandboxed; MAS
@@ -363,36 +384,56 @@ source stays current.
 
 ## State management
 
-Three ObservableObject classes, no nesting:
+Five ObservableObject classes, no nesting:
 
-- **AppState** (singleton) -- `lighting`, `theme`, `modeInActiveTab`,
-  `viewToggles`, zoom levels, `sidebarVisible`
-- **DocumentState** (per-window) -- `mode`, action triggers (`printID`,
-  `reloadID`, `openInBrowserID`), `outlineHeadings`, `scrollTarget`, owns
-  `FindState`
+- **AppState** (singleton) -- persisted preferences as `@Published` mirrors:
+  `lighting`, `theme`, `viewToggles`, zoom levels, `sidebarEnabled`, …
+- **ActiveDocumentObserver** (singleton) -- publishes an
+  `ActiveDocumentSnapshot?` of the key document window (mode, editable,
+  commentable, column visibility) for app-menu labels and enablement; `nil`
+  when no document window is key
+- **DocumentState** (per-window) -- `mode`, the `webCommands` channel,
+  `outlineHeadings`, `contentTitle`, comments-column state, owns `FindState`
+- **DocumentModel** (per-window) -- the loaded content, disk reads, the file
+  watcher with its hold/echo policy, and the cached render; renders run only
+  when the content or the content-affecting options change, never per view
+  update
 - **FindState** -- search text, visibility, match info; Combine subscriber on
   `$searchText` auto-triggers queries
 
 State flows outward via `@ObservedObject`. Combine sinks in
 `DocumentWindowController` bridge state → AppKit (window appearance, toolbar
 icons). `AppState`'s `@Published` `didSet` observers persist each change to the
-corresponding `MudPreferences.shared` property.
+corresponding `MudPreferences.shared` property. Nothing writes per-window facts
+into globals: `ActiveDocumentObserver` watches
+`NSWindow.didBecomeKeyNotification` and subscribes to the key window's state
+itself.
 
 
 ## Communication patterns
 
-| Mechanism           | Used for                                          |
-| ------------------- | ------------------------------------------------- |
-| Responder chain     | Menu and toolbar → window controller              |
-| One-shot triggers   | Window controller → WKWebView via `DocumentState` |
-| Combine sinks       | State → AppKit side effects                       |
-| JS bridge (`Mud.*`) | Swift ↔ WKWebView (find, scroll, lighting, zoom)  |
-| Direct mutation     | Toolbar buttons → state objects                   |
+| Mechanism            | Used for                                         |
+| -------------------- | ------------------------------------------------ |
+| Responder chain      | Menu and toolbar → window controller             |
+| `WebCommand` channel | One-shot page actions via `state.webCommands`    |
+| Combine sinks        | State → AppKit side effects                      |
+| `MudJSBridge`        | Swift ↔ WKWebView (find, scroll, lighting, zoom) |
+| Direct mutation      | Toolbar buttons → state objects                  |
 
 Menu and toolbar commands travel the responder chain (`NSApp.sendAction`) to
 the key window's `DocumentWindowController`, which mutates its `DocumentState`
-— for WKWebView actions, a one-shot `UUID?` trigger (print, reload, add
-comment) that `WebView.updateNSView` fires exactly once.
+— for page actions (print, scroll, add comment), it sends a `WebCommand` over
+`state.webCommands`, which the `WebView` coordinator executes as it arrives.
+`updateNSView` diffs only declarative state (contentID, mode, theme, zoom,
+classes, comments, search). Cmd+R calls `DocumentModel.load(forced:)`, whose
+bumped load token changes the contentID so the page reloads even when the
+file's text hasn't.
+
+All Swift ↔ page traffic goes through `MudJSBridge` (`App/MudJSBridge.swift`):
+outbound `bridge.call("comments.setData", …)` JSON-encodes every argument and
+logs JS errors; inbound `window.webkit.messageHandlers` posts decode into the
+typed `MudJSMessage` enum (the message table is documented on that enum). The
+footnote popover uses the same bridge type for its `mudOpen` link routing.
 
 
 ## Key conventions

@@ -9,13 +9,18 @@ import Foundation
 /// back-link ids) moves from `FootnoteProcessor.process`'s rewrite pass into
 /// the render.
 ///
+/// Stage 4 wired in change tracking: `diffContext` / `CMarkDeletionPlacer`
+/// emit change attributes and pre-rendered deletions, `WordSpanEmitter`
+/// (already parser-agnostic) drives word-level markers, and `renderBody`
+/// builds a `CMarkDiffContext` when `options.waypoint` is set — with **no**
+/// waypoint preprocessing: cmark parses footnotes directly, so there is no
+/// transformed source to reconcile (`MudCore.processingWaypoint` has no
+/// counterpart here).
+///
 /// **Parallel and unwired.** The legacy `UpHTMLVisitor` remains the production
 /// renderer; `UpRenderingParityTests` holds this visitor byte-identical to it
-/// over the parity corpus, and that harness gates the eventual cutover.
-/// Change tracking (change attributes, deletion placement, word spans,
-/// code-block diffs) is deliberately absent: `DiffContext` keys on
-/// swift-markdown nodes over the footnote-transformed source, so the diff
-/// features port together with the diff layer in Stage 4.
+/// over the parity corpus — plain and diffed — and that harness gates the
+/// eventual cutover.
 struct CMarkUpHTMLVisitor: CMarkWalker {
     var result = ""
 
@@ -42,6 +47,24 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
 
     var alertDetector = AlertDetector()
 
+    /// When non-nil, change attributes are emitted on native elements
+    /// for blocks that differ from the waypoint document.
+    var diffContext: CMarkDiffContext? {
+        didSet {
+            deletionPlacer = diffContext.map {
+                CMarkDeletionPlacer(diffContext: $0)
+            }
+        }
+    }
+
+    /// Renders deletions into the output stream and owns their
+    /// exactly-once bookkeeping. Created alongside `diffContext`.
+    private var deletionPlacer: CMarkDeletionPlacer?
+
+    /// When false, non-consuming `<del>` spans in paired insertion
+    /// blocks are silently skipped instead of emitted inline.
+    var showInlineDeletions = false
+
     // Footnote numbering state, moved here from `FootnoteProcessor.process`'s
     // rewrite pass: numbers are assigned in first-reference order over
     // authorial references only, so comments occupy no number and leave no
@@ -50,19 +73,36 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
     private var nextFootnoteNumber = 1
     private var occurrence: [String: Int] = [:]
 
+    /// Pre-assigned reference numbering, keyed by each reference's verified
+    /// byte range in its document's source. Set for visitors whose walk
+    /// starts mid-document — deletion rendering walks a single deleted block
+    /// of the *old* document, so the incremental first-reference counting
+    /// above cannot reproduce the numbers a full walk would have assigned
+    /// (see ``footnoteNumbering(for:)``). Nil for full-document walks.
+    var footnoteNumbers: FootnoteNumbering?
+
     // MARK: - Block containers
 
     mutating func visitBlockQuote(_ blockQuote: CMarkNode) {
+        let innerParagraph = blockQuote.children
+            .first(where: { $0.kind == .paragraph })
         if let (category, title) = alertDetector.detectGFMAlert(blockQuote) {
-            emitAlertOpen(category)
+            let attrs = innerParagraph.flatMap { changeAttributes(for: $0) }
+                ?? .empty
+            emitAlertOpen(category, attrs: attrs)
             emitAlertTitle(category, title)
             emitGFMAlertContent(blockQuote, category: category)
             result += "</blockquote>\n"
         } else if let alert = alertDetector.detectDocCAlert(blockQuote) {
-            emitAlertOpen(alert.category)
+            let attrs = innerParagraph.flatMap { changeAttributes(for: $0) }
+                ?? .empty
+            emitAlertOpen(alert.category, attrs: attrs)
+            activateAlertWordSpans(
+                for: innerParagraph, tagByteLength: alert.tagByteLength)
             emitDocCAlertTitleAndContent(
                 alert.category, alert.title,
                 blockQuote: blockQuote, tagByteLength: alert.tagByteLength)
+            deactivateWordSpans()
             result += "</blockquote>\n"
         } else {
             result += "<blockquote>\n"
@@ -95,10 +135,18 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
 
     /// Also handles `.taskListItem` via the walker's default fallback.
     mutating func visitListItem(_ listItem: CMarkNode) {
+        // Peek ahead: when a deleted list item's deletion lands on the
+        // first child (e.g. a paragraph inside a complex item with a
+        // nested list), emit it here — before the <li> — so it
+        // becomes a valid sibling rather than nesting inside this item.
+        if deletionPlacer != nil, let firstChild = listItem.firstChild {
+            result += deletionPlacer!.listItemHTML(before: firstChild)
+        }
+        let attrs = changeAttributes(for: listItem)
         if inTightList {
-            result += "<li>"
+            result += "<li\(attrs?.asString ?? "")>"
         } else {
-            result += "<li>\n"
+            result += "<li\(attrs?.asString ?? "")>\n"
         }
         if listItem.kind == .taskListItem {
             result += "<input type=\"checkbox\" disabled=\"\""
@@ -114,35 +162,125 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
     // MARK: - Block leaves
 
     mutating func visitHeading(_ heading: CMarkNode) {
+        let attrs = changeAttributes(for: heading)
         let level = heading.headingLevel
         let slug = slugTracker.slug(for: heading.plainText)
-        result += "<h\(level) id=\"\(slug)\">"
+        activateWordSpans(for: heading)
+        result += "<h\(level) id=\"\(slug)\"\(attrs?.asString ?? "")>"
         descendInto(heading)
         result += "</h\(level)>\n"
+        deactivateWordSpans()
     }
 
     mutating func visitParagraph(_ paragraph: CMarkNode) {
+        let attrs = changeAttributes(for: paragraph)
+        activateWordSpans(for: paragraph)
         let parentKind = paragraph.parent?.kind
         let inListItem = parentKind == .listItem || parentKind == .taskListItem
+        // List items store their annotation on the list-item node,
+        // not the inner paragraph. Fall back to the parent.
+        if spanEmitter == nil, inListItem, let listItem = paragraph.parent {
+            activateWordSpans(for: listItem)
+        }
         if inTightList && inListItem {
-            descendInto(paragraph)
-            result += "\n"
+            if attrs != nil {
+                result += "<span\(attrs!.asString)>"
+                descendInto(paragraph)
+                result += "</span>\n"
+            } else {
+                descendInto(paragraph)
+                result += "\n"
+            }
         } else {
-            result += "<p>"
+            result += "<p\(attrs?.asString ?? "")>"
             descendInto(paragraph)
             result += "</p>\n"
         }
+        deactivateWordSpans()
     }
 
     mutating func visitCodeBlock(_ codeBlock: CMarkNode) {
-        result += "<pre class=\"mud-code\">"
+        // Check for line-level diff first. changeAttributes is still
+        // called so preceding deletions are emitted as a side effect.
+        let attrs = changeAttributes(for: codeBlock)
+
+        if let codeDiff = diffContext?.codeBlockDiff(for: codeBlock) {
+            emitDiffedCodeBlock(codeBlock, diff: codeDiff)
+            return
+        }
+
+        let classAttr: String
+        if let attrs {
+            classAttr = "mud-code \(attrs.classes)"
+        } else {
+            classAttr = "mud-code"
+        }
+        result += "<pre class=\"\(classAttr)\"\(attrs?.dataAttrs ?? "")>"
         result += Self.codeBlockInnerHTML(codeBlock)
         result += "</pre>\n"
     }
 
+    /// Emits a code block with line-level diff structure.
+    private mutating func emitDiffedCodeBlock(
+        _ codeBlock: CMarkNode, diff: CodeBlockDiff
+    ) {
+        let lang = CMarkChangePlan.codeLanguage(codeBlock)
+
+        // <pre> has mud-code-diff but no block-level data-change-id.
+        result += "<pre class=\"mud-code mud-code-diff\">"
+
+        // Code header (language label).
+        if let lang {
+            let escaped = HTMLEscaping.escape(lang)
+            result += "<div class=\"code-header\">"
+            result += "<span class=\"code-language\">\(escaped)</span>"
+            result += "</div>"
+            result += "<code class=\"language-\(escaped)\">"
+        } else {
+            result += "<code>"
+        }
+
+        // Emit each line as a <span class="cl"> with annotation
+        // classes and data attributes.
+        for line in diff.lines {
+            var classes = "cl"
+            var dataAttrs = ""
+
+            switch line.annotation {
+            case .unchanged:
+                break
+            case .inserted:
+                classes += " cl-ins"
+            case .deleted:
+                classes += " cl-del"
+            }
+
+            if let changeID = line.changeID {
+                dataAttrs += " data-change-id=\"\(changeID)\""
+            }
+            if let groupID = line.groupID {
+                dataAttrs += " data-group-id=\"\(groupID)\""
+                if let changeID = line.changeID,
+                   let info = diffContext?.groupInfo(for: changeID) {
+                    dataAttrs += " data-group-type=\"\(info.type.rawValue)\""
+                }
+            }
+            if let groupIndex = line.groupIndex {
+                dataAttrs += " data-group-index=\"\(groupIndex)\""
+            }
+
+            result += "<span class=\"\(classes)\"\(dataAttrs)>"
+            result += line.highlightedHTML
+            result += "\n</span>"
+        }
+
+        result += "</code></pre>\n"
+    }
+
     /// Renders the inner HTML of a code block (`<code>` with optional
     /// language header and syntax highlighting) — the counterpart of
-    /// `UpHTMLVisitor.codeBlockInnerHTML`.
+    /// `UpHTMLVisitor.codeBlockInnerHTML`. Shared by `visitCodeBlock`
+    /// and `CMarkDeletionRenderer.render`.
     static func codeBlockInnerHTML(_ codeBlock: CMarkNode) -> String {
         let lang = codeBlock.fenceInfo.flatMap { $0.isEmpty ? nil : $0 }
         let code = codeBlock.literal ?? ""
@@ -166,11 +304,23 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
     }
 
     mutating func visitHTMLBlock(_ html: CMarkNode) {
-        result += html.literal ?? ""
+        let attrs = changeAttributes(for: html)
+        if attrs != nil {
+            result += "<div\(attrs!.asString)>"
+            result += html.literal ?? ""
+            result += "</div>\n"
+        } else {
+            result += html.literal ?? ""
+        }
     }
 
     mutating func visitThematicBreak(_ thematicBreak: CMarkNode) {
-        result += "<hr />\n"
+        let attrs = changeAttributes(for: thematicBreak)
+        if attrs != nil {
+            result += "<div\(attrs!.asString)><hr /></div>\n"
+        } else {
+            result += "<hr />\n"
+        }
     }
 
     // MARK: - Footnotes and comments
@@ -179,7 +329,9 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
     /// them from the source before its render parse; here they are skipped
     /// structurally (their references never enter the numbering either).
     /// Their bodies feed the bottom sections via `FootnoteProcessor`, not
-    /// this walk.
+    /// this walk. `CMarkBlockMatcher`'s collector skips them the same way,
+    /// so change tracking never asks this visitor to place a change inside
+    /// a definition.
     mutating func visitFootnoteDefinition(_ node: CMarkNode) {}
 
     mutating func visitFootnoteReference(_ node: CMarkNode) {
@@ -194,12 +346,26 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
         // sourcepos can no longer locate.)
         guard let label = node.parentFootnoteDefinition?.literal else { return }
         guard let literal = node.literal, Int(literal) != nil,
-              node.verifiedRange != nil else {
-            emitTextRun("[^\(label)]")
+              let range = node.verifiedRange else {
+            // Emitted directly, bypassing any active span emitter:
+            // `WordDiff.inlineText` gives a reference zero characters, so
+            // consuming here would shear every later word marker.
+            result += HTMLEscaping.escape(
+                EmojiShortcodes.replaceShortcodes(in: "[^\(label)]"))
             return
         }
         if FootnoteProcessor.isCommentLabel(label) {
             result += FootnoteProcessor.commentMarkerHTML(label: label)
+        } else if let footnoteNumbers {
+            // Mid-document walk: use the numbering a full walk assigned.
+            if let assigned = footnoteNumbers[range] {
+                result += FootnoteProcessor.markerHTML(
+                    number: assigned.number, label: label,
+                    occurrence: assigned.occurrence)
+            } else {
+                result += HTMLEscaping.escape(
+                    EmojiShortcodes.replaceShortcodes(in: "[^\(label)]"))
+            }
         } else {
             let number = authorialNumber[label] ?? nextFootnoteNumber
             if authorialNumber[label] == nil {
@@ -217,28 +383,61 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
 
     mutating func visitTable(_ table: CMarkNode) {
         tableAlignments = table.tableAlignments
-        result += "<table>\n"
         // cmark has no table-body node: the first child row is the header,
         // the rest are body rows (the legacy pipeline's Table.Head /
-        // Table.Body structure, flattened).
+        // Table.Body structure, flattened). The legacy visitor's deletion
+        // handling folds in accordingly: hoisting before <table> hangs off
+        // the header row, and the per-row placement loop lives in the
+        // body-rows walk below instead of a visitTableBody method.
         let rows = Array(table.children)
+
+        // Emit preceding deletions BEFORE opening <table> so they don't
+        // become invalid children of the table element.
+        if deletionPlacer != nil, let head = rows.first {
+            result += deletionPlacer!.hoistedHTML(beforeHead: head)
+        }
+
+        result += "<table>\n"
         if let head = rows.first {
             visit(head)
         }
         let bodyRows = rows.dropFirst()
         if !bodyRows.isEmpty {
             result += "<tbody>\n"
-            for row in bodyRows { visit(row) }
+            if deletionPlacer != nil {
+                // Deleted rows emit as <tr> siblings; anything else is
+                // deferred by the placer until after </table>. After all
+                // surviving rows, reclaim <tr> deletions that follow the
+                // last row.
+                var lastRow: CMarkNode?
+                for row in bodyRows {
+                    result += deletionPlacer!.rowHTML(before: row)
+                    visit(row)
+                    lastRow = row
+                }
+                if let lastRow {
+                    result += deletionPlacer!.reclaimedRowHTML(after: lastRow)
+                }
+            } else {
+                for row in bodyRows { visit(row) }
+            }
             result += "</tbody>\n"
         }
         result += "</table>\n"
         tableAlignments = []
+
+        // Emit non-<tr> deletions that were deferred from inside
+        // the table body.
+        if deletionPlacer != nil {
+            result += deletionPlacer!.deferredHTML()
+        }
     }
 
     mutating func visitTableHead(_ tableHead: CMarkNode) {
         inTableHead = true
         currentCellColumn = 0
-        result += "<thead>\n<tr>\n"
+        let attrs = changeAttributes(for: tableHead)
+        result += "<thead>\n<tr\(attrs?.asString ?? "")>\n"
         descendInto(tableHead)
         result += "</tr>\n</thead>\n"
         inTableHead = false
@@ -246,7 +445,8 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
 
     mutating func visitTableRow(_ tableRow: CMarkNode) {
         currentCellColumn = 0
-        result += "<tr>\n"
+        let attrs = changeAttributes(for: tableRow)
+        result += "<tr\(attrs?.asString ?? "")>\n"
         descendInto(tableRow)
         result += "</tr>\n"
     }
@@ -317,18 +517,30 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
         emitTextRun(text.literal ?? "")
     }
 
-    /// Emits a text run exactly as `visitText` does — shared with the DocC
-    /// aside path and the footnote fallback, which emit text that no longer
-    /// matches any node's literal.
+    /// Emits a text run exactly as `visitText` does, span emitter included —
+    /// shared with the DocC aside path, which emits the tag-stripped first
+    /// text that no longer matches any node's literal.
     private mutating func emitTextRun(_ string: String) {
-        result += HTMLEscaping.escape(
-            EmojiShortcodes.replaceShortcodes(in: string)
-        )
+        if spanEmitter != nil {
+            result += spanEmitter!.advance(by: string.count, emit: true)
+            result += spanEmitter!.closeOpenTag()
+        } else {
+            result += HTMLEscaping.escape(
+                EmojiShortcodes.replaceShortcodes(in: string)
+            )
+        }
     }
 
     mutating func visitInlineCode(_ inlineCode: CMarkNode) {
+        if spanEmitter != nil { result += spanEmitter!.closeOpenTag() }
         result += "<code>"
-        result += HTMLEscaping.escape(inlineCode.literal ?? "")
+        if spanEmitter != nil {
+            result += spanEmitter!.advance(
+                by: (inlineCode.literal ?? "").count, emit: true)
+            result += spanEmitter!.closeOpenTag()
+        } else {
+            result += HTMLEscaping.escape(inlineCode.literal ?? "")
+        }
         result += "</code>"
     }
 
@@ -337,11 +549,71 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
     }
 
     mutating func visitLineBreak(_ lineBreak: CMarkNode) {
+        if spanEmitter != nil {
+            result += spanEmitter!.advance(by: 1, emit: false)
+            result += spanEmitter!.closeOpenTag()
+        }
         result += "<br />\n"
     }
 
     mutating func visitSoftBreak(_ softBreak: CMarkNode) {
+        if spanEmitter != nil {
+            result += spanEmitter!.advance(by: 1, emit: false)
+            result += spanEmitter!.closeOpenTag()
+        }
         result += "\n"
+    }
+
+    // MARK: - Change tracking helpers
+
+    /// Attribute bundle for a changed element — the counterpart of
+    /// `UpHTMLVisitor.ChangeAttrs`.
+    struct ChangeAttrs {
+        let classes: String   // "mud-change-ins" or "mud-change-del"
+        let dataAttrs: String // ' data-change-id="..." data-group-id="..."'
+
+        /// Full attribute string for interpolation into an opening tag.
+        var asString: String {
+            " class=\"\(classes)\"\(dataAttrs)"
+        }
+
+        static let empty = ChangeAttrs(classes: "", dataAttrs: "")
+    }
+
+    /// Returns change attributes for a block node, emitting preceding
+    /// deletions as a side effect. Returns `nil` for unchanged nodes.
+    private mutating func changeAttributes(
+        for node: CMarkNode
+    ) -> ChangeAttrs? {
+        guard let diffContext else { return nil }
+
+        // Emit preceding deletions as native elements.
+        if let placer = deletionPlacer {
+            result += placer.precedingHTML(before: node)
+        }
+
+        guard let annotation = diffContext.annotation(for: node),
+              let changeID = diffContext.changeID(for: node) else {
+            return nil
+        }
+
+        _ = annotation // always .inserted
+        let info = diffContext.groupInfo(for: changeID)
+        var dataAttrs = " data-change-id=\"\(changeID)\""
+        if let info {
+            dataAttrs += " data-group-id=\"\(info.groupID)\""
+            dataAttrs += " data-group-type=\"\(info.type.rawValue)\""
+            if info.groupPos == .first || info.groupPos == .sole {
+                dataAttrs += " data-group-index=\"\(info.groupIndex)\""
+            }
+        }
+        return ChangeAttrs(classes: "mud-change-ins", dataAttrs: dataAttrs)
+    }
+
+    /// Emits trailing deletions (after the last surviving block).
+    mutating func emitTrailingDeletions() {
+        guard let placer = deletionPlacer else { return }
+        result += placer.trailingHTML()
     }
 
     // MARK: - Alerts
@@ -394,9 +666,17 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
         for child in children.dropFirst() { visit(child) }
     }
 
-    /// Emits the opening `<blockquote>` tag with alert CSS classes.
-    private mutating func emitAlertOpen(_ category: AlertCategory) {
-        result += "<blockquote class=\"alert \(category.cssClass)\">\n"
+    /// Emits the opening `<blockquote>` tag with alert CSS classes
+    /// and optional change attributes.
+    private mutating func emitAlertOpen(
+        _ category: AlertCategory, attrs: ChangeAttrs = .empty
+    ) {
+        if attrs.classes.isEmpty {
+            result += "<blockquote class=\"alert \(category.cssClass)\">\n"
+        } else {
+            result += "<blockquote class=\"alert \(category.cssClass)"
+            result += " \(attrs.classes)\"\(attrs.dataAttrs)>\n"
+        }
     }
 
     /// Emits the alert title paragraph with icon and text.
@@ -503,8 +783,167 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
             emitTextRun(strippedFirst)
             for node in firstPara.children.dropFirst() { visit(node) }
             result += "</p>\n"
+            // The legacy path routes this paragraph through visitParagraph
+            // (on `Aside`'s rebuilt node), whose tail flushes and clears the
+            // span emitter; mirror that lifecycle here so leftover
+            // non-consuming spans land at the same byte position and later
+            // blocks render without the emitter.
+            deactivateWordSpans()
         }
         for child in children.dropFirst() { visit(child) }
+    }
+
+    // MARK: - Word-level diff rendering
+
+    /// Active word-span emitter for the current block, or `nil`. The
+    /// visitor owns block structure (which nodes have spans, when a
+    /// block starts and ends); the cursor machine lives in
+    /// `WordSpanEmitter`.
+    private var spanEmitter: WordSpanEmitter?
+
+    /// Activates word spans for a DocC aside's inner paragraph, advancing
+    /// the cursor past the tag prefix so spans align with the rendered
+    /// content. Where the legacy visitor derives the prefix length from an
+    /// inline-text count subtraction against `Aside`'s rebuilt content, the
+    /// detector's `tagByteLength` is the same quantity directly: the prefix
+    /// is ASCII (`Kind:` plus spaces/tabs), so its **byte** length equals
+    /// the **character** count `skipPrefix` expects.
+    private mutating func activateAlertWordSpans(
+        for paragraph: CMarkNode?, tagByteLength: Int
+    ) {
+        guard let para = paragraph else { return }
+        activateWordSpans(for: para)
+        guard spanEmitter != nil else { return }
+        if tagByteLength > 0 {
+            spanEmitter?.skipPrefix(charCount: tagByteLength)
+        }
+    }
+
+    /// Activates word-span rendering if the block has word spans.
+    private mutating func activateWordSpans(for node: CMarkNode) {
+        if let spans = diffContext?.wordSpans(for: node), !spans.isEmpty {
+            spanEmitter = WordSpanEmitter(
+                spans: spans, role: .insertion,
+                showInlineDeletions: showInlineDeletions)
+        }
+    }
+
+    /// Flushes trailing non-consuming spans and clears the emitter.
+    private mutating func deactivateWordSpans() {
+        guard spanEmitter != nil else { return }
+        result += spanEmitter!.finish()
+        spanEmitter = nil
+    }
+
+    /// Renders the inner HTML of a blockquote alert for deletion
+    /// rendering. Returns the inner HTML and alert category, or nil
+    /// if the blockquote is not a recognized alert. When `wordSpans`
+    /// is provided, renders with word-level `<del>` markers.
+    static func renderAlertInnerHTML(
+        _ blockQuote: CMarkNode,
+        wordSpans: [WordSpan]? = nil,
+        footnoteNumbers: FootnoteNumbering? = nil
+    ) -> (html: String, category: AlertCategory)? {
+        let detector = AlertDetector()
+
+        if let (category, title) = detector.detectGFMAlert(blockQuote) {
+            var visitor = CMarkUpHTMLVisitor()
+            visitor.footnoteNumbers = footnoteNumbers
+            visitor.emitAlertTitle(category, title)
+            visitor.emitGFMAlertContent(blockQuote, category: category)
+            return (visitor.result, category)
+        }
+
+        if let alert = detector.detectDocCAlert(blockQuote) {
+            var visitor = CMarkUpHTMLVisitor()
+            visitor.footnoteNumbers = footnoteNumbers
+            if let spans = wordSpans, !spans.isEmpty {
+                visitor.spanEmitter = WordSpanEmitter(
+                    spans: spans, role: .deletion,
+                    showInlineDeletions: false)
+                if alert.tagByteLength > 0 {
+                    visitor.spanEmitter?.skipPrefix(
+                        charCount: alert.tagByteLength)
+                }
+            }
+            visitor.emitDocCAlertTitleAndContent(
+                alert.category, alert.title,
+                blockQuote: blockQuote, tagByteLength: alert.tagByteLength)
+            visitor.deactivateWordSpans()
+            return (visitor.result, alert.category)
+        }
+
+        return nil
+    }
+
+    /// Renders a node's inner HTML using word spans.
+    ///
+    /// Used by `CMarkDeletionRenderer` to render deletion HTML with
+    /// word-level `<del>` markers for the red block.
+    static func renderWithWordSpans(
+        _ node: CMarkNode, spans: [WordSpan], role: WordSpanEmitter.Role,
+        footnoteNumbers: FootnoteNumbering? = nil
+    ) -> String {
+        var visitor = CMarkUpHTMLVisitor()
+        visitor.footnoteNumbers = footnoteNumbers
+        visitor.spanEmitter = WordSpanEmitter(
+            spans: spans, role: role, showInlineDeletions: false)
+        for child in node.children { visitor.visit(child) }
+        visitor.deactivateWordSpans()
+        return visitor.result
+    }
+}
+
+// MARK: - Footnote numbering for mid-document walks
+
+extension CMarkUpHTMLVisitor {
+    /// The (number, occurrence) a full-document walk assigns each authorial
+    /// footnote reference, keyed by the reference's **verified byte range**
+    /// — a position key, not the node handle, because the plan cache hands
+    /// deletion blocks whose nodes point into a different (textually
+    /// identical) tree than the one this map was built from; identical
+    /// source bytes parse to identical positions, so the ranges still join.
+    typealias FootnoteNumbering = [Range<Int>: (number: Int, occurrence: Int)]
+
+    /// Assigns numbering over `document` exactly as a full rendering walk
+    /// would: first-reference order over verifiable authorial references,
+    /// comments and definition-interior references excluded. Seeds the
+    /// deletion-rendering visitors, whose walks start mid-document and so
+    /// cannot count for themselves.
+    static func footnoteNumbering(
+        for document: CMarkDocument
+    ) -> FootnoteNumbering {
+        var walker = FootnoteNumberingWalker()
+        walker.visit(document.root)
+        return walker.numbers
+    }
+}
+
+/// The numbering pass behind `CMarkUpHTMLVisitor.footnoteNumbering(for:)`,
+/// mirroring `visitFootnoteReference`'s guards and counters exactly.
+private struct FootnoteNumberingWalker: CMarkWalker {
+    var numbers: CMarkUpHTMLVisitor.FootnoteNumbering = [:]
+    private var authorialNumber: [String: Int] = [:]
+    private var nextFootnoteNumber = 1
+    private var occurrence: [String: Int] = [:]
+
+    /// References inside definitions never enter the numbering — the
+    /// rendering visitor skips definition subtrees entirely.
+    mutating func visitFootnoteDefinition(_ node: CMarkNode) {}
+
+    mutating func visitFootnoteReference(_ node: CMarkNode) {
+        guard let label = node.parentFootnoteDefinition?.literal else { return }
+        guard let literal = node.literal, Int(literal) != nil,
+              let range = node.verifiedRange else { return }
+        guard !FootnoteProcessor.isCommentLabel(label) else { return }
+        let number = authorialNumber[label] ?? nextFootnoteNumber
+        if authorialNumber[label] == nil {
+            authorialNumber[label] = number
+            nextFootnoteNumber += 1
+        }
+        let k = (occurrence[label] ?? 0) + 1
+        occurrence[label] = k
+        numbers[range] = (number: number, occurrence: k)
     }
 }
 
@@ -515,8 +954,10 @@ extension CMarkUpHTMLVisitor {
     /// normalization and frontmatter extraction (matching `ParsedMarkdown`),
     /// one footnote-aware parse of the body, the visitor walk, and the
     /// rendered-frontmatter prefix. No footnote preprocessing happens — that
-    /// is the point of the port. `options.waypoint` is ignored: change
-    /// tracking ports with the diff layer in Stage 4.
+    /// is the point of the port. When `options.waypoint` is set, the
+    /// waypoint's body is parsed as-is and diffed against this parse — no
+    /// `MudCore.processingWaypoint` counterpart exists, because there is no
+    /// transformed source to compare like-with-like.
     static func renderBody(
         _ source: String,
         options: RenderOptions,
@@ -541,7 +982,15 @@ extension CMarkUpHTMLVisitor {
         visitor.baseURL = options.baseURL
         visitor.resolveImageSource = resolveImageSource
         visitor.alertDetector.docCAlertMode = options.docCAlertMode
+        visitor.showInlineDeletions = options.showInlineDeletions
+        if let waypoint = options.waypoint,
+           let oldDocument = CMarkDocument(parsing: waypoint.body) {
+            visitor.diffContext = CMarkDiffContext(
+                old: oldDocument, new: document,
+                wordDiffThreshold: options.wordDiffThreshold)
+        }
         visitor.visit(document.root)
+        visitor.emitTrailingDeletions()
         return prefix + visitor.result
     }
 }

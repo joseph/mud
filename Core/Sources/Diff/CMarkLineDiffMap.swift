@@ -1,12 +1,13 @@
-import Markdown
-
-/// Maps a `ChangePlan` to line-level annotations for Down mode rendering.
+/// Maps a `CMarkChangePlan` to line-level annotations for Down mode — the
+/// Stage 4 port of ``LineDiffMap``
+/// (Doc/Plans/2026-07-single-parser-rendering.md). Reuses the legacy output
+/// types (`LineAnnotation`, `DeletionGroup`, `BlockWordData`) unchanged:
+/// they carry no node references, only line numbers and word spans.
 ///
-/// Paired blocks get line-level diffs: only actually-changed lines are
-/// annotated. Unchanged lines within a modified block render normally.
-/// Code block pairs reuse the plan's cluster lines, so their change IDs
-/// match `DiffContext` (Up mode) and the sidebar by construction.
-struct LineDiffMap {
+/// **Parallel and unwired.** Down mode still projects the legacy plan; this
+/// port has no live consumer until Stage 5, so its parity tests are its only
+/// proof of correctness for now.
+struct CMarkLineDiffMap {
     private let annotations: [Int: LineAnnotation]
     let deletionGroups: [DeletionGroup]
     private let delWordData: [String: [Int: BlockWordData]]
@@ -29,40 +30,10 @@ struct LineDiffMap {
     }
 }
 
-/// A line in the new document that belongs to a changed block.
-/// `Equatable` (with `DeletionGroup` and `BlockWordData` below) so the
-/// Stage 4 parity tests can compare the legacy and cmark projections.
-struct LineAnnotation: Equatable {
-    let changeID: String
-}
-
-/// A contiguous group of old-document lines to re-insert as deletions.
-struct DeletionGroup: Equatable {
-    /// Insert before this new-document line number (1-based).
-    /// `Int.max` for trailing deletions (after all new-doc lines).
-    let beforeNewLine: Int
-    /// Line range in the old document (1-based, closed).
-    let oldLineRange: ClosedRange<Int>
-    /// Change ID for `data-change-id` attributes and sidebar matching.
-    let changeID: String
-}
-
-/// Word-level diff data for a line within a paired block.
-struct BlockWordData: Equatable {
-    /// Word spans from `WordDiff.diff(old:new:)`.
-    let spans: [WordSpan]
-    /// This line's source text (raw markdown).
-    let sourceText: String
-    /// True for insertion lines, false for deletion lines.
-    let isInsertion: Bool
-    /// 1-based line number of this entry in its document.
-    let startLine: Int
-}
-
 // MARK: - Construction
 
-extension LineDiffMap {
-    init(plan: ChangePlan, wordDiffThreshold: Double = 0.25) {
+extension CMarkLineDiffMap {
+    init(plan: CMarkChangePlan, wordDiffThreshold: Double = 0.25) {
         var annotations: [Int: LineAnnotation] = [:]
         var groups: [DeletionGroup] = []
         var delWD: [String: [Int: BlockWordData]] = [:]
@@ -74,7 +45,7 @@ extension LineDiffMap {
         /// emits fine-grained annotations, deletion groups, and
         /// per-line word data.
         func processLineLevelPair(
-            _ pair: ChangePlan.Pair,
+            _ pair: CMarkChangePlan.Pair,
             insLineRange: ClosedRange<Int>,
             anchorLine: Int
         ) {
@@ -189,7 +160,7 @@ extension LineDiffMap {
         /// Projects a code block pair's cluster lines (change IDs
         /// pre-assigned by the plan) onto document line numbers.
         func processCodeBlockPair(
-            _ pair: ChangePlan.CodeBlockPair
+            _ pair: CMarkChangePlan.CodeBlockPair
         ) {
             let del = pair.deletion
             let ins = pair.insertion
@@ -308,7 +279,7 @@ extension LineDiffMap {
         /// Falls back to block-level treatment: all lines of the old
         /// block are deleted, all lines of the new block are inserted.
         func emitBlockLevel(
-            _ pair: ChangePlan.Pair,
+            _ pair: CMarkChangePlan.Pair,
             insLineRange: ClosedRange<Int>
         ) {
             let del = pair.deletion
@@ -415,7 +386,7 @@ extension LineDiffMap {
 
     /// Derives the 1-based line range from a leaf block's source text.
     private static func lineRange(
-        for block: LeafBlock
+        for block: CMarkLeafBlock
     ) -> ClosedRange<Int>? {
         guard block.markup.range != nil else { return nil }
         let lineCount = block.sourceText.split(

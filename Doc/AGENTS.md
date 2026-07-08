@@ -203,11 +203,12 @@ MVP plan.
   parseComments / removeComments convenience
 - `Rendering/UpHTMLVisitor.swift` — AST → rendered HTML; `renderBody` is the
   visitor + frontmatter-prefix core every Up-mode fragment render goes through
-- `Rendering/CMarkUpHTMLVisitor.swift` — Stage 3 cmark port of `UpHTMLVisitor`
-  (single-parser plan): renders the Up-mode body from one footnote-aware parse,
-  emitting footnote/comment markers in the visitor. Parallel and unwired —
-  `UpRenderingParityTests` holds it byte-identical to the legacy visitor until
-  the diff layer ports and the pipelines cut over
+- `Rendering/CMarkUpHTMLVisitor.swift` — Stages 3–4 cmark port of
+  `UpHTMLVisitor` (single-parser plan): renders the Up-mode body from one
+  footnote-aware parse, emitting footnote/comment markers in the visitor, with
+  change tracking wired to the `CMark*` diff layer (no waypoint preprocessing).
+  Parallel and unwired — `UpRenderingParityTests` holds it byte-identical to
+  the legacy visitor, plain and diffed, until the pipelines cut over
 - `Rendering/DownHTMLVisitor.swift` — AST → syntax-highlighted raw HTML
 - `Rendering/WordSpanEmitter.swift` — Word-level `<ins>`/ `<del>` cursor
   machine; advances through a block's `[WordSpan]` in step with the visitor's
@@ -218,6 +219,12 @@ MVP plan.
 - `Rendering/DeletionRenderer.swift` — Renders deleted blocks to HTML for the
   Up-mode overlay; injected into `DiffContext` so `Diff/` never calls rendering
   code
+- `Rendering/CMarkDeletionPlacer.swift` — Stage 4 port of `DeletionPlacer` onto
+  `CMarkNode` (parallel, unwired)
+- `Rendering/CMarkDeletionRenderer.swift` — Stage 4 port of `DeletionRenderer`;
+  seeds deletion visitors with the old document's footnote numbering (deleted
+  blocks walk the raw old tree, where markers aren't pre-baked) and hosts the
+  `CMarkDiffContext(old:new:)` convenience initializer
 - `Rendering/FootnoteHTMLRenderer.swift` — Bottom footnotes section and the
   per-footnote popover documents
 - `Rendering/CommentHTMLRenderer.swift` — Bottom comments section, single
@@ -266,6 +273,13 @@ MVP plan.
   lines
 - `Diff/ChangeList.swift` — Sidebar change list projected from `ChangePlan`
 - `Diff/ChangeGroup.swift` — Groups consecutive changes by `groupID`
+- `Diff/CMarkBlockMatcher.swift`, `Diff/CMarkChangePlan.swift`,
+  `Diff/CMarkDiffContext.swift`, `Diff/CMarkLineDiffMap.swift`,
+  `Diff/CMarkChangeList.swift` — Stage 4 ports of the diff layer onto
+  `CMarkNode` (single-parser plan; parallel, unwired). The collector skips
+  footnote/comment definitions structurally, and all joins key on source
+  positions (`CMarkSourceKey`), never node identity — the plan cache returns
+  nodes from a different, textually identical tree
 - `ChangeTracker.swift` — Waypoint history and active-waypoint selection
 
 **QuickLook/ key files:**

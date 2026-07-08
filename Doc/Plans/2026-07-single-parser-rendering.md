@@ -1,9 +1,10 @@
 Plan: Single-Parser Rendering
 ===============================================================================
 
-> Status: Underway (Stages 0–3 landed: the corpus, the `CMarkDocument` wrapper,
-> the leaf-consumer ports, and the `UpHTMLVisitor` port with its byte-identical
-> harness; Stage 4's diff-layer port is next)
+> Status: Underway (Stages 0–4 landed: the corpus, the `CMarkDocument` wrapper,
+> the leaf-consumer ports, the `UpHTMLVisitor` port with its byte-identical
+> harness, and the diff-layer port with diffed-rendering parity; Stage 5's
+> `DownHTMLVisitor` port is next)
 
 Whether and how to consolidate Mud's rendering on one Markdown parser. Today
 every Up-mode render parses the document twice: once with cmark-gfm (via
@@ -377,6 +378,75 @@ quotes adjacent to references so parity stays byte-exact.
 possible — porting one shared pass is less work than porting three consumers.
 `SourceKey` joins survive because both sides still parse the same string with
 the same parser.
+
+**Landed (July 2026):** the port arrived in two pieces, both still parallel and
+unwired — production renders stay on the legacy pipeline until Stage 6.
+
+Sub-stage 4a is the data layer: `Core/Sources/Diff/` gained
+`CMarkBlockMatcher`, `CMarkChangePlan`, `CMarkDiffContext`, `CMarkLineDiffMap`,
+and `CMarkChangeList` — direct structural ports of their legacy counterparts,
+duplicated rather than genericized (matching how Stage 3 built
+`CMarkUpHTMLVisitor`; the whole layer is deleted at Stage 6's cutover). Thanks
+to Phase 2's one-diff-pass consolidation, most of the type surface underneath
+(`GroupInfo`, `WordSpan`, `RenderedDeletion`, `DocumentChange`,
+`DeletionGroup`, `BlockWordData`, `CodeBlockDiff`, `WordSpanEmitter`) is
+parser-agnostic and is reused unchanged. Two rules from the design review
+shaped the port, each recorded in a doc comment where it applies:
+
+1. **Join keys are source positions, never node identity.** `CMarkChangePlan`
+   caches by source text and every production render parses fresh, so a cache
+   hit routinely returns a plan whose leaf-block nodes point into a different
+   (textually identical) tree than the one being rendered. `CMarkSourceKey` is
+   therefore a 4-int position value, like the legacy `SourceKey`.
+2. **The collector skips footnote definitions structurally.**
+   `CMarkLeafBlockCollector.visitFootnoteDefinition` is a no-op over the whole
+   subtree, replacing the legacy comment-line filter. The legacy Up path never
+   needed this because `FootnoteProcessor.process` deleted every definition
+   before its parse; the cmark collector walks the raw source, where
+   definitions survive as nodes the render visitor never draws. A Stage 5
+   Down-mode collector wants the opposite policy (footnote definitions stay
+   diffable there) and needs its own variant.
+
+Sub-stage 4b wired change tracking into `CMarkUpHTMLVisitor` (plus
+`CMarkDeletionPlacer` / `CMarkDeletionRenderer` in `Rendering/`): change
+attributes, deletion placement, word spans, and diffed code blocks, mirroring
+the legacy visitor — with the table hoisting/deferral/reclaiming loops folded
+into `visitTable`, since cmark has no table-body node to hang a
+`visitTableBody` off. `renderBody` now builds a `CMarkDiffContext` straight
+from the raw waypoint body: `MudCore.processingWaypoint` has no counterpart
+here, because there is no transformed source to compare like with like. One
+piece has no legacy analogue: deleted blocks belong to the old document, and
+legacy gets their footnote markers pre-baked into its transformed source, so
+`CMarkDiffContext(old:new:)` computes the old document's reference numbering
+once (`CMarkUpHTMLVisitor.footnoteNumbering(for:)`) and seeds every
+deletion-rendering visitor with it — keyed by verified byte range, position
+over identity again, so it survives the plan cache.
+
+Proof: `CMarkBlockMatcherTests` and `CMarkChangePlanParityTests` hold the data
+layer value-equal to the legacy plan and its projections over
+`ChangeIDParityTests.corpus`, and `UpRenderingParityTests` gained a diffed
+byte-parity sweep — that corpus plus roughly forty more edit cases covering
+every deletion-placer path, alerts, word-span shapes, and the footnote/comment
+interplay, each run with `showInlineDeletions` both ways. Two deliberate
+divergences are excluded from byte parity and pinned as cmark-side tests
+instead, both places where the legacy pipeline mis-renders because its markers
+are baked text (they join Stage 3's smart-typography note as behavior _fixes_
+the cutover adopts):
+
+- With word spans active, legacy word-marks the baked footnote marker's number
+  (a text node in its transformed source), landing `<ins>`/ `<del>` inside the
+  marker anchor; the cmark reference is an AST node and its marker emits intact
+  (`wordSpannedFootnoteMarkerStaysIntact`).
+- A paired edit of a roman-path DocC aside (first line over the 60-character
+  bold-inline threshold) hits a legacy triple defect: swift-markdown's
+  `parseAsideTag` rebuilds the aside's first paragraph with
+  `preserveRange: true`, so legacy's `visitParagraph` runs on a rebuilt node
+  that still matches the diff lookups — the preceding deletion emits a second
+  time inside the alert, the inner `<p>` duplicates the blockquote's change
+  attributes, and the prefix-skipped span emitter is replaced by an unskipped
+  one, shearing every word marker. The cmark visitor never routes that
+  paragraph through `visitParagraph`, so none of it can happen
+  (`romanAsideEditAvoidsLegacyDefects`).
 
 **Stage 5 — DownHTMLVisitor.** Port the event collector onto verified inline
 sourcepos; delete the definition blanking and the sub-parse remap. Down mode's

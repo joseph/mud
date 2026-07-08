@@ -86,7 +86,9 @@ enum ChangeList {
     /// Emits `DocumentChange` entries for each changed line in a
     /// code block pair. Lines sharing a change ID are grouped by the
     /// sidebar into a single `ChangeGroup` with per-line summaries.
-    private static func emitCodeBlockChanges(
+    /// Internal (not private): the projection is node-type-free, so
+    /// `CMarkChangeList` shares it.
+    static func emitCodeBlockChanges(
         _ lines: [CodeBlockDiff.CodeLine], sourceLine: Int,
         changes: inout [DocumentChange],
         sawUnchangedSinceLastChange: inout Bool
@@ -146,8 +148,9 @@ enum ChangeList {
 
 // MARK: - DocumentChange
 
-/// A single change entry for the sidebar list.
-public struct DocumentChange: Identifiable, Sendable {
+/// A single change entry for the sidebar list. `Equatable` so the Stage 4
+/// parity tests can compare the legacy and cmark projections directly.
+public struct DocumentChange: Identifiable, Sendable, Equatable {
     public let id: String
     public let type: ChangeType
     public let summary: String

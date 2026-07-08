@@ -59,7 +59,7 @@ MVP plan.
 - **Thumbnail** (Thumbnail/) -- `.appex` Quick Look thumbnail extension,
   bundled in `Mud.app/Contents/PlugIns/`. Renders a portrait thumbnail from the
   file's first heading. Sandboxed; no app-group entitlement.
-- **MudTests** (MudTests/) -- unit-test bundle for the App target, hosted in
+- **Mud Tests** (App/Tests/) -- unit-test bundle for the App target, hosted in
   Mud.app (`@testable import Mud`). Swift Testing, like the Core and
   Preferences suites; Cmd+U on either scheme runs it. The folder is a
   file-system-synchronized group, so new test files need no project edit.
@@ -282,7 +282,7 @@ MVP plan.
 - `Resources/thumbnail-static.svg` — Source for the static `.icns` document
   icon.
 
-**MudTests/ key files:**
+**App/Tests/ key files:**
 
 - `TestSupport.swift` — Async pumping helpers (`pump`, `pumpUntil`), the
   temp-directory fixture, and the `MudComment` alias

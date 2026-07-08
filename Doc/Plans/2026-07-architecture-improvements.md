@@ -600,7 +600,7 @@ Browser, Open In editor, the CLI, Quick Look.
 
 ### 4f. An App test bundle
 
-There are no App-target tests today (~6,500 untested lines). Add `MudTests`.
+There are no App-target tests today (~6,500 untested lines). Add `Mud Tests`.
 Immediately testable with no refactor: `FindState`'s state machine, the
 self-write dedup policy, `OpenInMenuModel.resolveFormat`,
 `WebView.parseMatchInfo`, `MudJSBridge`'s argument encoding and message
@@ -611,8 +611,8 @@ parsing (which scrapes undocumented `ls-files --debug` output) is testable.
 
 **Implementation notes (July 2026):**
 
-- The `MudTests` target is a unit-test bundle hosted in Mud.app (`TEST_HOST`),
-  so tests reach the app module via `@testable import Mud`. Its `MudTests/`
+- The `Mud Tests` target is a unit-test bundle hosted in Mud.app (`TEST_HOST`),
+  so tests reach the app module via `@testable import Mud`. Its `App/Tests/`
   folder is a file-system-synchronized group — adding a test file needs no
   project edit. All four build configurations exist; the two Direct
   configurations define `GIT_PROVIDER` so the `GitProvider` tests (whole-file
@@ -746,7 +746,7 @@ overwrites another window's saved frame.
   rather than whichever window closed most recently — a bonus follow-on of
   fixing the overwrite bug, not a separate design goal.
 - No new tests: `AppState`'s other 20-odd preference-backed properties have no
-  test coverage either (nothing in `MudTests` exercises `AppState` or
+  test coverage either (nothing in `Mud Tests` exercises `AppState` or
   `DocumentState` against `MudPreferences.shared`, which is a live singleton
   over `UserDefaults.standard` — there's no hermetic seam to test through
   without the `@Pref` property-wrapper work planned for Phase 5). Window-frame

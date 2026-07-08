@@ -35,8 +35,8 @@
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "7CF4F00000000000000000A0"
-               BuildableName = "MudTests.xctest"
-               BlueprintName = "MudTests"
+               BuildableName = "Mud Tests.xctest"
+               BlueprintName = "Mud Tests"
                ReferencedContainer = "container:Mud.xcodeproj">
             </BuildableReference>
          </TestableReference>

@@ -39,7 +39,7 @@ func pumpUntil(
 /// real files (comment writes, the file watcher).
 func makeTempDirectory() throws -> URL {
     let url = FileManager.default.temporaryDirectory
-        .appendingPathComponent("MudTests-\(UUID().uuidString)")
+        .appendingPathComponent("Tests-\(UUID().uuidString)")
     try FileManager.default.createDirectory(
         at: url, withIntermediateDirectories: true)
     return url

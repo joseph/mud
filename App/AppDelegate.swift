@@ -126,9 +126,9 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
 // MARK: - Test Host
 
-// MudTests hosts inside Mud.app (@testable import Mud), so the app's launch
-// path still runs under Cmd+U. Without this guard it would show the open
-// panel modally, blocking the run loop that pump/pumpUntil depend on, and
-// mark UserDefaults.standard.hasLaunched true — the same domain the real app
-// uses on this machine.
+// The Mud Tests target hosts inside Mud.app (@testable import Mud), so the
+// app's launch path still runs under Cmd+U. Without this guard it would show
+// the open panel modally, blocking the run loop that pump/pumpUntil depend on,
+// and mark UserDefaults.standard.hasLaunched true — the same domain the real
+// app uses on this machine.
 private let isRunningTests = ProcessInfo.processInfo.environment["XCTestSessionIdentifier"] != nil

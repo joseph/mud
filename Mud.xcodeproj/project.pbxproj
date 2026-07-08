@@ -72,8 +72,8 @@
 		7CDA11052FA30D0100000006 /* ActiveDocument.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CDA11042FA30D0100000005 /* ActiveDocument.swift */; };
 		7CDA11072FA30D0100000008 /* CommentSubmissionHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CDA11062FA30D0100000007 /* CommentSubmissionHandler.swift */; };
 		7CDA11092FA30D010000000A /* DocumentExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CDA11082FA30D0100000009 /* DocumentExporter.swift */; };
-		7CE6B5A82F833DB3006A9BCA /* Date+Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CE6B5A72F833DB3006A9BCA /* Date+Formatting.swift */; };
 		7CDA110B2FA30D010000000C /* WaypointProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CDA110A2FA30D010000000B /* WaypointProvider.swift */; };
+		7CE6B5A82F833DB3006A9BCA /* Date+Formatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CE6B5A72F833DB3006A9BCA /* Date+Formatting.swift */; };
 		7CE6B5B02F83E899006A9BCA /* GitProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CE6B5AF2F83E899006A9BCA /* GitProvider.swift */; };
 		7CED000000000000000A0002 /* OpenInEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CED000000000000000A0001 /* OpenInEditor.swift */; };
 		7CF4F00000000000000000C3 /* MudCore in Frameworks */ = {isa = PBXBuildFile; productRef = 7CF4F00000000000000000C1 /* MudCore */; };
@@ -208,11 +208,11 @@
 		7CDA11042FA30D0100000005 /* ActiveDocument.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveDocument.swift; sourceTree = "<group>"; };
 		7CDA11062FA30D0100000007 /* CommentSubmissionHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CommentSubmissionHandler.swift; sourceTree = "<group>"; };
 		7CDA11082FA30D0100000009 /* DocumentExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentExporter.swift; sourceTree = "<group>"; };
-		7CE6B5A72F833DB3006A9BCA /* Date+Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+Formatting.swift"; sourceTree = "<group>"; };
 		7CDA110A2FA30D010000000B /* WaypointProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WaypointProvider.swift; sourceTree = "<group>"; };
+		7CE6B5A72F833DB3006A9BCA /* Date+Formatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Date+Formatting.swift"; sourceTree = "<group>"; };
 		7CE6B5AF2F83E899006A9BCA /* GitProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GitProvider.swift; sourceTree = "<group>"; };
 		7CED000000000000000A0001 /* OpenInEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenInEditor.swift; sourceTree = "<group>"; };
-		7CF4F00000000000000000A1 /* MudTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MudTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		7CF4F00000000000000000A1 /* Mud Tests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "Mud Tests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
@@ -264,9 +264,9 @@
 			path = QuickLook;
 			sourceTree = "<group>";
 		};
-		7CF4F00000000000000000A2 /* MudTests */ = {
+		7CF4F00000000000000000A2 /* Tests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			path = MudTests;
+			path = Tests;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -361,7 +361,6 @@
 				7CC975382F340286001C3BB7 /* App */,
 				7C8FC0432F932DFD003B14D4 /* QuickLook */,
 				7C33EC162F97143F00B293B6 /* Thumbnail */,
-				7CF4F00000000000000000A2 /* MudTests */,
 				7C6532AF2F585CEE00B71730 /* Frameworks */,
 				7CC975222F3401F4001C3BB7 /* Products */,
 			);
@@ -374,7 +373,7 @@
 				7C6532A82F585CA100B71730 /* mud */,
 				7C8FC0402F932DFC003B14D4 /* MudQuickLook.appex */,
 				7C33EC122F97143F00B293B6 /* MudThumbnail.appex */,
-				7CF4F00000000000000000A1 /* MudTests.xctest */,
+				7CF4F00000000000000000A1 /* Mud Tests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -389,6 +388,7 @@
 				7C1B6E912F96F1E800BF5254 /* MarkdownDocument.icns */,
 				7C4D0E582F47EF22008A472A /* PrivacyInfo.xcprivacy */,
 				7C6532A92F585CA100B71730 /* CLI */,
+				7CF4F00000000000000000A2 /* Tests */,
 				7C282AD12F4F541400611919 /* Settings */,
 				7CC975362F340286001C3BB7 /* MudApp.swift */,
 				7C442A612F3450190046E0CD /* AppDelegate.swift */,
@@ -532,9 +532,9 @@
 			productReference = 7CC975212F3401F4001C3BB7 /* Mud.app */;
 			productType = "com.apple.product-type.application";
 		};
-		7CF4F00000000000000000A0 /* MudTests */ = {
+		7CF4F00000000000000000A0 /* Mud Tests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 7CF4F00000000000000000B5 /* Build configuration list for PBXNativeTarget "MudTests" */;
+			buildConfigurationList = 7CF4F00000000000000000B5 /* Build configuration list for PBXNativeTarget "Mud Tests" */;
 			buildPhases = (
 				7CF4F00000000000000000A3 /* Sources */,
 				7CF4F00000000000000000A4 /* Frameworks */,
@@ -545,15 +545,15 @@
 				7CF4F00000000000000000A6 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				7CF4F00000000000000000A2 /* MudTests */,
+				7CF4F00000000000000000A2 /* Tests */,
 			);
-			name = MudTests;
+			name = "Mud Tests";
 			packageProductDependencies = (
 				7CF4F00000000000000000C1 /* MudCore */,
 				7CF4F00000000000000000C2 /* MudPreferences */,
 			);
-			productName = MudTests;
-			productReference = 7CF4F00000000000000000A1 /* MudTests.xctest */;
+			productName = "Mud Tests";
+			productReference = 7CF4F00000000000000000A1 /* Mud Tests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
 /* End PBXNativeTarget section */
@@ -606,7 +606,7 @@
 				7C6532A72F585CA100B71730 /* Mud CLI */,
 				7C8FC03F2F932DFC003B14D4 /* MudQuickLook */,
 				7C33EC112F97143F00B293B6 /* MudThumbnail */,
-				7CF4F00000000000000000A0 /* MudTests */,
+				7CF4F00000000000000000A0 /* Mud Tests */,
 			);
 		};
 /* End PBXProject section */
@@ -2145,7 +2145,7 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = "Release-Direct";
 		};
-		7CF4F00000000000000000B5 /* Build configuration list for PBXNativeTarget "MudTests" */ = {
+		7CF4F00000000000000000B5 /* Build configuration list for PBXNativeTarget "Mud Tests" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				7CF4F00000000000000000B1 /* Debug-AppStore */,

@@ -684,8 +684,10 @@ enum FootnoteProcessor {
 
     /// The inline-HTML marker that replaces a `[^label]` reference. Carries a
     /// real `#fn-N` anchor (for export/print) plus `data-*` attributes the
-    /// in-app JS reads to trigger the popover.
-    private static func markerHTML(number: Int, label: String, occurrence: Int) -> String {
+    /// in-app JS reads to trigger the popover. Internal (not private) because
+    /// `CMarkUpHTMLVisitor` emits the same marker from its footnote-reference
+    /// visit case — one implementation, so the two pipelines cannot drift.
+    static func markerHTML(number: Int, label: String, occurrence: Int) -> String {
         let idSuffix = occurrence > 1 ? "-\(occurrence)" : ""
         let escLabel = HTMLEscaping.escape(label)
         return "<sup class=\"footnote-ref\" id=\"fnref-\(number)\(idSuffix)\">"
@@ -697,8 +699,9 @@ enum FootnoteProcessor {
     /// chip carrying the label. Unlike a footnote marker it has no number — so
     /// comments never consume a footnote number — and points at the bottom
     /// Comments section (`#cmt-LABEL`) as the no-JS fallback. The in-app JS reads
-    /// `data-mud-label` to reveal the highlight and open the editor.
-    private static func commentMarkerHTML(label: String) -> String {
+    /// `data-mud-label` to reveal the highlight and open the editor. Internal
+    /// for the same reason as ``markerHTML(number:label:occurrence:)`` above.
+    static func commentMarkerHTML(label: String) -> String {
         let escLabel = HTMLEscaping.escape(label)
         return "<a class=\"\(commentMarkerClass)\" id=\"cmtref-\(escLabel)\""
             + " data-mud-label=\"\(escLabel)\" href=\"#cmt-\(escLabel)\">\(commentMarkerGlyph)</a>"

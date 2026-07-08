@@ -1,8 +1,9 @@
 Plan: Single-Parser Rendering
 ===============================================================================
 
-> Status: Underway (Stages 0–2 landed: the corpus, the `CMarkDocument` wrapper,
-> and the leaf-consumer ports; Stage 3's `UpHTMLVisitor` port is next)
+> Status: Underway (Stages 0–3 landed: the corpus, the `CMarkDocument` wrapper,
+> the leaf-consumer ports, and the `UpHTMLVisitor` port with its byte-identical
+> harness; Stage 4's diff-layer port is next)
 
 Whether and how to consolidate Mud's rendering on one Markdown parser. Today
 every Up-mode render parses the document twice: once with cmark-gfm (via
@@ -326,6 +327,50 @@ references become visit cases emitting the existing marker HTML (numbering
 logic moves from `FootnoteProcessor`'s rewrite pass into the render). The
 harness gates the switch: byte-identical output on the corpus, no deliberate
 changes in this stage.
+
+**Landed (July 2026):** `Core/Sources/Rendering/CMarkUpHTMLVisitor.swift` is
+the port — a separate struct on `CMarkWalker`, parallel to `UpHTMLVisitor` and
+**unwired**: the legacy visitor still renders every production document. The
+cutover has to wait for Stage 4 because `DiffContext` keys its annotation
+lookups on swift-markdown nodes parsed from the footnote-transformed source, so
+a cmark-based visitor cannot serve a render that has a change-tracking
+waypoint. For the same reason, everything diff-related stayed behind: change
+attributes, `DeletionPlacer`, word spans, code-block diffs, and the
+`renderAlertInnerHTML` / `renderWithWordSpans` statics all port with the diff
+layer.
+
+What did move now, per the stage description: footnote and comment references
+are visit cases. The visitor assigns authorial footnote numbers in
+first-reference order (comments consume no number), tracks per-label occurrence
+for the `fnref-N-K` back-link ids, and emits the marker HTML through
+`FootnoteProcessor.markerHTML` / `commentMarkerHTML` — now internal rather than
+private, so the rewrite pass and the visitor share one emitter and cannot
+drift. Footnote definitions render nothing (the legacy pipeline deletes them
+from the source; the visitor skips the nodes), which also keeps their inner
+references out of the numbering. The legacy pass's sourcepos guards are
+mirrored: a reference whose position cmark cannot verifiably delimit falls back
+to literal `[^label]` text instead of a marker. `listIsTight` replaced the
+`isLooseList` range hack, as planned. The DocC aside emission works from the
+detector's `tagByteLength` (Stage 2's own tag parser) instead of `Aside`'s
+rebuilt content blocks.
+
+The harness is `Core/Tests/UpRenderingParityTests.swift`: every corpus
+document, under all three `docCAlertMode` values, must render the same body
+bytes through both pipelines (bottom footnote/comment sections are excluded —
+both pipelines share those renderers). Focused tests pin the moved numbering
+logic directly. The corpus grew seven documents for this stage:
+`footnoteNumbering` (out-of-order definitions, a repeated reference, an
+interleaved comment, an undefined reference, an orphan definition),
+`gfmAlertVariants`, `docCAsideVariants` (including the `Don't:`
+smart-typography input), `rawHTML`, `linkVariants`, `codeBlockVariants`, and
+`orderedListStart`.
+
+One edge to be aware of at cutover time (not a Stage 3 change, since the new
+visitor is unwired): in the legacy pipeline, smart typography sees the injected
+marker HTML as neighboring text, so a quote character directly adjacent to a
+footnote reference can curl differently than it will once references are AST
+nodes. The new behavior is the correct one; the corpus deliberately avoids
+quotes adjacent to references so parity stays byte-exact.
 
 **Stage 4 — the diff layer.** `BlockMatcher`, `DiffContext`, `LineDiffMap`,
 `ChangeList`. Sequence this after architecture Phase 2 (one diff pass) if

@@ -177,10 +177,130 @@ enum ParityCorpus {
       Text after a thematic break.
       """)
 
+  /// Footnote numbering is assigned Mud-side in first-reference order over
+  /// authorial references only — the logic Stage 3 moves from
+  /// `FootnoteProcessor.process`'s rewrite pass into the render. References
+  /// arrive out of definition order; a repeated reference exercises the
+  /// occurrence-suffixed back-link ids; the interleaved comment consumes no
+  /// number; the undefined reference stays literal text; and the orphan
+  /// definition renders nothing.
+  static let footnoteNumbering = Document(
+    name: "footnoteNumbering",
+    markdown: """
+      Second-defined[^beta] then a comment[^comment-note] then
+      first-defined[^alpha] and beta again[^beta].
+
+      An undefined reference[^missing] stays literal text.
+
+      [^alpha]: Alpha body, defined first.
+
+      [^beta]: Beta body, defined second.
+
+      [^unrefd]: Never referenced; renders nothing.
+
+      [^comment-note]: > then a comment
+
+          💬 {Tester @ 2026-07-08 12:00:00}:
+
+          A comment thread body.
+      """)
+
+  /// A GFM alert with content on the tag line (the `after` path in the
+  /// alert-content emitter) and one with multiple body paragraphs.
+  static let gfmAlertVariants = Document(
+    name: "gfmAlertVariants",
+    markdown: """
+      > [!TIP] Same-line content after the tag.
+      > A second line in the first paragraph.
+
+      > [!CAUTION]
+      > First body paragraph.
+      >
+      > Second body paragraph.
+      """)
+
+  /// DocC asides beyond the long-roman case in `alertBodyParagraphs`: a
+  /// short same-line body (bolded on the title line) with a continuation, a
+  /// two-word display name (`SeeAlso` → "See Also"), and the `Don't:`
+  /// smart-typography input that crashed swift-markdown's `Aside` parser —
+  /// both pipelines must render it as a plain blockquote.
+  static let docCAsideVariants = Document(
+    name: "docCAsideVariants",
+    markdown: """
+      > Note: Short note bolded on the title line.
+      > Continuing body after the soft break.
+
+      > SeeAlso: The two-word display name.
+
+      > Don't: the smart-typography apostrophe makes this tag unrecognized,
+      > so the blockquote renders plain.
+      """)
+
+  static let rawHTML = Document(
+    name: "rawHTML",
+    markdown: """
+      <div class="wrapper">
+        <p>A raw HTML block passes through verbatim.</p>
+      </div>
+
+      A paragraph with <em>inline HTML</em> and <br/> tags.
+
+      <!-- an HTML comment block -->
+
+      Closing paragraph.
+      """)
+
+  static let linkVariants = Document(
+    name: "linkVariants",
+    markdown: """
+      A [titled link](https://example.org "The title") in prose.
+
+      An angle autolink <https://example.org/auto> in prose.
+
+      A [reference link][ref] and a [shortcut ref] in prose.
+
+      An image with a title ![drip](drip.png "Drip title") inline.
+
+      [ref]: https://example.org/ref "Ref title"
+      [shortcut ref]: https://example.org/shortcut
+      """)
+
+  /// Code blocks beyond the plain `swift` fence in
+  /// `codeBlockAndThematicBreak`: a multi-word info string (the language
+  /// mapping must agree between the two pipelines), an indented code block
+  /// (no info string at all), and a bare fence. The closing paragraph keeps
+  /// the document from being all code blocks: the Stage 1 parity tests'
+  /// sanity guards require at least one text inline to collect.
+  static let codeBlockVariants = Document(
+    name: "codeBlockVariants",
+    markdown: """
+      ```swift attributes=here
+      let fenced = "with a multi-word info string"
+      ```
+
+          an indented code block line
+          a second indented line
+
+      ```
+      a bare fence with no info string
+      ```
+
+      Prose after the code blocks.
+      """)
+
+  static let orderedListStart = Document(
+    name: "orderedListStart",
+    markdown: """
+      3. Starts at three
+      4. Continues at four
+      """)
+
   static let all: [Document] = [
     paragraphsWithInlineSyntax, hardBreakParagraph, headings, listItems,
     taskListItems, blockquoteParagraphs, alertBodyParagraphs, tableCells,
     duplicateBlocks, smartTypography, setextHeadings, frontMatter,
-    codeBlockAndThematicBreak,
+    codeBlockAndThematicBreak, footnoteNumbering, gfmAlertVariants,
+    docCAsideVariants, rawHTML, linkVariants, codeBlockVariants,
+    orderedListStart,
   ]
 }

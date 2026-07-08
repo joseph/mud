@@ -203,6 +203,11 @@ MVP plan.
   parseComments / removeComments convenience
 - `Rendering/UpHTMLVisitor.swift` — AST → rendered HTML; `renderBody` is the
   visitor + frontmatter-prefix core every Up-mode fragment render goes through
+- `Rendering/CMarkUpHTMLVisitor.swift` — Stage 3 cmark port of `UpHTMLVisitor`
+  (single-parser plan): renders the Up-mode body from one footnote-aware parse,
+  emitting footnote/comment markers in the visitor. Parallel and unwired —
+  `UpRenderingParityTests` holds it byte-identical to the legacy visitor until
+  the diff layer ports and the pipelines cut over
 - `Rendering/DownHTMLVisitor.swift` — AST → syntax-highlighted raw HTML
 - `Rendering/WordSpanEmitter.swift` — Word-level `<ins>`/ `<del>` cursor
   machine; advances through a block's `[WordSpan]` in step with the visitor's

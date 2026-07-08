@@ -188,6 +188,15 @@ MVP plan.
 - `RenderExtension.swift` — Client-side rendering extension type and registry
 - `RenderOptions.swift` — Rendering configuration value type
 - `Mode.swift` — up/down enum (Mark Up / Mark Down)
+- `CMark/CMarkDocument.swift` — Owning wrapper over one footnote-aware
+  cmark-gfm parse (single-parser plan, Stage 1): hard-coded
+  swift-markdown-parity parse options, range APIs in swift-markdown's
+  conventions (exclusive upper bound, UTF-8 byte columns, backtick widening),
+  and the `verifiedRange(of:)` delimiter defense
+- `CMark/CMarkNode.swift` — Document-retaining node handle: `CMarkNodeKind`
+  (extension nodes identified by type string), content and structure accessors
+- `CMark/CMarkWalker.swift` — Depth-first walker with default-descend behavior,
+  mirroring `MarkupWalker`'s method vocabulary for mechanical ports
 - `MudCore.swift` — Public API facade: rendering entry points (dispatch only —
   HTML emission lives in `Rendering/`), the shared Up-mode pipeline,
   `exportDocument` (the one self-contained export recipe), extractHeadings /

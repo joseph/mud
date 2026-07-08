@@ -1,8 +1,8 @@
 Plan: Single-Parser Rendering
 ===============================================================================
 
-> Status: Underway (Stage 0's corpus landed; the dual-pipeline comparison waits
-> on Stage 1)
+> Status: Underway (Stages 0–1 landed: the corpus and the `CMarkDocument`
+> wrapper; Stage 2's leaf consumers are next)
 
 Whether and how to consolidate Mud's rendering on one Markdown parser. Today
 every Up-mode render parses the document twice: once with cmark-gfm (via
@@ -262,6 +262,30 @@ with default-descend behavior, and a range API that reproduces swift-markdown's
 conventions (exclusive upper bound, UTF-8 byte columns) so consumers port
 without changing their range math. Includes `verifiedRange(of:)`. Unit tests
 against known documents.
+
+**Landed (July 2026):** `Core/Sources/CMark/` holds the wrapper in three files.
+`CMarkDocument.swift` is the owning class: parse options are hard-coded to
+swift-markdown 0.8.0's exact setup (`SMART`, `SOURCEPOS`, `TABLE_SPANS`, the
+`table` / `strikethrough` / `tasklist` extensions) plus `CMARK_OPT_FOOTNOTES`;
+`autolink` stays off, per Extension parity above. It hosts the three range
+APIs: `range(of:)`, bounds-checked `byteRange(of:)`, and `verifiedRange(of:)`,
+which checks delimiter bytes for footnote refs, emphasis, strong,
+strikethrough, inline code, images, links, and blockquotes. `CMarkNode.swift`
+is the handle struct — it retains its owning document, so a live node can never
+outlive its tree — with the kind enum (extension nodes by type string, since a
+task item's C type is plain `CMARK_NODE_ITEM`) and accessors including
+`listIsTight`, the Stage 3 replacement for the `isLooseList` hack.
+`CMarkWalker.swift` mirrors `MarkupWalker`'s method vocabulary so Stage 3 ports
+name-for-name. One convention surfaced beyond the two documented above,
+verified in the pinned sources: swift-markdown widens inline-code ranges by
+`cmark_node_get_backtick_count`, so the range includes the backticks where raw
+cmark covers only the content between them; the wrapper reproduces it.
+`CMarkDocumentTests.swift` covers the wrapper (kinds, ranges with multibyte
+columns, `verifiedRange` slices, walker dispatch, the lifetime guarantee, a
+corpus sweep) and adds the first two dual-pipeline comparisons: range records
+and text literals must match swift-markdown exactly over the corpus. The
+byte-identical **HTML** comparison still waits on Stage 3, which builds the
+second Up renderer to compare.
 
 **Stage 2 — leaf consumers.** `HeadingExtractor` (with a slug-parity test over
 the corpus), `WordDiff.inlineText` (with a count-parity test against the old

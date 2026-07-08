@@ -52,20 +52,33 @@ class DocumentWindowController: NSWindowController {
         setupToolbar()
         observeState()
 
-        // Restore saved window frame AFTER content and toolbar setup,
-        // so that layout changes don't override the saved frame.
-        if let frameString = MudPreferences.shared.windowFrame {
-            window.setFrame(NSRectFromString(frameString), display: false)
-        } else {
-            window.setContentSize(NSSize(width: 860, height: 740))
-            window.center()
-        }
+        // Default size/position for a file with no saved frame yet. Applied
+        // BEFORE the frame-autosave name below, so a first-time open still
+        // gets a sensible starting frame instead of Cocoa's zero-size
+        // default; `setFrameAutosaveName` overwrites it immediately if a
+        // saved frame already exists for this file.
+        window.setContentSize(NSSize(width: 860, height: 740))
+        window.center()
+
+        // Per-file frame autosave (AFTER content/toolbar setup, so their
+        // layout doesn't override the restored frame): each file's window
+        // remembers its own size and position, so closing one window can no
+        // longer overwrite another's, which the single global `windowFrame`
+        // preference used to do. Cocoa saves and restores this automatically
+        // from here on — no explicit save/restore code needed.
+        window.setFrameAutosaveName(Self.frameAutosaveName(for: url))
 
         window.delegate = self
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    /// A stable, per-file key for `NSWindow.setFrameAutosaveName`, so each
+    /// file's window frame is independent of every other open window's.
+    private static func frameAutosaveName(for url: URL) -> String {
+        "document-window:\(url.path)"
     }
 
     private func setupContent() {
@@ -300,8 +313,7 @@ class DocumentWindowController: NSWindowController {
     }
 
     private func updateZoomLabel(for mode: Mode? = nil) {
-        let app = AppState.shared
-        let level = (mode ?? state.mode) == .down ? app.downModeZoomLevel : app.upModeZoomLevel
+        let level = (mode ?? state.mode) == .down ? state.downModeZoomLevel : state.upModeZoomLevel
         let percent = Int(round(level * 100))
         zoomControl?.setLabel("\(percent)%", forSegment: 1)
         zoomControl?.setWidth(0, forSegment: 1) // auto-size
@@ -391,23 +403,21 @@ class DocumentWindowController: NSWindowController {
     }
 
     private func adjustZoom(by delta: Double) {
-        let app = AppState.shared
         if state.mode == .down {
-            app.downModeZoomLevel = (app.downModeZoomLevel + delta)
+            state.downModeZoomLevel = (state.downModeZoomLevel + delta)
                 .clamped(to: 0.5...3.0)
         } else {
-            app.upModeZoomLevel = (app.upModeZoomLevel + delta)
+            state.upModeZoomLevel = (state.upModeZoomLevel + delta)
                 .clamped(to: 0.5...3.0)
         }
         updateZoomLabel()
     }
 
     private func resetZoom() {
-        let app = AppState.shared
         if state.mode == .down {
-            app.downModeZoomLevel = 1.0
+            state.downModeZoomLevel = 1.0
         } else {
-            app.upModeZoomLevel = 1.0
+            state.upModeZoomLevel = 1.0
         }
         // Also clear any native pinch magnification stacked on top of CSS zoom.
         state.webCommands.send(.resetMagnification)
@@ -461,10 +471,6 @@ extension DocumentWindowController: NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
-        // Save window frame for next launch
-        if let frame = window?.frame {
-            MudPreferences.shared.windowFrame = NSStringFromRect(frame)
-        }
         onClose?(self)
     }
 }
@@ -577,7 +583,7 @@ extension DocumentWindowController: NSToolbarDelegate {
             control.setWidth(30, forSegment: 2)
             control.setToolTip("Zoom Out", forSegment: 0)
             control.setToolTip("Zoom In", forSegment: 2)
-            let level = state.mode == .down ? AppState.shared.downModeZoomLevel : AppState.shared.upModeZoomLevel
+            let level = state.mode == .down ? state.downModeZoomLevel : state.upModeZoomLevel
             control.setLabel("\(Int(round(level * 100)))%", forSegment: 1)
             control.setWidth(0, forSegment: 1)
             control.target = self

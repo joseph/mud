@@ -80,16 +80,6 @@ struct MudPreferencesTests {
         #expect(tc.config.hasLaunched == true)
     }
 
-    @Test func windowFrameRoundTrip() {
-        let tc = TestPreferences()
-        defer { tc.tearDown() }
-        #expect(tc.config.windowFrame == nil)
-        tc.config.windowFrame = "{{0, 0}, {800, 600}}"
-        #expect(tc.config.windowFrame == "{{0, 0}, {800, 600}}")
-        tc.config.windowFrame = nil
-        #expect(tc.config.windowFrame == nil)
-    }
-
     @Test func cliInstalledRoundTrip() {
         let tc = TestPreferences()
         defer { tc.tearDown() }
@@ -134,16 +124,11 @@ struct MudPreferencesTests {
         let tc = TestPreferences()
         defer { tc.tearDown() }
         tc.config.hasLaunched = true
-        tc.config.windowFrame = "{{0, 0}, {800, 600}}"
         tc.config.cliInstalled = true
         tc.config.cliSymlinkPath = "/usr/local/bin/mud"
 
         let mirror = tc.config.mirror!
         #expect(mirror.bool(forKey: MudPreferences.Keys.hasLaunched.rawValue) == true)
-        #expect(
-            mirror.string(forKey: MudPreferences.Keys.windowFrame.rawValue)
-                == "{{0, 0}, {800, 600}}"
-        )
         #expect(mirror.bool(forKey: MudPreferences.Keys.cliInstalled.rawValue) == true)
         #expect(
             mirror.string(forKey: MudPreferences.Keys.cliSymlinkPath.rawValue)

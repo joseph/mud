@@ -1,7 +1,8 @@
 Plan: Architecture Improvements
 ===============================================================================
 
-> Status: Underway (Phases 1–3 landed; Phase 4 underway)
+> Status: Underway (Phases 1–4 landed; Phases 5–6 and the single-parser
+> decision remaining)
 
 A full architecture review of Mud (July 2026), covering the App target, the
 MudCore rendering and diff subsystems, the Preferences package, the CLI / Quick
@@ -714,6 +715,43 @@ persisted values keep recording the most recent change so a new window opens at
 the last-used zoom. Replace the single global window-frame slot with
 `setFrameAutosaveName` (or standard cascading) so closing one window no longer
 overwrites another window's saved frame.
+
+**Implementation notes (July 2026):**
+
+- `upModeZoomLevel` / `downModeZoomLevel` moved from `AppState` to
+  `DocumentState` (`App/DocumentState.swift`), each seeded from
+  `MudPreferences.shared` in its property default and re-persisted on every
+  `didSet` — the same read-seed-then-persist shape `AppState`'s properties
+  already use, just on the per-window object. `DocumentWindowController`'s zoom
+  label, `adjustZoom`, `resetZoom`, and the toolbar zoom control now read and
+  write `state.upModeZoomLevel` / `state.downModeZoomLevel` instead of
+  `AppState.shared`'s; `DocumentModel.renderOptions` follows the same change.
+- `AppState.reloadPreference`'s switch drops the two zoom cases into an
+  explicit no-op (`case .upModeZoomLevel, .downModeZoomLevel: break`) rather
+  than removing them from `Keys`, since `MudPreferences` still owns the
+  underlying preference (each new window reads it directly at creation, and the
+  Quick Look snapshot still reads it too) — only the live `AppState` mirror is
+  gone.
+- The window-frame slot is gone entirely, not just relocated: the constructor
+  sets a default centered frame (same 860×740 as before) and then calls
+  `window.setFrameAutosaveName("document-window:" + url.path)`, which pulls in
+  a previously saved frame for that exact file if one exists, or saves the
+  default as the baseline otherwise — and keeps saving on every subsequent
+  move/resize/close automatically. `MudPreferences.windowFrame` (the
+  `internal.window-frame` key) and its `NSStringFromRect` / `NSRectFromString`
+  read/write in `windowWillClose` are deleted; Cocoa now owns this storage
+  under its own per-name defaults key, outside `MudPreferences`.
+- One behavior change beyond the bug fix: because the autosave name is keyed by
+  file path, reopening the same file now restores that file's own last frame
+  rather than whichever window closed most recently — a bonus follow-on of
+  fixing the overwrite bug, not a separate design goal.
+- No new tests: `AppState`'s other 20-odd preference-backed properties have no
+  test coverage either (nothing in `MudTests` exercises `AppState` or
+  `DocumentState` against `MudPreferences.shared`, which is a live singleton
+  over `UserDefaults.standard` — there's no hermetic seam to test through
+  without the `@Pref` property-wrapper work planned for Phase 5). Window-frame
+  autosave is AppKit-owned behavior with no Swift-visible seam to assert
+  against either.
 
 
 ## Phase 5: preference plumbing

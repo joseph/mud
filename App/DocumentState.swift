@@ -1,6 +1,7 @@
 import Foundation
 import Combine
 import MudCore
+import MudPreferences
 
 // MARK: - Web Commands
 
@@ -47,6 +48,17 @@ struct CommentLocator: Equatable {
 
 class DocumentState: ObservableObject {
     @Published var mode: Mode = .up
+    /// Per-window CSS zoom for Mark Up mode, seeded from the persisted value
+    /// when the window is created; each change re-persists it, so the next
+    /// new window opens at the most-recently-used zoom. From here on it's
+    /// independent per window — zooming one window no longer zooms another.
+    @Published var upModeZoomLevel: Double = MudPreferences.shared.upModeZoomLevel {
+        didSet { MudPreferences.shared.upModeZoomLevel = upModeZoomLevel }
+    }
+    /// Per-window CSS zoom for Mark Down mode. See `upModeZoomLevel`.
+    @Published var downModeZoomLevel: Double = MudPreferences.shared.downModeZoomLevel {
+        didSet { MudPreferences.shared.downModeZoomLevel = downModeZoomLevel }
+    }
     /// The command channel to this window's web page. Senders (menu and
     /// toolbar actions, sidebar clicks, the comment write path) fire and
     /// forget; the WebView coordinator subscribes and runs the JS.

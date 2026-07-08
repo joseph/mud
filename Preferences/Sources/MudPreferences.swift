@@ -123,7 +123,6 @@ extension MudPreferences {
 
         // internal.* — app-owned bookkeeping
         case hasLaunched                = "internal.has-launched"
-        case windowFrame                = "internal.window-frame"
         case cliInstalled               = "internal.cli-installed"
         case cliSymlinkPath             = "internal.cli-symlink-path"
 
@@ -262,11 +261,6 @@ extension MudPreferences {
     public var hasLaunched: Bool {
         get { read(.hasLaunched, default: false) }
         nonmutating set { write(newValue, forKey: .hasLaunched) }
-    }
-
-    public var windowFrame: String? {
-        get { defaults.string(forKey: Keys.windowFrame.rawValue) }
-        nonmutating set { write(newValue, forKey: .windowFrame) }
     }
 
     public var cliInstalled: Bool {

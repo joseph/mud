@@ -14,12 +14,6 @@ class AppState: ObservableObject {
     @Published var viewToggles: Set<ViewToggle> {
         didSet { MudPreferences.shared.viewToggles = viewToggles }
     }
-    @Published var upModeZoomLevel: Double {
-        didSet { MudPreferences.shared.upModeZoomLevel = upModeZoomLevel }
-    }
-    @Published var downModeZoomLevel: Double {
-        didSet { MudPreferences.shared.downModeZoomLevel = downModeZoomLevel }
-    }
     @Published var commentColumnWidth: Double {
         didSet { MudPreferences.shared.commentColumnWidth = commentColumnWidth }
     }
@@ -82,8 +76,6 @@ class AppState: ObservableObject {
         self.lighting = config.lighting
         self.theme = config.theme
         self.viewToggles = config.viewToggles
-        self.upModeZoomLevel = config.upModeZoomLevel
-        self.downModeZoomLevel = config.downModeZoomLevel
         self.commentColumnWidth = config.commentColumnWidth
         self.sidebarEnabled = config.sidebarEnabled
         self.sidebarPane = config.sidebarPane
@@ -130,9 +122,7 @@ class AppState: ObservableObject {
         case .changesShowInlineDeletions: self.changesShowInlineDeletions = c.changesShowInlineDeletions
         case .changesShowGitWaypoints:    self.changesShowGitWaypoints = c.changesShowGitWaypoints
         case .changesWordDiffThreshold:   self.changesWordDiffThreshold = c.changesWordDiffThreshold
-        case .upModeZoomLevel:            self.upModeZoomLevel = c.upModeZoomLevel
         case .upModeAllowRemoteContent:   self.upModeAllowRemoteContent = c.upModeAllowRemoteContent
-        case .downModeZoomLevel:          self.downModeZoomLevel = c.downModeZoomLevel
         case .uiCommentColumnWidth:       self.commentColumnWidth = c.commentColumnWidth
         case .sidebarEnabled:             self.sidebarEnabled = c.sidebarEnabled
         case .sidebarPane:                self.sidebarPane = c.sidebarPane
@@ -154,8 +144,12 @@ class AppState: ObservableObject {
              .downModeWrapLines,
              .uiShowReadableColumn:
             self.viewToggles = c.viewToggles
+        // Zoom is per-window (DocumentState), not mirrored here; each window
+        // reads MudPreferences directly when it's created.
+        case .upModeZoomLevel, .downModeZoomLevel:
+            break
         // internal.* — not exposed on AppState; mirror already updated.
-        case .hasLaunched, .windowFrame, .cliInstalled, .cliSymlinkPath:
+        case .hasLaunched, .cliInstalled, .cliSymlinkPath:
             break
         }
     }

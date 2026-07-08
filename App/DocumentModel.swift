@@ -137,8 +137,8 @@ final class DocumentModel: ObservableObject {
         // Shows the inline `💬` markers on screen; read by mud-comments.css/js.
         if appState.commentsShowMarkers { opts.htmlClasses.insert("show-comment-markers") }
         opts.zoomLevel = state.mode == .down
-            ? appState.downModeZoomLevel
-            : appState.upModeZoomLevel
+            ? state.downModeZoomLevel
+            : state.upModeZoomLevel
         opts.showInlineDeletions = appState.changesShowInlineDeletions
         opts.wordDiffThreshold = appState.changesWordDiffThreshold
         if appState.changesEnabled && !changeTracker.changes.isEmpty {

@@ -413,12 +413,14 @@ source stays current.
 Five ObservableObject classes, no nesting:
 
 - **AppState** (singleton) -- persisted preferences as `@Published` mirrors:
-  `lighting`, `theme`, `viewToggles`, zoom levels, `sidebarEnabled`, …
+  `lighting`, `theme`, `viewToggles`, `sidebarEnabled`, …
 - **ActiveDocumentObserver** (singleton) -- publishes an
   `ActiveDocumentSnapshot?` of the key document window (mode, editable,
   commentable, column visibility) for app-menu labels and enablement; `nil`
   when no document window is key
-- **DocumentState** (per-window) -- `mode`, the `webCommands` channel,
+- **DocumentState** (per-window) -- `mode`, per-window zoom levels (seeded from
+  `MudPreferences` at window creation, re-persisted on change so the next
+  window opens at the last-used zoom), the `webCommands` channel,
   `outlineHeadings`, `contentTitle`, comments-column state, owns `FindState`
 - **DocumentModel** (per-window) -- the loaded content, disk reads, the file
   watcher with its hold/echo policy, and the cached render; renders run only

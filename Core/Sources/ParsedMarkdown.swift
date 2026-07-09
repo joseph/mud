@@ -4,6 +4,17 @@ import Markdown
 /// heading extraction, and title extraction.
 public struct ParsedMarkdown {
     let document: Document
+
+    /// The single footnote-aware cmark parse of `body` — the tree the
+    /// render pipeline is moving onto (Stage 6 cutover of
+    /// Doc/Plans/2026-07-single-parser-rendering.md). Retained on the struct
+    /// so every cmark consumer (headings now; the visitors and diff layer at
+    /// cutover) shares one owned tree. Optional only because
+    /// `CMarkDocument(parsing:)` is failable; cmark parsing effectively never
+    /// fails on a valid Swift string. The legacy `document` above is deleted
+    /// once the swift-markdown pipeline goes.
+    let cmarkDocument: CMarkDocument?
+
     public let markdown: String
     public let headings: [OutlineHeading]
 
@@ -43,13 +54,16 @@ public struct ParsedMarkdown {
 
         self.document = MarkdownParser.parse(body)
 
-        // Headings port onto the CMark wrapper ahead of the rest of the
-        // render pipeline (Stage 2 of
-        // Doc/Plans/2026-07-single-parser-rendering.md). This is a second,
-        // temporary parse of `body` — it goes away once Stage 3 makes
-        // `document` itself a `CMarkDocument`.
+        // One footnote-aware cmark parse of `body`, retained on the struct
+        // (see `cmarkDocument`). Headings read from it now; the visitors and
+        // diff layer read from it at the Stage 6 cutover
+        // (Doc/Plans/2026-07-single-parser-rendering.md). The legacy
+        // swift-markdown `document` above is deleted once that lands.
+        let cmarkDocument = CMarkDocument(parsing: body)
+        self.cmarkDocument = cmarkDocument
+
         var extractor = HeadingExtractor()
-        if let cmarkDocument = CMarkDocument(parsing: body) {
+        if let cmarkDocument {
             extractor.visit(cmarkDocument.root)
         }
         self.headings = extractor.headings
@@ -58,9 +72,11 @@ public struct ParsedMarkdown {
 
 // MARK: - Sendable + Equatable
 
-// @unchecked because Document wraps a reference-counted RawMarkup tree
-// that lacks Sendable conformance. Safe because ParsedMarkdown is
-// immutable (all let fields) and RawMarkup has no mutation API.
+// @unchecked because `document` wraps a reference-counted RawMarkup tree
+// and `cmarkDocument` wraps a manually-freed cmark tree, neither of which
+// is Sendable. Safe because ParsedMarkdown is immutable (all let fields),
+// RawMarkup has no mutation API, and the cmark tree is read-only after
+// parse (shared read-only across copies).
 extension ParsedMarkdown: @unchecked Sendable {}
 
 extension ParsedMarkdown: Equatable {

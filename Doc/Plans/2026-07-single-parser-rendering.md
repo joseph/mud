@@ -539,14 +539,86 @@ One open question this stage sharpens for Stage 6: legacy's sidebar
 the sidebar currently lists plain-definition edits. The cmark sidebar
 (`CMarkChangeList`) uses the `.skipAll` plan (it does not), so the cutover must
 decide which policy the sidebar's plan uses — the two consumers can no longer
-share one plan if they want different definition visibility.
+share one plan if they want different definition visibility. Stage 6 settles
+this; see "Settle the sidebar and Down-mode diff policy" below.
 
-**Stage 6 — collapse FootnoteProcessor.** `process` shrinks to an AST walk
-producing `FootnoteEntry` / `Comment` models (no edits); `scan` and the render
+**Stage 6 — collapse FootnoteProcessor and cut over.** This stage makes the
+switch: every production render goes through the cmark pipeline, and the
+swift-markdown pipeline is deleted. Several pieces land together.
+
+**Wire the cmark visitors into the render paths.** The Up and Down render entry
+points in `MudCore` call `CMarkUpHTMLVisitor` / `CMarkDownHTMLVisitor` instead
+of the legacy visitors. `renderBody` builds a `CMarkDiffContext` from the raw
+waypoint body — no `processingWaypoint`, because there is no transformed source
+to compare like with like. Down projects `CMarkLineDiffMap`.
+
+**Collapse `FootnoteProcessor`.** `process` shrinks to an AST walk producing
+`FootnoteEntry` / `Comment` models with no source edits; `scan` and the render
 share one parse. The byte-geometry functions (`locateComments`,
 `SourceGeometry`) stay — the comment **write** path still does byte surgery by
-design — but now read positions from the same single parse. Delete the
-swift-markdown pipeline and the harness's old side.
+design — but now read positions from the same single parse. The source
+rewriting, the orphan-definition scan, `processingWaypoint`, the Down-mode
+definition blanking, and the per-definition sub-parse remap all go.
+
+**Settle the sidebar and Down-mode diff policy.** Stage 5 left this open:
+legacy's sidebar and Down mode share one raw-source plan, so the sidebar lists
+footnote-definition edits; the cmark sidebar uses `.skipAll` and does not.
+Three facts from the live code decide it:
+
+- The sidebar list is computed once and read in both modes
+  (`ChangeTracker.changes`, a single `MudCore.computeChanges` call).
+- Clicking a change scrolls the _currently visible_ body to the element with
+  that change ID (`scrollToChange`). A sidebar ID navigates only if it exists
+  in the body on screen.
+- Change IDs are a running counter (`change-N`, minted in match order), not a
+  source position. So a footnote-definition change consumes a number and shifts
+  every change after it.
+
+Together these mean no single fixed sidebar plan can match both bodies: Up
+skips definitions (`.skipAll`), Down descends them (`.descendPlainFootnotes`),
+so whenever a definition edit sits among ordinary edits, the two bodies number
+their shared changes differently. A sidebar pinned to one policy navigates
+correctly in that mode and misfires in the other — not only on the definition
+edit, but on every ordinary edit after it. (Legacy carries this same latent
+mismatch; it is rarely hit because editing a footnote definition alongside body
+text is uncommon.)
+
+The fix is to route by consumer, and to make the sidebar follow the current
+mode:
+
+| Consumer                                        | Policy                                                                                             |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Up body overlay (`CMarkDiffContext`)            | `.skipAll`                                                                                         |
+| Down body highlighting (`CMarkLineDiffMap`)     | `.descendPlainFootnotes`                                                                           |
+| Sidebar change list (`CMarkChangeList`)         | follow the current mode — `.skipAll` in Up, `.descendPlainFootnotes` in Down                       |
+| Waypoint dedup and creation (`isRedundantSave`) | `.descendPlainFootnotes` — a footnote-definition edit is real content and should create a waypoint |
+
+The sidebar then shares whichever plan the visible body already uses, so its
+IDs match that body by construction. The plan cache is keyed by (source,
+policy), so this is two cached plans, not four — the sidebar reuses the current
+mode's plan. The plumbing: split the single `computeChanges` call so the
+waypoint path stays on `.descendPlainFootnotes` while the sidebar list is
+computed per mode (compute both projections, or recompute on mode toggle), and
+`ChangeTracker` learns the current mode.
+
+If the cutover must stay pure behavior-parity, an acceptable fallback is to pin
+the sidebar to Down's `.descendPlainFootnotes` plan (exactly legacy's behavior,
+latent Up-mode mismatch included) and land the mode-aware list as the next
+commit. Given the plumbing is small and the alternative ports a real navigation
+bug forward, prefer the mode-aware version and pin it as one more adopted fix.
+A larger option, out of scope here: if the Up-mode bottom footnotes section
+were itself change-annotated, one inclusive plan would serve every consumer and
+the mode-dependence would disappear — a behavior addition, noted for later.
+
+**Adopt the pinned divergences.** The cmark-side pins from Stages 3–5 become
+the shipped behavior. Re-check each at cutover; the one explicitly flagged for
+review is `fencedCodeInDefinitionBodyEditStaysInDefinition` (Down maps a fenced
+block inside a definition body differently than legacy's indented-code
+reading).
+
+**Delete the legacy side.** Remove the legacy visitors, the legacy diff layer,
+and the old side of every parity harness; the cmark tests become the sole
+tests. (swift-markdown itself leaves in Stage 7, with `CommentSerialization`.)
 
 **Stage 7 (separable) — CommentSerialization.** Port `parse` onto the cmark
 wrapper, replacing `formatBlock` with sourcepos slicing of the de-indented body

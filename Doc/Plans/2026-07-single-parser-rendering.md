@@ -1,10 +1,11 @@
 Plan: Single-Parser Rendering
 ===============================================================================
 
-> Status: Underway (Stages 0–4 landed: the corpus, the `CMarkDocument` wrapper,
+> Status: Underway (Stages 0–5 landed: the corpus, the `CMarkDocument` wrapper,
 > the leaf-consumer ports, the `UpHTMLVisitor` port with its byte-identical
-> harness, and the diff-layer port with diffed-rendering parity; Stage 5's
-> `DownHTMLVisitor` port is next)
+> harness, the diff-layer port with diffed-rendering parity, and the
+> `DownHTMLVisitor` port with its plain and diffed harness; Stage 6's
+> `FootnoteProcessor` collapse and cutover are next)
 
 Whether and how to consolidate Mud's rendering on one Markdown parser. Today
 every Up-mode render parses the document twice: once with cmark-gfm (via
@@ -451,6 +452,94 @@ the cutover adopts):
 **Stage 5 — DownHTMLVisitor.** Port the event collector onto verified inline
 sourcepos; delete the definition blanking and the sub-parse remap. Down mode's
 output is raw-source-faithful, so the harness comparison is exact here too.
+
+**Landed (July 2026):** `Core/Sources/Rendering/CMarkDownHTMLVisitor.swift` is
+the port — a separate struct parallel to `DownHTMLVisitor` and **unwired**: the
+legacy visitor still renders every production Down document. Phases 2–3 (the
+per-line rendering and the div layout, both diffed and plain) are
+parser-agnostic string machinery and copy over verbatim. Phase 1 is the real
+change: one `CMarkDocument(parsing:)` replaces the legacy trio of
+`FootnoteProcessor.scan`, the definition-line blanking, and the per-definition
+body sub-parse. Footnote references and definitions are now visit cases that
+emit `md-footnote-ref` / `md-footnote-def` spans straight off the AST (their
+positions are already original source coordinates — exactly what the deleted
+sub-parse remap reconstructed). A definition descends so its body highlights
+through the normal visit methods; while inside one, reference spans are
+suppressed (legacy emitted none there) and code blocks are span-colored but
+neither highlight.js-rendered nor given `dc-*` line roles (legacy discarded the
+sub-parse's code blocks). The only column arithmetic that still needs the old
+per-line offsets is `visitCodeBlock`'s explicit body-local anchors; a
+`lineDrop(_:)` helper reproduces `subParseDefBody`'s stripped-prefix width and
+is a no-op outside definitions. The DocC alert tag span keeps the legacy width
+(the tag through its colon), _not_ Stage 2's `tagByteLength`, which also counts
+the trailing whitespace legacy excludes.
+
+The diff layer gained the Down-mode policy Stage 4 deferred:
+`CMarkDefinitionDiffPolicy` (`Diff/CMarkBlockMatcher.swift`) threads through
+`CMarkBlockMatcher.match` and `CMarkChangePlan.plan` (defaulted to `.skipAll`,
+so every existing call site and the Stage 4 tests are untouched) and joins the
+plan's cache key. Under `.descendPlainFootnotes` the collector descends plain
+footnote definitions (comments stay skipped) and then stable-sorts the
+collected blocks by source line — cmark's footnote pass relocates every
+referenced definition to the tree's end in first-reference order, so without
+the sort an out-of-order definition would break change-ID minting. `Down` mode
+projects the plan through the Stage 4 `CMarkLineDiffMap`, which was
+consumer-less until now.
+
+The harness is `Core/Tests/DownRenderingParityTests.swift`: every corpus
+document under all `docCAlertMode` values must render the same bytes through
+both pipelines, plain; a diffed sweep covers `ChangeIDParityTests.corpus`,
+`UpRenderingParityTests.diffEditCases`, the new footnote-definition edit cases
+(`CMarkChangePlanParityTests.downPolicyEditCases`), and Down-specific
+front-matter cases. `CMarkChangePlanParityTests` gained a Down-policy
+`CMarkLineDiffMap`-vs-legacy sweep and a cache-key test. The corpus grew four
+documents (`footnoteDefBodyVariants`, `footnoteDefCodeBlocks`,
+`footnoteDefMidDocument`, `docCAsideTrailingSpaces`), each of which also joins
+the Up sweep.
+
+Five deliberate divergences are excluded from byte parity and pinned cmark-side
+instead — each a place where the legacy pipeline's blank-and-sub-parse geometry
+diverges from a single footnote-aware parse (they join Stages 3–4's pins as
+behavior the cutover adopts or must revisit):
+
+- An **orphan** (unreferenced) definition: cmark unlinks it from the tree, so
+  the port highlights nothing and diffs nothing in its body, where legacy —
+  which never blanks an orphan — highlights the body and diffs it as an
+  ordinary paragraph (`orphanDefinitionBodyLosesHighlighting`,
+  `orphanDefinitionEditYieldsNoChanges`).
+- A definition **orphaned by the diff itself**: deleting the only paragraph
+  that referenced `[^b]` leaves `[^b]: B.` defined but unreferenced in the new
+  document. cmark unlinks the now-orphaned definition, so the block match diffs
+  the old document's live definition as a deletion — an extra `dl-del` line for
+  a definition whose raw source is still present. Legacy never unlinks an
+  orphan, so it produces only the paragraph deletion. This is the orphan
+  divergence above manifesting inside a diff; it surfaced because the Down
+  sweep reuses `UpRenderingParityTests.diffEditCases`, where Up mode's
+  `.skipAll` policy hides it (`definitionOrphanedByDeletionDiffsAsDeleted`; the
+  offending case is filtered out of `diffedDownSweepCases`).
+- A **multi-paragraph** definition body: cmark sees one leaf per paragraph,
+  legacy reads the indented continuation paragraphs as indented code blocks —
+  different leaf granularity, so the change IDs differ. Pinned that the cmark
+  plan still lands the edit on the right line
+  (`multiParagraphDefinitionEditLandsOnItsLine`).
+- A **fenced code block inside a definition body**: legacy's raw parse reads it
+  as an indented code block (fence lines inside the literal), cmark as a real
+  fenced block, and `CMarkLineDiffMap`'s prefix-based fence detection maps the
+  cluster lines differently — flagged for review at cutover
+  (`fencedCodeInDefinitionBodyEditStaysInDefinition`).
+- A definition **between two lists**: legacy's blanked parse joins them into
+  one loose list, cmark splits them at the definition node. Down renders no
+  list spans, so the bytes still match
+  (`definitionBetweenListsRendersIdentically`), but Up mode's rendering of this
+  shape changes at cutover — which is why the `footnoteDefMidDocument` corpus
+  document keeps its definition between paragraphs, not lists.
+
+One open question this stage sharpens for Stage 6: legacy's sidebar
+(`ChangeList`) and Down mode both project the _same_ raw-source plan today, so
+the sidebar currently lists plain-definition edits. The cmark sidebar
+(`CMarkChangeList`) uses the `.skipAll` plan (it does not), so the cutover must
+decide which policy the sidebar's plan uses — the two consumers can no longer
+share one plan if they want different definition visibility.
 
 **Stage 6 — collapse FootnoteProcessor.** `process` shrinks to an AST walk
 producing `FootnoteEntry` / `Comment` models (no edits); `scan` and the render

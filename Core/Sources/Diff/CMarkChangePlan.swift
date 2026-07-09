@@ -383,6 +383,7 @@ extension CMarkChangePlan {
         let old: String
         let new: String
         let threshold: Double
+        let policy: CMarkDefinitionDiffPolicy
     }
 
     private static let cacheLock = NSLock()
@@ -392,18 +393,21 @@ extension CMarkChangePlan {
 
     /// Returns the plan for a (waypoint, content) pair, computing it at
     /// most once per pair — the cmark counterpart of `ChangePlan.plan`.
-    /// Keyed by the diffed source texts, LRU-bounded. A cache hit returns a
-    /// plan whose leaf-block nodes point into a *different* (textually
-    /// identical) tree than the caller's documents — which is why every
-    /// consumer joins on position-derived keys, never node identity
-    /// (see `CMarkSourceKey`).
+    /// Keyed by the diffed source texts *and* the definition policy (the
+    /// same pair yields different leaf blocks per policy), LRU-bounded. A
+    /// cache hit returns a plan whose leaf-block nodes point into a
+    /// *different* (textually identical) tree than the caller's documents —
+    /// which is why every consumer joins on position-derived keys, never
+    /// node identity (see `CMarkSourceKey`).
     static func plan(
         old: CMarkDocument, new: CMarkDocument,
-        wordDiffThreshold: Double = 0.25
+        wordDiffThreshold: Double = 0.25,
+        definitionPolicy: CMarkDefinitionDiffPolicy = .skipAll
     ) -> CMarkChangePlan {
         let key = CacheKey(
             old: old.source, new: new.source,
-            threshold: wordDiffThreshold)
+            threshold: wordDiffThreshold,
+            policy: definitionPolicy)
 
         cacheLock.lock()
         if let index = cache.firstIndex(where: { $0.key == key }) {
@@ -415,7 +419,8 @@ extension CMarkChangePlan {
         cacheLock.unlock()
 
         let plan = CMarkChangePlan(
-            matches: CMarkBlockMatcher.match(old: old, new: new),
+            matches: CMarkBlockMatcher.match(
+                old: old, new: new, definitionPolicy: definitionPolicy),
             wordDiffThreshold: wordDiffThreshold)
 
         cacheLock.lock()

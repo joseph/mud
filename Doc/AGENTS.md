@@ -210,6 +210,12 @@ MVP plan.
   Parallel and unwired — `UpRenderingParityTests` holds it byte-identical to
   the legacy visitor, plain and diffed, until the pipelines cut over
 - `Rendering/DownHTMLVisitor.swift` — AST → syntax-highlighted raw HTML
+- `Rendering/CMarkDownHTMLVisitor.swift` — Stage 5 cmark port of
+  `DownHTMLVisitor` (single-parser plan): one footnote-aware parse replaces the
+  definition-line blanking and the per-definition body sub-parse; footnote
+  reference/definition spans come from the AST. Parallel and unwired —
+  `DownRenderingParityTests` holds it byte-identical to the legacy visitor,
+  plain and diffed, until the pipelines cut over
 - `Rendering/WordSpanEmitter.swift` — Word-level `<ins>`/ `<del>` cursor
   machine; advances through a block's `[WordSpan]` in step with the visitor's
   character stream (aligned with `WordDiff.inlineText`)
@@ -276,10 +282,13 @@ MVP plan.
 - `Diff/CMarkBlockMatcher.swift`, `Diff/CMarkChangePlan.swift`,
   `Diff/CMarkDiffContext.swift`, `Diff/CMarkLineDiffMap.swift`,
   `Diff/CMarkChangeList.swift` — Stage 4 ports of the diff layer onto
-  `CMarkNode` (single-parser plan; parallel, unwired). The collector skips
-  footnote/comment definitions structurally, and all joins key on source
-  positions (`CMarkSourceKey`), never node identity — the plan cache returns
-  nodes from a different, textually identical tree
+  `CMarkNode` (single-parser plan; parallel, unwired). The collector treats
+  footnote definitions by policy (`CMarkDefinitionDiffPolicy`: Up mode skips
+  every definition structurally, Down mode descends plain footnote definitions
+  so their edits stay diffable; comment definitions are always skipped), and
+  all joins key on source positions (`CMarkSourceKey`), never node identity —
+  the plan cache, keyed by source text plus policy, returns nodes from a
+  different, textually identical tree
 - `ChangeTracker.swift` — Waypoint history and active-waypoint selection
 
 **QuickLook/ key files:**

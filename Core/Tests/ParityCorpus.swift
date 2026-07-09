@@ -295,12 +295,94 @@ enum ParityCorpus {
       4. Continues at four
       """)
 
+  /// Definition bodies for the Stage 5 Down-mode port: inline constructs
+  /// across a lazy continuation line, a reference *inside* a body (legacy
+  /// highlights nothing there — its scan drops in-body refs and its body
+  /// sub-parse sees plain text), a blockquote body, and a two-line GFM
+  /// alert body (the alert `>` markers take a different column offset on
+  /// the opener line than on continuation lines). Every definition is
+  /// referenced: cmark unlinks orphan definitions, whose Down rendering
+  /// deliberately diverges — pinned in `DownRenderingParityTests`.
+  static let footnoteDefBodyVariants = Document(
+    name: "footnoteDefBodyVariants",
+    markdown: """
+      Ref one[^inline] and two[^nested] and three[^quoted] and
+      four[^alerted].
+
+      [^inline]: A body with **bold**, `code`, and a [link](https://example.org),
+          continuing on an indented line.
+
+      [^nested]: This body references[^inline] the first note.
+
+      [^quoted]: > A quoted line inside the body.
+
+      [^alerted]: > [!NOTE]
+          > A second alert line inside the body.
+      """)
+
+  /// Code blocks inside definition bodies (Stage 5): span-colored but
+  /// never highlight.js-rendered and never given `dc-*` line roles, in
+  /// both pipelines. The fence's last content line is blank — the one
+  /// shape where the close-column arithmetic can't be simplified to the
+  /// raw line width.
+  static let footnoteDefCodeBlocks = Document(
+    name: "footnoteDefCodeBlocks",
+    markdown: """
+      Code refs[^fenced] and[^indented].
+
+      [^fenced]: A body opening paragraph.
+
+          ```swift
+          let inDefBody = true
+
+          ```
+
+      [^indented]: An opener paragraph.
+
+              an indented code line in the body
+              a second indented line
+      """)
+
+  /// A definition in the middle of the document (Stage 5). This probes
+  /// the seam between the pipelines' parses — legacy sees the definition
+  /// lines blanked (Down) or deleted (Up), cmark sees a real definition
+  /// node — in the one surrounding shape where both modes render
+  /// identically either way: paragraphs. A definition between two *lists*
+  /// genuinely splits them under cmark where legacy merges them, so that
+  /// shape lives in `DownRenderingParityTests` (where Down's spanless
+  /// list rendering keeps the bytes equal) and is excluded here, where it
+  /// would fail the Up sweep.
+  static let footnoteDefMidDocument = Document(
+    name: "footnoteDefMidDocument",
+    markdown: """
+      Opening ref[^mid] paragraph.
+
+      [^mid]: A definition between two paragraphs.
+
+      A middle paragraph after the definition.
+
+      A closing paragraph.
+      """)
+
+  /// Whitespace after a DocC aside's colon (Stage 5): the tag span must
+  /// cover `Note:` only, excluding the trailing spaces — the width the
+  /// legacy pipeline derives from `Aside.kind`, not `detectDocCAlert`'s
+  /// whitespace-inclusive `tagByteLength`.
+  static let docCAsideTrailingSpaces = Document(
+    name: "docCAsideTrailingSpaces",
+    markdown: """
+      > Note:   Three spaces follow the colon before this content.
+
+      > Warning:  Two spaces after the colon on the core-map path.
+      """)
+
   static let all: [Document] = [
     paragraphsWithInlineSyntax, hardBreakParagraph, headings, listItems,
     taskListItems, blockquoteParagraphs, alertBodyParagraphs, tableCells,
     duplicateBlocks, smartTypography, setextHeadings, frontMatter,
     codeBlockAndThematicBreak, footnoteNumbering, gfmAlertVariants,
     docCAsideVariants, rawHTML, linkVariants, codeBlockVariants,
-    orderedListStart,
+    orderedListStart, footnoteDefBodyVariants, footnoteDefCodeBlocks,
+    footnoteDefMidDocument, docCAsideTrailingSpaces,
   ]
 }

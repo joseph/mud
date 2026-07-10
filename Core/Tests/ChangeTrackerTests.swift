@@ -547,6 +547,39 @@ struct ChangeTrackerTests {
         #expect(gapItems[0].id == v1Reload.id)
     }
 
+    // MARK: - Mode-aware sidebar list
+
+    @Test func sidebarChangesFollowMode() {
+        // A footnote-definition body edit and nothing else. The Up body
+        // overlay skips definitions structurally, so the Up sidebar must
+        // report no change; the Down body highlights plain definitions, so
+        // the Down sidebar reports the edit. The list follows whichever mode
+        // is current, so its change IDs always match the visible body's.
+        let t0 = Date(timeIntervalSinceReferenceDate: 1000 * 60)
+        let v1 = ParsedMarkdown("Intro with a note.[^a]\n\n[^a]: Original.\n")
+        let v2 = ParsedMarkdown("Intro with a note.[^a]\n\n[^a]: Edited.\n")
+
+        // Sanity: the two policies must actually disagree on this fixture.
+        #expect(MudCore.computeChanges(old: v1, new: v2, mode: .up).isEmpty)
+        #expect(!MudCore.computeChanges(old: v1, new: v2, mode: .down).isEmpty)
+
+        let t = ChangeTracker()
+        t.update(v1, at: t0)
+        t.update(v2, at: t0.addingTimeInterval(90))
+
+        // Default mode is Up: the definition edit is skipped.
+        #expect(t.mode == .up)
+        #expect(t.changes.isEmpty)
+
+        // Down descends plain definitions: the edit becomes a change.
+        t.setMode(.down)
+        #expect(!t.changes.isEmpty)
+
+        // Back to Up: the list follows the mode again.
+        t.setMode(.up)
+        #expect(t.changes.isEmpty)
+    }
+
     @Test func menuHidesZeroChangeGaps() {
         // When the file is reverted to a previously-seen state, the
         // most recent gap diffs against current to zero. The Recent

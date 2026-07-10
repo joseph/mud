@@ -93,6 +93,23 @@ class DocumentState: ObservableObject {
     let find = FindState()
     let changeTracker = ChangeTracker()
 
+    private var cancellables = Set<AnyCancellable>()
+
+    init() {
+        // Keep the change tracker's sidebar policy aligned with this window's
+        // mode. `$mode` publishes in `willSet`, so act on the emitted value
+        // (not `self.mode`, still the old one here). The sink fires
+        // synchronously on the mode assignment — which happens outside the
+        // view-update pipeline (a deferred space toggle or an AppKit menu /
+        // toolbar action) — so `changeTracker.changes` is refreshed for the
+        // new mode before SwiftUI's deferred re-render reads it.
+        $mode
+            .sink { [weak self] newMode in
+                self?.changeTracker.setMode(newMode)
+            }
+            .store(in: &cancellables)
+    }
+
     /// True while an in-column compose box owns first responder.
     /// `DocumentContentView`'s focus trap exempts this so the textarea can be
     /// typed into.

@@ -81,7 +81,7 @@ struct ChangeIDParityTests {
     opts.waypoint = ParsedMarkdown(c.old)
     let html = MudCore.renderDownToHTML(c.new, options: opts)
     let sidebar = MudCore.computeChanges(
-      old: ParsedMarkdown(c.old), new: ParsedMarkdown(c.new))
+      old: ParsedMarkdown(c.old), new: ParsedMarkdown(c.new), mode: .down)
 
     let sidebarIDs = Self.uniqueInOrder(sidebar.map(\.id))
     #expect(!sidebarIDs.isEmpty, "Corpus case should produce changes")
@@ -104,7 +104,7 @@ struct ChangeIDParityTests {
       in: MudCore.renderUpToHTML(c.new, options: opts))
     let sidebar = Self.uniqueInOrder(
       MudCore.computeChanges(
-        old: ParsedMarkdown(c.old), new: ParsedMarkdown(c.new)
+        old: ParsedMarkdown(c.old), new: ParsedMarkdown(c.new), mode: .up
       ).map(\.id))
     #expect(up == sidebar,
       "Up mode and sidebar must agree on change IDs and order")

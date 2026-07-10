@@ -89,10 +89,10 @@ public enum MudCore {
            let newDoc = parsed.cmarkDocument {
             // Down mode diffs the raw source, footnote definitions
             // included, so the plan descends plain footnote definitions
-            // (comment definitions stay invisible). The sidebar list and
-            // waypoint dedup share this policy — see `computeChanges` — so
-            // every consumer projects the one cached plan and their change
-            // IDs match this body's by construction.
+            // (comment definitions stay invisible). The Down-mode sidebar
+            // list shares this policy (`computeChanges(mode: .down)`), so its
+            // change IDs match this body's by construction; waypoint dedup
+            // uses it too (`computeChanges(mode: nil)`).
             let plan = CMarkChangePlan.plan(
                 old: oldDoc, new: newDoc,
                 wordDiffThreshold: options.wordDiffThreshold,
@@ -338,22 +338,31 @@ public enum MudCore {
     /// Computes a list of changes between two parsed Markdown documents
     /// for the sidebar change list and the waypoint dedup / menu counts.
     ///
-    /// Uses the `.descendPlainFootnotes` policy: a footnote-definition edit
-    /// is real content and must diff (and create a waypoint). This matches
-    /// the Down body's plan exactly, so the Down-mode sidebar navigates by
-    /// construction; it carries legacy's latent Up-mode mismatch (the Up
-    /// body skips definitions) until the mode-aware sidebar lands as its own
-    /// step. See "Settle the sidebar and Down-mode diff policy" in
+    /// The definition policy follows `mode`, because change IDs are a running
+    /// counter (`change-N`, minted in match order): a footnote-definition edit
+    /// the visible body doesn't draw would still consume a number and shift
+    /// every later ID, so a sidebar list on a policy the body doesn't share
+    /// misnavigates. The Up body overlay skips footnote definitions
+    /// structurally, so the Up sidebar must too (`.skipAll`); the Down body
+    /// highlights plain definitions, so the Down sidebar descends them
+    /// (`.descendPlainFootnotes`).
+    ///
+    /// `mode == nil` (waypoint dedup and the menu change counts) uses
+    /// `.descendPlainFootnotes`: a footnote-definition edit is real content
+    /// and should count and create a waypoint, regardless of which mode is on
+    /// screen. See "Settle the sidebar and Down-mode diff policy" in
     /// Doc/Plans/2026-07-single-parser-rendering.md.
     public static func computeChanges(
-        old: ParsedMarkdown, new: ParsedMarkdown
+        old: ParsedMarkdown, new: ParsedMarkdown, mode: Mode? = nil
     ) -> [DocumentChange] {
         guard let oldDoc = old.cmarkDocument,
               let newDoc = new.cmarkDocument else { return [] }
+        let policy: CMarkDefinitionDiffPolicy =
+            mode == .up ? .skipAll : .descendPlainFootnotes
         return CMarkChangeList.computeChanges(
             plan: CMarkChangePlan.plan(
                 old: oldDoc, new: newDoc,
-                definitionPolicy: .descendPlainFootnotes))
+                definitionPolicy: policy))
     }
 
     /// Extracts headings from a Markdown string for the outline sidebar.

@@ -59,6 +59,15 @@ public class ChangeTracker: ObservableObject {
     @Published public var selectedChangeID: String?
     @Published public private(set) var activeWaypointID: UUID?
 
+    /// The mode whose diff policy the sidebar `changes` list follows. Up skips
+    /// footnote definitions (matching the Up body overlay); Down descends them
+    /// (matching the Down body highlighting), so the list's change IDs always
+    /// match the visible body's. Kept in sync with the window's mode by
+    /// `DocumentState`; a change recomputes `changes`. Waypoint dedup and the
+    /// menu counts ignore this — they use the content policy directly (see
+    /// `MudCore.computeChanges`).
+    public private(set) var mode: Mode = .up
+
     /// The most recent content passed to `update(_:)`.
     public private(set) var currentParsed: ParsedMarkdown?
 
@@ -174,8 +183,33 @@ public class ChangeTracker: ObservableObject {
 
             // Diff against the active waypoint.
             if let waypoint = activeWaypoint {
-                changes = MudCore.computeChanges(old: waypoint, new: parsed)
+                changes = MudCore.computeChanges(
+                    old: waypoint, new: parsed, mode: mode)
             }
+        }
+    }
+
+    // MARK: - Mode
+
+    /// Updates the mode the sidebar `changes` list follows and recomputes it
+    /// if the mode changed. Called from `DocumentState`'s `$mode` sink, which
+    /// fires synchronously on the mode assignment — before SwiftUI's deferred
+    /// re-render reads `changes` — so the sidebar and the freshly rendered
+    /// body always share one policy.
+    public func setMode(_ newMode: Mode) {
+        guard newMode != mode else { return }
+        mode = newMode
+        recomputeChanges()
+    }
+
+    /// Re-diffs the current content against the active waypoint under the
+    /// current `mode`, refreshing the sidebar `changes` list in place.
+    private func recomputeChanges() {
+        if let current = currentParsed, let waypoint = activeWaypoint {
+            changes = MudCore.computeChanges(
+                old: waypoint, new: current, mode: mode)
+        } else {
+            changes = []
         }
     }
 
@@ -184,11 +218,7 @@ public class ChangeTracker: ObservableObject {
     /// Selects a waypoint as the diff reference and recomputes changes.
     public func selectWaypoint(_ id: UUID?) {
         activeWaypointID = id
-        if let current = currentParsed, let waypoint = activeWaypoint {
-            changes = MudCore.computeChanges(old: waypoint, new: current)
-        } else {
-            changes = []
-        }
+        recomputeChanges()
         selectedChangeID = nil
     }
 

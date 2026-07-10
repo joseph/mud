@@ -37,7 +37,7 @@ public struct RenderedFootnote: Sendable {
 public enum MudCore {
     public static let version = "1.0.0"
 
-    private static let downVisitor = DownHTMLVisitor()
+    private static let downVisitor = CMarkDownHTMLVisitor()
 
     // MARK: - ParsedMarkdown API
 
@@ -130,10 +130,19 @@ public enum MudCore {
         let fmRendered = FrontMatterHTMLRenderer.downModeLines(
             markdown: parsed.markdown,
             lineCount: parsed.frontMatterLineCount)
-        if let waypoint = options.waypoint {
-            let plan = ChangePlan.plan(
-                old: waypoint, new: parsed,
-                wordDiffThreshold: options.wordDiffThreshold)
+        if let waypoint = options.waypoint,
+           let oldDoc = waypoint.cmarkDocument,
+           let newDoc = parsed.cmarkDocument {
+            // Down mode diffs the raw source, footnote definitions
+            // included, so the plan descends plain footnote definitions
+            // (comment definitions stay invisible). The sidebar list and
+            // waypoint dedup share this policy — see `computeChanges` — so
+            // every consumer projects the one cached plan and their change
+            // IDs match this body's by construction.
+            let plan = CMarkChangePlan.plan(
+                old: oldDoc, new: newDoc,
+                wordDiffThreshold: options.wordDiffThreshold,
+                definitionPolicy: .descendPlainFootnotes)
             return downVisitor.highlightWithChanges(
                 new: parsed.body, old: waypoint.body,
                 plan: plan,
@@ -367,11 +376,24 @@ public enum MudCore {
     // MARK: - Change tracking
 
     /// Computes a list of changes between two parsed Markdown documents
-    /// for the sidebar change list.
+    /// for the sidebar change list and the waypoint dedup / menu counts.
+    ///
+    /// Uses the `.descendPlainFootnotes` policy: a footnote-definition edit
+    /// is real content and must diff (and create a waypoint). This matches
+    /// the Down body's plan exactly, so the Down-mode sidebar navigates by
+    /// construction; it carries legacy's latent Up-mode mismatch (the Up
+    /// body skips definitions) until the mode-aware sidebar lands as its own
+    /// step. See "Settle the sidebar and Down-mode diff policy" in
+    /// Doc/Plans/2026-07-single-parser-rendering.md.
     public static func computeChanges(
         old: ParsedMarkdown, new: ParsedMarkdown
     ) -> [DocumentChange] {
-        ChangeList.computeChanges(old: old, new: new)
+        guard let oldDoc = old.cmarkDocument,
+              let newDoc = new.cmarkDocument else { return [] }
+        return CMarkChangeList.computeChanges(
+            plan: CMarkChangePlan.plan(
+                old: oldDoc, new: newDoc,
+                definitionPolicy: .descendPlainFootnotes))
     }
 
     /// Extracts headings from a Markdown string for the outline sidebar.

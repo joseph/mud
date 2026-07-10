@@ -57,52 +57,6 @@ public enum MudCore {
             parsed, options: options, resolveImageSource: resolveImageSource)
     }
 
-    /// Footnote/comment-processes the change-tracking waypoint the same way as
-    /// the new content, so the diff compares like with like. Without this, the
-    /// injected markers (and removed definitions) in the *new* render diff
-    /// against the *raw* `[^label]` syntax still present in the waypoint, which
-    /// flags every unchanged footnote/comment marker as a spurious change.
-    private static func processingWaypoint(_ options: RenderOptions) -> RenderOptions {
-        guard let waypoint = options.waypoint else { return options }
-        var options = options
-        options.waypoint = processedWaypoint(waypoint, mode: options.footnoteMode)
-        return options
-    }
-
-    private static let waypointCacheLock = NSLock()
-    nonisolated(unsafe) private static var waypointCache:
-        [(source: String, parsed: ParsedMarkdown)] = []
-    private static let waypointCacheLimit = 4
-
-    /// The processed-and-reparsed waypoint, computed at most once per waypoint
-    /// text (LRU-bounded): the waypoint changes only when the user moves it,
-    /// but every render used to reprocess and re-parse it. Keyed by the source
-    /// alone — `FootnoteProcessor.process` output is mode-independent.
-    private static func processedWaypoint(
-        _ waypoint: ParsedMarkdown, mode: FootnoteMode
-    ) -> ParsedMarkdown {
-        waypointCacheLock.lock()
-        if let index = waypointCache.firstIndex(
-            where: { $0.source == waypoint.markdown }) {
-            let entry = waypointCache.remove(at: index)
-            waypointCache.insert(entry, at: 0)
-            waypointCacheLock.unlock()
-            return entry.parsed
-        }
-        waypointCacheLock.unlock()
-
-        let processed = FootnoteProcessor.process(waypoint.markdown, mode: mode)
-        let parsed = ParsedMarkdown(processed.transformedMarkdown)
-
-        waypointCacheLock.lock()
-        waypointCache.insert((waypoint.markdown, parsed), at: 0)
-        if waypointCache.count > waypointCacheLimit {
-            waypointCache.removeLast(waypointCache.count - waypointCacheLimit)
-        }
-        waypointCacheLock.unlock()
-        return parsed
-    }
-
     /// Renders a parsed Markdown document to a complete HTML document
     /// with styles. When `options.title` is empty, the title is
     /// auto-extracted from the first heading. Internal for the same reason as
@@ -185,20 +139,26 @@ public enum MudCore {
         let options: RenderOptions
     }
 
-    /// The single Up-mode orchestration: footnote/comment preprocessing at the
-    /// String boundary, waypoint reprocessing, parse, body render, and the
-    /// bottom footnotes and comments sections. Every public Up-mode String
-    /// entry point runs this once and projects what it needs, so a pipeline
-    /// change is made in one place.
+    /// The single Up-mode orchestration: footnote/comment scanning at the
+    /// String boundary (for the bottom sections and the comment model), one
+    /// cmark parse of the raw source, the body render, and the bottom
+    /// footnotes and comments sections. Every public Up-mode String entry
+    /// point runs this once and projects what it needs, so a pipeline change
+    /// is made in one place.
     static func renderUpPipeline(
         _ source: String,
         options: RenderOptions,
         resolveImageSource: ((_ source: String, _ baseURL: URL) -> String?)? = nil
     ) -> UpRenderPipeline {
+        // The scan still supplies the footnote/comment models for the bottom
+        // sections; its transformed markdown is unused now — the cmark visitor
+        // emits the markers itself and skips definitions structurally,
+        // rendering the raw source directly. With no transformed source, the
+        // waypoint needs no reprocessing: `CMarkUpHTMLVisitor.renderBody`
+        // diffs the raw waypoint against the raw body.
         let result = FootnoteProcessor.process(source, mode: options.footnoteMode)
-        let options = processingWaypoint(options)
-        let parsed = ParsedMarkdown(result.transformedMarkdown)
-        var body = UpHTMLVisitor.renderBody(
+        let parsed = ParsedMarkdown(source)
+        var body = CMarkUpHTMLVisitor.renderBody(
             parsed, options: options, resolveImageSource: resolveImageSource)
         body += FootnoteHTMLRenderer.section(
             result.footnotes, options: options,

@@ -958,6 +958,9 @@ extension CMarkUpHTMLVisitor {
     /// waypoint's body is parsed as-is and diffed against this parse — no
     /// `MudCore.processingWaypoint` counterpart exists, because there is no
     /// transformed source to compare like-with-like.
+    ///
+    /// This String overload parses on the spot; the `ParsedMarkdown` overload
+    /// below reuses the retained parse. Both drive the same private core.
     static func renderBody(
         _ source: String,
         options: RenderOptions,
@@ -974,17 +977,49 @@ extension CMarkUpHTMLVisitor {
             body = normalized
         }
 
-        let prefix = yaml.map(FrontMatterHTMLRenderer.upModeHTML) ?? ""
         guard let document = CMarkDocument(parsing: body) else {
-            return prefix
+            return yaml.map(FrontMatterHTMLRenderer.upModeHTML) ?? ""
         }
+        return renderBody(
+            document: document, frontMatterYAML: yaml,
+            oldDocument: options.waypoint.flatMap { CMarkDocument(parsing: $0.body) },
+            options: options, resolveImageSource: resolveImageSource)
+    }
+
+    /// The production entry: renders from `ParsedMarkdown`'s retained
+    /// `cmarkDocument` (the Stage 6 keystone) and, when a waypoint is set,
+    /// its retained tree too — one owned parse per render, no re-parsing.
+    /// This is the overload `MudCore.renderUpToHTML` calls at cutover.
+    static func renderBody(
+        _ parsed: ParsedMarkdown,
+        options: RenderOptions,
+        resolveImageSource: ((_ source: String, _ baseURL: URL) -> String?)? = nil
+    ) -> String {
+        guard let document = parsed.cmarkDocument else {
+            return parsed.frontMatter.map(FrontMatterHTMLRenderer.upModeHTML) ?? ""
+        }
+        return renderBody(
+            document: document, frontMatterYAML: parsed.frontMatter,
+            oldDocument: options.waypoint?.cmarkDocument,
+            options: options, resolveImageSource: resolveImageSource)
+    }
+
+    /// Shared core: configure the visitor, wire the diff context from an
+    /// already-parsed old document, walk, and prepend rendered frontmatter.
+    private static func renderBody(
+        document: CMarkDocument,
+        frontMatterYAML: String?,
+        oldDocument: CMarkDocument?,
+        options: RenderOptions,
+        resolveImageSource: ((_ source: String, _ baseURL: URL) -> String?)?
+    ) -> String {
+        let prefix = frontMatterYAML.map(FrontMatterHTMLRenderer.upModeHTML) ?? ""
         var visitor = CMarkUpHTMLVisitor()
         visitor.baseURL = options.baseURL
         visitor.resolveImageSource = resolveImageSource
         visitor.alertDetector.docCAlertMode = options.docCAlertMode
         visitor.showInlineDeletions = options.showInlineDeletions
-        if let waypoint = options.waypoint,
-           let oldDocument = CMarkDocument(parsing: waypoint.body) {
+        if let oldDocument {
             visitor.diffContext = CMarkDiffContext(
                 old: oldDocument, new: document,
                 wordDiffThreshold: options.wordDiffThreshold)

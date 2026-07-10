@@ -332,6 +332,39 @@ struct UpRenderingParityTests {
         #expect(ported == legacy)
     }
 
+    // MARK: - Retained-tree overload parity (Stage 6 keystone)
+
+    // `CMarkUpHTMLVisitor.renderBody(_ parsed:)` reuses `ParsedMarkdown`'s
+    // retained `cmarkDocument` instead of re-parsing the source string. It is
+    // the entry production calls at cutover, so it must render byte-identically
+    // to the String overload the sweeps above exercise — plain and diffed.
+
+    @Test(arguments: ParityCorpus.all, DocCAlertMode.allCases)
+    func parsedOverloadMatchesStringOverloadPlain(
+        _ document: ParityCorpus.Document, _ mode: DocCAlertMode
+    ) {
+        var options = RenderOptions()
+        options.docCAlertMode = mode
+        let viaString = CMarkUpHTMLVisitor.renderBody(
+            document.markdown, options: options)
+        let viaParsed = CMarkUpHTMLVisitor.renderBody(
+            ParsedMarkdown(document.markdown), options: options)
+        #expect(viaParsed == viaString)
+    }
+
+    @Test(arguments: ChangeIDParityTests.corpus + diffEditCases, [false, true])
+    func parsedOverloadMatchesStringOverloadDiffed(
+        _ c: ChangeIDParityTests.EditCase, _ showInlineDeletions: Bool
+    ) {
+        var options = RenderOptions()
+        options.showInlineDeletions = showInlineDeletions
+        options.waypoint = ParsedMarkdown(c.old)
+        let viaString = CMarkUpHTMLVisitor.renderBody(c.new, options: options)
+        let viaParsed = CMarkUpHTMLVisitor.renderBody(
+            ParsedMarkdown(c.new), options: options)
+        #expect(viaParsed == viaString)
+    }
+
     // MARK: - Deletion footnote numbering (Stage 4)
 
     // Deleted blocks belong to the old document, whose numbering the legacy

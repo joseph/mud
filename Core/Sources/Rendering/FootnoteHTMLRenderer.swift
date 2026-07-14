@@ -18,7 +18,7 @@ enum FootnoteHTMLRenderer {
         let printOnly = options.footnoteMode == .popover ? " is-print-only" : ""
         var html = "<section class=\"footnotes\(printOnly)\" data-footnotes>\n<ol>\n"
         for entry in entries {
-            let fragment = UpHTMLVisitor.renderBody(
+            let fragment = CMarkUpHTMLVisitor.renderBody(
                 ParsedMarkdown(entry.bodyMarkdown),
                 options: bodyOptions, resolveImageSource: resolveImageSource)
             html += "<li id=\"fn-\(entry.number)\">\n"
@@ -45,7 +45,7 @@ enum FootnoteHTMLRenderer {
         // floating bars, absent in a popover).
         popoverOptions.htmlClasses.insert("footnote-popover")
         let parsed = ParsedMarkdown(entry.bodyMarkdown)
-        let body = UpHTMLVisitor.renderBody(
+        let body = CMarkUpHTMLVisitor.renderBody(
             parsed, options: popoverOptions,
             resolveImageSource: resolveImageSource)
         return HTMLTemplate.wrapUp(body: body, options: popoverOptions)

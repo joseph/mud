@@ -36,31 +36,14 @@ public struct FootnoteEntry: Sendable, Equatable {
     }
 }
 
-/// The product of preprocessing a Markdown source for footnotes: the source
-/// with references rewritten to inline-HTML markers and definitions removed,
-/// plus the collected footnote entries.
+/// The footnotes and comments collected from a Markdown source, for the
+/// bottom sections and the comment layer. No source rewriting: the render
+/// visitor emits footnote/comment markers from the AST directly.
 struct FootnoteProcessingResult {
-    let transformedMarkdown: String
     let footnotes: [FootnoteEntry]
     let comments: [Comment]
 }
 
-/// Detects GFM footnotes by parsing the raw source with `cmark-gfm`
-/// (`CMARK_OPT_FOOTNOTES | CMARK_OPT_SOURCEPOS`), then **rewrites the source**
-/// for the `swift-markdown` pipeline rather than teaching that pipeline about
-/// footnotes:
-///
-/// - each `[^label]` reference to a *defined* label is replaced, by source
-///   byte range, with an inline-HTML `<sup class="footnote-ref">…</sup>` marker
-///   (swift-markdown passes inline HTML straight through);
-/// - each definition block is deleted from the source;
-/// - footnote bodies are returned as clean Markdown (rendered per child block
-///   so the `[^label]:` prefix and continuation indentation are dropped).
-///
-/// Because cmark does the detection, every "should NOT be a footnote" case
-/// (refs in code spans / fenced blocks, escaped `\[^1\]`, empty `[^]`,
-/// whitespace labels) and every dangling `[^missing]` is handled for free:
-/// they never become reference nodes, so their literal text survives untouched.
 /// Structural footnote positions for Down-mode syntax highlighting. Unlike
 /// ``FootnoteProcessor/process(_:mode:)``, this rewrites nothing — Down mode
 /// shows the raw source verbatim and only needs to know *where* the references
@@ -192,14 +175,6 @@ enum FootnoteProcessor {
             return true
         }
 
-        /// A continuation line for a definition: empty, or indented.
-        func isContinuation(_ line: Int) -> Bool {
-            let s = lineStart[line]
-            if s >= lineEnd(line) { return true }
-            let c = bytes[s]
-            return c == 0x20 || c == 0x09 || c == 0x0A || c == 0x0D
-        }
-
         /// True when the half-open byte range `[start, end)` actually delimits
         /// a `[^…]` token. Guards against any sourcepos/column miscalculation
         /// corrupting text or mis-driving highlighting.
@@ -287,40 +262,45 @@ enum FootnoteProcessor {
         return body(root)
     }
 
-    /// The result is `mode`-independent: markers and section content are
-    /// identical either way (the mode only selects section visibility at
-    /// render time), so the underlying ``FootnoteScan`` memo keys on the
-    /// source alone.
+    /// Collects the authorial footnotes and comments in `source` for the
+    /// bottom sections and the comment layer. It rewrites nothing — the render
+    /// visitor (`CMarkUpHTMLVisitor`) emits the footnote/comment markers from
+    /// the AST. Its only real work is classifying comment definitions apart
+    /// from footnotes and assigning authorial footnote numbers in
+    /// first-reference order (comments consume no number and leave no gap).
+    ///
+    /// The result is `mode`-independent (the mode only selects section
+    /// visibility at render time), so the underlying ``FootnoteScan`` memo
+    /// keys on the source alone. Every "should NOT be a footnote" case (refs
+    /// in code spans / fenced blocks, escaped `\[^1\]`, whitespace labels) and
+    /// every dangling `[^missing]` is handled for free by cmark: they never
+    /// become reference nodes.
     static func process(
         _ source: String, mode: FootnoteMode
     ) -> FootnoteProcessingResult {
         // Fast path: no possible footnote syntax → skip the scan.
         guard source.contains("[^") else {
-            return FootnoteProcessingResult(
-                transformedMarkdown: source, footnotes: [], comments: [])
+            return FootnoteProcessingResult(footnotes: [], comments: [])
         }
 
         let facts = FootnoteScan.scan(source)
         let geo = facts.geometry
-        let bytes = geo.bytes
         let lastLine = geo.lastLine
 
         struct RefHit {
             let label: String
             let line: Int
-            let start: Int   // byte range of `[^label]`
-            let end: Int
+            let start: Int   // byte offset of the `[` in `[^label]`
         }
         struct DefRange {
             let startLine: Int
             let endLine: Int
         }
 
-        // cmark replaces a reference's literal with its assigned number and
-        // keeps the label on the parent definition; a ref lacking either is
-        // skipped, as is any whose sourcepos does not delimit `[^…]`.
+        // cmark keeps a reference's resolved label on its parent definition; a
+        // ref lacking a label or a valid number literal is skipped, as is any
+        // whose sourcepos does not delimit `[^…]`.
         var refs: [RefHit] = []
-        var referencedLabels = Set<String>()   // lowercased
         for ref in facts.refs {
             guard let label = ref.label, ref.hasValidNumber,
                   ref.startLine == ref.endLine,
@@ -330,9 +310,7 @@ enum FootnoteProcessor {
             let end = geo.offset(line: ref.endLine, column: ref.endColumn) + 1
             guard geo.delimitsFootnoteRef(start: start, end: end)
             else { continue }
-            refs.append(RefHit(
-                label: label, line: ref.startLine, start: start, end: end))
-            referencedLabels.insert(label.lowercased())
+            refs.append(RefHit(label: label, line: ref.startLine, start: start))
         }
 
         // Classify definitions by label: a comment definition is diverted to
@@ -354,86 +332,30 @@ enum FootnoteProcessor {
             }
         }
 
-        // Drop any references that live inside a definition body (the v1
-        // limitation: nested footnotes are not recursively processed, and
-        // their whole def block is deleted anyway).
+        // Drop any references that live inside a definition body (nested
+        // footnotes are not recursively processed).
         let bodyRefs = refs.filter { ref in
             !defLineRanges.contains { ref.line >= $0.startLine && ref.line <= $0.endLine }
         }
+        let orderedRefs = bodyRefs.sorted(by: { $0.start < $1.start })
 
-        // Assign authorial footnote numbers Mud-side — first-reference order
-        // over **authorial** references only — so comments occupy no number
-        // and leave no gap. cmark's own per-reference numbering counts every
-        // footnote (comments included), so it is deliberately discarded.
-        // Comment references divert to the `💬` marker and never number.
-        // Occurrence index per label drives back-link ids (fnref-N-K, K>1).
-        struct Edit { let start: Int; let end: Int; let replacement: [UInt8] }
-        var edits: [Edit] = []
+        // Assign authorial footnote numbers in first-reference order over
+        // **authorial** references only, so comments occupy no number and
+        // leave no gap. Record each comment's first-reference byte offset for
+        // ordering the bottom Comments section.
         var authorialNumber: [String: Int] = [:]
         var nextNumber = 1
-        var occurrence: [String: Int] = [:]
-        let orderedRefs = bodyRefs.sorted(by: { $0.start < $1.start })
+        var commentFirstRef: [String: Int] = [:]
         for ref in orderedRefs {
-            let marker: String
             if isCommentLabel(ref.label) {
-                marker = commentMarkerHTML(label: ref.label)
-            } else {
-                let number = authorialNumber[ref.label] ?? nextNumber
-                if authorialNumber[ref.label] == nil {
-                    authorialNumber[ref.label] = number
-                    nextNumber += 1
+                if commentFirstRef[ref.label] == nil {
+                    commentFirstRef[ref.label] = ref.start
                 }
-                let k = (occurrence[ref.label] ?? 0) + 1
-                occurrence[ref.label] = k
-                marker = markerHTML(
-                    number: number, label: ref.label, occurrence: k)
-            }
-            edits.append(Edit(start: ref.start, end: ref.end,
-                              replacement: Array(marker.utf8)))
-        }
-
-        // Delete each referenced definition block, consuming trailing blanks.
-        for range in defLineRanges {
-            var stop = range.endLine + 1
-            while stop <= lastLine, geo.lineIsBlank(stop) { stop += 1 }
-            let end = stop <= lastLine ? geo.lineStart[stop] : bytes.count
-            edits.append(Edit(start: geo.lineStart[range.startLine], end: end,
-                              replacement: []))
-        }
-
-        // Strip orphan (unreferenced) definitions, which cmark unlinks from
-        // the tree. Scan column-0 `[^label]:` openers, skipping anything
-        // inside a code/HTML block or already covered by a referenced
-        // definition.
-        func insideCodeBlock(_ line: Int) -> Bool {
-            facts.codeBlocks.contains { line >= $0.start && line <= $0.end }
-        }
-        func insideReferencedDef(_ line: Int) -> Bool {
-            defLineRanges.contains { line >= $0.startLine && line <= $0.endLine }
-        }
-        var line = 1
-        while line <= lastLine {
-            if !insideCodeBlock(line), !insideReferencedDef(line),
-               let label = openerLabel(at: geo.lineStart[line], bytes: bytes,
-                                       lineEnd: geo.lineEnd(line)),
-               !referencedLabels.contains(label.lowercased()) {
-                var stop = line + 1
-                while stop <= lastLine, geo.isContinuation(stop) { stop += 1 }
-                let end = stop <= lastLine ? geo.lineStart[stop] : bytes.count
-                edits.append(Edit(start: geo.lineStart[line], end: end,
-                                  replacement: []))
-                line = stop
-            } else {
-                line += 1
+            } else if authorialNumber[ref.label] == nil {
+                authorialNumber[ref.label] = nextNumber
+                nextNumber += 1
             }
         }
-
-        // Apply edits in descending start order so offsets stay valid.
-        var out = bytes
-        for edit in edits.sorted(by: { $0.start > $1.start }) {
-            out.replaceSubrange(edit.start..<edit.end, with: edit.replacement)
-        }
-        let transformed = String(decoding: out, as: UTF8.self)
 
         let footnotes = defEntries
             .compactMap { entry -> FootnoteEntry? in
@@ -446,12 +368,6 @@ enum FootnoteProcessor {
         // Order comments by their first reference's position (the rendered
         // ordinal), falling back to definition order for any comment whose
         // reference cmark did not surface.
-        var commentFirstRef: [String: Int] = [:]
-        for ref in orderedRefs where isCommentLabel(ref.label) {
-            if commentFirstRef[ref.label] == nil {
-                commentFirstRef[ref.label] = ref.start
-            }
-        }
         let comments = commentDefs
             .sorted {
                 let a = commentFirstRef[$0.label] ?? Int.max
@@ -467,9 +383,7 @@ enum FootnoteProcessor {
                     quotation: quotation, messages: messages)
             }
 
-        return FootnoteProcessingResult(
-            transformedMarkdown: transformed, footnotes: footnotes,
-            comments: comments)
+        return FootnoteProcessingResult(footnotes: footnotes, comments: comments)
     }
 
     /// Scans `source` for footnote references and definition blocks, returning
@@ -707,28 +621,6 @@ enum FootnoteProcessor {
             + " data-mud-label=\"\(escLabel)\" href=\"#cmt-\(escLabel)\">\(commentMarkerGlyph)</a>"
     }
 
-    /// If the line beginning at `start` is a column-0 footnote-definition
-    /// opener (`[^label]:` with a non-empty, whitespace-free label), returns
-    /// the label; otherwise nil.
-    private static func openerLabel(
-        at start: Int, bytes: [UInt8], lineEnd: Int
-    ) -> String? {
-        guard start + 1 < lineEnd,
-              bytes[start] == 0x5B, bytes[start + 1] == 0x5E else { return nil }
-        var i = start + 2
-        var label: [UInt8] = []
-        while i < lineEnd, bytes[i] != 0x5D {
-            let c = bytes[i]
-            if c == 0x20 || c == 0x09 { return nil }  // whitespace in label
-            label.append(c)
-            i += 1
-        }
-        guard i < lineEnd, bytes[i] == 0x5D else { return nil }  // need ]
-        i += 1
-        guard i < lineEnd, bytes[i] == 0x3A else { return nil }  // need :
-        guard !label.isEmpty else { return nil }
-        return String(decoding: label, as: UTF8.self)
-    }
 }
 
 // MARK: - FootnoteScan
@@ -771,8 +663,6 @@ struct FootnoteScan {
     let geometry: FootnoteProcessor.SourceGeometry
     let refs: [Ref]
     let defs: [Def]
-    /// Code/HTML block line spans, for orphan-definition stripping.
-    let codeBlocks: [(start: Int, end: Int)]
 }
 
 extension FootnoteScan {
@@ -783,7 +673,7 @@ extension FootnoteScan {
 
     /// Returns the scan for `source`, computing it at most once per source
     /// (keyed by the source text, LRU-bounded — the same pattern as
-    /// `ChangePlan.plan`).
+    /// `CMarkChangePlan.plan`).
     static func scan(_ source: String) -> FootnoteScan {
         cacheLock.lock()
         if let index = cache.firstIndex(where: { $0.source == source }) {
@@ -806,12 +696,11 @@ extension FootnoteScan {
     }
 
     /// One iterator pass over the footnote-aware AST, collecting reference
-    /// and definition facts plus code-block spans.
+    /// and definition facts.
     private static func compute(_ source: String) -> FootnoteScan {
         let geo = FootnoteProcessor.SourceGeometry(Array(source.utf8))
         var refs: [Ref] = []
         var defs: [Def] = []
-        var codeBlocks: [(start: Int, end: Int)] = []
 
         _ = FootnoteProcessor.withFootnoteAST(geo.bytes) { root -> Void in
             let iter = cmark_iter_new(root)
@@ -851,18 +740,12 @@ extension FootnoteScan {
                         bodyMarkdown:
                             FootnoteProcessor.renderDefinitionBody(node)))
 
-                case CMARK_NODE_CODE_BLOCK, CMARK_NODE_HTML_BLOCK:
-                    let s = Int(cmark_node_get_start_line(node))
-                    let e = Int(cmark_node_get_end_line(node))
-                    if s >= 1 && e >= s { codeBlocks.append((start: s, end: e)) }
-
                 default:
                     break
                 }
             }
         }
 
-        return FootnoteScan(
-            geometry: geo, refs: refs, defs: defs, codeBlocks: codeBlocks)
+        return FootnoteScan(geometry: geo, refs: refs, defs: defs)
     }
 }

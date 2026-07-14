@@ -4,14 +4,19 @@ import Testing
 
 /// Comments are metadata, not document content: adding or removing one must be
 /// invisible to change tracking across every diff consumer. The shared fix
-/// lives in `BlockMatcher.collectLeafBlocks` (exclude comment-def blocks,
+/// lives in `CMarkBlockMatcher.collectLeafBlocks` (skip comment-def blocks,
 /// normalize comment tokens out of fingerprints), so these exercise the matcher
 /// directly plus the Down-mode render and the `removeComments` /
 /// `commentDefinitionLineRanges` / `stripCommentTokens` helpers it relies on.
 @Suite("Comment diff invariance")
 struct CommentDiffInvarianceTests {
 
-  // MARK: - BlockMatcher (covers sidebar + Down, RAW source)
+  // MARK: - CMarkBlockMatcher (covers sidebar + Down, RAW source)
+
+  /// The Down/sidebar policy: plain footnote definitions diff like ordinary
+  /// content; comment definitions stay invisible. (No plain footnote
+  /// definitions appear in these cases, so `.skipAll` would agree.)
+  private static let rawPolicy: CMarkDefinitionDiffPolicy = .descendPlainFootnotes
 
   @Test func addingACommentLeavesAllBlocksUnchanged() {
     let old = "The quick brown fox jumped.\n"
@@ -20,8 +25,9 @@ struct CommentDiffInvarianceTests {
 
       [^comment-a]: A note.
       """
-    let matches = BlockMatcher.match(
-      old: ParsedMarkdown(old), new: ParsedMarkdown(new))
+    let matches = CMarkBlockMatcher.match(
+      old: CMarkDocument(parsing: old)!, new: CMarkDocument(parsing: new)!,
+      definitionPolicy: Self.rawPolicy)
     #expect(matches.count == 1)
     #expect(matches.allSatisfy { $0.isUnchanged })
   }
@@ -33,8 +39,9 @@ struct CommentDiffInvarianceTests {
       [^comment-a]: A note.
       """
     let new = "The quick brown fox jumped.\n"
-    let matches = BlockMatcher.match(
-      old: ParsedMarkdown(old), new: ParsedMarkdown(new))
+    let matches = CMarkBlockMatcher.match(
+      old: CMarkDocument(parsing: old)!, new: CMarkDocument(parsing: new)!,
+      definitionPolicy: Self.rawPolicy)
     #expect(matches.count == 1)
     #expect(matches.allSatisfy { $0.isUnchanged })
   }
@@ -51,10 +58,12 @@ struct CommentDiffInvarianceTests {
 
       [^comment-a]: A note.
       """
-    let plain = BlockMatcher.match(
-      old: ParsedMarkdown(oldPlain), new: ParsedMarkdown(newPlain))
-    let commented = BlockMatcher.match(
-      old: ParsedMarkdown(oldPlain), new: ParsedMarkdown(newCommented))
+    let plain = CMarkBlockMatcher.match(
+      old: CMarkDocument(parsing: oldPlain)!,
+      new: CMarkDocument(parsing: newPlain)!, definitionPolicy: Self.rawPolicy)
+    let commented = CMarkBlockMatcher.match(
+      old: CMarkDocument(parsing: oldPlain)!,
+      new: CMarkDocument(parsing: newCommented)!, definitionPolicy: Self.rawPolicy)
     #expect(commented.count == plain.count)
     #expect(commented.filter { $0.isUnchanged }.count
       == plain.filter { $0.isUnchanged }.count)
@@ -71,8 +80,10 @@ struct CommentDiffInvarianceTests {
 
       [^comment-a]: A note.
       """
-    #expect(BlockMatcher.collectLeafBlocks(from: ParsedMarkdown(plain)).count
-      == BlockMatcher.collectLeafBlocks(from: ParsedMarkdown(commented)).count)
+    #expect(CMarkBlockMatcher.collectLeafBlocks(
+      from: CMarkDocument(parsing: plain)!, policy: Self.rawPolicy).count
+      == CMarkBlockMatcher.collectLeafBlocks(
+        from: CMarkDocument(parsing: commented)!, policy: Self.rawPolicy).count)
   }
 
   // MARK: - Down-mode render
@@ -168,17 +179,25 @@ struct CommentDiffInvarianceTests {
     #expect(FootnoteProcessor.stripCommentTokens(baked) == "Fox ran.")
   }
 
-  @Test func stripCommentTokensRemovesTheMarkerTheProcessorEmits() {
+  @Test func stripCommentTokensRemovesTheMarkerTheEmitterEmits() {
     // The strip pattern is built from the same constants the emitter uses;
-    // this pins that derivation against real pipeline output (not a
-    // hand-copied marker string), label variants included.
+    // this pins that derivation against the real marker the render emits (via
+    // `commentMarkerHTML`, the same function the Up visitor calls), not a
+    // hand-copied marker string — label variants included.
     for label in ["comment-a", "comment-intro_2-b"] {
-      let src = "Fox[^\(label)] ran.\n\n[^\(label)]: A note.\n"
-      let processed = FootnoteProcessor.process(src, mode: .popover)
-        .transformedMarkdown
-      let markerLine = String(processed.prefix(while: { $0 != "\n" }))
-      #expect(markerLine.contains(FootnoteProcessor.commentMarkerClass))
-      #expect(FootnoteProcessor.stripCommentTokens(markerLine) == "Fox ran.")
+      let marker = FootnoteProcessor.commentMarkerHTML(label: label)
+      #expect(marker.contains(FootnoteProcessor.commentMarkerClass))
+      #expect(FootnoteProcessor.stripCommentTokens("Fox\(marker) ran.")
+        == "Fox ran.")
     }
+  }
+}
+
+private extension CMarkBlockMatch {
+  /// True when this match is an unchanged pair (the legacy `BlockMatch`
+  /// exposed the same convenience).
+  var isUnchanged: Bool {
+    if case .unchanged = self { return true }
+    return false
   }
 }

@@ -529,7 +529,7 @@ struct DownModeChangeTrackingTests {
 
   @Test func sidebarAndDownHTMLChangeIDsMatch() {
     // The data-change-id values in Down mode HTML must match the
-    // IDs from ChangeList for scroll-to-change to work.
+    // IDs from CMarkChangeList for scroll-to-change to work.
     let old = ParsedMarkdown("Keep.\n\nOriginal.\n")
     let new = ParsedMarkdown("Keep.\n\nRevised.\n")
     let changes = MudCore.computeChanges(old: old, new: new)
@@ -543,7 +543,7 @@ struct DownModeChangeTrackingTests {
   }
 
   @Test func codeBlockSidebarAndDownHTMLChangeIDsMatch() {
-    // Code block pairs get per-cluster IDs in DiffContext. The
+    // Code block pairs get per-cluster IDs in CMarkDiffContext. The
     // Down mode HTML must use the same IDs.
     let old = ParsedMarkdown("```\nkeep\nold\n```\n")
     let new = ParsedMarkdown("```\nkeep\nnew\n```\n")

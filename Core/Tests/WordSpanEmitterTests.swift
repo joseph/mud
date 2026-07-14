@@ -2,7 +2,7 @@ import Testing
 
 @testable import MudCore
 
-/// Pins the word-span cursor machine extracted from `UpHTMLVisitor`
+/// Pins the word-span cursor machine extracted from `CMarkUpHTMLVisitor`
 /// (Phase 3f). The emitter's contract with the visitor: the character
 /// stream fed through `advance` is exactly `WordDiff.inlineText(of:)`
 /// for the block, consuming spans concatenate to that same text, and
@@ -154,8 +154,10 @@ struct WordSpanEmitterTests {
       + "across :tada: **two** long lines."
     let newSource = "The slow brown fox leapt over the `lazy` cat\n"
       + "across :tada: **three** long lines."
-    let oldPara = try #require(ParsedMarkdown(oldSource).document.child(at: 0))
-    let newPara = try #require(ParsedMarkdown(newSource).document.child(at: 0))
+    let oldDocument = try #require(ParsedMarkdown(oldSource).cmarkDocument)
+    let newDocument = try #require(ParsedMarkdown(newSource).cmarkDocument)
+    let oldPara = try #require(oldDocument.root.children.first)
+    let newPara = try #require(newDocument.root.children.first)
     let oldText = WordDiff.inlineText(of: oldPara)
     let newText = WordDiff.inlineText(of: newPara)
     let spans = WordDiff.diff(old: oldText, new: newText)

@@ -1,5 +1,4 @@
 import Foundation
-import Markdown
 
 /// Visual category for GFM alerts and DocC asides.
 public enum AlertCategory: String, CaseIterable, Sendable {
@@ -62,9 +61,9 @@ struct AlertDetector {
 
     /// Returns the alert category and display title for a GFM blockquote,
     /// or nil if the blockquote does not begin with a recognised `[!TAG]`.
-    func detectGFMAlert(_ blockQuote: BlockQuote) -> (AlertCategory, String)? {
-        let children = Array(blockQuote.children)
-        guard let paragraph = children.first as? Paragraph else { return nil }
+    func detectGFMAlert(_ blockQuote: CMarkNode) -> (AlertCategory, String)? {
+        guard let paragraph = blockQuote.firstChild,
+              paragraph.kind == .paragraph else { return nil }
         let text = paragraph.plainText
         guard text.hasPrefix("[!") else { return nil }
         for (tag, category) in Self.gfmAlertTags where text.hasPrefix(tag) {
@@ -120,82 +119,15 @@ struct AlertDetector {
         "Error":              .caution,
     ]
 
-    /// Returns the alert category, display title, and tag-stripped content
-    /// for a DocC aside blockquote, or nil if the blockquote is not a
-    /// recognised aside (or if `docCAlertMode` excludes it).
-    func detectDocCAlert(
-        _ blockQuote: BlockQuote
-    ) -> (AlertCategory, String, [BlockMarkup])? {
-        guard docCAlertMode != .off else { return nil }
-        guard Self.asideTagShiftIsInBounds(blockQuote) else { return nil }
-        guard let aside = Aside(
-            blockQuote, tagRequirement: .requireAnyLengthTag
-        ) else { return nil }
-        let raw = aside.kind.rawValue
-        if let category = Self.coreMap[raw] {
-            return (category, aside.kind.displayName, aside.content)
-        }
-        if docCAlertMode == .extended, let category = Self.extendedMap[raw] {
-            return (category, aside.kind.displayName, aside.content)
-        }
-        return nil
-    }
-
-    /// Whether constructing an `Aside` from `blockQuote` would trap.
-    ///
-    /// swift-markdown's `parseAsideTag` shifts the leading text node's start
-    /// column forward by the tag's UTF-8 byte length and forms
-    /// `shiftedStart ..< upperBound` with no `lower <= upper` guard. Smart
-    /// typography can make the decoded string longer than its source span
-    /// (e.g. `'` → `’`, 1 byte → 3), so the shift overruns the node and the
-    /// `Range` initializer crashes the process — `> Don't: x` is enough.
-    /// Still unfixed upstream as of 0.8.0. We replicate the same arithmetic
-    /// and return `false` when the range would be invalid, so the blockquote
-    /// renders plain instead of trapping; well-formed input is unaffected.
-    private static func asideTagShiftIsInBounds(
-        _ blockQuote: BlockQuote
-    ) -> Bool {
-        // Mirror parseAsideTag: first child paragraph, then first child text.
-        guard let paragraph = Array(blockQuote.children).first as? Paragraph,
-              let text = Array(paragraph.children).first as? Text,
-              let colon = text.string.firstIndex(of: ":"),
-              let range = text.range else {
-            // No tag / no range: parseAsideTag builds no range, so it's safe.
-            return true
-        }
-
-        let kindTag = text.string[..<colon]
-        let trailingSpaces = text.string[colon...].dropFirst().prefix(
-            while: { $0 == " " || $0 == "\t" }
-        ).count
-        let shiftCount = kindTag.utf8.count + 1 + trailingSpaces
-
-        var shiftedStart = range.lowerBound
-        shiftedStart.column += shiftCount
-        return shiftedStart <= range.upperBound
-    }
-
-    // MARK: - CMark port (Stage 2 of the single-parser-rendering plan)
-
-    /// `CMarkNode` counterpart of `detectGFMAlert(_:)` above.
-    func detectGFMAlert(_ blockQuote: CMarkNode) -> (AlertCategory, String)? {
-        guard let paragraph = blockQuote.firstChild,
-              paragraph.kind == .paragraph else { return nil }
-        let text = paragraph.plainText
-        guard text.hasPrefix("[!") else { return nil }
-        for (tag, category) in Self.gfmAlertTags where text.hasPrefix(tag) {
-            return (category, category.title)
-        }
-        return nil
-    }
-
-    /// `CMarkNode` counterpart of `detectDocCAlert(_:)` above. Parses the
-    /// leading `Kind:` tag itself instead of using swift-markdown's `Aside`,
-    /// so there is no crash to guard against: rather than splicing a
-    /// shortened text node into a rebuilt tree — `Aside`'s approach, and the
-    /// source of the range-shift crash `asideTagShiftIsInBounds` guards
-    /// against above — it reports the tag's UTF-8 byte length for the caller
-    /// to skip when it renders the first paragraph.
+    /// Returns the alert category, display title, and the UTF-8 byte length
+    /// of the leading `Kind:` tag for a DocC aside blockquote, or nil if the
+    /// blockquote is not a recognised aside (or if `docCAlertMode` excludes
+    /// it). Parses the tag itself rather than using swift-markdown's `Aside`,
+    /// which splices a shortened text node into a rebuilt tree and can crash
+    /// on smart-typography input when the decoded string outgrows its source
+    /// span; measuring the literal directly has no arithmetic that can invert.
+    /// The caller skips `tagByteLength` bytes when it renders the first
+    /// paragraph.
     func detectDocCAlert(
         _ blockQuote: CMarkNode
     ) -> (category: AlertCategory, title: String, tagByteLength: Int)? {

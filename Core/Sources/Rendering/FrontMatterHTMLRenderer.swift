@@ -47,7 +47,7 @@ enum FrontMatterHTMLRenderer {
     /// syntax highlighting via `CodeHighlighter`.
     ///
     /// Returns an array of HTML content strings (one per
-    /// frontmatter source line) ready for use in `DownHTMLVisitor`'s
+    /// frontmatter source line) ready for use in `CMarkDownHTMLVisitor`'s
     /// `buildLayout`. The input `markdown` should already be
     /// `\r\n`-normalized (see `ParsedMarkdown.init`).
     static func downModeLines(

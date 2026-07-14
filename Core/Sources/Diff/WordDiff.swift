@@ -1,4 +1,3 @@
-import Markdown
 
 /// A span in a word-level diff result.
 enum WordSpan: Equatable {
@@ -265,34 +264,12 @@ enum WordDiff {
 
     /// Extracts the inline text content of a markup node, matching
     /// the character sources the rendering visitor consumes:
-    /// `Text.string`, `InlineCode.code`, SoftBreak → `" "`,
-    /// LineBreak → `"\n"`, and recursion into formatting containers.
+    /// `.text` literal, inline-code literal, softBreak → `" "`,
+    /// lineBreak → `"\n"`, and recursion into formatting containers.
     ///
     /// This must be used instead of `plainText`, which includes
-    /// backticks around InlineCode — causing a character count
+    /// backticks around inline code — causing a character count
     /// mismatch with the visitor.
-    static func inlineText(of node: Markup) -> String {
-        var result = ""
-        for child in node.children {
-            if let t = child as? Text {
-                result += t.string
-            } else if let c = child as? InlineCode {
-                result += c.code
-            } else if child is SoftBreak {
-                result += " "
-            } else if child is LineBreak {
-                result += "\n"
-            } else {
-                result += inlineText(of: child)
-            }
-        }
-        return result
-    }
-
-    /// `CMarkNode` counterpart of `inlineText(of:)` above — Stage 2 of
-    /// Doc/Plans/2026-07-single-parser-rendering.md. Not wired to any
-    /// caller yet: `ChangePlan` and `UpHTMLVisitor` still hand this function
-    /// swift-markdown nodes until Stage 4 ports the diff layer onto cmark.
     static func inlineText(of node: CMarkNode) -> String {
         var result = ""
         for child in node.children {

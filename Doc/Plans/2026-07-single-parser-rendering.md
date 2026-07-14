@@ -1,11 +1,13 @@
 Plan: Single-Parser Rendering
 ===============================================================================
 
-> Status: Underway (Stages 0–5 landed: the corpus, the `CMarkDocument` wrapper,
-> the leaf-consumer ports, the `UpHTMLVisitor` port with its byte-identical
-> harness, the diff-layer port with diffed-rendering parity, and the
-> `DownHTMLVisitor` port with its plain and diffed harness; Stage 6's
-> `FootnoteProcessor` collapse and cutover are next)
+> Status: Underway (Stages 0–6 landed: the corpus, the `CMarkDocument` wrapper,
+> the leaf-consumer ports, the `UpHTMLVisitor` and `DownHTMLVisitor` ports with
+> their harnesses, the diff-layer port, and the Stage 6 cutover — every
+> production render now runs on the cmark pipeline, `FootnoteProcessor` no
+> longer rewrites the source, and the legacy swift-markdown visitors and diff
+> layer are deleted. Stage 7 remains: port `CommentSerialization` and drop the
+> swift-markdown dependency from `Package.swift`.)
 
 Whether and how to consolidate Mud's rendering on one Markdown parser. Today
 every Up-mode render parses the document twice: once with cmark-gfm (via
@@ -619,6 +621,41 @@ reading).
 **Delete the legacy side.** Remove the legacy visitors, the legacy diff layer,
 and the old side of every parity harness; the cmark tests become the sole
 tests. (swift-markdown itself leaves in Stage 7, with `CommentSerialization`.)
+
+**Landed (July 2026).** The cutover shipped in slices, each green before the
+next. Slices A–C wired the cmark Up/Down render entry points into `MudCore` and
+deleted `processingWaypoint`. Slice D adopted the mode-aware sidebar from the
+table above: `MudCore.computeChanges` takes a `mode` (Up → `.skipAll`, Down/
+`nil` → `.descendPlainFootnotes`), `ChangeTracker` holds the window's mode and
+recomputes its list on a mode toggle, and `DocumentState` syncs the two;
+waypoint dedup and the menu counts stay on the content policy. Slices E and F
+landed together, in the reverse of the order written above: the transform in
+`FootnoteProcessor.process` still fed the legacy side of the Up/Down parity
+harnesses, so the legacy pipeline had to go first. That last commit:
+
+- Repointed the three remaining legacy consumers to cmark — the footnote and
+  comment body fragments (`FootnoteHTMLRenderer`, `CommentHTMLRenderer`) render
+  through `CMarkUpHTMLVisitor.renderBody`, and `CodeBlockDiff` uses
+  `CMarkDownHTMLVisitor`'s word-marker helpers.
+- Collapsed `FootnoteProcessor.process` to a no-edit scan: it now only
+  classifies comment definitions apart from footnotes and assigns authorial
+  numbers. `transformedMarkdown`, the byte-surgery, the orphan-definition scan,
+  and the now-dead `openerLabel` / `FootnoteScan.codeBlocks` / `isContinuation`
+  are gone. `MarkdownParser` and the swift-markdown parse in `ParsedMarkdown`
+  are deleted (only `cmarkDocument` remains); the legacy `inlineText`/alert
+  overloads and the `Aside` crash guard go with them.
+- Deleted the legacy visitors, deletion helpers, and diff layer
+  (`UpHTMLVisitor`, `DownHTMLVisitor`, `DeletionRenderer`, `DeletionPlacer`,
+  `BlockMatcher`, `ChangePlan`, `DiffContext`, `LineDiffMap`, `ChangeList`).
+- Reworked the tests: the nine legacy-only unit suites were removed; the
+  dual-pipeline parity sweeps, whose only assertion was "cmark == legacy",
+  became cmark-only smoke and golden tests (a golden can't be regenerated
+  without running the renderer). The pinned-divergence tests from Stages 3–5
+  survive unchanged as the shipped behavior. Net: about 7,500 lines removed.
+
+swift-markdown stays a dependency for now: `CommentSerialization` still parses
+with it, and `CMarkDocumentTests` still cross-checks against it. Both leave in
+Stage 7.
 
 **Stage 7 (separable) — CommentSerialization.** Port `parse` onto the cmark
 wrapper, replacing `formatBlock` with sourcepos slicing of the de-indented body

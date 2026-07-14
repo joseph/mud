@@ -2,49 +2,25 @@ import Testing
 
 @testable import MudCore
 
-/// Stage 4a of Doc/Plans/2026-07-single-parser-rendering.md: the cmark
-/// leaf-block collector and matcher against their legacy swift-markdown
-/// counterparts. Parity holds over footnote-free input, where the legacy
-/// pipeline's transformed source equals the raw source both sides parse.
-/// Footnote-bearing input diverges **by design** — the cmark collector
-/// skips definition subtrees structurally where the legacy raw-source
-/// collectors see them as paragraphs — so those cases assert the cmark
-/// behavior directly instead of comparing.
+/// Self-contained coverage of the cmark leaf-block collector and matcher.
+/// cmark is now the only diff data layer, so these tests pin its behavior
+/// directly. The focus is footnote and comment definitions: the collector
+/// walks the raw source, where definitions survive as real subtrees, and
+/// must skip them exactly as `CMarkUpHTMLVisitor` skips rendering them —
+/// otherwise a definition-body edit would surface as a change the visitor
+/// cannot place.
 @Suite("CMark block matcher")
 struct CMarkBlockMatcherTests {
 
     // MARK: - Helpers
 
-    /// A parser-neutral description of one block match, for comparing the
-    /// two pipelines' classifications.
+    /// A parser-neutral description of one block match.
     private struct MatchRecord: Equatable {
         let kind: String
         let oldText: String?
         let newText: String?
         let oldFingerprint: String?
         let newFingerprint: String?
-    }
-
-    private func legacyRecords(old: String, new: String) -> [MatchRecord] {
-        BlockMatcher.match(
-            old: ParsedMarkdown(old), new: ParsedMarkdown(new)
-        ).map {
-            switch $0 {
-            case .unchanged(let o, let n):
-                return MatchRecord(
-                    kind: "unchanged",
-                    oldText: o.sourceText, newText: n.sourceText,
-                    oldFingerprint: o.fingerprint, newFingerprint: n.fingerprint)
-            case .inserted(let n):
-                return MatchRecord(
-                    kind: "inserted", oldText: nil, newText: n.sourceText,
-                    oldFingerprint: nil, newFingerprint: n.fingerprint)
-            case .deleted(let o):
-                return MatchRecord(
-                    kind: "deleted", oldText: o.sourceText, newText: nil,
-                    oldFingerprint: o.fingerprint, newFingerprint: nil)
-            }
-        }
     }
 
     private func cmarkRecords(old: String, new: String) throws -> [MatchRecord] {
@@ -75,41 +51,6 @@ struct CMarkBlockMatcherTests {
         let doc = try #require(
             CMarkDocument(parsing: ParsedMarkdown(markdown).body))
         return CMarkBlockMatcher.collectLeafBlocks(from: doc)
-    }
-
-    // MARK: - Collector parity over the corpus
-
-    /// Corpus documents without footnote syntax: on these, the legacy
-    /// collector and the cmark collector must agree exactly.
-    private static let footnoteFreeCorpus = ParityCorpus.all.filter {
-        !$0.markdown.contains("[^")
-    }
-
-    @Test(arguments: footnoteFreeCorpus)
-    func collectorMatchesLegacyOverCorpus(
-        _ document: ParityCorpus.Document
-    ) throws {
-        let parsed = ParsedMarkdown(document.markdown)
-        let legacy = BlockMatcher.collectLeafBlocks(from: parsed)
-        let ported = try cmarkBlocks(document.markdown)
-
-        #expect(ported.count == legacy.count)
-        for (p, l) in zip(ported, legacy) {
-            #expect(p.fingerprint == l.fingerprint)
-            #expect(p.sourceText == l.sourceText)
-            #expect(p.sourceLine == l.sourceLine)
-        }
-    }
-
-    // MARK: - Match parity over the edit corpus
-
-    @Test(arguments: ChangeIDParityTests.corpus)
-    func matchClassificationMatchesLegacy(
-        _ c: ChangeIDParityTests.EditCase
-    ) throws {
-        let legacy = legacyRecords(old: c.old, new: c.new)
-        let ported = try cmarkRecords(old: c.old, new: c.new)
-        #expect(ported == legacy)
     }
 
     // MARK: - Definitions are invisible (plan finding #2)

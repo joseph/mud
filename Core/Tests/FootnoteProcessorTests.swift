@@ -6,29 +6,30 @@ struct FootnoteProcessorTests {
 
   // MARK: - Fast path
 
-  @Test func noFootnoteSyntaxReturnsInputUnchanged() {
+  @Test func noFootnoteSyntaxProducesNoFootnotes() {
     let md = "# Title\n\nA paragraph with no footnotes at all.\n"
     let result = FootnoteProcessor.process(md, mode: .section)
-    #expect(result.transformedMarkdown == md)
     #expect(result.footnotes.isEmpty)
+    #expect(result.comments.isEmpty)
   }
 
   // MARK: - Basic reference + definition
 
-  @Test func basicReferenceBecomesMarkerAndDefinitionIsRemoved() {
+  @Test func basicReferenceIsNumberedAndRenderedAsAMarker() {
     let md = "A sentence.[^1]\n\n[^1]: The first footnote.\n"
     let result = FootnoteProcessor.process(md, mode: .section)
 
-    #expect(result.transformedMarkdown.contains("class=\"footnote-ref\""))
-    #expect(result.transformedMarkdown.contains("data-fn-num=\"1\""))
-    #expect(result.transformedMarkdown.contains("data-fn-label=\"1\""))
-    // The definition line is gone (no literal "[^1]:" survives).
-    #expect(!result.transformedMarkdown.contains("[^1]:"))
-
+    // `process` classifies and numbers; it rewrites nothing.
     #expect(result.footnotes.count == 1)
     #expect(result.footnotes[0].label == "1")
     #expect(result.footnotes[0].number == 1)
     #expect(result.footnotes[0].bodyMarkdown.contains("The first footnote."))
+
+    // The render — not `process` — emits the marker HTML.
+    let body = MudCore.renderUpToHTML(md)
+    #expect(body.contains("class=\"footnote-ref\""))
+    #expect(body.contains("data-fn-num=\"1\""))
+    #expect(body.contains("data-fn-label=\"1\""))
   }
 
   // MARK: - Multi-paragraph body
@@ -76,17 +77,20 @@ struct FootnoteProcessorTests {
 
   // MARK: - Dangling reference
 
-  @Test func danglingReferenceSurvivesAsLiteral() {
+  @Test func danglingReferenceProducesNoFootnote() {
     let md = "A reference with no definition.[^missing]\n"
     let result = FootnoteProcessor.process(md, mode: .section)
-    #expect(result.transformedMarkdown.contains("[^missing]"))
-    #expect(!result.transformedMarkdown.contains("footnote-ref"))
     #expect(result.footnotes.isEmpty)
+    // No definition ⇒ cmark never makes a reference node, so the render emits
+    // no marker and the text stays literal.
+    let body = MudCore.renderUpToHTML(md)
+    #expect(!body.contains("footnote-ref"))
+    #expect(body.contains("[^missing]"))
   }
 
   // MARK: - Orphan definition
 
-  @Test func orphanDefinitionIsRemoved() {
+  @Test func orphanDefinitionProducesNoFootnote() {
     let md = """
     A paragraph.
 
@@ -95,11 +99,14 @@ struct FootnoteProcessorTests {
     Another paragraph.
     """
     let result = FootnoteProcessor.process(md, mode: .section)
-    #expect(!result.transformedMarkdown.contains("[^orphan]"))
-    #expect(!result.transformedMarkdown.contains("This is never referenced."))
-    #expect(result.transformedMarkdown.contains("A paragraph."))
-    #expect(result.transformedMarkdown.contains("Another paragraph."))
+    // An unreferenced definition resolves to no footnote.
     #expect(result.footnotes.isEmpty)
+    // The Up render draws nothing for a definition, so its body never reaches
+    // the page, while the surrounding paragraphs do.
+    let body = MudCore.renderUpToHTML(md)
+    #expect(!body.contains("This is never referenced."))
+    #expect(body.contains("A paragraph."))
+    #expect(body.contains("Another paragraph."))
   }
 
   // MARK: - Constructs that should NOT be footnotes
@@ -107,50 +114,55 @@ struct FootnoteProcessorTests {
   @Test func referenceInsideCodeSpanIsNotAFootnote() {
     let md = "Inline `[^1]` code only.\n\n[^1]: orphaned by the code span.\n"
     let result = FootnoteProcessor.process(md, mode: .section)
-    #expect(!result.transformedMarkdown.contains("footnote-ref"))
     #expect(result.footnotes.isEmpty)
+    #expect(!MudCore.renderUpToHTML(md).contains("footnote-ref"))
   }
 
   @Test func referenceInsideFencedBlockIsNotAFootnote() {
     let md = "```\n[^1]\n[^1]: inside a fence\n```\n\nText after.\n"
     let result = FootnoteProcessor.process(md, mode: .section)
-    #expect(!result.transformedMarkdown.contains("footnote-ref"))
-    // The fenced content is untouched.
-    #expect(result.transformedMarkdown.contains("[^1]: inside a fence"))
     #expect(result.footnotes.isEmpty)
+    let body = MudCore.renderUpToHTML(md)
+    #expect(!body.contains("footnote-ref"))
+    // The fenced content renders verbatim as code.
+    #expect(body.contains("[^1]: inside a fence"))
   }
 
   @Test func escapedReferenceIsNotAFootnote() {
     let md = "Escaped \\[^1\\] reference.\n\n[^1]: would-be body.\n"
     let result = FootnoteProcessor.process(md, mode: .section)
-    #expect(!result.transformedMarkdown.contains("footnote-ref"))
     #expect(result.footnotes.isEmpty)
+    #expect(!MudCore.renderUpToHTML(md).contains("footnote-ref"))
   }
 
   @Test func emptyLabelIsNotAFootnote() {
     let md = "An empty label [^] here.\n"
     let result = FootnoteProcessor.process(md, mode: .section)
-    #expect(!result.transformedMarkdown.contains("footnote-ref"))
     #expect(result.footnotes.isEmpty)
+    #expect(!MudCore.renderUpToHTML(md).contains("footnote-ref"))
   }
 
   @Test func whitespaceLabelIsNotAFootnote() {
     let md = "A label with a space [^foo bar].\n\n[^foo bar]: nope.\n"
     let result = FootnoteProcessor.process(md, mode: .section)
-    #expect(!result.transformedMarkdown.contains("footnote-ref"))
     #expect(result.footnotes.isEmpty)
+    #expect(!MudCore.renderUpToHTML(md).contains("footnote-ref"))
   }
 
   // MARK: - Multibyte safety (sourcepos columns are byte offsets)
 
-  @Test func multibyteCharBeforeReferenceReplacesExactRange() {
+  @Test func multibyteCharBeforeReferenceRendersMarkerInPlace() {
     let md = "café[^1] crème.\n\n[^1]: accented body.\n"
     let result = FootnoteProcessor.process(md, mode: .section)
+    #expect(result.footnotes.count == 1)
+    #expect(result.footnotes[0].number == 1)
+
     // The accented text on both sides of the marker is preserved, and the
-    // marker replaces exactly the `[^1]` token (no stray brackets remain).
-    #expect(result.transformedMarkdown.contains("café<sup class=\"footnote-ref\""))
-    #expect(result.transformedMarkdown.contains("crème."))
-    #expect(!result.transformedMarkdown.contains("[^1]"))
+    // render replaces exactly the `[^1]` token (no stray brackets remain).
+    let body = MudCore.renderUpToHTML(md)
+    #expect(body.contains("café<sup class=\"footnote-ref\""))
+    #expect(body.contains("crème."))
+    #expect(!body.contains("[^1]"))
   }
 
   // MARK: - Multiple references to one definition
@@ -161,9 +173,10 @@ struct FootnoteProcessorTests {
     #expect(result.footnotes.count == 1)
     #expect(result.footnotes[0].number == 1)
     // First occurrence id="fnref-1"; later occurrences id="fnref-1-2", "-3".
-    #expect(result.transformedMarkdown.contains("id=\"fnref-1\""))
-    #expect(result.transformedMarkdown.contains("id=\"fnref-1-2\""))
-    #expect(result.transformedMarkdown.contains("id=\"fnref-1-3\""))
+    let body = MudCore.renderUpToHTML(md)
+    #expect(body.contains("id=\"fnref-1\""))
+    #expect(body.contains("id=\"fnref-1-2\""))
+    #expect(body.contains("id=\"fnref-1-3\""))
   }
 
   // MARK: - GFM extensions in bodies (round-trip faithfully)
@@ -173,8 +186,8 @@ struct FootnoteProcessorTests {
     let result = FootnoteProcessor.process(md, mode: .section)
     #expect(result.footnotes.count == 1)
     let body = result.footnotes[0].bodyMarkdown
-    // The tildes survive unescaped (no `\~\~`), so swift-markdown can render
-    // them as a real strikethrough rather than literal text.
+    // The tildes survive unescaped (no `\~\~`), so the body re-parses as a real
+    // strikethrough rather than literal text.
     #expect(body.contains("~~struck~~"))
     #expect(!body.contains("\\~"))
   }

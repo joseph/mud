@@ -1,4 +1,3 @@
-import Markdown
 import Testing
 @testable import MudCore
 
@@ -192,79 +191,31 @@ struct WordDiffTests {
     #expect(!WordDiff.hasSignificantChanges(spans, threshold: 0.7))
   }
 
-  // MARK: - plainText alignment diagnostic
+  // MARK: - inlineText extraction
 
-  @Test func inlineTextMatchesVisitorCharCount() {
-    // Verify that inlineText(of:) matches the sum of character
-    // counts the visitor would consume. plainText includes backticks
-    // around InlineCode, which causes misalignment; inlineText does not.
-    let cases = [
-      "Call `foo()` and wait.\n",
-      "The **important** value is high.\n",
-      "Use `foo()` then `bar()` to finish.\n",
-      "A *special* and `coded` thing.\n",
-      "Multi line\nparagraph here.\n",
-      "`start` middle `end`.\n",
+  @Test func inlineTextStripsInlineCodeBackticks() throws {
+    // inlineText(of:) reproduces the character stream the rendering visitor
+    // consumes: text and inline-code literals verbatim (no backticks), a soft
+    // break as a single space, formatting containers flattened to their
+    // contents. plainText would keep the backticks around inline code; these
+    // golden strings never contain one.
+    let cases: [(markdown: String, inlineText: String)] = [
+      ("Call `foo()` and wait.\n", "Call foo() and wait."),
+      ("The **important** value is high.\n", "The important value is high."),
+      ("Use `foo()` then `bar()` to finish.\n",
+        "Use foo() then bar() to finish."),
+      ("A *special* and `coded` thing.\n", "A special and coded thing."),
+      ("Multi line\nparagraph here.\n", "Multi line paragraph here."),
+      ("`start` middle `end`.\n", "start middle end."),
     ]
-    for md in cases {
-      let parsed = ParsedMarkdown(md)
-      let para = parsed.document.child(at: 0)!
-      let text = WordDiff.inlineText(of: para)
-      var visitorCount = 0
-      func countLeaves(_ node: Markup) {
-        for child in node.children {
-          if let t = child as? Text { visitorCount += t.string.count }
-          else if let c = child as? InlineCode { visitorCount += c.code.count }
-          else if child is SoftBreak { visitorCount += 1 }
-          else if child is LineBreak { visitorCount += 1 }
-          else { countLeaves(child) }
-        }
-      }
-      countLeaves(para)
-      #expect(text.count == visitorCount,
-        "inlineText vs visitor mismatch for: \(md.dropLast())")
+    for (markdown, expected) in cases {
+      let root = try #require(ParsedMarkdown(markdown).cmarkDocument?.root)
+      let paragraph = try #require(
+        root.children.first { $0.kind == .paragraph })
+      let text = WordDiff.inlineText(of: paragraph)
+      #expect(text == expected, "inlineText mismatch for: \(markdown.dropLast())")
+      #expect(!text.contains("`"))
     }
-  }
-
-  // MARK: - CMark port parity (Stage 2)
-
-  /// Footnote-bearing corpus documents are excluded: swift-markdown never
-  /// sees footnote syntax (it's preprocessed away before swift-markdown
-  /// parses), while cmark parses it as real footnote-reference nodes, so the
-  /// two trees diverge there by design — the same exclusion
-  /// `CMarkDocumentTests.textLiteralsMatchSwiftMarkdown` uses.
-  @Test(arguments: ParityCorpus.all.filter { !$0.markdown.contains("[^") })
-  func inlineTextMatchesLegacyOverCorpus(
-    _ corpusDocument: ParityCorpus.Document
-  ) throws {
-    struct LegacyTextCollector: MarkupWalker {
-      var texts: [String] = []
-      mutating func defaultVisit(_ markup: Markup) {
-        if markup is Paragraph || markup is Heading {
-          texts.append(WordDiff.inlineText(of: markup))
-        }
-        descendInto(markup)
-      }
-    }
-    var legacy = LegacyTextCollector()
-    legacy.visit(MarkdownParser.parse(corpusDocument.markdown))
-
-    struct PortedTextCollector: CMarkWalker {
-      var texts: [String] = []
-      mutating func defaultVisit(_ node: CMarkNode) {
-        if node.kind == .paragraph || node.kind == .heading {
-          texts.append(WordDiff.inlineText(of: node))
-        }
-        descendInto(node)
-      }
-    }
-    let document = try #require(
-      CMarkDocument(parsing: corpusDocument.markdown))
-    var ported = PortedTextCollector()
-    ported.visit(document.root)
-
-    #expect(ported.texts.map(\.count) == legacy.texts.map(\.count))
-    #expect(ported.texts == legacy.texts)
   }
 
 }

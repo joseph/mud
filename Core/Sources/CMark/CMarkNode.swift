@@ -162,8 +162,8 @@ struct CMarkNode {
     var listStart: Int { Int(cmark_node_get_list_start(raw)) }
 
     /// Whether a list is tight (no blank lines between items). Read straight
-    /// off the parser — this replaces `UpHTMLVisitor.isLooseList`'s range
-    /// arithmetic when Stage 3 lands.
+    /// off the parser, replacing the old swift-markdown range arithmetic that
+    /// inferred list looseness.
     var listIsTight: Bool { cmark_node_get_list_tight(raw) != 0 }
 
     /// Whether a `.taskListItem`'s checkbox is checked.

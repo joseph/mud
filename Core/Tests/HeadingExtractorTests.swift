@@ -1,4 +1,3 @@
-import Markdown
 import Testing
 @testable import MudCore
 
@@ -68,66 +67,49 @@ struct HeadingExtractorTests {
         #expect(html.contains("id=\"\(headings[0].id)\""))
     }
 
-    // MARK: - Parity with the pre-port swift-markdown extractor
+    // MARK: - Slug deduplication and mixed segments
 
-    /// The swift-markdown-based extractor `HeadingExtractor` replaced when
-    /// it ported onto `CMarkNode` (Stage 2 of
-    /// Doc/Plans/2026-07-single-parser-rendering.md). Copied verbatim from
-    /// that implementation so this file can prove the port didn't change
-    /// output.
-    private struct LegacyHeadingExtractor: MarkupWalker {
-        var headings: [OutlineHeading] = []
-        private var slugTracker = SlugGenerator.Tracker()
-
-        mutating func visitHeading(_ heading: Heading) {
-            let slug = slugTracker.slug(for: heading.plainText)
-            let line = heading.range?.lowerBound.line ?? 0
-            let segments = Self.extractSegments(from: heading)
-            headings.append(OutlineHeading(
-                id: slug, level: heading.level,
-                text: heading.plainText, segments: segments,
-                sourceLine: line
-            ))
-        }
-
-        private static func extractSegments(
-            from node: Markup
-        ) -> [OutlineTextSegment] {
-            var segments: [OutlineTextSegment] = []
-            for child in node.children {
-                if let code = child as? InlineCode {
-                    segments.append(.code(code.code))
-                } else if let text = child as? Markdown.Text {
-                    segments.append(.plain(text.string))
-                } else if child is SoftBreak {
-                    segments.append(.plain(" "))
-                } else {
-                    segments.append(contentsOf: extractSegments(from: child))
-                }
-            }
-            return segments
-        }
+    @Test func deduplicatesRepeatedSlugs() {
+        let md = """
+        # Title
+        ## Title
+        ## Title
+        """
+        let headings = MudCore.extractHeadings(md)
+        // First occurrence gets the bare slug; repeats get -1, -2, …
+        #expect(headings.map(\.id) == ["title", "title-1", "title-2"])
+        #expect(headings.map(\.level) == [1, 2, 2])
+        #expect(headings.map(\.sourceLine) == [1, 2, 3])
     }
 
-    @Test(arguments: ParityCorpus.all)
-    func slugsAndSegmentsMatchLegacyExtractor(
-        _ corpusDocument: ParityCorpus.Document
-    ) throws {
-        // `ParsedMarkdown` extracts headings from the frontmatter-stripped
-        // body, not the raw markdown — match that here for a fair
-        // comparison.
-        let body = FrontMatterExtractor.extract(from: corpusDocument.markdown)?
-            .body ?? corpusDocument.markdown
+    @Test func mixedInlineSegmentsInOneHeading() {
+        let headings = MudCore.extractHeadings("### Use `foo` for *bar* now\n")
+        #expect(headings.count == 1)
+        #expect(headings[0].level == 3)
+        // Code spans stay `.code`; emphasis flattens to `.plain`.
+        #expect(headings[0].segments == [
+            .plain("Use "),
+            .code("foo"),
+            .plain(" for "),
+            .plain("bar"),
+            .plain(" now"),
+        ])
+        // Slug strips the backticks; `text` (plainText) keeps them.
+        #expect(headings[0].id == "use-foo-for-bar-now")
+        #expect(headings[0].text == "Use `foo` for bar now")
+    }
 
-        var legacy = LegacyHeadingExtractor()
-        legacy.visit(MarkdownParser.parse(body))
-
-        let ported = MudCore.extractHeadings(corpusDocument.markdown)
-
-        #expect(ported.map(\.id) == legacy.headings.map(\.id))
-        #expect(ported.map(\.level) == legacy.headings.map(\.level))
-        #expect(ported.map(\.text) == legacy.headings.map(\.text))
-        #expect(ported.map(\.sourceLine) == legacy.headings.map(\.sourceLine))
-        #expect(ported.map(\.segments) == legacy.headings.map(\.segments))
+    @Test func softBreakInHeadingBecomesSpaceSegment() {
+        // A two-line setext heading carries a soft break between its lines.
+        let headings = MudCore.extractHeadings("One\nTwo\n===\n")
+        #expect(headings.count == 1)
+        #expect(headings[0].level == 1)
+        #expect(headings[0].segments == [
+            .plain("One"),
+            .plain(" "),
+            .plain("Two"),
+        ])
+        #expect(headings[0].text == "One Two")
+        #expect(headings[0].id == "one-two")
     }
 }

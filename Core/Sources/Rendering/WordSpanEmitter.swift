@@ -3,9 +3,9 @@ import Foundation
 /// Emits word-level diff markers (`<ins>`/`<del>`) in step with the
 /// rendering visitor's character stream.
 ///
-/// `UpHTMLVisitor` owns document structure: it walks a changed block's
-/// inline nodes and reports each character run it renders (`Text.string`,
-/// `InlineCode.code`, a break's single character). The emitter owns the
+/// `CMarkUpHTMLVisitor` owns document structure: it walks a changed block's
+/// inline nodes and reports each character run it renders (a text node's
+/// literal, an inline-code literal, a break's single character). The emitter owns the
 /// cursor through the block's `[WordSpan]`: it splits spans that straddle
 /// an inline-node boundary and returns the HTML for exactly the characters
 /// consumed. Consecutive spans of the same type share a single tag,

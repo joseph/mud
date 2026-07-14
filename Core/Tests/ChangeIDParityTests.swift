@@ -1,10 +1,10 @@
 import Testing
 @testable import MudCore
 
-/// Change IDs (`change-N`) are minted once, in `ChangePlan`, and every
-/// consumer — the Up-mode overlay (`DiffContext`), Down mode
-/// (`LineDiffMap`), and the sidebar (`ChangeList`) — projects from that
-/// plan. A sidebar click finds its document target by matching
+/// Change IDs (`change-N`) are minted once, in `CMarkChangePlan`, and every
+/// consumer — the Up-mode overlay (`CMarkDiffContext`), Down mode
+/// (`CMarkLineDiffMap`), and the sidebar (`CMarkChangeList`) — projects from
+/// that plan. A sidebar click finds its document target by matching
 /// `data-change-id`, so all three must assign the same ID to the same
 /// change. These tests pin that contract over an edit corpus.
 ///
@@ -16,9 +16,9 @@ import Testing
 /// gap with a code-block pair).
 ///
 /// The last two corpus cases mix code blocks with other blocks in one
-/// gap — the gaps where the pre-plan pairing policies diverged (the
-/// old `LineDiffMap` paired positionally; `DiffContext` paired code
-/// blocks by type). The plan pairs by type for everyone.
+/// gap — the gaps where the old pre-plan pairing policies diverged (one
+/// consumer paired positionally, another paired code blocks by type). The
+/// single plan pairs by type for everyone.
 @Suite("Change ID parity between modes and the sidebar")
 struct ChangeIDParityTests {
   struct EditCase: CustomTestStringConvertible, Sendable {

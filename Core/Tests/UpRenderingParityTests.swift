@@ -3,48 +3,31 @@ import Testing
 
 @testable import MudCore
 
-/// Stage 3 of Doc/Plans/2026-07-single-parser-rendering.md: the differential
-/// harness over the two Up-mode body renderers. The legacy pipeline
-/// preprocesses the source (`FootnoteProcessor.process` bakes marker HTML
-/// into the bytes) and renders through swift-markdown; `CMarkUpHTMLVisitor`
-/// renders the raw source from one footnote-aware cmark parse. The two bodies
-/// must match byte-for-byte over the whole corpus — this comparison gates the
-/// eventual cutover, so it must keep passing until Stage 6 deletes the legacy
-/// side.
-@Suite("Up-mode rendering parity")
+/// Up-mode body rendering, now that `CMarkUpHTMLVisitor` is the sole
+/// pipeline. One footnote-aware cmark parse renders the raw source; the
+/// legacy swift-markdown pipeline it replaced has been deleted. These tests
+/// keep the cmark-side coverage: a smoke sweep over the shared corpus plus
+/// focused assertions on the footnote-numbering, diff, and marker behavior
+/// the port owns.
+@Suite("Up-mode rendering")
 struct UpRenderingParityTests {
 
-    /// The legacy pipeline's body render: footnote preprocessing at the
-    /// String boundary, then the swift-markdown visitor — the exact steps of
-    /// `MudCore.renderUpPipeline` minus the bottom footnotes/comments
-    /// sections, which both pipelines share (`FootnoteHTMLRenderer` /
-    /// `CommentHTMLRenderer` render from models, not from either parse).
-    private func legacyBody(
-        _ source: String, options: RenderOptions
-    ) -> String {
-        let processed = FootnoteProcessor.process(
-            source, mode: options.footnoteMode)
-        return UpHTMLVisitor.renderBody(
-            ParsedMarkdown(processed.transformedMarkdown), options: options)
-    }
-
     @Test(arguments: ParityCorpus.all, DocCAlertMode.allCases)
-    func bodyHTMLMatchesLegacyPipeline(
+    func bodyHTMLRendersOverCorpus(
         _ document: ParityCorpus.Document, _ mode: DocCAlertMode
     ) {
         var options = RenderOptions()
         options.docCAlertMode = mode
-        let legacy = legacyBody(document.markdown, options: options)
         let ported = CMarkUpHTMLVisitor.renderBody(
             document.markdown, options: options)
-        #expect(ported == legacy)
+        // Every corpus document has body content, so the render is non-empty.
+        #expect(!ported.isEmpty)
     }
 
     // MARK: - Footnote numbering
 
-    // The numbering logic Stage 3 moves out of `FootnoteProcessor.process`'s
-    // rewrite pass, asserted directly so a failure names the moved logic
-    // instead of pointing at a whole-document byte diff.
+    // The numbering logic the port owns, asserted directly so a failure names
+    // the logic instead of pointing at a whole-document byte diff.
 
     @Test func footnoteNumberingFollowsFirstReferenceOrder() {
         let body = CMarkUpHTMLVisitor.renderBody(
@@ -80,27 +63,10 @@ struct UpRenderingParityTests {
         #expect(!body.contains("Alpha body"))
     }
 
-    // MARK: - Diffed rendering (Stage 4)
-
-    /// The legacy pipeline's diffed body render: both sides preprocessed at
-    /// the String boundary — the waypoint step reproduces
-    /// `MudCore.processingWaypoint`, which exists so the legacy diff compares
-    /// transformed source against transformed source.
-    private func legacyDiffedBody(
-        new: String, old: String, options: RenderOptions
-    ) -> String {
-        var options = options
-        let processedOld = FootnoteProcessor.process(
-            old, mode: options.footnoteMode)
-        options.waypoint = ParsedMarkdown(processedOld.transformedMarkdown)
-        let processedNew = FootnoteProcessor.process(
-            new, mode: options.footnoteMode)
-        return UpHTMLVisitor.renderBody(
-            ParsedMarkdown(processedNew.transformedMarkdown), options: options)
-    }
+    // MARK: - Diffed rendering
 
     /// The cmark pipeline's diffed body render: the raw waypoint goes
-    /// straight into `RenderOptions` — no preprocessing step exists.
+    /// straight into `RenderOptions`.
     private func cmarkDiffedBody(
         new: String, old: String, options: RenderOptions
     ) -> String {
@@ -113,16 +79,15 @@ struct UpRenderingParityTests {
     /// paragraph and code-block gap shapes): the deletion-placer paths
     /// (list items, table rows, hoisting, deferral, reclaiming, trailing),
     /// word spans in every activating block shape, alerts, and the
-    /// footnote/comment interplay with change tracking.
+    /// footnote/comment interplay with change tracking. Consumed by the
+    /// overload-parity sweep below and by `DownRenderingParityTests`' diffed
+    /// sweep.
     ///
     /// Footnote cases with a *paired* edit deliberately use low-similarity
-    /// text so no word spans activate: with spans active, the legacy
-    /// pipeline word-marks the marker HTML it baked into the source (the
-    /// number is a text node there), which the cmark pipeline correctly
-    /// leaves intact — see `wordSpannedFootnoteMarkerStaysIntact` below.
-    /// A paired edit of a *roman-path* DocC aside (long first line) is also
-    /// absent: legacy misrenders that case — see
-    /// `romanAsideEditAvoidsLegacyDefects` below.
+    /// text so no word spans activate; the word-span-active footnote case is
+    /// pinned separately in `wordSpannedFootnoteMarkerStaysIntact`. A paired
+    /// edit of a *roman-path* DocC aside (long first line) is likewise pinned
+    /// in `romanAsideEditAvoidsLegacyDefects` rather than swept here.
     static let diffEditCases: [ChangeIDParityTests.EditCase] = [
         .init(
             label: "word change in paragraph",
@@ -239,9 +204,8 @@ struct UpRenderingParityTests {
         .init(
             // The first line exceeds the 60-character bold-inline
             // threshold, so the deletion renders through the roman aside
-            // path. An *edit* of a roman aside is deliberately absent:
-            // legacy misrenders that case (see
-            // `romanAsideEditAvoidsLegacyDefects` below).
+            // path. An *edit* of a roman aside is pinned separately in
+            // `romanAsideEditAvoidsLegacyDefects` rather than swept here.
             label: "long DocC aside deleted",
             old: "> Warning: This DocC aside body is long enough that "
                 + "the renderer keeps it\n> roman in its own paragraph "
@@ -319,25 +283,12 @@ struct UpRenderingParityTests {
                 + "    A note.\n"),
     ]
 
-    @Test(
-        arguments: ChangeIDParityTests.corpus + diffEditCases, [false, true]
-    )
-    func diffedBodyHTMLMatchesLegacyPipeline(
-        _ c: ChangeIDParityTests.EditCase, _ showInlineDeletions: Bool
-    ) {
-        var options = RenderOptions()
-        options.showInlineDeletions = showInlineDeletions
-        let legacy = legacyDiffedBody(new: c.new, old: c.old, options: options)
-        let ported = cmarkDiffedBody(new: c.new, old: c.old, options: options)
-        #expect(ported == legacy)
-    }
-
-    // MARK: - Retained-tree overload parity (Stage 6 keystone)
+    // MARK: - Retained-tree overload parity
 
     // `CMarkUpHTMLVisitor.renderBody(_ parsed:)` reuses `ParsedMarkdown`'s
     // retained `cmarkDocument` instead of re-parsing the source string. It is
-    // the entry production calls at cutover, so it must render byte-identically
-    // to the String overload the sweeps above exercise — plain and diffed.
+    // the entry production calls, so it must render byte-identically to the
+    // String overload — plain and diffed.
 
     @Test(arguments: ParityCorpus.all, DocCAlertMode.allCases)
     func parsedOverloadMatchesStringOverloadPlain(
@@ -365,11 +316,10 @@ struct UpRenderingParityTests {
         #expect(viaParsed == viaString)
     }
 
-    // MARK: - Deletion footnote numbering (Stage 4)
+    // MARK: - Deletion footnote numbering
 
-    // Deleted blocks belong to the old document, whose numbering the legacy
-    // pipeline bakes into the transformed source. The cmark deletion path
-    // reproduces it via `CMarkUpHTMLVisitor.footnoteNumbering(for:)`;
+    // Deleted blocks belong to the old document. The cmark deletion path
+    // seeds their numbering via `CMarkUpHTMLVisitor.footnoteNumbering(for:)`;
     // asserted directly so a failure names the seeding, not a byte diff.
 
     @Test func deletedBlockKeepsOldDocumentFootnoteNumber() {
@@ -395,13 +345,10 @@ struct UpRenderingParityTests {
             number: 1, label: "a", occurrence: 3)))
     }
 
-    /// A deliberate, documented divergence from the legacy pipeline: with
-    /// word spans active on a paired edit, legacy word-marks the baked
-    /// marker HTML's number (a text node in its transformed source), so an
-    /// `<ins>`/`<del>` lands *inside* the marker anchor. In the cmark
-    /// pipeline the reference is an AST node and its marker emits intact —
-    /// the correct behavior the cutover adopts. Pinned here on the cmark
-    /// side only; the byte-parity corpus above avoids the case.
+    /// A behavior the old swift-markdown pipeline got wrong and the port
+    /// fixes: with word spans active on a paired edit, the reference is an
+    /// AST node and its marker emits intact, rather than an `<ins>`/`<del>`
+    /// landing *inside* the marker anchor. Pinned so a regression is named.
     @Test func wordSpannedFootnoteMarkerStaysIntact() {
         let old = "The quick fox[^a].\n\n[^a]: A.\n"
         let new = "The slow fox[^a].\n\n[^a]: A.\n"
@@ -415,22 +362,14 @@ struct UpRenderingParityTests {
         #expect(body.contains("<ins>"))
     }
 
-    /// A deliberate, documented divergence: a paired **edit** of a
-    /// roman-path DocC aside (first line over the 60-character bold-inline
-    /// threshold). swift-markdown's `parseAsideTag` rebuilds the aside's
-    /// first paragraph with `preserveRange: true`, so in the legacy roman
-    /// path `visitParagraph` runs on a rebuilt node that still carries the
-    /// original paragraph's source range — and therefore matches the diff
-    /// lookups keyed to it, producing three defects at once: the preceding
-    /// deletion emits a second time inside the alert (`precedingHTML`
-    /// never marks it consumed), the inner `<p>` duplicates the
+    /// A paired **edit** of a roman-path DocC aside (first line over the
+    /// 60-character bold-inline threshold). The old swift-markdown pipeline
+    /// produced three defects at once here: the preceding deletion emitted a
+    /// second time inside the alert, the inner `<p>` duplicated the
     /// `mud-change-ins` attributes already on the blockquote, and the
-    /// prefix-skipped span emitter is replaced by a fresh unskipped one,
-    /// shearing every word marker by the stripped `Warning: ` prefix. The
-    /// cmark visitor never routes the first paragraph through
-    /// `visitParagraph`, so none of that can happen; this pins the correct
-    /// behavior the cutover adopts. The byte-parity corpus above avoids
-    /// the case.
+    /// word markers sheared by the stripped `Warning: ` prefix. The cmark
+    /// visitor never routes the first paragraph through a separate paragraph
+    /// visit, so none of that can happen; this pins the correct behavior.
     @Test func romanAsideEditAvoidsLegacyDefects() {
         let old = "> Warning: This DocC aside body is long enough that "
             + "the renderer keeps it\n> roman in its own paragraph "

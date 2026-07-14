@@ -245,7 +245,12 @@
 
   // -- Public namespace ----------------------------------------------------
 
-  window.Mud = {
+  // Merge rather than assign, so the namespace is built the same defensive way
+  // in every file and injection order is not a silent requirement. mud.js is
+  // still injected first (see WebView.swift), because it seeds the shared
+  // helpers the other files call at runtime.
+  window.Mud = window.Mud || {};
+  Object.assign(window.Mud, {
     findFromTop: findFromTop,
     findRefine: findRefine,
     findAdvance: findAdvance,
@@ -259,5 +264,5 @@
     setZoom: setZoom,
     scrollToHeading: scrollToHeading,
     scrollToLine: scrollToLine
-  };
+  });
 })();

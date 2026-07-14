@@ -429,6 +429,10 @@
     }
   }
 
+  // Guard the namespace so this file doesn't depend on mud.js having already
+  // defined it (mud.js is injected first, but the merge keeps order from being
+  // a silent contract).
+  window.Mud = window.Mud || {};
   window.Mud.scrollToChange = scrollToChange;
   window.Mud.collapseAllChanges = collapseAllChanges;
   window.Mud.applyAutoExpandChanges = applyAutoExpandChanges;

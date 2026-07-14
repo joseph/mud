@@ -178,6 +178,15 @@ struct WebView: NSViewRepresentable {
     func makeNSView(context: Context) -> WKWebView {
         // Inject JS files; they auto-detect context via DOM.
         // Mermaid is injected on demand via the bridge.
+        //
+        // Each file builds `window.Mud` with a defensive merge, so this order is
+        // not load-bearing for the namespace existing. It still matters for two
+        // runtime relationships:
+        //   - mud.js is first: it seeds the shared `Mud.*` helpers (setClass,
+        //     scroll, zoom) that the later files call while the page runs.
+        //   - mud-comments-edit.js (write side) follows mud-comments.js (read
+        //     side): it fills in the read side's hooks and API slots, so the
+        //     read side must have published `Mud.comments` first.
         let config = MudJSBridge.makeConfiguration(scripts: [
             HTMLTemplate.mudJS,
             HTMLTemplate.mudChangesJS,

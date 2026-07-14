@@ -1,5 +1,4 @@
 import Foundation
-import Markdown
 
 /// The read/write codec for a comment definition's body — no IO. Mud *writes* a
 /// strict canonical form but *reads* anything the convention in
@@ -12,8 +11,11 @@ import Markdown
 /// `parse(serialize(quotation, messages)) == (quotation, messages)`.
 ///
 /// Working on the already-de-indented body is what lets this stay pure,
-/// testable Swift on the swift-markdown AST: the multi-paragraph misparse that
-/// forced cmark for footnote *bodies* does not bite a pre-normalized string.
+/// testable Swift over one `CMarkDocument` parse: the multi-paragraph misparse
+/// that forced cmark for footnote *bodies* does not bite a pre-normalized
+/// string. Message bodies are sliced verbatim from the source by block
+/// sourcepos rather than re-serialized, so a message no one has edited
+/// round-trips byte-for-byte.
 ///
 /// Message attributes live in **braces** — `💬 {author @ timestamp}:` — where
 /// the `💬`, both fields, and the trailing colon are each optional and a
@@ -28,15 +30,20 @@ enum CommentSerialization {
     static func parse(
         _ bodyMarkdown: String
     ) -> (quotation: String?, messages: [CommentMessage]) {
-        var blocks = Document(parsing: bodyMarkdown)
-            .children.compactMap { $0 as? BlockMarkup }
+        guard let document = CMarkDocument(parsing: bodyMarkdown) else {
+            return (nil, [])
+        }
+        // Source lines, 1-based by index + 1, so a block's `startLine` /
+        // `endLine` slice its verbatim bytes back out (see `sliceBody`).
+        let lines = bodyMarkdown.components(separatedBy: "\n")
+        var blocks = Array(document.root.children)
 
         // (1) A leading blockquote — and only a leading one, before any message
         // — is the root quotation. A blockquote that follows a message header
         // belongs to that message's body.
         var quotation: String?
-        if let first = blocks.first, let bq = first as? BlockQuote {
-            quotation = flatten(plainText(of: bq))
+        if let first = blocks.first, first.kind == .blockQuote {
+            quotation = flatten(plainText(of: first))
             blocks.removeFirst()
         }
 
@@ -44,8 +51,8 @@ enum CommentSerialization {
         // *begins* with a message attributes block — a `💬` or a `{`. Blocks
         // before the first such paragraph (or all of them, when there is none)
         // form one implicit author-less message.
-        var groups: [[BlockMarkup]] = []
-        var current: [BlockMarkup] = []
+        var groups: [[CMarkNode]] = []
+        var current: [CMarkNode] = []
         for block in blocks {
             if isMessageStart(block), !current.isEmpty {
                 groups.append(current)
@@ -55,7 +62,7 @@ enum CommentSerialization {
         }
         if !current.isEmpty { groups.append(current) }
 
-        let messages = groups.map(buildMessage)
+        let messages = groups.map { buildMessage($0, lines: lines) }
         return (quotation, messages)
     }
 
@@ -63,9 +70,9 @@ enum CommentSerialization {
     /// whitespace) with a message attributes block — the `💬` header emoji or a
     /// `{` brace. A `💬` or `{` anywhere else in running prose never splits a
     /// message.
-    private static func isMessageStart(_ block: BlockMarkup) -> Bool {
-        guard let para = block as? Paragraph else { return false }
-        let text = plainText(of: para).drop { $0.isWhitespace }
+    private static func isMessageStart(_ block: CMarkNode) -> Bool {
+        guard block.kind == .paragraph else { return false }
+        let text = plainText(of: block).drop { $0.isWhitespace }
         return text.hasPrefix(commentEmoji) || text.first == "{"
     }
 
@@ -74,20 +81,24 @@ enum CommentSerialization {
     /// `{…}` block — even an empty or partial one), that paragraph is the header
     /// and the rest is the body. Otherwise the whole group is an unattributed
     /// body.
-    private static func buildMessage(_ blocks: [BlockMarkup]) -> CommentMessage {
-        if let para = blocks.first as? Paragraph {
+    private static func buildMessage(
+        _ blocks: [CMarkNode], lines: [String]
+    ) -> CommentMessage {
+        if let para = blocks.first, para.kind == .paragraph {
             let (author, created, inlineBody, isHeader) =
                 parseAttribution(plainText(of: para))
             if isHeader {
                 var parts: [String] = []
                 if !inlineBody.isEmpty { parts.append(inlineBody) }
-                parts.append(contentsOf: blocks.dropFirst().map(formatBlock))
+                if let body = sliceBody(blocks.dropFirst(), lines: lines) {
+                    parts.append(body)
+                }
                 return CommentMessage(
                     author: author, created: created,
                     body: parts.joined(separator: "\n\n"))
             }
         }
-        let body = blocks.map(formatBlock).joined(separator: "\n\n")
+        let body = sliceBody(blocks[...], lines: lines) ?? ""
         return CommentMessage(author: nil, created: nil, body: body)
     }
 
@@ -239,15 +250,21 @@ enum CommentSerialization {
 
     // MARK: - Helpers
 
-    /// Recursively collects the text of a markup node. `plainText` is not
-    /// available on every block type (notably `BlockQuote`), so we walk the
-    /// inline descendants ourselves: `Text` and `InlineCode` contribute their
-    /// content; breaks contribute a space.
-    private static func plainText(of markup: Markup) -> String {
-        if let text = markup as? Markdown.Text { return text.string }
-        if let code = markup as? InlineCode { return code.code }
-        if markup is SoftBreak || markup is LineBreak { return " " }
-        return markup.children.map(plainText(of:)).joined()
+    /// Recursively collects the text of a node for the attribution grammar and
+    /// the quotation: a text or inline-code node contributes its literal (code
+    /// **without** its backticks, so a `{` inside code still reads as a brace),
+    /// a soft or hard break contributes a space, and every container joins its
+    /// children. Distinct from `CMarkNode.plainText`, which keeps the code
+    /// backticks and maps a hard break to a newline.
+    private static func plainText(of node: CMarkNode) -> String {
+        switch node.kind {
+        case .text, .inlineCode:
+            return node.literal ?? ""
+        case .softBreak, .lineBreak:
+            return " "
+        default:
+            return node.children.map(plainText(of:)).joined()
+        }
     }
 
     /// Collapses every run of whitespace (including block boundaries flattened by
@@ -256,9 +273,20 @@ enum CommentSerialization {
         text.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
     }
 
-    /// Renders a block back to Markdown, trimming the formatter's trailing
-    /// newline so joins stay uniform.
-    private static func formatBlock(_ block: BlockMarkup) -> String {
-        block.format().trimmingCharacters(in: .newlines)
+    /// The verbatim source of a run of top-level blocks: the full lines from
+    /// the first block's start through the last block's end, joined exactly as
+    /// they appear in `lines`. Slicing the source — rather than re-serializing
+    /// each block through a Markdown formatter — is what lets an unedited
+    /// message round-trip byte-for-byte (the Stage 7 property of
+    /// Doc/Plans/2026-07-single-parser-rendering.md). Returns nil for an empty
+    /// run, or when a block reports line numbers outside the source.
+    private static func sliceBody(
+        _ blocks: ArraySlice<CMarkNode>, lines: [String]
+    ) -> String? {
+        guard let first = blocks.first, let last = blocks.last else { return nil }
+        let start = first.startLine
+        let end = last.endLine
+        guard start >= 1, end >= start, end <= lines.count else { return nil }
+        return lines[(start - 1)...(end - 1)].joined(separator: "\n")
     }
 }

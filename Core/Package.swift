@@ -8,13 +8,11 @@ let package = Package(
         .library(name: "MudCore", targets: ["MudCore"]),
     ],
     dependencies: [
-        .package(
-            url: "https://github.com/swiftlang/swift-markdown.git",
-            from: "0.5.0"
-        ),
-        // swift-cmark is already in the graph transitively via swift-markdown.
-        // Match swift-markdown's own URL and version range exactly so SwiftPM
-        // unifies them to a single version (swift-markdown drives the choice).
+        // The single Markdown parser. Mud links cmark-gfm directly; the
+        // swift-markdown wrapper it used to render through was removed in
+        // Stage 6–7 of Doc/Plans/2026-07-single-parser-rendering.md. Pinned to
+        // 0.8.0 (via Package.resolved), the version `CMarkDocument`'s
+        // hard-coded parse options are calibrated to.
         .package(
             url: "https://github.com/swiftlang/swift-cmark.git",
             from: "0.7.0"
@@ -24,7 +22,6 @@ let package = Package(
         .target(
             name: "MudCore",
             dependencies: [
-                .product(name: "Markdown", package: "swift-markdown"),
                 .product(name: "cmark-gfm", package: "swift-cmark"),
                 .product(name: "cmark-gfm-extensions", package: "swift-cmark"),
             ],

@@ -1,13 +1,15 @@
-import Markdown
 import Testing
 
 @testable import MudCore
 
 /// Stage 1 of Doc/Plans/2026-07-single-parser-rendering.md: the `CMarkDocument`
-/// wrapper. Beyond unit-testing the wrapper itself, the two parity suites at
-/// the bottom compare it directly against swift-markdown — ranges and text
-/// literals must match byte-for-byte, because that is the contract every later
-/// stage's port relies on.
+/// wrapper. These unit-test the wrapper's kinds, ranges, walker, lifetime, and
+/// smart-typography literals directly. (Through Stage 6 a parity suite here
+/// also compared every range and text literal against swift-markdown; that
+/// cross-check was scaffolding for the port and left with the dependency in
+/// Stage 7. The range conventions it guarded — exclusive upper bound, UTF-8
+/// byte columns, backtick widening — are now pinned as self-contained golden
+/// slices below.)
 @Suite("CMarkDocument")
 struct CMarkDocumentTests {
 
@@ -267,139 +269,28 @@ struct CMarkDocumentTests {
         }
     }
 
-    // MARK: - Parity with swift-markdown
+    // MARK: - Multibyte range conventions (golden)
 
-    private struct RangeRecord: Equatable, CustomStringConvertible {
-        let label: String
-        let startLine: Int
-        let startColumn: Int
-        let endLine: Int
-        let endColumn: Int
+    /// The range conventions the whole port relies on, pinned as byte slices
+    /// through a multibyte source (through Stage 6 these were checked against
+    /// swift-markdown; the cross-check left with the dependency). `ö` and `é`
+    /// are two UTF-8 bytes each, so every token after them sits at a byte
+    /// column past its character column — the case that separates UTF-8 byte
+    /// columns from character columns. Inline code slices include the widening
+    /// backticks; the other delimited inlines slice their own fences.
+    @Test func multibyteRangesSliceEveryInlineToken() throws {
+        let source = "Para *em* **st** `cö` [li](u) and ~~sk~~ døne."
+        let document = try #require(CMarkDocument(parsing: source))
 
-        var description: String {
-            "\(label) \(startLine):\(startColumn)..<\(endLine):\(endColumn)"
+        func onlySlice(_ kind: CMarkNodeKind) throws -> String {
+            let node = try #require(nodes(ofKind: kind, in: document).first)
+            return slice(source, try #require(node.verifiedRange))
         }
-    }
 
-    /// The kinds compared across both parsers, keyed by a shared label.
-    private static let comparedKinds: [CMarkNodeKind: String] = [
-        .heading: "heading", .paragraph: "paragraph", .emphasis: "emphasis",
-        .strong: "strong", .inlineCode: "inlineCode", .link: "link",
-        .strikethrough: "strikethrough", .text: "text",
-    ]
-
-    private struct CMarkRangeCollector: CMarkWalker {
-        var records: [RangeRecord] = []
-
-        mutating func defaultVisit(_ node: CMarkNode) {
-            if let label = CMarkDocumentTests.comparedKinds[node.kind],
-               let range = node.range {
-                records.append(RangeRecord(
-                    label: label,
-                    startLine: range.lowerBound.line,
-                    startColumn: range.lowerBound.column,
-                    endLine: range.upperBound.line,
-                    endColumn: range.upperBound.column))
-            }
-            descendInto(node)
-        }
-    }
-
-    private struct SwiftMarkdownRangeCollector: MarkupWalker {
-        var records: [RangeRecord] = []
-
-        mutating func defaultVisit(_ markup: Markup) {
-            let label: String? = switch markup {
-            case is Markdown.Heading: "heading"
-            case is Markdown.Paragraph: "paragraph"
-            case is Markdown.Emphasis: "emphasis"
-            case is Markdown.Strong: "strong"
-            case is Markdown.InlineCode: "inlineCode"
-            case is Markdown.Link: "link"
-            case is Markdown.Strikethrough: "strikethrough"
-            case is Markdown.Text: "text"
-            default: nil
-            }
-            if let label, let range = markup.range {
-                records.append(RangeRecord(
-                    label: label,
-                    startLine: range.lowerBound.line,
-                    startColumn: range.lowerBound.column,
-                    endLine: range.upperBound.line,
-                    endColumn: range.upperBound.column))
-            }
-            descendInto(markup)
-        }
-    }
-
-    /// Parses `source` with both parsers and asserts the collected range
-    /// records match exactly.
-    private func expectRangesMatchSwiftMarkdown(
-        _ source: String,
-        sourceLocation: Testing.SourceLocation = #_sourceLocation
-    ) throws {
-        let document = try #require(
-            CMarkDocument(parsing: source), sourceLocation: sourceLocation)
-        var cmarkSide = CMarkRangeCollector()
-        cmarkSide.visit(document.root)
-
-        var swiftMarkdownSide = SwiftMarkdownRangeCollector()
-        swiftMarkdownSide.visit(Markdown.Document(parsing: source))
-
-        #expect(!cmarkSide.records.isEmpty, sourceLocation: sourceLocation)
-        #expect(
-            cmarkSide.records == swiftMarkdownSide.records,
-            sourceLocation: sourceLocation)
-    }
-
-    /// The wrapper's range conventions must equal swift-markdown's exactly —
-    /// including the multibyte characters that make byte columns diverge from
-    /// character columns, and the backtick widening on inline code. The
-    /// corpus documents are ASCII-only sources, so this hand-written document
-    /// keeps the multibyte case covered.
-    @Test func rangeConventionsMatchSwiftMarkdown() throws {
-        try expectRangesMatchSwiftMarkdown("""
-            # Héading
-
-            Para *em* **st** `cö` [li](u) and ~~sk~~ døne.
-            """)
-    }
-
-    /// The same range comparison over the whole corpus. Footnote-bearing
-    /// documents are excluded for the same reason as
-    /// `textLiteralsMatchSwiftMarkdown` below: swift-markdown is
-    /// footnote-unaware, so its tree differs there by design.
-    @Test(arguments: ParityCorpus.all.filter { !$0.markdown.contains("[^") })
-    func rangeConventionsMatchSwiftMarkdownOverCorpus(
-        _ corpusDocument: ParityCorpus.Document
-    ) throws {
-        try expectRangesMatchSwiftMarkdown(corpusDocument.markdown)
-    }
-
-    /// Both parsers must yield byte-identical text-node literals — the
-    /// smart-typography contract four subsystems are calibrated to.
-    /// Footnote-bearing documents are excluded: swift-markdown is
-    /// footnote-unaware, so its text stream differs there by design.
-    @Test(arguments: ParityCorpus.all.filter { !$0.markdown.contains("[^") })
-    func textLiteralsMatchSwiftMarkdown(
-        _ corpusDocument: ParityCorpus.Document
-    ) throws {
-        let document = try #require(
-            CMarkDocument(parsing: corpusDocument.markdown))
-        let cmarkLiterals = nodes(ofKind: .text, in: document)
-            .compactMap(\.literal)
-
-        struct TextCollector: MarkupWalker {
-            var literals: [String] = []
-            mutating func visitText(_ text: Markdown.Text) {
-                literals.append(text.string)
-            }
-        }
-        var swiftMarkdownSide = TextCollector()
-        swiftMarkdownSide.visit(
-            Markdown.Document(parsing: corpusDocument.markdown))
-
-        #expect(!cmarkLiterals.isEmpty)
-        #expect(cmarkLiterals == swiftMarkdownSide.literals)
+        #expect(try onlySlice(.emphasis) == "*em*")
+        #expect(try onlySlice(.strong) == "**st**")
+        #expect(try onlySlice(.inlineCode) == "`cö`")
+        #expect(try onlySlice(.strikethrough) == "~~sk~~")
+        #expect(try onlySlice(.link) == "[li](u)")
     }
 }

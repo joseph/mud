@@ -1,13 +1,11 @@
 Plan: Single-Parser Rendering
 ===============================================================================
 
-> Status: Underway (Stages 0–6 landed: the corpus, the `CMarkDocument` wrapper,
+> Status: Complete (Stages 0–7 landed: the corpus, the `CMarkDocument` wrapper,
 > the leaf-consumer ports, the `UpHTMLVisitor` and `DownHTMLVisitor` ports with
-> their harnesses, the diff-layer port, and the Stage 6 cutover — every
-> production render now runs on the cmark pipeline, `FootnoteProcessor` no
-> longer rewrites the source, and the legacy swift-markdown visitors and diff
-> layer are deleted. Stage 7 remains: port `CommentSerialization` and drop the
-> swift-markdown dependency from `Package.swift`.)
+> their harnesses, the diff-layer port, the Stage 6 cutover, and the Stage 7
+> `CommentSerialization` port. Every render runs on one cmark parse; the
+> swift-markdown dependency is removed from `Package.swift`.)
 
 Whether and how to consolidate Mud's rendering on one Markdown parser. Today
 every Up-mode render parses the document twice: once with cmark-gfm (via
@@ -666,6 +664,32 @@ test that a reply to a hand-written fixture leaves the earlier messages' bytes
 unchanged. This stage can trail the rest — the file has zero position coupling
 to the render parse, so the two-parser seam is gone even while the dependency
 lingers.
+
+**Landed (July 2026).** `CommentSerialization.parse` now runs one
+`CMarkDocument(parsing:)` over the de-indented body instead of a swift-markdown
+`Document`. The block grouping and the quotation/attribution logic are
+unchanged; the one real change is the message body. `formatBlock` (which ran
+each block through swift-markdown's `format()`, re-canonicalizing it) is gone.
+`sliceBody` replaces it: it takes the full source lines from a message's first
+block through its last and joins them verbatim. So a message no one edited
+round-trips byte-for-byte — better than before, where `format()` normalized
+every body on every rewrite. `plainText` was reimplemented on `CMarkNode` with
+the same semantics it had on `Markup` (inline code without its backticks, a
+break as a space), kept deliberately distinct from `CMarkNode.plainText`. The
+new `replyLeavesTheEarlierMessageBytesUnchanged` test pins the byte-identity
+property (its fixture uses `_emphasis_` and a specific list marker, both of
+which `format()` would have rewritten); the ten `roundTrip_*` cases still gate
+the inverse.
+
+With `CommentSerialization` off swift-markdown, the dependency left
+`Package.swift`. `CMarkDocumentTests` was the last cross-check against it — its
+range and text-literal parity suites were port scaffolding, so they were
+removed; the range conventions they guarded (exclusive upper bound, UTF-8 byte
+columns, backtick widening) are re-pinned as
+`multibyteRangesSliceEveryInlineToken`, a self-contained golden that slices
+each inline token out of a multibyte source. swift-cmark stays a direct
+dependency, pinned at 0.8.0 — the version `CMarkDocument`'s hard-coded parse
+options match. This completes the plan.
 
 
 ## Recommendation

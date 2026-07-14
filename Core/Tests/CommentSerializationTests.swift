@@ -418,4 +418,51 @@ struct CommentSerializationTests {
           author: "JP", created: ts("2026-06-01 18:33:00"), body: "A reply."),
       ])
   }
+
+  // MARK: - Byte identity
+
+  // Stage 7 of Doc/Plans/2026-07-single-parser-rendering.md: `parse` slices each
+  // message body verbatim out of the source instead of re-serializing it
+  // through a Markdown formatter. So a message no one has touched must survive a
+  // reply byte-for-byte — including formatting a formatter would have
+  // normalized (`_emphasis_` over `*emphasis*`, the exact list marker, the
+  // blank-line spacing). The old `format()`-based parse failed this by design.
+  @Test func replyLeavesTheEarlierMessageBytesUnchanged() {
+    let fixture = """
+      💬 {JP @ 2026-06-01 18:33:00}:
+
+      A body with:
+
+      * a bullet
+      * another bullet
+
+      and some _emphasis_.
+      """
+    let expectedBody = """
+      A body with:
+
+      * a bullet
+      * another bullet
+
+      and some _emphasis_.
+      """
+
+    var (quotation, messages) = CommentSerialization.parse(fixture)
+    #expect(messages.count == 1)
+    #expect(messages[0].body == expectedBody)
+
+    // Add a reply and serialize the whole thread, as `CommentEditor` would.
+    messages.append(
+      CommentMessage(
+        author: "Claude", created: ts("2026-06-01 18:40:00"),
+        body: "A reply."))
+    let serialized = CommentSerialization.serialize(
+      quotation: quotation, messages)
+
+    // Re-parsing the rewritten thread returns the first body byte-for-byte.
+    let (_, reparsed) = CommentSerialization.parse(serialized)
+    #expect(reparsed.count == 2)
+    #expect(reparsed[0].body == expectedBody)
+    #expect(reparsed[1].body == "A reply.")
+  }
 }

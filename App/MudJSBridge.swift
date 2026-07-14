@@ -217,8 +217,11 @@ final class MudJSBridge: NSObject, WKScriptMessageHandler {
     }
 
     /// Type-erases a call argument so a heterogeneous argument list encodes
-    /// as one JSON array.
-    private struct AnyEncodable: Encodable {
+    /// as one JSON array. `nonisolated` because this is a pure encoding wrapper
+    /// with no main-actor state: `script(for:args:)` builds its string off the
+    /// main actor, and `encode(to:)` must stay nonisolated to satisfy
+    /// `Encodable` under the target's default main-actor isolation.
+    private nonisolated struct AnyEncodable: Encodable {
         let value: any Encodable
         init(_ value: any Encodable) { self.value = value }
         func encode(to encoder: Encoder) throws {

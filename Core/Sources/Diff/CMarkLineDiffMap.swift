@@ -396,3 +396,37 @@ extension CMarkLineDiffMap {
         return block.sourceLine...(block.sourceLine + lineCount - 1)
     }
 }
+
+// MARK: - Line diff value types
+
+// Shared, parser-agnostic value types the line map projects into. They moved
+// here from the legacy `LineDiffMap` when it was deleted at the Stage 6
+// cutover. `Equatable` so diff-layer parity tests can compare projections.
+
+/// A line in the new document that belongs to a changed block.
+struct LineAnnotation: Equatable {
+    let changeID: String
+}
+
+/// A contiguous group of old-document lines to re-insert as deletions.
+struct DeletionGroup: Equatable {
+    /// Insert before this new-document line number (1-based).
+    /// `Int.max` for trailing deletions (after all new-doc lines).
+    let beforeNewLine: Int
+    /// Line range in the old document (1-based, closed).
+    let oldLineRange: ClosedRange<Int>
+    /// Change ID for `data-change-id` attributes and sidebar matching.
+    let changeID: String
+}
+
+/// Word-level diff data for a line within a paired block.
+struct BlockWordData: Equatable {
+    /// Word spans from `WordDiff.diff(old:new:)`.
+    let spans: [WordSpan]
+    /// This line's source text (raw markdown).
+    let sourceText: String
+    /// True for insertion lines, false for deletion lines.
+    let isInsertion: Bool
+    /// 1-based line number of this entry in its document.
+    let startLine: Int
+}

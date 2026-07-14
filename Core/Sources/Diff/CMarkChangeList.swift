@@ -1,13 +1,11 @@
-/// Projects a `CMarkChangePlan` into a flat list of document changes — the
-/// Stage 4 port of ``ChangeList``
-/// (Doc/Plans/2026-07-single-parser-rendering.md). The output types
-/// (`DocumentChange`, `ChangeType`) and the downstream grouping
-/// (`ChangeGroup.build(from:)`) are the legacy ones, unchanged: they carry
-/// no node references. The code-block projection and HTML-summary helpers
-/// are shared with the legacy list for the same reason.
-///
-/// **Parallel and unwired.** The sidebar still projects the legacy plan;
-/// this port has no live consumer until the Stage 6 cutover.
+/// Projects a `CMarkChangePlan` into a flat list of document changes for the
+/// sidebar — the port of the old swift-markdown `ChangeList`
+/// (Doc/Plans/2026-07-single-parser-rendering.md). Its output model
+/// (`DocumentChange` / `ChangeType`, defined below) and the downstream grouping
+/// (`ChangeGroup.build(from:)`) carry no node references, so they are shared,
+/// parser-agnostic value types — they moved here from the legacy list when it
+/// was deleted at the Stage 6 cutover. The code-block projection and
+/// HTML-summary helpers live here for the same reason.
 enum CMarkChangeList {
     /// Computes a list of changes between old and new documents.
     static func computeChanges(
@@ -70,7 +68,7 @@ enum CMarkChangeList {
                     lastSurvivingLine = change.block.sourceLine
 
                 case .codeBlockPair(let pair):
-                    ChangeList.emitCodeBlockChanges(
+                    Self.emitCodeBlockChanges(
                         pair.lines,
                         sourceLine: pair.insertion.block.sourceLine,
                         changes: &changes,
@@ -88,4 +86,95 @@ enum CMarkChangeList {
 
         return changes
     }
+
+    /// Emits `DocumentChange` entries for each changed line in a code block
+    /// pair. Lines sharing a change ID are grouped by the sidebar into a single
+    /// `ChangeGroup` with per-line summaries. Node-type-free, so it is shared
+    /// diff-list machinery rather than anything cmark-specific.
+    private static func emitCodeBlockChanges(
+        _ lines: [CodeBlockDiff.CodeLine], sourceLine: Int,
+        changes: inout [DocumentChange],
+        sawUnchangedSinceLastChange: inout Bool
+    ) {
+        var currentChangeID: String?
+
+        for line in lines {
+            guard let changeID = line.changeID,
+                  let groupID = line.groupID
+            else {
+                // Unchanged line — breaks consecutive run.
+                currentChangeID = nil
+                sawUnchangedSinceLastChange = true
+                continue
+            }
+
+            let isNewGroup = changeID != currentChangeID
+            currentChangeID = changeID
+
+            let type: ChangeType = line.annotation == .deleted
+                ? .deletion : .insertion
+            let consecutive = !changes.isEmpty
+                && !sawUnchangedSinceLastChange
+            changes.append(DocumentChange(
+                id: changeID,
+                type: type,
+                summary: summaryFromHTML(line.highlightedHTML),
+                sourceLine: sourceLine,
+                isConsecutive: isNewGroup ? consecutive : true,
+                groupID: groupID,
+                groupIndex: line.groupIndex ?? 0,
+                isMixed: false
+            ))
+            sawUnchangedSinceLastChange = false
+        }
+    }
+
+    /// Strips HTML tags and entities, truncates to ~60 characters.
+    private static func summaryFromHTML(_ html: String) -> String {
+        let text = html
+            .replacingOccurrences(
+                of: "<[^>]+>", with: "",
+                options: .regularExpression)
+            .replacingOccurrences(of: "&amp;", with: "&")
+            .replacingOccurrences(of: "&lt;", with: "<")
+            .replacingOccurrences(of: "&gt;", with: ">")
+            .replacingOccurrences(of: "&quot;", with: "\"")
+            .trimmingCharacters(in: .whitespaces)
+        guard text.count > 60 else { return text }
+        let prefix = text.prefix(60)
+        if let lastSpace = prefix.lastIndex(of: " ") {
+            return String(prefix[prefix.startIndex..<lastSpace]) + "…"
+        }
+        return String(prefix) + "…"
+    }
+}
+
+// MARK: - DocumentChange
+
+/// A single change entry for the sidebar list. `Equatable` so the diff-layer
+/// parity tests can compare projections directly. A shared, parser-agnostic
+/// value type (formerly inline in the legacy `ChangeList`).
+public struct DocumentChange: Identifiable, Sendable, Equatable {
+    public let id: String
+    public let type: ChangeType
+    public let summary: String
+    public let sourceLine: Int
+    /// True when this change immediately follows the previous change
+    /// with no unchanged block between them. Always false for the first
+    /// change. Used by the sidebar to group consecutive changes.
+    public let isConsecutive: Bool
+    /// The group this change belongs to (e.g. "group-1").
+    public let groupID: String
+    /// 1-based group index, used for badge numbering.
+    public let groupIndex: Int
+    /// True when the group contains both deletions and insertions
+    /// (from the change plan), even if only one type is emitted as a
+    /// DocumentChange (e.g. mermaid replacements suppress the deletion).
+    public let isMixed: Bool
+}
+
+/// The type of a document change.
+public enum ChangeType: Sendable, Equatable {
+    case insertion
+    case deletion
 }

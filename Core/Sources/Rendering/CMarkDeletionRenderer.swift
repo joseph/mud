@@ -115,3 +115,36 @@ extension CMarkDiffContext {
             })
     }
 }
+
+// MARK: - Rendered deletion
+
+/// A pre-rendered deleted block, ready for injection into the HTML output — a
+/// shared, parser-agnostic value type (it moved here from the legacy
+/// `DiffContext` when that was deleted at the Stage 6 cutover).
+struct RenderedDeletion {
+    /// The inner HTML content of the deleted block (no outer tag).
+    let html: String
+    /// The change ID matching the sidebar entry.
+    let changeID: String
+    /// Plain-text summary of the deleted content.
+    let summary: String
+    /// The native HTML tag for this block (e.g. "p", "li", "tr", "pre").
+    let tag: String
+    /// Word-level diff spans when this deletion is paired with an insertion.
+    /// `nil` when unpaired or when inline structure diverges.
+    let wordSpans: [WordSpan]?
+    /// Extra CSS classes to add to the outer tag (e.g. alert classes).
+    let extraClasses: String?
+
+    init(
+        html: String, changeID: String, summary: String, tag: String,
+        wordSpans: [WordSpan]? = nil, extraClasses: String? = nil
+    ) {
+        self.html = html
+        self.changeID = changeID
+        self.summary = summary
+        self.tag = tag
+        self.wordSpans = wordSpans
+        self.extraClasses = extraClasses
+    }
+}

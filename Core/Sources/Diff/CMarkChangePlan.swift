@@ -432,3 +432,33 @@ extension CMarkChangePlan {
         return plan
     }
 }
+
+// MARK: - Group info
+
+/// Position of a change within its group.
+enum GroupPos: String {
+    case first, middle, last, sole
+}
+
+/// A group's content type, emitted as `data-group-type` so the overlay
+/// JS never re-derives it from CSS classes.
+enum GroupType: String {
+    case ins, del, mix
+}
+
+/// Describes a change's membership in a consecutive group — a shared,
+/// parser-agnostic value type `CMarkChangePlan` produces (it moved here from
+/// the legacy `ChangePlan` when that was deleted at the Stage 6 cutover).
+struct GroupInfo {
+    /// The group identifier (e.g. "group-1").
+    let groupID: String
+    /// Position within the group.
+    let groupPos: GroupPos
+    /// 1-based group index, used for badge numbers.
+    let groupIndex: Int
+    /// Whether the group holds insertions, deletions, or both.
+    let type: GroupType
+
+    /// True when the group contains both deletions and insertions.
+    var isMixed: Bool { type == .mix }
+}

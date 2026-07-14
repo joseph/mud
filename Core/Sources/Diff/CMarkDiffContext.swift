@@ -185,3 +185,12 @@ private struct AnnotationEntry {
         self.wordSpans = wordSpans
     }
 }
+
+// MARK: - Block annotation
+
+/// The type of change for a block in the new document — a shared,
+/// parser-agnostic value type (it moved here from the legacy `DiffContext`
+/// when that was deleted at the Stage 6 cutover).
+enum BlockAnnotation: Equatable {
+    case inserted
+}

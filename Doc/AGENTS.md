@@ -358,13 +358,22 @@ MVP plan.
   it.
 - `mud.js` — Shared JS: find, scroll, lighting, zoom
 - `mud-changes.js` — Change tracking JS: overlays, expand/collapse, navigation
+- `mud-comment-anchor.js` — Shared comment-anchoring primitives
+  (`Mud.commentAnchor`): the leaf-block and marker-free-text rules that both
+  comment scripts use to map a rendered-DOM position to a block of source text.
+  `HTMLTemplate.mudCommentsJS` concatenates it ahead of `mud-comments.js`, so
+  it ships wherever the read side does (app and exports); the write side,
+  injected separately, sees it too. The one skip rule (comment markers and
+  footnote references) matches `CommentAnchor.swift`.
 - `mud-comments.js` — Comments column (read side, bundled everywhere): projects
   a capsule per comment from the hidden bottom section, anchors quotation
   highlights off the hidden markers, runs the slot solver, and on `setData`
-  rebuilds the section + syncs body markers + reprojects in place (no reload)
+  rebuilds the section + syncs body markers + reprojects in place (no reload).
+  Uses `Mud.commentAnchor` for the leaf-block rules
 - `mud-comments-edit.js` — Comments column (write side, app only): the Add
   Comment button on a commentable selection, the compose box, and the
-  submit/reply/edit/delete bridge (`mudCommentSubmit`)
+  submit/reply/edit/delete bridge (`mudCommentSubmit`). Uses
+  `Mud.commentAnchor` for the selection-to-source-byte locator
 - `mud-up.js` — Up-mode JS
 - `mud-down.js` — Down-mode JS
 - `emoji.json` — GitHub gemoji shortcode database

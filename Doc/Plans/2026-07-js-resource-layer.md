@@ -1,8 +1,7 @@
 Plan: JS Resource Layer
 ===============================================================================
 
-> Status: Underway (Slices 1–4 landed; Slice 5 remaining, Slice 6 deferred by
-> decision)
+> Status: Underway (Slices 1–5 landed; Slice 6 deferred by decision)
 
 Phase 6 of the [architecture review](./2026-07-architecture-improvements.md).
 The JS/CSS resource layer (`Core/Sources/Resources/`) is where a few small,
@@ -247,11 +246,31 @@ the one intentional behavior change in Phase 6.
 `CommentAnchorParityTests` (Swift) already pins the JS DOM rules over a wide
 corpus and is the safety net.
 
-**Test:** `CommentAnchorParityTests` still passes (extend its corpus with a
-block that mixes a footnote reference and a comment so the unified skip rule is
-covered); manual add/reply/edit of a comment in a paragraph that also has a
-footnote reference, confirming the marker lands exactly and does not fall back
-to a quotation search.
+**Landed (2026-07-15).** New `mud-comment-anchor.js` exports
+`Mud.commentAnchor` =
+`{ normalizeWS, isMarkerElement, isInnermostLeaf, markerFreeText, leafBlock, occurrenceOf }`
+(with `LEAF_BLOCK_TAGS` / `LEAF_BLOCK_SELECTOR` private). Both comment scripts
+deleted their local copies and alias from it; `mud-comments-edit.js` wraps
+`leafBlock` / `occurrenceOf` to bind `container` as the root, so its call sites
+are unchanged. `HTMLTemplate.mudCommentsJS` concatenates the anchor part ahead
+of the read-side file, so the one injected and export-inlined string publishes
+`Mud.commentAnchor` before `Mud.comments`.
+
+The unified `markerFreeText` / `isMarkerElement` now skip footnote references
+as well as comment markers. Two read-side call sites use the marker-free text:
+`findBlockByOccurrence` (block match) and `blockTextMap` (the char → node map
+for exact placement) — both were updated, so a block that holds a footnote
+reference now matches _and_ places at the right offset. `buildIndex` is
+deliberately left as-is: it feeds the quotation-search fallback and the
+highlight anchoring, which match against the stored quotation (footnote
+superscript included), so its text must keep the reference.
+
+**Test:** `CommentAnchorParityTests` gains `footnoteReferenceInBlockAnchors` (a
+paragraph with a footnote reference resolves through `CommentAnchor`);
+`CommentResourcesTests` gains `commentsJSCarriesSharedAnchorPart`. Manual:
+add/reply/edit a comment in a paragraph that also has a footnote reference and
+confirm the marker lands exactly rather than falling back to a quotation
+search.
 
 
 ### Slice 6 (optional, do last): split `mud-comments.js` by subsystem

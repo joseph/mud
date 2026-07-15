@@ -46,6 +46,18 @@ struct CommentResourcesTests {
     #expect(html.contains(".mud-compose"))
   }
 
+  @Test func readSideListsWriteSideSwiftCallableSlots() {
+    // The read-side API literal declares resolveCompose / setHoldBanner as null
+    // slots so it lists the whole Swift-callable surface, even though the write
+    // side (mud-comments-edit.js) supplies the real functions.
+    let read = HTMLTemplate.mudCommentsJS
+    #expect(read.contains("resolveCompose"))
+    #expect(read.contains("setHoldBanner"))
+    let write = HTMLTemplate.mudCommentsEditJS
+    #expect(write.contains("resolveCompose"))
+    #expect(write.contains("setHoldBanner"))
+  }
+
   @Test func markerClassAgreesWithTheJSLayer() {
     // The Swift emitter, the read-side projection (mud-comments.js), and the
     // write-side locator (mud-comments-edit.js) all name the marker element by

@@ -1,8 +1,8 @@
 Plan: JS Resource Layer
 ===============================================================================
 
-> Status: Underway (Slices 1–3 landed; Slices 4–5 remaining, Slice 6 deferred
-> by decision)
+> Status: Underway (Slices 1–4 landed; Slice 5 remaining, Slice 6 deferred by
+> decision)
 
 Phase 6 of the [architecture review](./2026-07-architecture-improvements.md).
 The JS/CSS resource layer (`Core/Sources/Resources/`) is where a few small,
@@ -210,8 +210,16 @@ read-side API object the single list of everything Swift can call, matching how
 **Risk:** none — the slots are `null` until the write side loads, exactly as
 today (the properties simply don't exist until then).
 
-**Test:** existing tests; confirm the app's comment reply/edit and the hold
-banner still work.
+**Landed (2026-07-15).** `resolveCompose` and `setHoldBanner` are now `null`
+slots in the read-side `api` literal, right after the `hooks` block, each with
+a one-line comment naming the write side as the filler and Swift as the caller.
+`mud-comments-edit.js` still assigns the real functions on load, overwriting
+the nulls. `CommentResourcesTests` gains
+`readSideListsWriteSideSwiftCallableSlots`, asserting both names appear in the
+read-side and write-side resources.
+
+**Test:** existing tests plus the new assertion; confirm the app's comment
+reply/edit and the hold banner still work.
 
 
 ### Slice 5: one shared comment-anchoring part-file

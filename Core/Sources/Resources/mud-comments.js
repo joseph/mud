@@ -1057,7 +1057,12 @@
       extraItems: null,       // [{el, preferred, height}] for the compose form
       ownedNodes: null,       // nodes project() must not remove
       onHide: null            // column closing: cancel an in-progress compose
-    }
+    },
+    // Filled in by the write side (mud-comments-edit.js); Swift calls these
+    // through the bridge. Null until that file loads, so this literal lists the
+    // whole Swift-callable surface in one place.
+    resolveCompose: null,     // deliver a submit outcome to the open compose box
+    setHoldBanner: null       // show/hide the "file changed on disk" banner
   };
   window.Mud.comments = api;
 

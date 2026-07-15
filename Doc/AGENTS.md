@@ -352,6 +352,10 @@ MVP plan.
 - `mud-print.css` — Print styles: every `@media print` rule, gathered out of
   the mode and comments stylesheets. Included last in both Up and Down
   documents so its rules win over the on-screen defaults.
+- `mud-find.css` — Find highlight styles (search match colors), themed via the
+  lighting variables in `mud.css`. Appended to both Up and Down documents only
+  when `!options.standalone`, so exports (which have no Find bar) never carry
+  it.
 - `mud.js` — Shared JS: find, scroll, lighting, zoom
 - `mud-changes.js` — Change tracking JS: overlays, expand/collapse, navigation
 - `mud-comments.js` — Comments column (read side, bundled everywhere): projects

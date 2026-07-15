@@ -4,18 +4,6 @@
 (function () {
   "use strict";
 
-  // -- Self-inject styles (not in CSS files — kept out of HTML exports) -----
-
-  var STYLE = document.createElement("style");
-  STYLE.textContent =
-    "mark.mud-match{background-color:#fde68a;color:inherit;border-radius:2px}" +
-    "mark.mud-match-active{background-color:#f59e0b;outline:2px solid #d97706;outline-offset:-1px}" +
-    "@media(prefers-color-scheme:dark){" +
-    "mark.mud-match{background-color:rgba(253,230,138,0.3)}" +
-    "mark.mud-match-active{background-color:rgba(245,158,11,0.5);outline-color:rgba(217,119,6,0.7)}" +
-    "}";
-  document.head.appendChild(STYLE);
-
   function CONTAINER() {
     return document.querySelector(".up-mode-output")
         ? ".up-mode-output"

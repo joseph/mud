@@ -68,6 +68,24 @@ article {
 }
 
 
+/* -- Find highlight variables --------------------------------------------- */
+/* Consumed by mud-find.css (live app view only). */
+
+:root {
+  --find-match-bg: #fde68a;
+  --find-match-active-bg: #f59e0b;
+  --find-match-active-outline: #d97706;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --find-match-bg: rgba(253, 230, 138, 0.3);
+    --find-match-active-bg: rgba(245, 158, 11, 0.5);
+    --find-match-active-outline: rgba(217, 119, 6, 0.7);
+  }
+}
+
+
 /* -- Syntax highlighting -------------------------------------------------- */
 
 .hljs {

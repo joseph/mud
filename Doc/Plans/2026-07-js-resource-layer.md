@@ -1,7 +1,7 @@
 Plan: JS Resource Layer
 ===============================================================================
 
-> Status: Underway (Slices 1–2 landed; Slices 3–5 remaining, Slice 6 deferred
+> Status: Underway (Slices 1–3 landed; Slices 4–5 remaining, Slice 6 deferred
 > by decision)
 
 Phase 6 of the [architecture review](./2026-07-architecture-improvements.md).
@@ -180,10 +180,21 @@ Update `Doc/AGENTS.md`'s resource list to add `mud-find.css`.
 
 **Risk:** low.
 
-**Test:** a new `CommentResourcesTests`-style assertion that `mud.js` no longer
-contains `mud-match` style text and `mud-find.css` does; manual check that Find
-highlights read correctly on each theme in both light and dark lighting, and
-that an exported HTML file contains no Find styles.
+**Landed (2026-07-15).** New `mud-find.css` holds the two `mark.mud-match`
+rules, now reading `--find-match-bg` / `--find-match-active-bg` /
+`--find-match-active-outline`. Those variables sit in `mud.css` next to the
+alert colors, with a `:root` light block and a `prefers-color-scheme: dark`
+override carrying the same hex/rgba values the JS string used. `mud.js` no
+longer builds or appends the `<style>` element. `HTMLTemplate.wrapUp` and
+`wrapDown` append `findCSS` before the print styles, gated on
+`!options.standalone`, so it reaches the live view in both modes and never an
+export. `Doc/AGENTS.md` lists the file.
+
+**Test:** `HTMLTemplateTests` gains `findStylesLiveViewOnly`,
+`findStylesInDownMode`, and `findStylesNotInJS` (live documents carry
+`mark.mud-match`, standalone exports don't, and `mudJS` no longer names the
+class). Manual: Find highlights read correctly on each theme in both light and
+dark lighting, and an exported HTML file contains no Find styles.
 
 
 ### Slice 4: list the Swift-callable JS API in one place

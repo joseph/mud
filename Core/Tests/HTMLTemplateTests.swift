@@ -160,6 +160,37 @@ struct HTMLTemplateTests {
         #expect(!HTMLTemplate.mudDownJS.isEmpty)
     }
 
+    // MARK: - Find styles
+
+    @Test func findStylesLiveViewOnly() {
+        // The live app view (standalone == false) carries the Find highlight
+        // styles; a standalone export omits them (no Find bar there).
+        let live = HTMLTemplate.wrapUp(body: "", options: .init())
+        #expect(live.contains("mark.mud-match"))
+
+        var export = RenderOptions()
+        export.standalone = true
+        let exported = HTMLTemplate.wrapUp(body: "", options: export)
+        #expect(!exported.contains("mark.mud-match"))
+    }
+
+    @Test func findStylesInDownMode() {
+        // Find works in both modes, so wrapDown carries the styles too.
+        let live = HTMLTemplate.wrapDown(bodyHTML: "", options: .init())
+        #expect(live.contains("mark.mud-match"))
+
+        var export = RenderOptions()
+        export.standalone = true
+        let exported = HTMLTemplate.wrapDown(bodyHTML: "", options: export)
+        #expect(!exported.contains("mark.mud-match"))
+    }
+
+    @Test func findStylesNotInJS() {
+        // The colors moved out of the mud.js self-injected <style> and into
+        // mud-find.css; mud.js no longer names the match class.
+        #expect(!HTMLTemplate.mudJS.contains("mud-match"))
+    }
+
     // MARK: - Render extensions
 
     @Test func mermaidExtensionRuntimeJSNotEmpty() {

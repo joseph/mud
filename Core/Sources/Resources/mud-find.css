@@ -1,0 +1,17 @@
+/* -- Find highlights ------------------------------------------------------ */
+/* The search-match colors. Injected only into the live app view (see
+   HTMLTemplate.wrapUp / wrapDown, gated on !options.standalone); kept out of
+   HTML exports, which have no Find bar. Colors come from the lighting
+   variables in mud.css so they track the active theme and light/dark. */
+
+mark.mud-match {
+  background-color: var(--find-match-bg);
+  color: inherit;
+  border-radius: 2px;
+}
+
+mark.mud-match-active {
+  background-color: var(--find-match-active-bg);
+  outline: 2px solid var(--find-match-active-outline);
+  outline-offset: -1px;
+}

@@ -10,6 +10,8 @@ public enum HTMLTemplate {
         // view; a read-only export omits them (see commentsEditCSS).
         if options.commentsEditable { doc.styles.append(commentsEditCSS) }
         if options.waypoint != nil { doc.styles.append(changesCSS) }
+        // Find styles only in the live app view — exports have no Find bar.
+        if !options.standalone { doc.styles.append(findCSS) }
         // Print overrides come last so they win over the on-screen defaults.
         doc.styles.append(printCSS)
         doc.cspImgSrc = options.blockRemoteContent
@@ -50,6 +52,8 @@ public enum HTMLTemplate {
         var doc = HTMLDocument(options: options)
         doc.styles = [themeCSS(for: options.theme), sharedCSS, downCSS]
         if options.waypoint != nil { doc.styles.append(changesCSS) }
+        // Find styles only in the live app view — exports have no Find bar.
+        if !options.standalone { doc.styles.append(findCSS) }
         // Print overrides come last so they win over the on-screen defaults.
         doc.styles.append(printCSS)
         doc.bodyContent = """
@@ -93,6 +97,14 @@ public enum HTMLTemplate {
 
     public static var changesCSS: String {
         loadResource("mud-changes", type: "css") ?? ""
+    }
+
+    /// Find highlight styles (`mud-find.css`): the search-match colors, themed
+    /// via the lighting variables in mud.css. Appended only when
+    /// `!options.standalone` — the live app view is the only place the Find bar
+    /// runs, so exports never carry these styles.
+    private static var findCSS: String {
+        loadResource("mud-find", type: "css") ?? ""
     }
 
     /// Print overrides (`mud-print.css`): every `@media print` rule, gathered

@@ -70,6 +70,20 @@ struct CommentAnchorParityTests {
     #expect(failingBlocks(ParityCorpus.smartTypography.markdown).isEmpty)
   }
 
+  @Test func footnoteReferenceInBlockAnchors() {
+    // A paragraph carrying an authorial footnote reference: the shared skip rule
+    // (mud-comment-anchor.js, matched by CommentAnchor) drops the reference's
+    // superscript from the block text, so the block still anchors byte-exactly.
+    // Before Slice 5 the read-side JS included the superscript and missed
+    // (Phase 3e); this pins the Swift half of that contract.
+    let markdown = """
+      A paragraph with a footnote[^n] partway through the sentence.
+
+      [^n]: The note body.
+      """
+    #expect(failingBlocks(markdown).isEmpty)
+  }
+
   // MARK: - Driver
 
   /// Renders `markdown`, extracts every leaf block the way the JS locator

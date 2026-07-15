@@ -140,8 +140,15 @@ public enum HTMLTemplate {
     /// Comment column (read side): projection from the hidden section, highlight
     /// anchoring, the slot solver, hover/activate. Injected at runtime by
     /// WKWebView; also the file inlined into HTML exports for a read-only column.
+    ///
+    /// The shared anchoring primitives (`mud-comment-anchor.js`) are concatenated
+    /// ahead of the read-side file so this one string carries both. The write
+    /// side (`mudCommentsEditJS`, app only) is injected separately and depends on
+    /// `Mud.commentAnchor` being published here first.
     public static var mudCommentsJS: String {
-        loadResource("mud-comments", type: "js") ?? ""
+        let anchor = loadResource("mud-comment-anchor", type: "js") ?? ""
+        let comments = loadResource("mud-comments", type: "js") ?? ""
+        return anchor + "\n" + comments
     }
 
     /// Comment column (write side): the Add button, compose box, and

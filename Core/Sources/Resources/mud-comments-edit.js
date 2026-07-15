@@ -89,16 +89,18 @@
     }
   };
 
-  // -- Locator (selection end → source byte), ported from the anchor path ----
+  // -- Locator (selection end → source byte) --------------------------------
 
-  var LEAF_BLOCK_TAGS = {
-    P: 1, LI: 1, TD: 1, TH: 1, H1: 1, H2: 1, H3: 1, H4: 1, H5: 1, H6: 1,
-    BLOCKQUOTE: 1, PRE: 1, DD: 1, DT: 1, FIGCAPTION: 1, CAPTION: 1, SUMMARY: 1
-  };
-  var LEAF_BLOCK_SELECTOR =
-    "p,li,td,th,h1,h2,h3,h4,h5,h6,blockquote,pre,dd,dt,figcaption,caption,summary";
-
-  function normalizeWS(s) { return s.replace(/\s+/g, " "); }
+  // The leaf-block / marker-text primitives are shared with the read side; see
+  // mud-comment-anchor.js. leafBlock and occurrenceOf are wrapped to bind the
+  // container as their root so the call sites below stay unchanged.
+  var anchor = window.Mud.commentAnchor;
+  var normalizeWS = anchor.normalizeWS;
+  var isMarkerElement = anchor.isMarkerElement;
+  function leafBlock(node) { return anchor.leafBlock(node, container); }
+  function occurrenceOf(block, blockText) {
+    return anchor.occurrenceOf(block, blockText, container);
+  }
 
   // -- Quotation truncation -------------------------------------------------
 
@@ -126,53 +128,6 @@
       }
     }
     return quote;
-  }
-
-  function isMarkerElement(node) {
-    return node.nodeType === Node.ELEMENT_NODE && node.classList &&
-      (node.classList.contains("mud-comment-marker") ||
-       node.classList.contains("footnote-ref"));
-  }
-
-  function leafBlock(node) {
-    var el = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
-    while (el && el !== container) {
-      if (LEAF_BLOCK_TAGS[el.tagName]) return el;
-      el = el.parentNode;
-    }
-    return null;
-  }
-
-  function isInnermostLeaf(el) {
-    return el.nodeType === Node.ELEMENT_NODE && LEAF_BLOCK_TAGS[el.tagName] &&
-      !el.querySelector(LEAF_BLOCK_SELECTOR);
-  }
-
-  function markerFreeText(el) {
-    var text = "";
-    (function walk(n) {
-      if (n.nodeType === Node.TEXT_NODE) { text += n.nodeValue; return; }
-      if (n.nodeType !== Node.ELEMENT_NODE || isMarkerElement(n)) return;
-      for (var c = n.firstChild; c; c = c.nextSibling) walk(c);
-    })(el);
-    return text;
-  }
-
-  function occurrenceOf(block, blockText) {
-    var target = normalizeWS(blockText).trim();
-    var count = 0, found = false;
-    (function walk(node) {
-      if (found || node.nodeType !== Node.ELEMENT_NODE) return;
-      if (node.classList && (node.classList.contains("comments") ||
-          node.classList.contains("footnotes"))) return;
-      if (isInnermostLeaf(node)) {
-        if (node === block) { found = true; return; }
-        if (normalizeWS(markerFreeText(node)).trim() === target) count++;
-        return;
-      }
-      for (var c = node.firstChild; c && !found; c = c.nextSibling) walk(c);
-    })(container);
-    return count;
   }
 
   function endLocator(range) {

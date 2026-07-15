@@ -186,7 +186,10 @@ struct WebView: NSViewRepresentable {
         //     scroll, zoom) that the later files call while the page runs.
         //   - mud-comments-edit.js (write side) follows mud-comments.js (read
         //     side): it fills in the read side's hooks and API slots, so the
-        //     read side must have published `Mud.comments` first.
+        //     read side must have published `Mud.comments` first. The read-side
+        //     string also carries the shared `Mud.commentAnchor` primitives
+        //     (mudCommentsJS concatenates mud-comment-anchor.js ahead of it),
+        //     which the write side depends on.
         let config = MudJSBridge.makeConfiguration(scripts: [
             HTMLTemplate.mudJS,
             HTMLTemplate.mudChangesJS,

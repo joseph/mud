@@ -30,9 +30,15 @@
   var rafPending = 0;
   var lastVisible = null;     // last applied visibility (idempotent setVisible)
 
-  function normalizeWS(s) {
-    return s.replace(/\s+/g, " ");
-  }
+  // Shared anchoring primitives (mud-comment-anchor.js, concatenated ahead of
+  // this file by HTMLTemplate). markerFreeText / isMarkerElement skip footnote
+  // references as well as comment markers, so exact marker placement now matches
+  // the write side in a block that also holds a footnote reference (Phase 3e).
+  var anchor = window.Mud.commentAnchor;
+  var normalizeWS = anchor.normalizeWS;
+  var isMarkerElement = anchor.isMarkerElement;
+  var isInnermostLeaf = anchor.isInnermostLeaf;
+  var markerFreeText = anchor.markerFreeText;
 
   // The element's top in layout (pre-zoom) pixels, summed up the offsetParent
   // chain to the body. Robust to the document `zoom`, which scales container and
@@ -841,30 +847,7 @@
   // Each entry carries the rendered `<li>` HTML plus, for a just-added comment,
   // the locator that places its body marker byte-exactly. Exports never call it.
 
-  var LEAF_BLOCK_TAGS = {
-    P: 1, LI: 1, TD: 1, TH: 1, H1: 1, H2: 1, H3: 1, H4: 1, H5: 1, H6: 1,
-    BLOCKQUOTE: 1, PRE: 1, DD: 1, DT: 1, FIGCAPTION: 1, CAPTION: 1, SUMMARY: 1
-  };
-  var LEAF_BLOCK_SELECTOR =
-    "p,li,td,th,h1,h2,h3,h4,h5,h6,blockquote,pre,dd,dt,figcaption,caption,summary";
-
   function cssEsc(s) { return window.CSS && CSS.escape ? CSS.escape(s) : s; }
-
-  function isInnermostLeaf(el) {
-    return el.nodeType === Node.ELEMENT_NODE && LEAF_BLOCK_TAGS[el.tagName] &&
-      !el.querySelector(LEAF_BLOCK_SELECTOR);
-  }
-
-  function markerFreeText(el) {
-    var t = "";
-    (function w(n) {
-      if (n.nodeType === Node.TEXT_NODE) { t += n.nodeValue; return; }
-      if (n.nodeType !== Node.ELEMENT_NODE) return;
-      if (n.classList && n.classList.contains("mud-comment-marker")) return;
-      for (var c = n.firstChild; c; c = c.nextSibling) w(c);
-    })(el);
-    return t;
-  }
 
   function hasMarker(label) {
     return !!container.querySelector(
@@ -899,6 +882,10 @@
     return result;
   }
 
+  // The block's characters with a parallel char → (textNode, offset) map. Skips
+  // the same marker elements as markerFreeText (comment markers and footnote
+  // references), so the char index the write side computed over its marker-free
+  // block text lands on the right node here.
   function blockTextMap(block) {
     var text = "", map = [];
     (function w(n) {
@@ -907,8 +894,7 @@
         for (var i = 0; i < v.length; i++) { text += v[i]; map.push({ node: n, offset: i }); }
         return;
       }
-      if (n.nodeType !== Node.ELEMENT_NODE) return;
-      if (n.classList && n.classList.contains("mud-comment-marker")) return;
+      if (n.nodeType !== Node.ELEMENT_NODE || isMarkerElement(n)) return;
       for (var c = n.firstChild; c; c = c.nextSibling) w(c);
     })(block);
     return { text: text, map: map };

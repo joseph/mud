@@ -15,6 +15,16 @@ struct CommentResourcesTests {
     #expect(js.contains("mud-comment-highlight"))
   }
 
+  @Test func commentsJSCarriesSharedAnchorPart() {
+    // mudCommentsJS concatenates mud-comment-anchor.js ahead of the read-side
+    // file, so the one injected/inlined string publishes Mud.commentAnchor and
+    // then Mud.comments. Both comment scripts consume the shared primitives.
+    let read = HTMLTemplate.mudCommentsJS
+    #expect(read.contains("Mud.commentAnchor"))
+    #expect(read.contains("Mud.comments"))
+    #expect(HTMLTemplate.mudCommentsEditJS.contains("commentAnchor"))
+  }
+
   @Test func commentsEditJSIsBundled() {
     let js = HTMLTemplate.mudCommentsEditJS
     #expect(js.contains("mudCommentSubmit"))

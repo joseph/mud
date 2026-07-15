@@ -315,6 +315,28 @@ file is next touched for a feature, or drop it. If we do it, each part-file
 lands as its own commit so a regression is easy to bisect, and
 `Doc/AGENTS.md`'s resource list is updated for each new file.
 
+**Reconsidered (2026-07-15): still deferred.** Two points, one new:
+
+- The file is already split into ten labeled sections
+  (`// -- Highlight anchoring`, `// -- Placement pass`, `// -- Live updates`,
+  …) that mark the exact subsystem boundaries a file-split would cut on. A
+  section jump (`/^  // --/`) or an editor outline already finds any one of
+  them, so the split buys "don't scroll", not "can now find things".
+- A genuine split has to pick between two mechanisms, both with a real
+  downside. **Option A** — separate valid IIFEs plus a shared `state` object —
+  keeps every part-file lint-clean but rewrites all ~55 accesses to `capsules`
+  / `quotationByLabel` / `activeLabel` / `container` through the object, each a
+  chance for a silent typo in a file with no JS tests. **Option B** —
+  concatenate fragments (a head part opens the IIFE, a tail closes it, the
+  middles are bare declarations) — keeps behavior byte-identical and rewrites
+  nothing, but each middle part-file is invalid JS on its own, so editors,
+  prettier, and eslint all choke on it.
+
+So the trade is a broad untestable rewrite (A) or intentionally-invalid
+fragments (B), both spent on navigability the section banners already deliver.
+Keep the deferral; do the split (Option A) opportunistically when this file is
+next touched for a feature, so it rides along on a manual pass already needed.
+
 
 ## Testing
 

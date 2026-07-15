@@ -243,6 +243,35 @@
     document.documentElement.style.zoom = level;
   }
 
+  // -- Geometry ------------------------------------------------------------
+
+  // Shared zoom/position helpers for the app-only overlay and comment-column
+  // files (mud-changes.js, mud-comments-edit.js). The document `zoom` on <html>
+  // scales the whole layout, so getBoundingClientRect reports zoomed viewport
+  // pixels while overlays and capsules position in pre-zoom layout pixels; these
+  // convert between the two. (mud-comments.js keeps its own offsetParent-based
+  // layoutTop instead of using this — it is inlined into exports without mud.js,
+  // so it must stay self-contained.)
+  var geometry = {
+    // The current document zoom factor (1 when unset).
+    zoom: function () {
+      return parseFloat(document.documentElement.style.zoom) || 1;
+    },
+    // A rect's top as an absolute position from the document top, in layout
+    // pixels — the same space mud-comments.js's layoutTop returns, via the
+    // viewport rect and page scroll (used where an offsetParent walk isn't
+    // handy, e.g. a selection range).
+    layoutTopFromRect: function (rect) {
+      return (rect.top + window.scrollY) / geometry.zoom();
+    },
+    // A viewport Y coordinate converted to a position relative to a container's
+    // scrolled content: subtract the container's viewport top, undo the zoom,
+    // then add the container's scrollTop.
+    viewportToLayout: function (viewportY, containerRect, scrollTop) {
+      return (viewportY - containerRect.top) / geometry.zoom() + scrollTop;
+    }
+  };
+
   // -- Public namespace ----------------------------------------------------
 
   // Merge rather than assign, so the namespace is built the same defensive way
@@ -263,6 +292,7 @@
     setClass: setClass,
     setZoom: setZoom,
     scrollToHeading: scrollToHeading,
-    scrollToLine: scrollToLine
+    scrollToLine: scrollToLine,
+    geometry: geometry
   });
 })();

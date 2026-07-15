@@ -1,8 +1,8 @@
 Plan: JS Resource Layer
 ===============================================================================
 
-> Status: Underway (Slice 1 landed; Slices 2–5 remaining, Slice 6 deferred by
-> decision)
+> Status: Underway (Slices 1–2 landed; Slices 3–5 remaining, Slice 6 deferred
+> by decision)
 
 Phase 6 of the [architecture review](./2026-07-architecture-improvements.md).
 The JS/CSS resource layer (`Core/Sources/Resources/`) is where a few small,
@@ -114,29 +114,49 @@ Changes, and Comments still work in the app.
 
 ### Slice 2: one geometry helper
 
-Add `Mud.geometry` in `mud.js` with the three primitives the three files
-reimplement:
+Add `Mud.geometry` in `mud.js` and route the app-only overlay and comment-edit
+files through it, so the four `parseFloat(…style.zoom) || 1` reads and the
+scattered viewport→layout conversions have one home.
+
+**An export constraint shapes the split.** `mud-comments.js` is inlined into
+exports (Quick Look, browser) _without_ `mud.js`, so it cannot reference
+`Mud.geometry`. Its `layoutTop` is a pure `offsetTop` summation with no zoom
+read, so it is already self-contained and stays exactly where it is. The
+overlay file also matters: `mud-changes.js` runs its first `buildOverlays()` at
+load, _before_ `mud-comments.js` is injected, so the helper has to live in
+`mud.js` (injected first), not in the comments file.
+
+So `Mud.geometry` holds the zoom-dependent conversions the two app-only files
+share:
 
 - `zoom()` — `parseFloat(document.documentElement.style.zoom) || 1`.
-- `layoutTop(el)` — the `offsetTop` summation up the `offsetParent` chain
-  (moved verbatim from `mud-comments.js`).
-- `viewportTop(rect, containerRect, scrollTop)` — the
-  `(rect.top - containerRect.top) / zoom() + scrollTop` conversion the overlay
-  and compose-position code share.
+- `layoutTopFromRect(rect)` — `(rect.top + window.scrollY) / zoom()`, a rect's
+  absolute top in layout pixels (the same space `mud-comments.js`'s `layoutTop`
+  returns), for the compose position where an `offsetParent` walk isn't handy.
+- `viewportToLayout(viewportY, containerRect, scrollTop)` —
+  `(viewportY - containerRect.top) / zoom() + scrollTop`, the overlay
+  positioning conversion, taking a scalar Y so both `rect.top` and
+  `rect.bottom` callers use it.
 
-Then replace the copies:
+Consumers:
 
 - `mud-changes.js`: `positionOverlay` and `positionCollapsedOverlay` call
-  `Mud.geometry.viewportTop` / `Mud.geometry.zoom`.
-- `mud-comments.js`: `layoutTop` becomes a thin call to
-  `Mud.geometry.layoutTop` (or the local name is repointed at it).
-- `mud-comments-edit.js`: `zoom()` and `rangePosition` call the helper.
+  `geo.viewportToLayout` / `geo.zoom`.
+- `mud-comments-edit.js`: the local `zoom()` delegates to `geo.zoom()` and
+  `rangePosition` calls `geo.layoutTopFromRect`.
+- `mud-comments.js`: unchanged (export-safe `layoutTop` stays local).
 
-Keep each call site's exact arithmetic; this is a de-duplication, not a change
-to how anything is positioned.
+Each call site keeps its exact arithmetic; this is a de-duplication, not a
+change to how anything is positioned. When Slice 5 introduces the shared
+part-file that exports also inline, `layoutTop` could move into it and
+`mud-comments.js` could join the other consumers.
 
 **Risk:** low, but this is positioning math, so it needs a careful before/after
 visual check.
+
+**Landed (2026-07-15).** `Mud.geometry` added to `mud.js` with the three
+functions above; `mud-changes.js` and `mud-comments-edit.js` capture a `geo`
+alias and call through it. No raw `style.zoom` read remains outside `mud.js`.
 
 **Test:** manual — overlays, capsules, and the compose box sit in the same
 place before and after, at zoom levels other than 100%.

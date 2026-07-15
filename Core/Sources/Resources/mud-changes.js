@@ -5,6 +5,9 @@
 (function () {
   "use strict";
 
+  // Shared zoom/position helpers, seeded by mud.js (injected first).
+  var geo = window.Mud.geometry;
+
   // -- Overlays ---------------------------------------------------------------
 
   var _overlays = {};       // groupID → overlay element
@@ -115,12 +118,12 @@
       overlay.style.display = "none";
       return;
     }
-    var zoom = parseFloat(document.documentElement.style.zoom) || 1;
     var firstRect = visible[0].getBoundingClientRect();
     var lastRect = visible[visible.length - 1].getBoundingClientRect();
     overlay.style.display = "";
-    overlay.style.top = ((firstRect.top - containerRect.top) / zoom + scrollTop) + "px";
-    overlay.style.height = ((lastRect.bottom - firstRect.top) / zoom) + "px";
+    overlay.style.top =
+      geo.viewportToLayout(firstRect.top, containerRect, scrollTop) + "px";
+    overlay.style.height = ((lastRect.bottom - firstRect.top) / geo.zoom()) + "px";
   }
 
   /// Position a collapsed del-only overlay at the gap where its
@@ -139,11 +142,10 @@
     while (prev && prev.offsetParent === null) {
       prev = prev.previousElementSibling;
     }
-    var zoom = parseFloat(document.documentElement.style.zoom) || 1;
     var top;
     if (prev) {
       var prevRect = prev.getBoundingClientRect();
-      top = (prevRect.bottom - containerRect.top) / zoom + scrollTop;
+      top = geo.viewportToLayout(prevRect.bottom, containerRect, scrollTop);
     } else {
       // No previous visible sibling — find the next visible sibling instead
       // and position at its top edge.
@@ -153,11 +155,11 @@
       }
       if (next) {
         var nextRect = next.getBoundingClientRect();
-        top = (nextRect.top - containerRect.top) / zoom + scrollTop;
+        top = geo.viewportToLayout(nextRect.top, containerRect, scrollTop);
       } else {
         // No visible siblings at all — use the parent's top edge.
         var parentRect = first.parentElement.getBoundingClientRect();
-        top = (parentRect.top - containerRect.top) / zoom + scrollTop;
+        top = geo.viewportToLayout(parentRect.top, containerRect, scrollTop);
       }
     }
     overlay.style.display = "";

@@ -20,6 +20,8 @@
 
   var col = window.Mud.comments;
   var COMPOSE_H = col.constants.COMPOSE_H;
+  // Shared zoom/position helpers, seeded by mud.js (injected first).
+  var geo = window.Mud.geometry;
 
   // New-comment compose state.
   var draft = null;         // { quotation, locator, position } for the selection
@@ -28,14 +30,13 @@
   var pendingResolve = null; // resolver awaiting the native submit ack
 
   function zoom() {
-    return parseFloat(document.documentElement.style.zoom) || 1;
+    return geo.zoom();
   }
 
   // The selection's top, in layout pixels — the compose form's preferred
   // position, matching the space the read-side placement pass works in.
   function rangePosition(range) {
-    var r = range.getBoundingClientRect();
-    return Math.max(0, (r.top + window.scrollY) / zoom());
+    return Math.max(0, geo.layoutTopFromRect(range.getBoundingClientRect()));
   }
 
   function setComposing(on) {

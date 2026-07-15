@@ -1,8 +1,10 @@
 Plan: Architecture Improvements
 ===============================================================================
 
-> Status: Underway (Phases 1–4 landed; Phases 5–6 and the single-parser
-> decision remaining)
+> Status: Underway (Phases 1–4 landed, and the single-parser rework of decision
+> 4 landed in full — see
+> [2026-07-single-parser-rendering.md](./2026-07-single-parser-rendering.md);
+> Phases 5–6 remaining)
 
 A full architecture review of Mud (July 2026), covering the App target, the
 MudCore rendering and diff subsystems, the Preferences package, the CLI / Quick
@@ -950,6 +952,16 @@ the foundation for Phase 2.
     Recorded as decided. Staging unchanged: after Phases 2–3, with
     3e's parity suite in place first. This decision also settles
     decision 3 — see my reply there.
+
+    💬 {Claude @ 2026-07-14 12:00:00}:
+
+    Landed in full. The staged port ran through Stages 0–7 of
+    2026-07-single-parser-rendering.md: the `CMarkDocument` wrapper,
+    the leaf-consumer ports, the Up and Down visitor ports, the
+    diff-layer port, the Stage 6 cutover, and the Stage 7
+    `CommentSerialization` port. Every render now runs on one cmark
+    parse, and swift-markdown is out of `Package.swift`. That plan is
+    marked Complete.
 
 [^comment-e]: > if memory ever shows up;
 

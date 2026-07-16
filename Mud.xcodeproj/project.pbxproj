@@ -29,6 +29,7 @@
 		7C33EC1C2F97143F00B293B6 /* MudThumbnail.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 7C33EC122F97143F00B293B6 /* MudThumbnail.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		7C33EC292F97154700B293B6 /* MudCore in Frameworks */ = {isa = PBXBuildFile; productRef = 7C33EC282F97154700B293B6 /* MudCore */; };
 		7C3640B52F60DC2C00364BEC /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C3640B42F60DC2C00364BEC /* AppState.swift */; };
+		7CADD1000000000000005EF2 /* Pref.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CADD1000000000000005EF1 /* Pref.swift */; };
 		7C3640C52F60FCF400364BEC /* MarkdownSettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C3640C42F60FCF400364BEC /* MarkdownSettingsView.swift */; };
 		7C3C65D82F93304A00AE0BB7 /* MudCore in Frameworks */ = {isa = PBXBuildFile; productRef = 7C3C65D72F93304A00AE0BB7 /* MudCore */; };
 		7C3C65DA2F93304A00AE0BB7 /* MudPreferences in Frameworks */ = {isa = PBXBuildFile; productRef = 7C3C65D92F93304A00AE0BB7 /* MudPreferences */; };
@@ -167,6 +168,7 @@
 		7C33EC122F97143F00B293B6 /* MudThumbnail.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MudThumbnail.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		7C33EC132F97143F00B293B6 /* QuickLookThumbnailing.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = QuickLookThumbnailing.framework; path = System/Library/Frameworks/QuickLookThumbnailing.framework; sourceTree = SDKROOT; };
 		7C3640B42F60DC2C00364BEC /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
+		7CADD1000000000000005EF1 /* Pref.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pref.swift; sourceTree = "<group>"; };
 		7C3640C42F60FCF400364BEC /* MarkdownSettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownSettingsView.swift; sourceTree = "<group>"; };
 		7C442A612F3450190046E0CD /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		7C442A642F3457C20046E0CD /* DocumentController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentController.swift; sourceTree = "<group>"; };
@@ -393,6 +395,7 @@
 				7CC975362F340286001C3BB7 /* MudApp.swift */,
 				7C442A612F3450190046E0CD /* AppDelegate.swift */,
 				7C3640B42F60DC2C00364BEC /* AppState.swift */,
+				7CADD1000000000000005EF1 /* Pref.swift */,
 				7CC975842F340FD2001C3BB7 /* FileWatcher.swift */,
 				7C6B316D2F3A228000F6A4E8 /* DeferMutation.swift */,
 				7C134FC32F813A020020BF91 /* View+Modify.swift */,
@@ -779,6 +782,7 @@
 				7CE6B5B02F83E899006A9BCA /* GitProvider.swift in Sources */,
 				7CDA110B2FA30D010000000C /* WaypointProvider.swift in Sources */,
 				7C3640B52F60DC2C00364BEC /* AppState.swift in Sources */,
+				7CADD1000000000000005EF2 /* Pref.swift in Sources */,
 				7C573B4F2FD0072100646B07 /* CommentController.swift in Sources */,
 				7C442A682F34BB7E0046E0CD /* DocumentWindowController.swift in Sources */,
 				7CE6B5A82F833DB3006A9BCA /* Date+Formatting.swift in Sources */,

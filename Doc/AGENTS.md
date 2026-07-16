@@ -72,6 +72,9 @@ MVP plan.
 - `MudApp.swift` — @main, menu commands
 - `AppState.swift` — Singleton observable state; persistence delegated to
   `MudPreferences.shared`
+- `Pref.swift` — `@Pref` property wrapper: live read/write of a
+  `MudPreferences` value on an `ObservableObject`, firing `objectWillChange` on
+  set (the one declaration each `AppState` preference collapses to)
 - `ActiveDocument.swift` — `ActiveDocumentSnapshot` (the key document window's
   menu-relevant facts) and `ActiveDocumentObserver`, the key-window watcher
   that publishes it

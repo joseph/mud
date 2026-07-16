@@ -1,7 +1,7 @@
 Plan: Preference Plumbing
 ===============================================================================
 
-> Status: Planning
+> Status: Underway
 
 Phase 5 of the [architecture review](./2026-07-architecture-improvements.md).
 The last remaining phase (Phases 1–4 and the single-parser rework landed; Phase
@@ -67,6 +67,23 @@ value on AppState. Two consequences make the other two sites disappear:
   invalidates every AppState view. With live reads, an external change only has
   to fire one blanket `objectWillChange.send()`; the views re-read fresh values
   themselves.
+
+**One consumer needs rework first: the AppKit sinks in
+`DocumentWindowController`.** Four preferences (`lighting`, `viewToggles`,
+`changesEnabled`, `uiUseHeadingAsTitle`) have a second consumer besides
+SwiftUI: a Combine sink in `DocumentWindowController` subscribes to each one's
+`AppState.shared.$X` publisher to update window chrome — the window appearance,
+three toolbar buttons, and the window title. `@Pref` provides no per-property
+publisher. Rather than keep those four `@Published` (a carve-out that would
+leave part of the triple in place), the sinks consolidate: every one of those
+updates is a cheap, idempotent application of the _current_ value — none
+compares old against new — so one sink on `AppState.shared.objectWillChange`
+can call a single refresh method that re-reads live values and applies all of
+them (see [DocumentWindowController after](#documentwindowcontroller-after)).
+The alternative — giving `@Pref` a projected publisher — was rejected: it can't
+work with live reads, because an external `defaults write` couldn't feed a
+per-property subject without rebuilding exactly the per-key plumbing this plan
+deletes.
 
 The wrapper mirrors Swift's own `@Published` "enclosing instance" subscript, so
 that `\AppState.theme` stays a `ReferenceWritableKeyPath`. That keeps the
@@ -134,14 +151,12 @@ it ever fails, the closure `init(get:set:)` form sidesteps it entirely.
 ### AppState after
 
 ```swift
-@Pref(\.theme)              var theme: Theme
+// Every preference: one line each.
 @Pref(\.lighting)           var lighting: Lighting
+@Pref(\.theme)              var theme: Theme
+@Pref(\.viewToggles)        var viewToggles: Set<ViewToggle>
 @Pref(\.quitOnClose)        var quitOnClose: Bool
 // …the other simple prefs, one line each…
-
-// ViewToggle fan-in is no longer special: MudPreferences.viewToggles already
-// fans the Set across its five keys, so the whole-Set key path is enough.
-@Pref(\.viewToggles)        var viewToggles: Set<ViewToggle>
 
 // enabledExtensions is the one real special case: its default is a runtime
 // value the store does not own (the RenderExtension registry).
@@ -152,7 +167,7 @@ it ever fails, the closure `init(get:set:)` form sidesteps it entirely.
 ) var enabledExtensions: Set<String>
 
 private init() {
-  MudPreferences.shared.syncMirror()
+  MudPreferences.shared.syncMirror()      // nothing to seed: every read is live
   MudPreferences.shared.startObservingExternalChanges { [weak self] key in
     self?.reloadPreference(key)
   }
@@ -161,18 +176,19 @@ private init() {
 private func reloadPreference(_ key: MudPreferences.Keys) {
   switch key {
   case .openInDefaultBundleID, .openInDefaultFormat:
-    OpenInMenuModel.shared.refresh()          // a different ObservableObject
+    OpenInMenuModel.shared.refresh()        // a different ObservableObject
   case .upModeZoomLevel, .downModeZoomLevel, .sidebarPane,
        .hasLaunched, .cliInstalled, .cliSymlinkPath:
-    break                                     // per-window / internal: no AppState prop
+    break                                   // per-window / internal: no AppState prop
   default:
-    objectWillChange.send()                   // live-read: one blanket invalidation
+    objectWillChange.send()                 // one blanket invalidation; views re-read
   }
 }
 ```
 
-`toggle(_:)` is unchanged: mutating the `viewToggles` Set runs the wrapper's
-get-modify-set, firing one `objectWillChange` and writing the fanned-out Set.
+`toggle(_:)` keeps its shape: reading `viewToggles` copies the Set out through
+the wrapper, the mutation edits the copy, and the write-back runs the wrapper's
+setter — one `objectWillChange`, one store write.
 
 The Open In reroute stays explicit (its two keys drive a different
 `ObservableObject`, not an AppState property), and the per-window and
@@ -181,21 +197,82 @@ The Open In reroute stays explicit (its two keys drive a different
 window.
 
 
+### DocumentWindowController after
+
+The four per-property sinks in `observeState()` become one refresh method that
+reads live values and applies all the AppState-derived window chrome:
+
+```swift
+private func refreshAppStateChrome() {
+  let appState = AppState.shared
+  applyLighting(appState.lighting)
+  updateLightingButton(appState.lighting)
+  updateReadableColumnButton(appState.viewToggles.contains(.readableColumn))
+  updateChangesButton(appState.changesEnabled)
+  if appState.uiUseHeadingAsTitle, let title = state.contentTitle {
+    window?.title = title
+  } else {
+    window?.title = fileURL.lastPathComponent
+  }
+}
+```
+
+triggered by two sinks:
+
+```swift
+AppState.shared.objectWillChange
+  .receive(on: DispatchQueue.main)   // willChange fires before the write; re-read after
+  .sink { [weak self] _ in self?.refreshAppStateChrome() }
+  .store(in: &cancellables)
+
+state.$contentTitle                  // the title's other input
+  .receive(on: DispatchQueue.main)   // its replay + the hop set the initial title
+  .sink { [weak self] _ in self?.refreshAppStateChrome() }
+  .store(in: &cancellables)
+```
+
+Notes on why this is safe:
+
+- **The main-queue hop is required.** `objectWillChange` fires before the value
+  changes, so the sink must not read synchronously; the hop reads the settled
+  value one run-loop pass later, exactly as SwiftUI does. It also removes the
+  "use the emitted value, not the stale property" trap from these sinks —
+  everything re-reads after the change lands.
+- **Losing `@Published`'s replay-on-subscribe costs nothing.** The toolbar
+  buttons already seed themselves from live reads when the toolbar delegate
+  creates each item, and initial lighting is applied explicitly during window
+  setup. The initial window title comes from `state.$contentTitle`'s replay.
+- **Re-running on unrelated preference changes is fine.** Every update is an
+  idempotent property set (window appearance, toolbar images, title) —
+  negligible work. If it ever matters, a `removeDuplicates()` on a small
+  snapshot struct can gate it; don't start there.
+
+
 ### Part A commits
 
-1. **Add the `Pref` wrapper, unused.** New `App/Pref.swift`. Builds as dead
-   code; isolates the novel piece and its one risky compile detail for review.
-2. **Migrate two proof preferences, one of each consumption style.** `theme`
-   (set directly by a pane) and `commentReturnSaves` (bound with
+1. **Add the `Pref` wrapper, unused.** _(landed)_ New `App/Pref.swift`. Builds
+   as dead code; isolates the novel piece and its one risky compile detail for
+   review.
+2. **Migrate two proof preferences, one of each consumption style.** _(landed)_
+   `theme` (set directly by a pane) and `commentReturnSaves` (bound with
    `$appState.…`). Mixed `@Published` + `@Pref` state is safe — they share one
    `objectWillChange`. This is the go/no-go commit: confirm on the VM that a
    direct-set pane and a `$`-bound Toggle both still round-trip, and that a
    `defaults write` to `theme` updates the UI.
-3. **Migrate the remaining simple key-path preferences.** Each drops its
-   triple; its reload case folds into `default`.
-4. **Migrate the two set-valued cases,** `viewToggles` and `enabledExtensions`.
-5. **Collapse `reloadPreference` and slim `init`.** Reduce the switch to the
-   three-way form above and delete the init read block. Pure cleanup.
+3. **Migrate the remaining simple key-path preferences.** Twelve properties,
+   each dropping its triple; this adds the `default: objectWillChange.send()`
+   case their reload handlers fold into. The four chrome-consumed props and the
+   `enabledExtensions` escape hatch keep `@Published` and their explicit reload
+   cases for now.
+4. **Consolidate the `DocumentWindowController` sinks.** Replace the four
+   per-property sinks with the one `objectWillChange`-driven
+   `refreshAppStateChrome()`. `@Published` fires `objectWillChange` too, so
+   this lands while the four props are still `@Published` — an independently
+   verifiable pure refactor.
+5. **Finish the migration.** The four chrome props and the `enabledExtensions`
+   escape hatch become `@Pref`; `init` loses all seeding (just `syncMirror()`
+   and the observer registration remain); `reloadPreference` settles to the
+   Open In reroute, the per-window / internal breaks, and `default`.
 
 
 ## Part B: type `RenderOptions.theme` and move `Theme` into MudCore
@@ -295,11 +372,20 @@ checked by build plus a manual pass. Gate the risky steps:
   and a `$appState`-bound Toggle (`commentReturnSaves`) both write and redraw;
   `defaults write org.josephpearson.Mud theme blues` updates the open UI once
   (no oscillation — the `lastKnown` guard blocks the echo).
+- **Part A, commit 4 — chrome consolidation.** With the four props still
+  `@Published`: the lighting toolbar button and window appearance, the
+  readable-column button, the changes button, and the heading-as-title window
+  title all still update on in-app changes and on `defaults write`; the title
+  still tracks a document-heading edit; no flicker or double-apply at window
+  open.
 - **Part A, full migration.** Every `$appState.x` pane still round-trips
-  (Toggles, the DocC Picker, the Author TextField, the word-diff Slider); no
-  new "Publishing changes from within view updates" warning at the drag-handle
-  and `onChange` write sites; no perf regression rebuilding `RenderOptions` on
-  rapid edits (`viewToggles`/ `enabledExtensions` now recompute per read).
+  (Toggles, the DocC Picker, the Author TextField, the word-diff Slider); the
+  four chrome consumers (lighting, readable-column, changes, heading-as-title)
+  still react to both in-app and external `defaults write` changes, now via the
+  consolidated refresh; no new "Publishing changes from within view updates"
+  warning at the drag-handle and `onChange` write sites; no perf regression
+  rebuilding `RenderOptions` on rapid edits (`enabledExtensions` now recomputes
+  per read).
 - **Part B.** Each theme renders with its own CSS in the app and the CLI
   (`mud --theme=blues`), an unknown `--theme` still errors with the derived
   list, and an exported/Quick Look preview themes correctly.
@@ -312,6 +398,8 @@ checked by build plus a manual pass. Gate the risky steps:
 
 - `App/AppState.swift` — the triple to collapse (Part A).
 - `App/Pref.swift` — new wrapper (Part A).
+- `App/DocumentWindowController.swift` — the four per-property AppKit sinks to
+  consolidate into `refreshAppStateChrome()` (Part A, commit 4).
 - `App/OpenInEditor.swift`, `App/Settings/*.swift` — the reroute and the
   `$appState.x` bindings to preserve (Part A).
 - `Preferences/Sources/Theme.swift` → `Core/Sources/Theme.swift` — the move

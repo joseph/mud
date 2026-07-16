@@ -5,6 +5,11 @@ import MudCore
 
 class AppState: ObservableObject {
     static let shared = AppState()
+
+    // `lighting`, `viewToggles`, `changesEnabled`, and `uiUseHeadingAsTitle`
+    // keep `@Published`: an AppKit Combine sink in DocumentWindowController
+    // subscribes to each one's `$` publisher (toolbar buttons, window title),
+    // which `@Pref` can't vend. Every other preference is a live-read `@Pref`.
     @Published var lighting: Lighting {
         didSet { MudPreferences.shared.lighting = lighting }
     }
@@ -12,52 +17,28 @@ class AppState: ObservableObject {
     @Published var viewToggles: Set<ViewToggle> {
         didSet { MudPreferences.shared.viewToggles = viewToggles }
     }
-    @Published var commentColumnWidth: Double {
-        didSet { MudPreferences.shared.commentColumnWidth = commentColumnWidth }
-    }
-    @Published var sidebarEnabled: Bool {
-        didSet { MudPreferences.shared.sidebarEnabled = sidebarEnabled }
-    }
+    @Pref(\.commentColumnWidth) var commentColumnWidth: Double
+    @Pref(\.sidebarEnabled) var sidebarEnabled: Bool
     @Published var changesEnabled: Bool {
         didSet { MudPreferences.shared.changesEnabled = changesEnabled }
     }
-    @Published var changesShowInlineDeletions: Bool {
-        didSet { MudPreferences.shared.changesShowInlineDeletions = changesShowInlineDeletions }
-    }
-    @Published var quitOnClose: Bool {
-        didSet { MudPreferences.shared.quitOnClose = quitOnClose }
-    }
-    @Published var upModeAllowRemoteContent: Bool {
-        didSet { MudPreferences.shared.upModeAllowRemoteContent = upModeAllowRemoteContent }
-    }
-    @Published var markdownDocCAlertMode: DocCAlertMode {
-        didSet { MudPreferences.shared.markdownDocCAlertMode = markdownDocCAlertMode }
-    }
+    @Pref(\.changesShowInlineDeletions) var changesShowInlineDeletions: Bool
+    @Pref(\.quitOnClose) var quitOnClose: Bool
+    @Pref(\.upModeAllowRemoteContent) var upModeAllowRemoteContent: Bool
+    @Pref(\.markdownDocCAlertMode) var markdownDocCAlertMode: DocCAlertMode
     @Published var uiUseHeadingAsTitle: Bool {
         didSet { MudPreferences.shared.uiUseHeadingAsTitle = uiUseHeadingAsTitle }
     }
-    @Published var changesWordDiffThreshold: Double {
-        didSet { MudPreferences.shared.changesWordDiffThreshold = changesWordDiffThreshold }
-    }
-    @Published var uiFloatingControlsPosition: FloatingControlsPosition {
-        didSet { MudPreferences.shared.uiFloatingControlsPosition = uiFloatingControlsPosition }
-    }
-    @Published var changesShowGitWaypoints: Bool {
-        didSet { MudPreferences.shared.changesShowGitWaypoints = changesShowGitWaypoints }
-    }
+    @Pref(\.changesWordDiffThreshold) var changesWordDiffThreshold: Double
+    @Pref(\.uiFloatingControlsPosition) var uiFloatingControlsPosition: FloatingControlsPosition
+    @Pref(\.changesShowGitWaypoints) var changesShowGitWaypoints: Bool
     @Published var enabledExtensions: Set<String> {
         didSet { MudPreferences.shared.writeEnabledExtensions(enabledExtensions) }
     }
-    @Published var commentAuthor: String {
-        didSet { MudPreferences.shared.commentAuthor = commentAuthor }
-    }
+    @Pref(\.commentAuthor) var commentAuthor: String
     @Pref(\.commentReturnSaves) var commentReturnSaves: Bool
-    @Published var commentsIncludeInExport: Bool {
-        didSet { MudPreferences.shared.commentsIncludeInExport = commentsIncludeInExport }
-    }
-    @Published var commentsShowMarkers: Bool {
-        didSet { MudPreferences.shared.commentsShowMarkers = commentsShowMarkers }
-    }
+    @Pref(\.commentsIncludeInExport) var commentsIncludeInExport: Bool
+    @Pref(\.commentsShowMarkers) var commentsShowMarkers: Bool
 
     private init() {
         // Fan the current `defaults` values out to the app-group mirror so the
@@ -65,26 +46,17 @@ class AppState: ObservableObject {
         // changes made while the app was not running.
         MudPreferences.shared.syncMirror()
 
+        // Seed only the properties that keep a cached copy — the four
+        // `@Published` exceptions and `enabledExtensions`. Every `@Pref`
+        // reads the store live, so there is nothing to seed.
         let config = MudPreferences.shared
         self.lighting = config.lighting
         self.viewToggles = config.viewToggles
-        self.commentColumnWidth = config.commentColumnWidth
-        self.sidebarEnabled = config.sidebarEnabled
         self.changesEnabled = config.changesEnabled
-        self.changesShowInlineDeletions = config.changesShowInlineDeletions
-        self.quitOnClose = config.quitOnClose
-        self.upModeAllowRemoteContent = config.upModeAllowRemoteContent
-        self.markdownDocCAlertMode = config.markdownDocCAlertMode
         self.uiUseHeadingAsTitle = config.uiUseHeadingAsTitle
-        self.changesWordDiffThreshold = config.changesWordDiffThreshold
-        self.uiFloatingControlsPosition = config.uiFloatingControlsPosition
-        self.changesShowGitWaypoints = config.changesShowGitWaypoints
         self.enabledExtensions = config.readEnabledExtensions(
             defaultValue: Set(RenderExtension.registry.keys)
         )
-        self.commentAuthor = config.commentAuthor
-        self.commentsIncludeInExport = config.commentsIncludeInExport
-        self.commentsShowMarkers = config.commentsShowMarkers
 
         // Pick up `defaults write org.josephpearson.Mud …` made while the app
         // is running. The callback's `didSet` writes idempotently update the
@@ -95,52 +67,41 @@ class AppState: ObservableObject {
         }
     }
 
-    /// Re-read a single preference from `MudPreferences.shared` into the
-    /// matching `@Published` property. Called from the external-change
-    /// observer; ignores internal.* keys that have no AppState representative.
+    /// React to an external change to a single preference. The four
+    /// `@Published` properties re-read into their cached copy so their `$`
+    /// publisher fires the AppKit sink; every `@Pref` property falls into
+    /// `default`, where one `objectWillChange.send()` makes the views re-read
+    /// the live value. Ignores per-window and `internal.*` keys.
     private func reloadPreference(_ key: MudPreferences.Keys) {
         let c = MudPreferences.shared
         switch key {
-        case .lighting:                   self.lighting = c.lighting
-        case .theme:                      objectWillChange.send()
-        case .quitOnClose:                self.quitOnClose = c.quitOnClose
-        case .enabledExtensions:
-            self.enabledExtensions = c.readEnabledExtensions(
-                defaultValue: Set(RenderExtension.registry.keys)
-            )
-        case .changesEnabled:             self.changesEnabled = c.changesEnabled
-        case .changesShowInlineDeletions: self.changesShowInlineDeletions = c.changesShowInlineDeletions
-        case .changesShowGitWaypoints:    self.changesShowGitWaypoints = c.changesShowGitWaypoints
-        case .changesWordDiffThreshold:   self.changesWordDiffThreshold = c.changesWordDiffThreshold
-        case .upModeAllowRemoteContent:   self.upModeAllowRemoteContent = c.upModeAllowRemoteContent
-        case .uiCommentColumnWidth:       self.commentColumnWidth = c.commentColumnWidth
-        case .sidebarEnabled:             self.sidebarEnabled = c.sidebarEnabled
-        case .markdownDocCAlertMode:      self.markdownDocCAlertMode = c.markdownDocCAlertMode
-        case .uiUseHeadingAsTitle:        self.uiUseHeadingAsTitle = c.uiUseHeadingAsTitle
-        case .uiFloatingControlsPosition: self.uiFloatingControlsPosition = c.uiFloatingControlsPosition
-        case .commentAuthor:              self.commentAuthor = c.commentAuthor
-        case .commentReturnSaves:         objectWillChange.send()
-        case .commentsIncludeInExport:    self.commentsIncludeInExport = c.commentsIncludeInExport
-        case .commentsShowMarkers:        self.commentsShowMarkers = c.commentsShowMarkers
-        case .openInDefaultBundleID, .openInDefaultFormat:
-            OpenInMenuModel.shared.refresh()
-        // Every ViewToggle-backed key reloads the whole set — cheaper than
-        // duplicating the Key → ViewToggle lookup, and `viewToggles` is a
-        // small Set<ViewToggle>.
+        // The four `@Published` props: assign so their `$` publisher fires.
+        case .lighting:            self.lighting = c.lighting
+        case .changesEnabled:      self.changesEnabled = c.changesEnabled
+        case .uiUseHeadingAsTitle: self.uiUseHeadingAsTitle = c.uiUseHeadingAsTitle
+        // Every ViewToggle-backed key reloads the whole `@Published` Set —
+        // cheaper than duplicating the Key → ViewToggle lookup.
         case .changesAutoExpandGroups,
              .upModeShowCodeHeader,
              .downModeShowLineNumbers,
              .downModeWrapLines,
              .uiShowReadableColumn:
             self.viewToggles = c.viewToggles
+        // enabledExtensions is still `@Published` until its own commit.
+        case .enabledExtensions:
+            self.enabledExtensions = c.readEnabledExtensions(
+                defaultValue: Set(RenderExtension.registry.keys)
+            )
+        case .openInDefaultBundleID, .openInDefaultFormat:
+            OpenInMenuModel.shared.refresh()
         // Zoom and the sidebar-pane selection are per-window (DocumentState),
-        // not mirrored here; each window reads MudPreferences directly when
-        // it's created.
-        case .upModeZoomLevel, .downModeZoomLevel, .sidebarPane:
+        // not mirrored here; `internal.*` keys have no AppState representative.
+        case .upModeZoomLevel, .downModeZoomLevel, .sidebarPane,
+             .hasLaunched, .cliInstalled, .cliSymlinkPath:
             break
-        // internal.* — not exposed on AppState; mirror already updated.
-        case .hasLaunched, .cliInstalled, .cliSymlinkPath:
-            break
+        // Every `@Pref` preference: one blanket invalidation; views re-read.
+        default:
+            objectWillChange.send()
         }
     }
 

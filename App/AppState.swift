@@ -8,9 +8,7 @@ class AppState: ObservableObject {
     @Published var lighting: Lighting {
         didSet { MudPreferences.shared.lighting = lighting }
     }
-    @Published var theme: Theme {
-        didSet { MudPreferences.shared.theme = theme }
-    }
+    @Pref(\.theme) var theme: Theme
     @Published var viewToggles: Set<ViewToggle> {
         didSet { MudPreferences.shared.viewToggles = viewToggles }
     }
@@ -53,9 +51,7 @@ class AppState: ObservableObject {
     @Published var commentAuthor: String {
         didSet { MudPreferences.shared.commentAuthor = commentAuthor }
     }
-    @Published var commentReturnSaves: Bool {
-        didSet { MudPreferences.shared.commentReturnSaves = commentReturnSaves }
-    }
+    @Pref(\.commentReturnSaves) var commentReturnSaves: Bool
     @Published var commentsIncludeInExport: Bool {
         didSet { MudPreferences.shared.commentsIncludeInExport = commentsIncludeInExport }
     }
@@ -71,7 +67,6 @@ class AppState: ObservableObject {
 
         let config = MudPreferences.shared
         self.lighting = config.lighting
-        self.theme = config.theme
         self.viewToggles = config.viewToggles
         self.commentColumnWidth = config.commentColumnWidth
         self.sidebarEnabled = config.sidebarEnabled
@@ -88,7 +83,6 @@ class AppState: ObservableObject {
             defaultValue: Set(RenderExtension.registry.keys)
         )
         self.commentAuthor = config.commentAuthor
-        self.commentReturnSaves = config.commentReturnSaves
         self.commentsIncludeInExport = config.commentsIncludeInExport
         self.commentsShowMarkers = config.commentsShowMarkers
 
@@ -108,7 +102,7 @@ class AppState: ObservableObject {
         let c = MudPreferences.shared
         switch key {
         case .lighting:                   self.lighting = c.lighting
-        case .theme:                      self.theme = c.theme
+        case .theme:                      objectWillChange.send()
         case .quitOnClose:                self.quitOnClose = c.quitOnClose
         case .enabledExtensions:
             self.enabledExtensions = c.readEnabledExtensions(
@@ -125,7 +119,7 @@ class AppState: ObservableObject {
         case .uiUseHeadingAsTitle:        self.uiUseHeadingAsTitle = c.uiUseHeadingAsTitle
         case .uiFloatingControlsPosition: self.uiFloatingControlsPosition = c.uiFloatingControlsPosition
         case .commentAuthor:              self.commentAuthor = c.commentAuthor
-        case .commentReturnSaves:         self.commentReturnSaves = c.commentReturnSaves
+        case .commentReturnSaves:         objectWillChange.send()
         case .commentsIncludeInExport:    self.commentsIncludeInExport = c.commentsIncludeInExport
         case .commentsShowMarkers:        self.commentsShowMarkers = c.commentsShowMarkers
         case .openInDefaultBundleID, .openInDefaultFormat:

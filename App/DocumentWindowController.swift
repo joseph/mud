@@ -129,12 +129,16 @@ class DocumentWindowController: NSWindowController {
 
 
     private func observeState() {
-        AppState.shared.$lighting
-            .dropFirst()
-            .sink { [weak self] lighting in
-                self?.applyLighting(lighting)
-                self?.updateLightingButton(lighting)
-            }
+        // Every window-chrome bit that reflects an AppState preference —
+        // appearance, the lighting/readable-column/changes toolbar buttons, and
+        // the window title — refreshes from one sink. `objectWillChange` fires
+        // before the value settles (willSet timing), so hop to the next run-loop
+        // pass and re-read the live values in `refreshAppStateChrome`. Initial
+        // appearance is applied synchronously in `init` (before content setup,
+        // to avoid a flash); this sink only catches later changes.
+        AppState.shared.objectWillChange
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.refreshAppStateChrome() }
             .store(in: &cancellables)
 
         state.$mode
@@ -161,18 +165,6 @@ class DocumentWindowController: NSWindowController {
             }
             .store(in: &cancellables)
 
-        AppState.shared.$viewToggles
-            .sink { [weak self] toggles in
-                self?.updateReadableColumnButton(toggles.contains(.readableColumn))
-            }
-            .store(in: &cancellables)
-
-        AppState.shared.$changesEnabled
-            .sink { [weak self] enabled in
-                self?.updateChangesButton(enabled)
-            }
-            .store(in: &cancellables)
-
         // Keep the Open In toolbar button's icon and click behavior in step with
         // the chosen default editor (which any window can change). `$configured`
         // publishes in willSet, so use the emitted value, not the still-stale
@@ -187,16 +179,13 @@ class DocumentWindowController: NSWindowController {
             }
             .store(in: &cancellables)
 
+        // The window title has two inputs: this window's `contentTitle` and the
+        // `uiUseHeadingAsTitle` preference. The preference side rides the
+        // `objectWillChange` sink above; this covers the per-window side (and,
+        // via its replay through the hop, sets the initial title).
         state.$contentTitle
-            .combineLatest(AppState.shared.$uiUseHeadingAsTitle)
-            .sink { [weak self] title, useHeading in
-                guard let self, let window = self.window else { return }
-                if useHeading, let title {
-                    window.title = title
-                } else {
-                    window.title = self.fileURL.lastPathComponent
-                }
-            }
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.refreshAppStateChrome() }
             .store(in: &cancellables)
 
         model.$hasBackgroundReload
@@ -213,6 +202,24 @@ class DocumentWindowController: NSWindowController {
                     AppState.shared.sidebarEnabled = !collapsed
                 }
                 .store(in: &cancellables)
+        }
+    }
+
+    /// Apply the window chrome that reflects AppState preferences. Reads live
+    /// values and every update is idempotent, so any change signal — the shared
+    /// `objectWillChange`, or a `contentTitle` change for the title — can drive
+    /// it. Must be called after the change has settled (see `observeState`).
+    private func refreshAppStateChrome() {
+        let appState = AppState.shared
+        applyLighting(appState.lighting)
+        updateLightingButton(appState.lighting)
+        updateReadableColumnButton(appState.viewToggles.contains(.readableColumn))
+        updateChangesButton(appState.changesEnabled)
+
+        if appState.uiUseHeadingAsTitle, let title = state.contentTitle {
+            window?.title = title
+        } else {
+            window?.title = fileURL.lastPathComponent
         }
     }
 

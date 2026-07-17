@@ -35,15 +35,15 @@ otherwise:
 
 ```sh
 defaults write org.josephpearson.Mud theme -string earthy
-defaults write org.josephpearson.Mud changes.enabled -bool true
-defaults write org.josephpearson.Mud up-mode.zoom-level -float 1.25
+defaults write org.josephpearson.Mud changes-enabled -bool true
+defaults write org.josephpearson.Mud up-mode-zoom-level -float 1.25
 defaults write org.josephpearson.Mud enabled-extensions -array mermaid copy-code
 ```
 
 Remove a key (reverts to its built-in default on next read):
 
 ```sh
-defaults delete org.josephpearson.Mud ui.floating-controls-position
+defaults delete org.josephpearson.Mud ui-floating-controls-position
 ```
 
 Wipe every Mud preference in one go:
@@ -52,7 +52,7 @@ Wipe every Mud preference in one go:
 defaults delete org.josephpearson.Mud
 ```
 
-> Note: Mud owns a handful of `internal.*` bookkeeping keys (launch state,
+> Note: Mud owns a handful of `internal-*` bookkeeping keys (launch state,
 > window frame, CLI symlink path). They are not documented here — treat them as
 > private and let Mud manage them.
 
@@ -87,7 +87,7 @@ defaults write org.josephpearson.Mud theme -string blues
 ```
 
 
-### `ui.floating-controls-position` — string
+### `ui-floating-controls-position` — string
 
 Where the floating Changes bar anchors itself over the document.
 
@@ -96,11 +96,11 @@ Where the floating Changes bar anchors itself over the document.
 - `bottomCenter` _(default)_
 
 ```sh
-defaults write org.josephpearson.Mud ui.floating-controls-position -string topRight
+defaults write org.josephpearson.Mud ui-floating-controls-position -string topRight
 ```
 
 
-### `ui.use-heading-as-title` — bool
+### `ui-use-heading-as-title` — bool
 
 When on, Mud uses the document's first heading as the window title instead of
 the file name.
@@ -108,11 +108,11 @@ the file name.
 - Default: `true`
 
 ```sh
-defaults write org.josephpearson.Mud ui.use-heading-as-title -bool false
+defaults write org.josephpearson.Mud ui-use-heading-as-title -bool false
 ```
 
 
-### `ui.show-readable-column` — bool
+### `ui-show-readable-column` — bool
 
 Constrains the rendered body to a readable measure rather than filling the
 window. Equivalent to **View → Readable Column** (⌃⌘R).
@@ -120,13 +120,13 @@ window. Equivalent to **View → Readable Column** (⌃⌘R).
 - Default: `false`
 
 ```sh
-defaults write org.josephpearson.Mud ui.show-readable-column -bool true
+defaults write org.josephpearson.Mud ui-show-readable-column -bool true
 ```
 
 
 ## Up mode (rendered)
 
-### `up-mode.zoom-level` — float
+### `up-mode-zoom-level` — float
 
 Zoom factor for Up mode, where `1.0` is actual size. Cmd-+ / Cmd-- / Cmd-0
 write this key. Down mode has its own zoom level.
@@ -135,11 +135,11 @@ write this key. Down mode has its own zoom level.
 - Sensible range: `0.5` – `3.0`
 
 ```sh
-defaults write org.josephpearson.Mud up-mode.zoom-level -float 1.25
+defaults write org.josephpearson.Mud up-mode-zoom-level -float 1.25
 ```
 
 
-### `up-mode.allow-remote-content` — bool
+### `up-mode-allow-remote-content` — bool
 
 Allows `<img>` tags and other resources to load from `https://` URLs. When off,
 Mud restricts the renderer to local `mud-asset:` and `data:` URLs only.
@@ -147,11 +147,11 @@ Mud restricts the renderer to local `mud-asset:` and `data:` URLs only.
 - Default: `true`
 
 ```sh
-defaults write org.josephpearson.Mud up-mode.allow-remote-content -bool false
+defaults write org.josephpearson.Mud up-mode-allow-remote-content -bool false
 ```
 
 
-### `up-mode.show-code-header` — bool
+### `up-mode-show-code-header` — bool
 
 Shows the small language label and copy button in the header of each fenced
 code block.
@@ -159,36 +159,36 @@ code block.
 - Default: `true`
 
 ```sh
-defaults write org.josephpearson.Mud up-mode.show-code-header -bool false
+defaults write org.josephpearson.Mud up-mode-show-code-header -bool false
 ```
 
 
 ## Down mode (source)
 
-### `down-mode.zoom-level` — float
+### `down-mode-zoom-level` — float
 
-Zoom factor for Down mode. See `up-mode.zoom-level`; the two modes persist
+Zoom factor for Down mode. See `up-mode-zoom-level`; the two modes persist
 independently.
 
 - Default: `1.0`
 
 ```sh
-defaults write org.josephpearson.Mud down-mode.zoom-level -float 0.9
+defaults write org.josephpearson.Mud down-mode-zoom-level -float 0.9
 ```
 
 
-### `down-mode.show-line-numbers` — bool
+### `down-mode-show-line-numbers` — bool
 
 Shows a gutter of line numbers alongside the Markdown source.
 
 - Default: `true`
 
 ```sh
-defaults write org.josephpearson.Mud down-mode.show-line-numbers -bool false
+defaults write org.josephpearson.Mud down-mode-show-line-numbers -bool false
 ```
 
 
-### `down-mode.wrap-lines` — bool
+### `down-mode-wrap-lines` — bool
 
 Soft-wraps long lines in Down mode. When off, overflowing lines scroll
 horizontally.
@@ -196,13 +196,13 @@ horizontally.
 - Default: `true`
 
 ```sh
-defaults write org.josephpearson.Mud down-mode.wrap-lines -bool false
+defaults write org.josephpearson.Mud down-mode-wrap-lines -bool false
 ```
 
 
 ## Sidebar
 
-### `sidebar.enabled` — bool
+### `sidebar-enabled` — bool
 
 Whether the sidebar is open when a new window is created. Equivalent to **View
 → Show Sidebar** (⌃⌘S or F3).
@@ -210,11 +210,11 @@ Whether the sidebar is open when a new window is created. Equivalent to **View
 - Default: `false`
 
 ```sh
-defaults write org.josephpearson.Mud sidebar.enabled -bool true
+defaults write org.josephpearson.Mud sidebar-enabled -bool true
 ```
 
 
-### `sidebar.pane` — string
+### `sidebar-pane` — string
 
 Which pane the sidebar shows when it opens.
 
@@ -222,7 +222,7 @@ Which pane the sidebar shows when it opens.
 - `changes` — list of tracked changes
 
 ```sh
-defaults write org.josephpearson.Mud sidebar.pane -string changes
+defaults write org.josephpearson.Mud sidebar-pane -string changes
 ```
 
 
@@ -231,7 +231,7 @@ defaults write org.josephpearson.Mud sidebar.pane -string changes
 See [Change tracking](change-tracking.md) for the feature overview.
 
 
-### `changes.enabled` — bool
+### `changes-enabled` — bool
 
 Master on/off for the change-tracking feature. When off, Mud does not compute
 or display diffs at all.
@@ -239,11 +239,11 @@ or display diffs at all.
 - Default: `true`
 
 ```sh
-defaults write org.josephpearson.Mud changes.enabled -bool false
+defaults write org.josephpearson.Mud changes-enabled -bool false
 ```
 
 
-### `changes.show-inline-deletions` — bool
+### `changes-show-inline-deletions` — bool
 
 In Down mode, show the text of deleted lines inline in the gutter. When off,
 only a deletion marker is shown.
@@ -251,11 +251,11 @@ only a deletion marker is shown.
 - Default: `false`
 
 ```sh
-defaults write org.josephpearson.Mud changes.show-inline-deletions -bool true
+defaults write org.josephpearson.Mud changes-show-inline-deletions -bool true
 ```
 
 
-### `changes.show-git-waypoints` — bool
+### `changes-show-git-waypoints` — bool
 
 Include Git commit boundaries in the list of waypoints you can diff against, in
 addition to in-session waypoints.
@@ -263,22 +263,22 @@ addition to in-session waypoints.
 - Default: `false`
 
 ```sh
-defaults write org.josephpearson.Mud changes.show-git-waypoints -bool true
+defaults write org.josephpearson.Mud changes-show-git-waypoints -bool true
 ```
 
 
-### `changes.auto-expand-groups` — bool
+### `changes-auto-expand-groups` — bool
 
 Automatically expand collapsed change groups as they scroll into view.
 
 - Default: `false`
 
 ```sh
-defaults write org.josephpearson.Mud changes.auto-expand-groups -bool true
+defaults write org.josephpearson.Mud changes-auto-expand-groups -bool true
 ```
 
 
-### `changes.word-diff-threshold` — float
+### `changes-word-diff-threshold` — float
 
 Similarity threshold (0.0 – 1.0) that controls how aggressively Mud pairs
 deleted and inserted lines for word-level diffing. Lower values pair more pairs
@@ -287,13 +287,13 @@ as edits rather than separate delete/insert operations.
 - Default: `0.25`
 
 ```sh
-defaults write org.josephpearson.Mud changes.word-diff-threshold -float 0.4
+defaults write org.josephpearson.Mud changes-word-diff-threshold -float 0.4
 ```
 
 
 ## Markdown parsing
 
-### `markdown.docc-alert-mode` — string
+### `markdown-docc-alert-mode` — string
 
 Controls which DocC-style asides (`> Note:`, `> Tip:`, etc.) Mud renders as
 styled alert callouts.
@@ -304,7 +304,7 @@ styled alert callouts.
 - `extended` — common kinds plus extended aliases _(default)_
 
 ```sh
-defaults write org.josephpearson.Mud markdown.docc-alert-mode -string common
+defaults write org.josephpearson.Mud markdown-docc-alert-mode -string common
 ```
 
 
@@ -348,7 +348,7 @@ defaults write org.josephpearson.Mud quit-on-close -bool false
 
 ## Open in
 
-### `open-in.default-bundle-id` — string
+### `open-in-default-bundle-id` — string
 
 Bundle identifier of the application that **File → Open In… → <default>**
 (Cmd-Shift-E) launches with the current document. Set automatically when you
@@ -359,16 +359,16 @@ that unconfigured state.
 - Default: unset
 
 ```sh
-defaults read org.josephpearson.Mud open-in.default-bundle-id
-defaults write org.josephpearson.Mud open-in.default-bundle-id -string com.barebones.bbedit
-defaults delete org.josephpearson.Mud open-in.default-bundle-id
+defaults read org.josephpearson.Mud open-in-default-bundle-id
+defaults write org.josephpearson.Mud open-in-default-bundle-id -string com.barebones.bbedit
+defaults delete org.josephpearson.Mud open-in-default-bundle-id
 ```
 
 A stored bundle ID that no longer resolves (app uninstalled, moved) is treated
 as unset on the next menu rebuild and cleared automatically.
 
 
-### `open-in.default-format` — string
+### `open-in-default-format` — string
 
 Which representation of the document to hand to the configured editor.
 
@@ -384,7 +384,7 @@ picker is not offered in sandboxed builds (App Store), because the sandboxed
 temp location isn't readable by other apps — those builds always send markdown.
 
 ```sh
-defaults write org.josephpearson.Mud open-in.default-format -string html
+defaults write org.josephpearson.Mud open-in-default-format -string html
 ```
 
 
@@ -393,7 +393,7 @@ defaults write org.josephpearson.Mud open-in.default-format -string html
 Reset a single preference to its built-in default:
 
 ```sh
-defaults delete org.josephpearson.Mud ui.floating-controls-position
+defaults delete org.josephpearson.Mud ui-floating-controls-position
 ```
 
 Export your current Mud preferences to share with another machine:
@@ -414,6 +414,6 @@ floating Changes bar:
 ```sh
 defaults write org.josephpearson.Mud theme -string earthy
 defaults write org.josephpearson.Mud lighting -string dark
-defaults write org.josephpearson.Mud ui.show-readable-column -bool true
-defaults write org.josephpearson.Mud changes.enabled -bool false
+defaults write org.josephpearson.Mud ui-show-readable-column -bool true
+defaults write org.josephpearson.Mud changes-enabled -bool false
 ```

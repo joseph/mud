@@ -41,6 +41,11 @@ class AppState: ObservableObject {
     @Pref(\.commentsShowMarkers) var commentsShowMarkers: Bool
 
     private init() {
+        // Move any preference still stored under its old dotted name to the
+        // hyphenated name before anything reads or mirrors it. Dotted names
+        // broke external-change (KVO) detection; see `migrateLegacyKeys`.
+        MudPreferences.shared.migrateLegacyKeys()
+
         // Fan the current `defaults` values out to the app-group mirror so the
         // Quick Look extension sees a fresh snapshot of any `defaults write`
         // changes made while the app was not running.

@@ -91,46 +91,46 @@ extension MudPreferences {
         case quitOnClose                = "quit-on-close"
         case enabledExtensions          = "enabled-extensions"
 
-        // changes.* — diff display and change-tracking
-        case changesEnabled             = "changes.enabled"
-        case changesShowInlineDeletions = "changes.show-inline-deletions"
-        case changesShowGitWaypoints    = "changes.show-git-waypoints"
-        case changesAutoExpandGroups    = "changes.auto-expand-groups"
-        case changesWordDiffThreshold   = "changes.word-diff-threshold"
+        // changes-* — diff display and change-tracking
+        case changesEnabled             = "changes-enabled"
+        case changesShowInlineDeletions = "changes-show-inline-deletions"
+        case changesShowGitWaypoints    = "changes-show-git-waypoints"
+        case changesAutoExpandGroups    = "changes-auto-expand-groups"
+        case changesWordDiffThreshold   = "changes-word-diff-threshold"
 
-        // up-mode.* — rendered-HTML view options
-        case upModeZoomLevel            = "up-mode.zoom-level"
-        case upModeAllowRemoteContent   = "up-mode.allow-remote-content"
-        case upModeShowCodeHeader       = "up-mode.show-code-header"
+        // up-mode-* — rendered-HTML view options
+        case upModeZoomLevel            = "up-mode-zoom-level"
+        case upModeAllowRemoteContent   = "up-mode-allow-remote-content"
+        case upModeShowCodeHeader       = "up-mode-show-code-header"
 
-        // down-mode.* — source view options
-        case downModeZoomLevel          = "down-mode.zoom-level"
-        case downModeShowLineNumbers    = "down-mode.show-line-numbers"
-        case downModeWrapLines          = "down-mode.wrap-lines"
+        // down-mode-* — source view options
+        case downModeZoomLevel          = "down-mode-zoom-level"
+        case downModeShowLineNumbers    = "down-mode-show-line-numbers"
+        case downModeWrapLines          = "down-mode-wrap-lines"
 
-        // sidebar.* — sidebar state
-        case sidebarEnabled             = "sidebar.enabled"
-        case sidebarPane                = "sidebar.pane"
+        // sidebar-* — sidebar state
+        case sidebarEnabled             = "sidebar-enabled"
+        case sidebarPane                = "sidebar-pane"
 
-        // markdown.* — parser options
-        case markdownDocCAlertMode      = "markdown.docc-alert-mode"
+        // markdown-* — parser options
+        case markdownDocCAlertMode      = "markdown-docc-alert-mode"
 
-        // ui.* — UI chrome and cross-mode layout
-        case uiUseHeadingAsTitle        = "ui.use-heading-as-title"
-        case uiFloatingControlsPosition = "ui.floating-controls-position"
-        case uiShowReadableColumn       = "ui.show-readable-column"
-        case uiCommentColumnWidth       = "ui.comment-column-width"
+        // ui-* — UI chrome and cross-mode layout
+        case uiUseHeadingAsTitle        = "ui-use-heading-as-title"
+        case uiFloatingControlsPosition = "ui-floating-controls-position"
+        case uiShowReadableColumn       = "ui-show-readable-column"
+        case uiCommentColumnWidth       = "ui-comment-column-width"
 
-        // internal.* — app-owned bookkeeping
-        case hasLaunched                = "internal.has-launched"
-        case cliInstalled               = "internal.cli-installed"
-        case cliSymlinkPath             = "internal.cli-symlink-path"
+        // internal-* — app-owned bookkeeping
+        case hasLaunched                = "internal-has-launched"
+        case cliInstalled               = "internal-cli-installed"
+        case cliSymlinkPath             = "internal-cli-symlink-path"
 
-        // open-in.* — external-editor handoff
-        case openInDefaultBundleID         = "open-in.default-bundle-id"
-        case openInDefaultFormat           = "open-in.default-format"
+        // open-in-* — external-editor handoff
+        case openInDefaultBundleID         = "open-in-default-bundle-id"
+        case openInDefaultFormat           = "open-in-default-format"
 
-        // comment.* — comment authoring
+        // comment-* — comment authoring
         case commentAuthor                 = "comment-author"
         case commentReturnSaves            = "comment-return-saves"
         case commentsIncludeInExport       = "comments-include-in-export"
@@ -374,6 +374,33 @@ extension MudPreferences {
     public func reset() {
         for key in Keys.allCases {
             write(nil, forKey: key)
+        }
+    }
+
+    /// Move any preference still stored under its former dotted name to the
+    /// current hyphenated name, then delete the old entry from both `defaults`
+    /// and `mirror`. The keys were renamed because a KVO `forKeyPath` splits on
+    /// dots, so `defaults write` to a dotted key was never observed while the
+    /// app ran (see `keyRawValuesAreKebabCase`).
+    ///
+    /// The rename only turned dots into dashes, so the new name is the old name
+    /// with every `.` replaced by `-`. This scans the stored keys and applies
+    /// that transform, keeping only the ones that map to a real preference —
+    /// which also skips the dotted system keys (`com.apple.*`, …) that
+    /// `dictionaryRepresentation()` folds in from the global domain. If the new
+    /// name is already set, its value wins and the old entry is just removed.
+    /// Idempotent: a second run finds no dotted key left to move. Call once at
+    /// launch, before observation starts and before any read.
+    public func migrateLegacyKeys() {
+        for (legacyName, value) in defaults.dictionaryRepresentation() {
+            guard legacyName.contains(".") else { continue }
+            let newName = legacyName.replacingOccurrences(of: ".", with: "-")
+            guard let key = Keys(rawValue: newName) else { continue }
+            if defaults.object(forKey: key.rawValue) == nil {
+                write(value, forKey: key)
+            }
+            defaults.removeObject(forKey: legacyName)
+            mirror?.removeObject(forKey: legacyName)
         }
     }
 }

@@ -364,4 +364,69 @@ struct MudPreferencesTests {
         let raws = MudPreferences.Keys.allCases.map(\.rawValue)
         #expect(Set(raws).count == raws.count)
     }
+
+    @Test func keyRawValuesAreKebabCase() {
+        // A KVO `forKeyPath` treats both `.` (component separator) and `@`
+        // (collection operator) structurally, so a key containing either can't
+        // be observed for external `defaults write`. Enforce lowercase
+        // kebab-case, which excludes both and keeps names consistent. See
+        // `migrateLegacyKeys`.
+        let allowed = CharacterSet(charactersIn:
+            "abcdefghijklmnopqrstuvwxyz0123456789-")
+        for key in MudPreferences.Keys.allCases {
+            let raw = key.rawValue
+            #expect(raw.unicodeScalars.allSatisfy(allowed.contains),
+                    "\(key) raw value \"\(raw)\" has a disallowed character")
+            #expect(raw.first?.isLowercase == true,
+                    "\(key) raw value \"\(raw)\" must start with a letter")
+        }
+    }
+
+    // MARK: - Legacy key migration
+
+    @Test func migrationMovesDottedValueToHyphenatedName() {
+        let tc = TestPreferences()
+        defer { tc.tearDown() }
+        tc.config.defaults.set(false, forKey: "ui.use-heading-as-title")
+
+        tc.config.migrateLegacyKeys()
+
+        #expect(tc.config.uiUseHeadingAsTitle == false)
+        #expect(tc.config.defaults.object(forKey: "ui.use-heading-as-title") == nil)
+    }
+
+    @Test func migrationFansMovedValueIntoMirror() {
+        let tc = TestPreferences()
+        defer { tc.tearDown() }
+        tc.config.defaults.set(true, forKey: "changes.show-git-waypoints")
+
+        tc.config.migrateLegacyKeys()
+
+        let reader = MudPreferences(defaults: tc.config.mirror!)
+        #expect(reader.changesShowGitWaypoints == true)
+        #expect(tc.config.mirror?.object(forKey: "changes.show-git-waypoints") == nil)
+    }
+
+    @Test func migrationKeepsAnAlreadySetNewName() {
+        let tc = TestPreferences()
+        defer { tc.tearDown() }
+        tc.config.defaults.set(0.4, forKey: "changes.word-diff-threshold")   // old
+        tc.config.changesWordDiffThreshold = 0.9                             // new wins
+
+        tc.config.migrateLegacyKeys()
+
+        #expect(tc.config.changesWordDiffThreshold == 0.9)
+        #expect(tc.config.defaults.object(forKey: "changes.word-diff-threshold") == nil)
+    }
+
+    @Test func migrationIsIdempotent() {
+        let tc = TestPreferences()
+        defer { tc.tearDown() }
+        tc.config.defaults.set(true, forKey: "sidebar.enabled")
+
+        tc.config.migrateLegacyKeys()
+        tc.config.migrateLegacyKeys()   // second run has nothing left to move
+
+        #expect(tc.config.sidebarEnabled == true)
+    }
 }

@@ -259,20 +259,21 @@ Notes on why this is safe:
    `objectWillChange`. This is the go/no-go commit: confirm on the VM that a
    direct-set pane and a `$`-bound Toggle both still round-trip, and that a
    `defaults write` to `theme` updates the UI.
-3. **Migrate the remaining simple key-path preferences.** Twelve properties,
-   each dropping its triple; this adds the `default: objectWillChange.send()`
-   case their reload handlers fold into. The four chrome-consumed props and the
-   `enabledExtensions` escape hatch keep `@Published` and their explicit reload
-   cases for now.
-4. **Consolidate the `DocumentWindowController` sinks.** Replace the four
-   per-property sinks with the one `objectWillChange`-driven
+3. **Migrate the remaining simple key-path preferences.** _(landed)_ Twelve
+   properties, each dropping its triple; this adds the
+   `default: objectWillChange.send()` case their reload handlers fold into. The
+   four chrome-consumed props and the `enabledExtensions` escape hatch keep
+   `@Published` and their explicit reload cases for now.
+4. **Consolidate the `DocumentWindowController` sinks.** _(landed)_ Replace the
+   four per-property sinks with the one `objectWillChange`-driven
    `refreshAppStateChrome()`. `@Published` fires `objectWillChange` too, so
    this lands while the four props are still `@Published` — an independently
    verifiable pure refactor.
-5. **Finish the migration.** The four chrome props and the `enabledExtensions`
-   escape hatch become `@Pref`; `init` loses all seeding (just `syncMirror()`
-   and the observer registration remain); `reloadPreference` settles to the
-   Open In reroute, the per-window / internal breaks, and `default`.
+5. **Finish the migration.** _(landed)_ The four chrome props and the
+   `enabledExtensions` escape hatch become `@Pref`; `init` loses all seeding
+   (just `migrateLegacyKeys()`, `syncMirror()`, and the observer registration
+   remain); `reloadPreference` settles to the Open In reroute, the per-window /
+   internal breaks, and `default`.
 
 
 ## Part B: type `RenderOptions.theme` and move `Theme` into MudCore

@@ -1,7 +1,7 @@
 Plan: JS Resource Layer
 ===============================================================================
 
-> Status: Underway (Slices 1–5 landed; Slice 6 deferred by decision)
+> Status: Complete (Slices 1–5 landed; optional Slice 6 deferred by decision)
 
 Phase 6 of the [architecture review](./2026-07-architecture-improvements.md).
 The JS/CSS resource layer (`Core/Sources/Resources/`) is where a few small,

@@ -1,10 +1,15 @@
 Plan: Architecture Improvements
 ===============================================================================
 
-> Status: Underway (Phases 1–4 landed, and the single-parser rework of decision
-> 4 landed in full — see
-> [2026-07-single-parser-rendering.md](./2026-07-single-parser-rendering.md);
-> Phases 5–6 remaining)
+> Status: Complete (all six phases landed. Phases 1–4 and the single-parser
+> rework of decision 4 — see
+> [2026-07-single-parser-rendering.md](./2026-07-single-parser-rendering.md) —
+> landed first; Phase 5 (preference plumbing,
+> [2026-07-preference-plumbing.md](./2026-07-preference-plumbing.md)) and Phase
+> 6 (JS resource layer,
+> [2026-07-js-resource-layer.md](./2026-07-js-resource-layer.md)) followed.
+> Deferred by decision: Phase 6's optional Slice 6 (the `mud-comments.js`
+> split) and decision points 5–7.)
 
 A full architecture review of Mud (July 2026), covering the App target, the
 MudCore rendering and diff subsystems, the Preferences package, the CLI / Quick
@@ -278,6 +283,19 @@ it changes the emitted HTML.
   (the cached `RenderedDisplay`) and the decided single-parser rework will move
   these same signatures again — doing the split then costs one churn instead of
   two. Revisit when 4a starts.
+- **Update (2026-07-17): still deferred, and now closed out as a standing
+  deferral.** Phase 4a landed keying its cache on `ContentIdentity` directly,
+  so it never needed the split; the single-parser rework then landed in full
+  without touching it either. As of this date, no `DiffRequest` type exists —
+  `waypoint`, `showInlineDeletions`, and `wordDiffThreshold` still live in
+  `RenderOptions.ContentIdentity` (`Core/Sources/RenderOptions.swift:45-47`)
+  behind flat forwarding accessors. The `ContentIdentity` grouping already
+  delivers the "can't forget a content-affecting field" guarantee that was this
+  split's main point, so the only remaining payoff is signature tidiness (not
+  carrying an entire `ParsedMarkdown` inside an options value). Nothing depends
+  on it and no bug rides on it. Leave it deferred; fold it into the next
+  feature that reshapes the render signatures, the same disposition Phase 3f
+  gives the `DownHTMLVisitor` split and Phase 6 gives Slice 6.
 
 
 ### 3e. Pin the cross-file invariants with parity tests

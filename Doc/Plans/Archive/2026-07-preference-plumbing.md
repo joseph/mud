@@ -1,7 +1,7 @@
 Plan: Preference Plumbing
 ===============================================================================
 
-> Status: Underway
+> Status: Complete
 
 Phase 5 of the [architecture review](./2026-07-architecture-improvements.md).
 The last remaining phase (Phases 1–4 and the single-parser rework landed; Phase
@@ -93,48 +93,13 @@ synthesized change notification does not cover it, so the subscript's setter
 sends `objectWillChange` itself, before the write, matching `@Published`'s
 `willSet` timing.
 
-```swift
-import Combine
-import MudPreferences
-
-@propertyWrapper
-struct Pref<Value> {
-  private let get: () -> Value
-  private let set: (Value) -> Void
-
-  // Common case: a plain MudPreferences property.
-  init(_ keyPath: WritableKeyPath<MudPreferences, Value>) {
-    self.get = { MudPreferences.shared[keyPath: keyPath] }
-    self.set = { newValue in
-      var prefs = MudPreferences.shared    // local var → assignable base
-      prefs[keyPath: keyPath] = newValue
-    }
-  }
-
-  // Escape hatch: accessors that need a runtime value (enabledExtensions).
-  init(get: @escaping () -> Value, set: @escaping (Value) -> Void) {
-    self.get = get
-    self.set = set
-  }
-
-  var wrappedValue: Value {
-    get { fatalError("@Pref is only usable on an ObservableObject property") }
-    set { fatalError("@Pref is only usable on an ObservableObject property") }
-  }
-
-  static subscript<Enclosing: ObservableObject>(
-    _enclosingInstance instance: Enclosing,
-    wrapped wrappedKeyPath: ReferenceWritableKeyPath<Enclosing, Value>,
-    storage storageKeyPath: ReferenceWritableKeyPath<Enclosing, Pref<Value>>
-  ) -> Value where Enclosing.ObjectWillChangePublisher == ObservableObjectPublisher {
-    get { instance[keyPath: storageKeyPath].get() }
-    set {
-      instance.objectWillChange.send()      // before the write, like @Published
-      instance[keyPath: storageKeyPath].set(newValue)
-    }
-  }
-}
-```
+The wrapper landed in `App/Pref.swift`. It holds two closures — a getter and a
+setter that both reach `MudPreferences.shared` — and offers two initializers: a
+key-path form for the common case (a plain `MudPreferences` property) and a
+closure form for the one accessor whose default is a runtime value
+(`enabledExtensions`). Its `wrappedValue` is a `fatalError` stub; the real work
+is in the static `_enclosingInstance` subscript, which reads live on `get` and,
+on `set`, sends `objectWillChange` before the store write.
 
 **The load-bearing compile detail.** `MudPreferences.shared` is a `static let`,
 and its property setters are `nonmutating` (they mutate a reference-typed
@@ -150,41 +115,15 @@ it ever fails, the closure `init(get:set:)` form sidesteps it entirely.
 
 ### AppState after
 
-```swift
-// Every preference: one line each.
-@Pref(\.lighting)           var lighting: Lighting
-@Pref(\.theme)              var theme: Theme
-@Pref(\.viewToggles)        var viewToggles: Set<ViewToggle>
-@Pref(\.quitOnClose)        var quitOnClose: Bool
-// …the other simple prefs, one line each…
-
-// enabledExtensions is the one real special case: its default is a runtime
-// value the store does not own (the RenderExtension registry).
-@Pref(
-  get: { MudPreferences.shared.readEnabledExtensions(
-           defaultValue: Set(RenderExtension.registry.keys)) },
-  set: { MudPreferences.shared.writeEnabledExtensions($0) }
-) var enabledExtensions: Set<String>
-
-private init() {
-  MudPreferences.shared.syncMirror()      // nothing to seed: every read is live
-  MudPreferences.shared.startObservingExternalChanges { [weak self] key in
-    self?.reloadPreference(key)
-  }
-}
-
-private func reloadPreference(_ key: MudPreferences.Keys) {
-  switch key {
-  case .openInDefaultBundleID, .openInDefaultFormat:
-    OpenInMenuModel.shared.refresh()        // a different ObservableObject
-  case .upModeZoomLevel, .downModeZoomLevel, .sidebarPane,
-       .hasLaunched, .cliInstalled, .cliSymlinkPath:
-    break                                   // per-window / internal: no AppState prop
-  default:
-    objectWillChange.send()                 // one blanket invalidation; views re-read
-  }
-}
-```
+Every preference in `AppState` is now one `@Pref` line. The simple ones use the
+key-path form (`@Pref(\.lighting) var lighting: Lighting`); `enabledExtensions`
+uses the closure form so its default can come from the `RenderExtension`
+registry at read time. `init` no longer seeds anything — it runs the legacy-key
+migration, syncs the app-group mirror, and registers the external-change
+observer. `reloadPreference` shrank to three cases: the Open In keys refresh
+their own `ObservableObject`; the per-window and `internal.*` keys `break`; and
+`default` fires one `objectWillChange.send()` that makes every AppState view
+re-read the live value.
 
 `toggle(_:)` keeps its shape: reading `viewToggles` copies the Set out through
 the wrapper, the mutation edits the copy, and the write-back runs the wrapper's
@@ -199,37 +138,15 @@ window.
 
 ### DocumentWindowController after
 
-The four per-property sinks in `observeState()` become one refresh method that
-reads live values and applies all the AppState-derived window chrome:
-
-```swift
-private func refreshAppStateChrome() {
-  let appState = AppState.shared
-  applyLighting(appState.lighting)
-  updateLightingButton(appState.lighting)
-  updateReadableColumnButton(appState.viewToggles.contains(.readableColumn))
-  updateChangesButton(appState.changesEnabled)
-  if appState.uiUseHeadingAsTitle, let title = state.contentTitle {
-    window?.title = title
-  } else {
-    window?.title = fileURL.lastPathComponent
-  }
-}
-```
-
-triggered by two sinks:
-
-```swift
-AppState.shared.objectWillChange
-  .receive(on: DispatchQueue.main)   // willChange fires before the write; re-read after
-  .sink { [weak self] _ in self?.refreshAppStateChrome() }
-  .store(in: &cancellables)
-
-state.$contentTitle                  // the title's other input
-  .receive(on: DispatchQueue.main)   // its replay + the hop set the initial title
-  .sink { [weak self] _ in self?.refreshAppStateChrome() }
-  .store(in: &cancellables)
-```
+The four per-property sinks in `observeState()` became one
+`refreshAppStateChrome()` method that reads the live values and applies all the
+AppState-derived window chrome — lighting (window appearance and toolbar
+button), the readable-column button, the changes button, and the window title
+(the document heading when `uiUseHeadingAsTitle` is on, else the filename). Two
+sinks trigger it, both hopping to the main queue so they read the settled
+value: one on `AppState.shared.objectWillChange` (any preference change) and
+one on `state.$contentTitle` (the title's other input, whose replay also sets
+the initial title).
 
 Notes on why this is safe:
 
@@ -310,24 +227,11 @@ Two commits: the file move first, then the typing and CLI change.
 
 ## Part C: one shared `RenderOptions` initializer
 
-Add `RenderOptions.init(snapshot:baseURL:)` in the Preferences package — the
+`RenderOptions.init(snapshot:baseURL:)` landed in the Preferences package — the
 one place that sees both `RenderOptions` (from MudCore) and
-`MudPreferencesSnapshot` — covering the fields both consumers map identically:
-
-```swift
-extension RenderOptions {
-  public init(snapshot: MudPreferencesSnapshot, baseURL: URL?) {
-    self.init()
-    self.baseURL = baseURL
-    self.theme = snapshot.theme
-    self.extensions = snapshot.enabledExtensions
-    self.htmlClasses = snapshot.upModeHTMLClasses
-    self.zoomLevel = snapshot.upModeZoomLevel
-    self.blockRemoteContent = !snapshot.upModeAllowRemoteContent
-    self.docCAlertMode = snapshot.markdownDocCAlertMode
-  }
-}
-```
+`MudPreferencesSnapshot`. It maps the seven fields both consumers set
+identically: `baseURL`, `theme`, `extensions`, `htmlClasses` (the Up-mode
+subset), `zoomLevel`, `blockRemoteContent`, and `docCAlertMode`.
 
 - **Quick Look** replaces its seven-line mapping with
   `RenderOptions(snapshot: snapshot, baseURL: url)`, keeping the mode/comment

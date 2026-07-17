@@ -52,14 +52,7 @@ final class MudPreviewProvider: NSViewController, QLPreviewingController,
             defaultEnabledExtensions: Set(RenderExtension.registry.keys)
         )
 
-        var options = RenderOptions()
-        options.theme = snapshot.theme
-        options.baseURL = url
-        options.extensions = snapshot.enabledExtensions
-        options.htmlClasses = snapshot.upModeHTMLClasses
-        options.zoomLevel = snapshot.upModeZoomLevel
-        options.blockRemoteContent = !snapshot.upModeAllowRemoteContent
-        options.docCAlertMode = snapshot.markdownDocCAlertMode
+        let options = RenderOptions(snapshot: snapshot, baseURL: url)
 
         // The shared export recipe: standalone wrapping, images inlined as
         // data URIs, and — when the file has comments — the same read-only

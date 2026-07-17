@@ -45,6 +45,28 @@ public struct MudPreferencesSnapshot: Sendable {
     }
 }
 
+extension RenderOptions {
+    /// The one mapping from stored preferences to a `RenderOptions`, covering
+    /// the fields the app and the Quick Look extension set identically. This
+    /// package is the only place that sees both types, so the mapping lives
+    /// here rather than being written twice.
+    ///
+    /// The app calls this too, then overrides the two window-specific display
+    /// fields (the mode-dependent `zoomLevel` and the all-toggles
+    /// `htmlClasses`) and sets the change-tracking fields; those inputs aren't
+    /// in the snapshot.
+    public init(snapshot: MudPreferencesSnapshot, baseURL: URL?) {
+        self.init()
+        self.baseURL = baseURL
+        self.theme = snapshot.theme
+        self.extensions = snapshot.enabledExtensions
+        self.htmlClasses = snapshot.upModeHTMLClasses
+        self.zoomLevel = snapshot.upModeZoomLevel
+        self.blockRemoteContent = !snapshot.upModeAllowRemoteContent
+        self.docCAlertMode = snapshot.markdownDocCAlertMode
+    }
+}
+
 extension MudPreferences {
     public func snapshot(defaultEnabledExtensions: Set<String> = []) -> MudPreferencesSnapshot {
         MudPreferencesSnapshot(

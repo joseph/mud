@@ -123,12 +123,15 @@ final class DocumentModel: ObservableObject {
     /// `MudCore.exportDocument` drops the export-inapplicable parts).
     var renderOptions: RenderOptions {
         let appState = AppState.shared
-        var opts = RenderOptions()
-        opts.baseURL = fileURL
-        opts.theme = appState.theme
-        opts.blockRemoteContent = !appState.upModeAllowRemoteContent
-        opts.docCAlertMode = appState.markdownDocCAlertMode
-        opts.extensions = appState.enabledExtensions
+        // Route through the one shared preferences → RenderOptions mapping, then
+        // override the window-specific display fields it can't know about. With
+        // AppState's live reads, this snapshot holds exactly the values AppState
+        // would report, so both consumers produce identical output.
+        let snapshot = MudPreferences.shared.snapshot(
+            defaultEnabledExtensions: Set(RenderExtension.registry.keys))
+        var opts = RenderOptions(snapshot: snapshot, baseURL: fileURL)
+        // htmlClasses covers all view toggles (both modes) plus the per-window
+        // comment classes, replacing the snapshot's Up-mode-only subset.
         opts.htmlClasses = Set(appState.viewToggles.map(\.className))
         // Column visibility is per-window state, not a persisted view toggle.
         if state.commentsColumnVisible { opts.htmlClasses.insert("is-comments-column") }

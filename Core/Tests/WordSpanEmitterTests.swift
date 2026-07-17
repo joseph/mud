@@ -156,8 +156,8 @@ struct WordSpanEmitterTests {
       + "across :tada: **three** long lines."
     let oldDocument = try #require(ParsedMarkdown(oldSource).cmarkDocument)
     let newDocument = try #require(ParsedMarkdown(newSource).cmarkDocument)
-    let oldPara = try #require(oldDocument.root.children.first)
-    let newPara = try #require(newDocument.root.children.first)
+    let oldPara = try #require(oldDocument.root.firstChild)
+    let newPara = try #require(newDocument.root.firstChild)
     let oldText = WordDiff.inlineText(of: oldPara)
     let newText = WordDiff.inlineText(of: newPara)
     let spans = WordDiff.diff(old: oldText, new: newText)

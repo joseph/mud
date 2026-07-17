@@ -186,9 +186,10 @@ struct HTMLTemplateTests {
     }
 
     @Test func findStylesNotInJS() {
-        // The colors moved out of the mud.js self-injected <style> and into
-        // mud-find.css; mud.js no longer names the match class.
-        #expect(!HTMLTemplate.mudJS.contains("mud-match"))
+        // The color rules moved out of the mud.js self-injected <style> and into
+        // mud-find.css, so mud.js no longer carries a `mark.mud-match` selector.
+        // It still names the bare class to apply it to matches at runtime.
+        #expect(!HTMLTemplate.mudJS.contains("mark.mud-match"))
     }
 
     // MARK: - Render extensions

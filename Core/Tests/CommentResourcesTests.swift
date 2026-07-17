@@ -70,11 +70,13 @@ struct CommentResourcesTests {
 
   @Test func markerClassAgreesWithTheJSLayer() {
     // The Swift emitter, the read-side projection (mud-comments.js), and the
-    // write-side locator (mud-comments-edit.js) all name the marker element by
-    // this class; a rename must reach all three.
-    #expect(HTMLTemplate.mudCommentsJS.contains(
-      FootnoteProcessor.commentMarkerClass))
-    #expect(HTMLTemplate.mudCommentsEditJS.contains(
-      FootnoteProcessor.commentMarkerClass))
+    // shared anchor part (mud-comment-anchor.js) that the write-side locator
+    // consumes all name the marker element by this class; a rename must reach
+    // all three. mudCommentsJS bundles the anchor part ahead of the read side,
+    // so it carries both JS uses.
+    let marker = FootnoteProcessor.commentMarkerClass
+    #expect(HTMLTemplate.mudCommentsJS.contains(marker))
+    #expect(HTMLTemplate.loadResource("mud-comment-anchor", type: "js")?
+      .contains(marker) == true)
   }
 }

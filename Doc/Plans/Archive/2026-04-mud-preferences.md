@@ -1,7 +1,7 @@
 Plan: MudPreferences Module
 ===============================================================================
 
-> Status: Underway
+> Status: Complete
 
 Extract the user-preference persistence layer out of `AppState` into a new
 Swift package module, `MudPreferences`, shared by the main app and the Quick

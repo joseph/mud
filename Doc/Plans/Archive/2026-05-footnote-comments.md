@@ -1,7 +1,7 @@
 Plan: Footnote Comments
 ===============================================================================
 
-> Status: Underway
+> Status: Complete
 
 
 ## Context

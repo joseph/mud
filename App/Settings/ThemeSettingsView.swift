@@ -1,5 +1,6 @@
 import SwiftUI
 import MudPreferences
+import MudCore
 
 struct ThemeSettingsView: View {
     @ObservedObject private var appState = AppState.shared

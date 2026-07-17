@@ -176,7 +176,6 @@ MVP plan.
   at launch and watches them via KVO thereafter.
 - `MudPreferencesSnapshot.swift` — Value-type prefs snapshot feeding
   `RenderOptions`; consumed by the Quick Look extension.
-- `Theme.swift` — austere/blues/earthy/riot enum
 - `Lighting.swift` — auto/bright/dark enum (bare; AppKit behavior in
   `App/Lighting+AppKit.swift`)
 - `ViewToggle.swift` — readableColumn/lineNumbers/wordWrap/codeHeader/
@@ -190,6 +189,7 @@ MVP plan.
 - `ParsedMarkdown.swift` — Parse-once handle: AST, headings, title
 - `RenderExtension.swift` — Client-side rendering extension type and registry
 - `RenderOptions.swift` — Rendering configuration value type
+- `Theme.swift` — austere/blues/earthy/riot enum (plus internal `.system`)
 - `Mode.swift` — up/down enum (Mark Up / Mark Down)
 - `CMark/CMarkDocument.swift` — Owning wrapper over one footnote-aware
   cmark-gfm parse (single-parser plan, Stage 1): hard-coded

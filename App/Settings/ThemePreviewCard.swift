@@ -21,7 +21,7 @@ struct ThemeColors {
 
 extension Theme {
     var colorPair: ThemeColors.Pair {
-        let css = HTMLTemplate.themeCSS(for: rawValue)
+        let css = HTMLTemplate.themeCSS(for: self)
         return ThemeColors.Pair(
             light: ThemeColors(properties: Color.cssProperties(from: css, dark: false)),
             dark: ThemeColors(properties: Color.cssProperties(from: css, dark: true))

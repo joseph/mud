@@ -65,7 +65,7 @@ while i < CommandLine.arguments.count {
 
 // MARK: - Validation
 
-let validThemes = ["austere", "blues", "earthy", "riot"]
+let validThemes = Theme.allCases.map(\.rawValue)
 if !validThemes.contains(theme) {
     printError(
         "unknown theme '\(theme)' "
@@ -145,7 +145,7 @@ func render(_ markdown: String, baseURL: URL?) -> String {
     let markdown = excludeComments ? MudCore.removeComments(markdown) : markdown
     var options = RenderOptions()
     options.baseURL = baseURL
-    options.theme = theme
+    options.theme = Theme(rawValue: theme) ?? .earthy
     options.htmlClasses = Set(htmlClasses)
 
     if fragment {
@@ -282,7 +282,7 @@ func printUsage() {
       --line-numbers     Show line numbers (with -d)
       --word-wrap        Enable word wrapping (with -d)
       --readable-column  Limit content width (with -d or -u)
-      --theme NAME       Theme: austere, blues, earthy (default), riot
+      --theme NAME       Theme: \(Theme.allCases.map(\.rawValue).joined(separator: ", ")) (default: earthy)
       --primer           Print the Markdown authoring primer for coding agents
       -v, --version      Print version and exit
       -h, --help         Print this help and exit

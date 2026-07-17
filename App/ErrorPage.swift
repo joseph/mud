@@ -33,7 +33,7 @@ enum ErrorPage {
 
     private static func render(_ markdown: String) -> String {
         var opts = RenderOptions()
-        opts.theme = "system"
+        opts.theme = .system
         return MudCore.renderUpModeDocument(markdown, options: opts)
     }
 }

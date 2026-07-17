@@ -56,14 +56,17 @@ struct HTMLTemplateTests {
     @Test func themeCSS() {
         let doc = HTMLTemplate.wrapUp(body: "", options: .init())
         // Theme CSS is embedded in the style block.
-        let earthyCSS = HTMLTemplate.themeCSS(for: "earthy")
+        let earthyCSS = HTMLTemplate.themeCSS(for: .earthy)
         #expect(doc.contains(earthyCSS))
     }
 
-    @Test func unknownThemeFallsBackToEarthy() {
-        let unknown = HTMLTemplate.themeCSS(for: "nonexistent")
-        let earthy = HTMLTemplate.themeCSS(for: "earthy")
-        #expect(unknown == earthy)
+    @Test func systemThemeLoadsSystemCSS() {
+        // The internal `.system` theme (error pages) loads its own file, not
+        // the earthy fallback.
+        let system = HTMLTemplate.themeCSS(for: .system)
+        let earthy = HTMLTemplate.themeCSS(for: .earthy)
+        #expect(!system.isEmpty)
+        #expect(system != earthy)
     }
 
     @Test func cssEmbedded() {

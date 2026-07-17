@@ -53,7 +53,7 @@ final class MudPreviewProvider: NSViewController, QLPreviewingController,
         )
 
         var options = RenderOptions()
-        options.theme = snapshot.theme.rawValue
+        options.theme = snapshot.theme
         options.baseURL = url
         options.extensions = snapshot.enabledExtensions
         options.htmlClasses = snapshot.upModeHTMLClasses

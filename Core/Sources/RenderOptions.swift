@@ -26,7 +26,7 @@ public struct RenderOptions: Sendable, Equatable {
     /// source text (`ParsedMarkdown` hashes and compares by `markdown`).
     public struct ContentIdentity: Sendable, Hashable {
         // Document wrapping
-        public var theme: String = "earthy"
+        public var theme: Theme = .earthy
         public var blockRemoteContent: Bool = false
         public var extensions: Set<String> = []
 
@@ -58,7 +58,7 @@ public struct RenderOptions: Sendable, Equatable {
 
     // Forwarding accessors, so call sites keep reading and writing flat
     // fields (`options.theme`) while the storage carries the identity.
-    public var theme: String {
+    public var theme: Theme {
         get { contentIdentity.theme }
         set { contentIdentity.theme = newValue }
     }

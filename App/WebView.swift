@@ -230,7 +230,7 @@ struct WebView: NSViewRepresentable {
         context.coordinator.onColumnWidthChange = onColumnWidthChange
         context.coordinator.onRevealColumn = onRevealColumn
         context.coordinator.commentColumnWidth = commentColumnWidth
-        context.coordinator.commentTheme = theme.rawValue
+        context.coordinator.commentTheme = theme
 
         // Handle search. The coordinator keeps the current query so didFinish
         // can re-apply it to a freshly loaded page.
@@ -331,7 +331,7 @@ struct WebView: NSViewRepresentable {
         /// pushes only on a change, and `didFinish` reapplies it after a reload.
         var commentColumnWidth: Double = 300
         var lastCommentColumnWidth: Double?
-        var commentTheme: String = "earthy"
+        var commentTheme: Theme = .earthy
         weak var webView: WKWebView?
         private var savedFraction: CGFloat?
         private let baseURL: URL?
@@ -451,7 +451,7 @@ struct WebView: NSViewRepresentable {
         }
 
         func applyTheme(_ theme: Theme) {
-            bridge.call("setTheme", HTMLTemplate.themeCSS(for: theme.rawValue))
+            bridge.call("setTheme", HTMLTemplate.themeCSS(for: theme))
         }
 
         func applyZoom(_ level: Double) {

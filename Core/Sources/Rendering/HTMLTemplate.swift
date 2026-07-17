@@ -114,10 +114,10 @@ public enum HTMLTemplate {
         loadResource("mud-print", type: "css") ?? ""
     }
 
-    /// Returns the CSS custom-property block for the given theme name.
-    /// Falls back to earthy if the name is not found.
-    public static func themeCSS(for theme: String) -> String {
-        loadResource("theme-\(theme)", type: "css")
+    /// Returns the CSS custom-property block for the given theme.
+    /// Falls back to earthy if the resource file is not found.
+    public static func themeCSS(for theme: Theme) -> String {
+        loadResource("theme-\(theme.rawValue)", type: "css")
             ?? loadResource("theme-earthy", type: "css")
             ?? ""
     }

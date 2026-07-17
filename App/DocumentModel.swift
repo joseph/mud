@@ -125,7 +125,7 @@ final class DocumentModel: ObservableObject {
         let appState = AppState.shared
         var opts = RenderOptions()
         opts.baseURL = fileURL
-        opts.theme = appState.theme.rawValue
+        opts.theme = appState.theme
         opts.blockRemoteContent = !appState.upModeAllowRemoteContent
         opts.docCAlertMode = appState.markdownDocCAlertMode
         opts.extensions = appState.enabledExtensions

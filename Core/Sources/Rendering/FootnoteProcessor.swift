@@ -2,14 +2,6 @@ import Foundation
 import cmark_gfm
 import cmark_gfm_extensions
 
-/// Registers the GFM core syntax extensions exactly once. `ensure_registered`
-/// is idempotent but not guaranteed thread-safe on its first call, so we gate
-/// it behind a lazily-initialized `let` (run-once, thread-safe in Swift).
-/// Render can be driven from multiple threads (app, Quick Look, CLI).
-private let registerGFMExtensions: Void = {
-    cmark_gfm_core_extensions_ensure_registered()
-}()
-
 /// Where footnotes go in the rendered output.
 ///
 /// - `.section`: emit only the bottom `<section class="footnotes">` (the
@@ -42,42 +34,6 @@ public struct FootnoteEntry: Sendable, Equatable {
 struct FootnoteProcessingResult {
     let footnotes: [FootnoteEntry]
     let comments: [Comment]
-}
-
-/// Structural footnote positions for Down-mode syntax highlighting. Unlike
-/// ``FootnoteProcessor/process(_:mode:)``, this rewrites nothing — Down mode
-/// shows the raw source verbatim and only needs to know *where* the references
-/// and definitions live (by line and 1-based column) to drive highlighting.
-struct FootnoteLayout {
-    /// A `[^label]` reference occurrence. `endColumn` is the column of the
-    /// closing `]`.
-    struct Ref {
-        let line: Int
-        let startColumn: Int
-        let endColumn: Int
-    }
-
-    /// A `[^label]:` definition block.
-    struct Def {
-        let startLine: Int
-        let endLine: Int
-        /// Column of the opening `[`.
-        let startColumn: Int
-        /// Column one past the `:` that closes the marker.
-        let markerEndColumn: Int
-        /// First body byte on the opener line (equals `markerEndColumn` when
-        /// the opener carries no inline content).
-        let contentStartColumn: Int
-        /// Leading whitespace shared by the continuation lines — the indent
-        /// `cmark` strips from the body, re-stripped before re-parsing. Capped
-        /// at the GFM footnote content indent (4).
-        let contentIndent: Int
-    }
-
-    let refs: [Ref]
-    let defs: [Def]
-
-    static let empty = FootnoteLayout(refs: [], defs: [])
 }
 
 /// The byte geometry of a single comment (a footnote whose label matches
@@ -129,8 +85,9 @@ enum FootnoteProcessor {
     }
 
     /// Byte/line geometry of a UTF-8 Markdown source, shared by ``process``,
-    /// ``scan``, and ``CommentAnchor``. `lineStart[L]` is the 1-based byte
-    /// offset of line `L`'s first byte, valid for `L` in `1...lastLine`.
+    /// ``locateComments(_:)``, and ``CommentAnchor``. `lineStart[L]` is the
+    /// 1-based byte offset of line `L`'s first byte, valid for `L` in
+    /// `1...lastLine`.
     struct SourceGeometry {
         let bytes: [UInt8]
         let lineStart: [Int]
@@ -386,71 +343,10 @@ enum FootnoteProcessor {
         return FootnoteProcessingResult(footnotes: footnotes, comments: comments)
     }
 
-    /// Scans `source` for footnote references and definition blocks, returning
-    /// their positions for Down-mode highlighting. Derives from the cached
-    /// ``FootnoteScan`` shared with ``process(_:mode:)`` and rewrites nothing.
-    static func scan(_ source: String) -> FootnoteLayout {
-        // Fast path: no possible footnote syntax → skip the scan.
-        guard source.contains("[^") else { return .empty }
-
-        let facts = FootnoteScan.scan(source)
-        let geo = facts.geometry
-        let lastLine = geo.lastLine
-
-        struct DefRange { let startLine: Int; let endLine: Int }
-        var defs: [FootnoteLayout.Def] = []
-        var defRanges: [DefRange] = []
-        for def in facts.defs {
-            guard def.startLine >= 1, def.endLine <= lastLine,
-                  def.endLine >= def.startLine else { continue }
-            defRanges.append(
-                DefRange(startLine: def.startLine, endLine: def.endLine))
-            // cmark's definition start_column points at the *body*, not
-            // the marker, so locate the `[` as the opener line's first
-            // non-whitespace byte.
-            let startColumn = geo.firstNonSpaceColumn(line: def.startLine)
-            // `[^` + label + `]:` → label.utf8.count + 4 chars.
-            let markerEndColumn = startColumn + def.label.utf8.count + 4
-            let contentStartColumn = geo.firstContentColumn(
-                line: def.startLine, from: markerEndColumn)
-            let contentIndent = geo.continuationIndent(
-                startLine: def.startLine, endLine: def.endLine)
-            defs.append(FootnoteLayout.Def(
-                startLine: def.startLine, endLine: def.endLine,
-                startColumn: startColumn,
-                markerEndColumn: markerEndColumn,
-                contentStartColumn: contentStartColumn,
-                contentIndent: contentIndent))
-        }
-
-        // Sanity: a ref's range must actually delimit `[^…]`. `endColumn` is
-        // the column of the closing `]`, so the half-open end is its offset
-        // plus one. Drop references that live inside a definition body —
-        // those are handled by re-parsing the body, not as standalone markers.
-        var refs: [FootnoteLayout.Ref] = []
-        for ref in facts.refs {
-            guard ref.startLine >= 1, ref.startLine <= lastLine,
-                  ref.startColumn >= 1, ref.endColumn >= ref.startColumn
-            else { continue }
-            let s = geo.offset(line: ref.startLine, column: ref.startColumn)
-            let e = geo.offset(line: ref.startLine, column: ref.endColumn)
-            guard geo.delimitsFootnoteRef(start: s, end: e + 1)
-            else { continue }
-            guard !defRanges.contains(where: {
-                ref.startLine >= $0.startLine && ref.startLine <= $0.endLine
-            }) else { continue }
-            refs.append(FootnoteLayout.Ref(
-                line: ref.startLine, startColumn: ref.startColumn,
-                endColumn: ref.endColumn))
-        }
-
-        return FootnoteLayout(refs: refs, defs: defs)
-    }
-
     /// Locates every comment (a footnote whose label matches
     /// `^comment-[\w-]+$`) in `source` by byte range, for byte-surgical edits.
     /// Derives from the cached ``FootnoteScan`` shared with
-    /// ``process(_:mode:)`` and ``scan(_:)`` but rewrites nothing.
+    /// ``process(_:mode:)`` but rewrites nothing.
     static func locateComments(_ source: String) -> [CommentLocation] {
         guard source.contains("[^") else { return [] }
         let facts = FootnoteScan.scan(source)
@@ -627,10 +523,10 @@ enum FootnoteProcessor {
 
 /// The raw facts one footnote-aware `cmark-gfm` parse of a source yields,
 /// computed at most once per source (see ``scan(_:)``). Every
-/// `FootnoteProcessor` entry point — `process`, `scan`, `locateComments`,
+/// `FootnoteProcessor` entry point — `process`, `locateComments`,
 /// `commentDefinitionLineRanges`, and (via `locateComments`) `removeComments`
 /// — derives its result from these facts instead of re-parsing; one live-edit
-/// render cycle used to parse the same text up to eight times. The facts are
+/// render cycle used to parse the same text several times over. The facts are
 /// mode-independent (`FootnoteMode` only selects section visibility at render
 /// time), so the memo keys on the source alone. A failed cmark parse yields an
 /// empty scan, which each derivation turns into its no-footnotes fallback.

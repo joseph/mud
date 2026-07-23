@@ -2,11 +2,13 @@ import Foundation
 import cmark_gfm
 import cmark_gfm_extensions
 
-/// Registers the GFM core syntax extensions exactly once. `ensure_registered`
-/// is idempotent but not guaranteed thread-safe on its first call, so we gate
-/// it behind a lazily-initialized `let` (run-once, thread-safe in Swift).
-/// Same pattern as `FootnoteProcessor`.
-private let registerGFMExtensions: Void = {
+/// Registers the GFM core syntax extensions exactly once for the whole module.
+/// `ensure_registered` is idempotent but not guaranteed thread-safe on its
+/// first call, so we gate it behind a lazily-initialized `let` (run-once,
+/// thread-safe in Swift). Render can be driven from multiple threads (app,
+/// Quick Look, CLI). Both parse sites — this wrapper and
+/// `FootnoteProcessor.makeFootnoteParser` — reference this one token.
+let registerGFMExtensions: Void = {
     cmark_gfm_core_extensions_ensure_registered()
 }()
 

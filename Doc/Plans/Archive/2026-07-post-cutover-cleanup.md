@@ -1,7 +1,7 @@
 Plan: Post-Cutover Cleanup
 ===============================================================================
 
-> Status: Underway
+> Status: Complete
 
 The single-parser rendering plan
 ([archived](./Archive/2026-07-single-parser-rendering.md)) cut every render

@@ -34,7 +34,12 @@ let package = Package(
         .testTarget(
             name: "MudCoreTests",
             dependencies: ["MudCore"],
-            path: "Tests"
+            path: "Tests",
+            // The golden `.html` fixtures are read from the source tree by
+            // filesystem path (`#filePath`), not bundled as resources — that's
+            // what lets `MUD_REGENERATE_GOLDENS=1` write them back. Exclude the
+            // directory so SwiftPM doesn't warn about "unhandled" files.
+            exclude: ["Golden"]
         ),
     ]
 )

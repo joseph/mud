@@ -49,6 +49,13 @@ struct CMarkSourceLocation: Equatable, Comparable, Sendable,
 /// user-visible decision to make after the port (see the plan's "Extension
 /// parity" section).
 ///
+/// This is not the only cmark parse in Core. A second, narrower one runs for
+/// footnote and comment scanning (`FootnoteProcessor.makeFootnoteParser`):
+/// `CMARK_OPT_FOOTNOTES | CMARK_OPT_SOURCEPOS` only. It locates `[^…]`
+/// references and definitions by source position and renders nothing, so it
+/// drops `SMART` and `TABLE_SPANS`. The two configurations are meant to
+/// differ; only this one drives rendering.
+///
 /// The tree is a manually-freed C structure. The document owns the root
 /// (freed in `deinit`) and every `CMarkNode` handle retains its document, so
 /// a live handle can never outlive its tree — this is the safety-by-

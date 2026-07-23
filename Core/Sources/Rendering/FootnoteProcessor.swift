@@ -66,9 +66,14 @@ enum FootnoteProcessor {
         }
     }
 
-    /// Creates a `cmark-gfm` parser configured for footnote detection
-    /// (`CMARK_OPT_FOOTNOTES | CMARK_OPT_SOURCEPOS`) with the GFM syntax
-    /// extensions attached. The caller owns the lifecycle
+    /// Creates the cmark parser for footnote and comment scanning:
+    /// `CMARK_OPT_FOOTNOTES | CMARK_OPT_SOURCEPOS`, with the GFM syntax
+    /// extensions attached. Deliberately narrower than the render parse in
+    /// ``CMarkDocument`` — it locates `[^…]` references and definitions by
+    /// source position and renders nothing, so it omits `CMARK_OPT_SMART` and
+    /// `CMARK_OPT_TABLE_SPANS`. It does attach `autolink`, which the render
+    /// parse omits; the extra extension changes no `[^…]` token boundary, so it
+    /// doesn't affect what the scan finds. The caller owns the lifecycle
     /// (`cmark_parser_free`).
     private static func makeFootnoteParser()
         -> UnsafeMutablePointer<cmark_parser>?

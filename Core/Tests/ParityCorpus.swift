@@ -264,6 +264,23 @@ enum ParityCorpus {
       [shortcut ref]: https://example.org/shortcut
       """)
 
+  /// Bare, extended autolinks — the GFM `autolink` extension's job. Angle
+  /// autolinks and bracketed links live in `linkVariants`; these are the bare
+  /// forms only the extension detects: a naked URL, a `www.` host, and a bare
+  /// email. The code span is a negative case — autolink must not fire inside
+  /// code.
+  static let autolinkVariants = Document(
+    name: "autolinkVariants",
+    markdown: """
+      Visit https://example.org/bare for the details.
+
+      Or start at www.example.org instead.
+
+      Mail hi@example.org with questions.
+
+      Not a link in `https://example.org/code` inside a code span.
+      """)
+
   /// Code blocks beyond the plain `swift` fence in
   /// `codeBlockAndThematicBreak`: a multi-word info string, an indented code
   /// block (no info string at all), and a bare fence. The closing paragraph
@@ -386,8 +403,8 @@ enum ParityCorpus {
     taskListItems, blockquoteParagraphs, alertBodyParagraphs, tableCells,
     duplicateBlocks, smartTypography, setextHeadings, frontMatter,
     codeBlockAndThematicBreak, footnoteNumbering, gfmAlertVariants,
-    docCAsideVariants, rawHTML, linkVariants, codeBlockVariants,
-    orderedListStart, footnoteDefBodyVariants, footnoteDefCodeBlocks,
-    footnoteDefMidDocument, docCAsideTrailingSpaces,
+    docCAsideVariants, rawHTML, linkVariants, autolinkVariants,
+    codeBlockVariants, orderedListStart, footnoteDefBodyVariants,
+    footnoteDefCodeBlocks, footnoteDefMidDocument, docCAsideTrailingSpaces,
   ]
 }

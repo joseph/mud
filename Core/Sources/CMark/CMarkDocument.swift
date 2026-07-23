@@ -36,18 +36,16 @@ struct CMarkSourceLocation: Equatable, Comparable, Sendable,
 /// An owning wrapper around one `cmark-gfm` parse — the parse every render
 /// runs on (see Doc/Plans/Archive/2026-07-single-parser-rendering.md).
 ///
-/// **Parse configuration is hard-coded** to the exact setup swift-markdown
-/// 0.8.0 uses (its `Parser/CommonMarkConverter.swift`): options
-/// `CMARK_OPT_SMART | CMARK_OPT_SOURCEPOS | CMARK_OPT_TABLE_SPANS` with the
-/// `table`, `strikethrough`, and `tasklist` extensions attached — plus
-/// `CMARK_OPT_FOOTNOTES`, the reason this wrapper exists. It is deliberately
-/// not configurable: four subsystems (Up-mode text emission, word-span cursor
-/// counts, heading slugs, `CommentAnchor.fold`) are calibrated to
-/// smart-typographed text-node literals, and a caller-supplied option set
-/// could silently break all four. `autolink` is deliberately **not** attached:
-/// swift-markdown never attaches it, and turning it on is a separate,
-/// user-visible decision to make after the port (see the plan's "Extension
-/// parity" section).
+/// **Parse configuration is hard-coded.** The options `CMARK_OPT_SMART |
+/// CMARK_OPT_SOURCEPOS | CMARK_OPT_TABLE_SPANS` and the `table`,
+/// `strikethrough`, and `tasklist` extensions match the exact setup
+/// swift-markdown 0.8.0 uses (its `Parser/CommonMarkConverter.swift`). Two
+/// extensions go beyond that: `CMARK_OPT_FOOTNOTES`, the reason this wrapper
+/// exists, and `autolink`, so a bare URL in the source renders as a link. It
+/// is deliberately not configurable: four subsystems (Up-mode text emission,
+/// word-span cursor counts, heading slugs, `CommentAnchor.fold`) are
+/// calibrated to smart-typographed text-node literals, and a caller-supplied
+/// option set could silently break all four.
 ///
 /// This is not the only cmark parse in Core. A second, narrower one runs for
 /// footnote and comment scanning (`FootnoteProcessor.makeFootnoteParser`):
@@ -86,7 +84,7 @@ final class CMarkDocument {
             | CMARK_OPT_TABLE_SPANS | CMARK_OPT_FOOTNOTES
         guard let parser = cmark_parser_new(options) else { return nil }
         defer { cmark_parser_free(parser) }
-        for name in ["table", "strikethrough", "tasklist"] {
+        for name in ["table", "strikethrough", "tasklist", "autolink"] {
             if let ext = cmark_find_syntax_extension(name) {
                 cmark_parser_attach_syntax_extension(parser, ext)
             }

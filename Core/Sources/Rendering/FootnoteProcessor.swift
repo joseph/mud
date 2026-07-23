@@ -71,9 +71,7 @@ enum FootnoteProcessor {
     /// extensions attached. Deliberately narrower than the render parse in
     /// ``CMarkDocument`` — it locates `[^…]` references and definitions by
     /// source position and renders nothing, so it omits `CMARK_OPT_SMART` and
-    /// `CMARK_OPT_TABLE_SPANS`. It does attach `autolink`, which the render
-    /// parse omits; the extra extension changes no `[^…]` token boundary, so it
-    /// doesn't affect what the scan finds. The caller owns the lifecycle
+    /// `CMARK_OPT_TABLE_SPANS`. The caller owns the lifecycle
     /// (`cmark_parser_free`).
     private static func makeFootnoteParser()
         -> UnsafeMutablePointer<cmark_parser>?

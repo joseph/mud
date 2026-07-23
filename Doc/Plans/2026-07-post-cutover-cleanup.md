@@ -52,9 +52,12 @@ These stay deferred, tracked by their own plans' closing notes:
 - The `CMarkDownHTMLVisitor` phase-split (inherited from the old Phase 3f
   deferral on `DownHTMLVisitor`; do it when the file is next touched for a
   feature).
-- Behavior changes of any kind. The autolink and table-spans decisions (Slice
-  7) are recorded here as decisions, but any "turn it on" commit is separate
-  work.
+- Behavior changes in Slices 2–6. The two parser decisions in Slice 7 do change
+  output: autolink is now on (bare URLs and emails become links), and
+  `CMARK_OPT_TABLE_SPANS` is now off. Both are recorded in Slice 7 and have
+  shipped — autolink as its own commit (it regenerated the goldens),
+  table-spans folded in with its decision (byte-neutral against every golden,
+  since no corpus table uses span syntax).
 
 
 ## Slice 1 — golden rendering tests
@@ -198,21 +201,32 @@ rule, after Slices 3–5 have settled the final names.
 
 ## Slice 7 — record the two open parser decisions
 
-Two decisions from the single-parser plan were left unrecorded. Record them;
-any behavior change ships separately.
+Two decisions from the single-parser plan were left unrecorded. Both are now
+made and shipped: autolink on, table-spans off.
 
 - **autolink.** The port kept autolink off in the render parse to hold byte
-  parity, with "turn it on afterward as its own commit" noted. Decide: turn it
-  on (bare URLs become links, a small user-visible win) or drop the idea. If
-  on, that commit regenerates the Slice 1 goldens — a nice first exercise of
-  the mechanism.
+  parity, with "turn it on afterward as its own commit" noted. **Decided: turn
+  it on, and done.** The `autolink` extension is attached to the render parse,
+  so bare URLs and emails now render as links — a small user-visible win. That
+  commit regenerated the Slice 1 goldens (the first exercise of the mechanism).
 - **`CMARK_OPT_TABLE_SPANS`.** Matched during the port "decide afterward" and
-  never decided. Decide keep or drop.
-- Note in `CMarkDocument.swift` (or resolve, if the autolink decision makes
-  them converge) that two parse configurations still exist: the render parse
-  (`SMART | SOURCEPOS | TABLE_SPANS | FOOTNOTES`, no autolink) and
-  `FootnoteScan`'s parse (`FOOTNOTES | SOURCEPOS`, with autolink). The
-  divergence is deliberate but currently undocumented at either site.
+  never decided. **Decided: drop it.** The option computes MultiMarkdown
+  colspan/rowspan metadata on table cells, but nothing in Mud reads it — the Up
+  visitor emits every cell as a plain `<td>`/ `<th>` with alignment only, and
+  Down mode renders the raw source. So it produced no spanning tables. Its one
+  visible effect was a footgun: a body cell whose whole text is `^` (the
+  rowspan marker) got blanked, so a lone caret in a table silently vanished.
+  Dropping it removes that surprise and gives up nothing. The corpus has no
+  `||` or `^` table cells and no golden carries `colspan`/ `rowspan`, so the
+  removal changed no fixture — it shipped in this slice rather than as separate
+  work.
+- Both parse configurations are now documented at their sites. The render parse
+  (`CMarkDocument`) sets `SMART | SOURCEPOS | FOOTNOTES` with the `table`,
+  `strikethrough`, `tasklist`, and `autolink` extensions; `FootnoteScan`'s
+  parse sets `FOOTNOTES | SOURCEPOS` with the same four extensions. After the
+  autolink and table-spans decisions, the only option difference is `SMART`
+  (the scan renders nothing, so it needs no smart typography). The divergence
+  is deliberate and now stated in both headers.
 
 
 ## Testing
@@ -225,8 +239,9 @@ VM.
 - Slices 2–6: `swift test` in `Core/` must pass with **no golden changes**
   (byte-neutral guarantee), plus Cmd+U on the Mud scheme after Slice 6 for the
   app suite.
-- Slice 7: no test effect unless autolink turns on; that separate commit
-  regenerates goldens and reviews the diff.
+- Slice 7: autolink's commit regenerated the goldens (review that diff);
+  dropping table-spans left every golden unchanged, so `swift test` in `Core/`
+  should still pass with no golden changes.
 
 
 ## Order and size

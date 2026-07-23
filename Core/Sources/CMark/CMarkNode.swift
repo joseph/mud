@@ -67,6 +67,11 @@ enum CMarkTableAlignment: Equatable, Sendable {
 /// A handle on one node of a ``CMarkDocument``'s tree. The handle retains its
 /// owning document, so holding a node anywhere — including across the
 /// diff layer's old/new document pairs — keeps the underlying C tree alive.
+///
+/// **Accessors must remain read-only cmark calls.** The `@unchecked Sendable`
+/// conformances on this type and `CMarkDocument` are sound only because the
+/// tree is immutable after parsing; a method that mutated a node (or its tree)
+/// would break that guarantee and introduce a data race across threads.
 struct CMarkNode {
     let raw: UnsafeMutablePointer<cmark_node>
     /// The owning document; retained so `raw` can never dangle.

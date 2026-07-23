@@ -62,7 +62,7 @@ final class CMarkDocument {
     let source: String
 
     /// Byte/line geometry of `source`, shared with the range APIs below.
-    let geometry: FootnoteProcessor.SourceGeometry
+    let geometry: SourceGeometry
 
     private let rootPointer: UnsafeMutablePointer<cmark_node>
 
@@ -94,7 +94,7 @@ final class CMarkDocument {
         }
         guard let root = cmark_parser_finish(parser) else { return nil }
         self.source = source
-        self.geometry = FootnoteProcessor.SourceGeometry(bytes)
+        self.geometry = SourceGeometry(bytes)
         self.rootPointer = root
     }
 

@@ -35,7 +35,7 @@ public enum CommentAnchor {
         let target = fold(collapse(blockText))
         guard !target.isEmpty else { return nil }
 
-        let geo = FootnoteProcessor.SourceGeometry(Array(source.utf8))
+        let geo = SourceGeometry(Array(source.utf8))
         let result: Int?? = FootnoteProcessor.withFootnoteAST(geo.bytes) { root in
             // Match the innermost *leaf* block (paragraph, heading, table cell) —
             // not the top-level container — so a selection inside a list item,
@@ -154,7 +154,7 @@ public enum CommentAnchor {
     /// falls inside one — then resolves to a source byte.
     private static func resolveByte(
         in node: UnsafeMutablePointer<cmark_node>, remaining: inout Int,
-        geo: FootnoteProcessor.SourceGeometry
+        geo: SourceGeometry
     ) -> Int? {
         var child = cmark_node_first_child(node)
         while let current = child {
@@ -209,7 +209,7 @@ public enum CommentAnchor {
     /// The source byte of a node's start position (1-based line/column → byte).
     private static func startByte(
         of node: UnsafeMutablePointer<cmark_node>,
-        geo: FootnoteProcessor.SourceGeometry
+        geo: SourceGeometry
     ) -> Int? {
         let line = Int(cmark_node_get_start_line(node))
         let column = Int(cmark_node_get_start_column(node))
@@ -220,7 +220,7 @@ public enum CommentAnchor {
     /// The source byte just past a node's end (1-based end line/column → byte).
     private static func endByte(
         of node: UnsafeMutablePointer<cmark_node>,
-        geo: FootnoteProcessor.SourceGeometry
+        geo: SourceGeometry
     ) -> Int? {
         let line = Int(cmark_node_get_end_line(node))
         let column = Int(cmark_node_get_end_column(node))

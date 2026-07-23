@@ -36,23 +36,30 @@ struct CMarkSourceLocation: Equatable, Comparable, Sendable,
 /// An owning wrapper around one `cmark-gfm` parse — the parse every render
 /// runs on (see Doc/Plans/Archive/2026-07-single-parser-rendering.md).
 ///
-/// **Parse configuration is hard-coded.** The options `CMARK_OPT_SMART |
-/// CMARK_OPT_SOURCEPOS | CMARK_OPT_TABLE_SPANS` and the `table`,
-/// `strikethrough`, and `tasklist` extensions match the exact setup
-/// swift-markdown 0.8.0 uses (its `Parser/CommonMarkConverter.swift`). Two
-/// extensions go beyond that: `CMARK_OPT_FOOTNOTES`, the reason this wrapper
-/// exists, and `autolink`, so a bare URL in the source renders as a link. It
-/// is deliberately not configurable: four subsystems (Up-mode text emission,
-/// word-span cursor counts, heading slugs, `CommentAnchor.fold`) are
-/// calibrated to smart-typographed text-node literals, and a caller-supplied
-/// option set could silently break all four.
+/// **Parse configuration is hard-coded.** The render parse sets
+/// `CMARK_OPT_SMART | CMARK_OPT_SOURCEPOS | CMARK_OPT_FOOTNOTES` and attaches
+/// the `table`, `strikethrough`, `tasklist`, and `autolink` extensions.
+/// `CMARK_OPT_FOOTNOTES` is the reason this wrapper exists; `autolink` renders
+/// a bare URL or email as a link. It is deliberately not configurable: four
+/// subsystems (Up-mode text emission, word-span cursor counts, heading slugs,
+/// `CommentAnchor.fold`) are calibrated to smart-typographed text-node
+/// literals, and a caller-supplied option set could silently break all four.
+///
+/// `CMARK_OPT_TABLE_SPANS` is deliberately **not** set. It computes MultiMarkdown
+/// colspan/rowspan metadata on table cells, but Up-mode rendering emits each
+/// cell as a plain `<td>`/`<th>` with alignment only (`UpHTMLVisitor`) and
+/// never reads that metadata, and Down mode renders the raw source. So the
+/// option produced no spanning tables — its one visible effect was to blank a
+/// body cell whose entire text is `^` (the rowspan marker), which made a lone
+/// caret in a table silently vanish. Dropping it keeps that caret literal.
 ///
 /// This is not the only cmark parse in Core. A second, narrower one runs for
 /// footnote and comment scanning (`FootnoteProcessor.makeFootnoteParser`):
-/// `CMARK_OPT_FOOTNOTES | CMARK_OPT_SOURCEPOS` only. It locates `[^…]`
-/// references and definitions by source position and renders nothing, so it
-/// drops `SMART` and `TABLE_SPANS`. The two configurations are meant to
-/// differ; only this one drives rendering.
+/// `CMARK_OPT_FOOTNOTES | CMARK_OPT_SOURCEPOS`, with the same four extensions.
+/// It locates `[^…]` references and definitions by source position and renders
+/// nothing, so it drops `SMART`. That one flag is the only difference between
+/// the two configurations; the divergence is intended, and only this parse
+/// drives rendering.
 ///
 /// The tree is a manually-freed C structure. The document owns the root
 /// (freed in `deinit`) and every `CMarkNode` handle retains its document, so
@@ -81,7 +88,7 @@ final class CMarkDocument {
     init?(parsing source: String) {
         _ = registerGFMExtensions
         let options = CMARK_OPT_SMART | CMARK_OPT_SOURCEPOS
-            | CMARK_OPT_TABLE_SPANS | CMARK_OPT_FOOTNOTES
+            | CMARK_OPT_FOOTNOTES
         guard let parser = cmark_parser_new(options) else { return nil }
         defer { cmark_parser_free(parser) }
         for name in ["table", "strikethrough", "tasklist", "autolink"] {

@@ -3,37 +3,13 @@ import Testing
 
 @testable import MudCore
 
-/// Down-mode rendering, now that `CMarkDownHTMLVisitor` is the sole pipeline.
-/// One footnote-aware cmark parse renders the raw source; the legacy
-/// swift-markdown pipeline it replaced (which blanked definition lines and
-/// re-parsed each definition body) has been deleted. These tests keep the
-/// cmark-side coverage: smoke sweeps over the shared corpus and the diffed
-/// edit cases, plus focused assertions on the footnote-span, definition, and
-/// orphan behavior the port owns.
+/// Down-mode rendering. One footnote-aware cmark parse renders the raw source.
+/// These tests make focused assertions on the footnote-span, definition, and
+/// orphan behavior the visitor owns, plus a crash-free sweep of the diffed
+/// edit shapes. Whole-document output is pinned separately by
+/// `GoldenRenderingTests`.
 @Suite("Down-mode rendering")
-struct DownRenderingParityTests {
-
-    /// The cmark pipeline's plain render.
-    private func cmarkDown(
-        _ source: String, mode: DocCAlertMode
-    ) -> String {
-        let parsed = ParsedMarkdown(source)
-        let fmRendered = FrontMatterHTMLRenderer.downModeLines(
-            markdown: parsed.markdown,
-            lineCount: parsed.frontMatterLineCount)
-        return CMarkDownHTMLVisitor().highlight(
-            parsed.body, docCAlertMode: mode,
-            frontMatterRendered: fmRendered)
-    }
-
-    @Test(arguments: ParityCorpus.all, DocCAlertMode.allCases)
-    func downHTMLRendersOverCorpus(
-        _ document: ParityCorpus.Document, _ mode: DocCAlertMode
-    ) {
-        let ported = cmarkDown(document.markdown, mode: mode)
-        // Every corpus document has body content, so the render is non-empty.
-        #expect(!ported.isEmpty)
-    }
+struct DownRenderingTests {
 
     // MARK: - Footnote spans from the AST
 
@@ -133,14 +109,14 @@ struct DownRenderingParityTests {
     ]
 
     /// The shared and Down-specific diffed edit cases. One shape,
-    /// `UpRenderingParityTests`' "paragraph referencing second footnote
+    /// `UpRenderingTests`' "paragraph referencing second footnote
     /// deleted", orphans `[^b]: B.` in the new document; under Down's
     /// `.descendPlainFootnotes` policy cmark diffs the orphaned definition
     /// as a deletion, pinned in `definitionOrphanedByDeletionDiffsAsDeleted`
     /// below, and swept here only for a crash-free render.
     static let diffedDownSweepCases: [ChangeIDParityTests.EditCase] =
         ChangeIDParityTests.corpus
-        + UpRenderingParityTests.diffEditCases
+        + UpRenderingTests.diffEditCases
         + CMarkChangePlanParityTests.downPolicyEditCases
         + downDiffEditCases
 

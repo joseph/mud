@@ -1,11 +1,11 @@
 import Testing
 
-/// One shared, reusable markdown corpus for the single-parser-rendering
-/// migration (Doc/Plans/2026-07-single-parser-rendering.md, Stage 0). Each
-/// document isolates one feature or node type so a failure names what broke.
-/// `CommentAnchorParityTests` draws its anchoring corpus from here today; the
-/// planned Stage 1+ dual-pipeline comparison will render this same set
-/// through both parsers and assert byte-identical HTML.
+/// One shared, reusable markdown corpus. Each document isolates one feature
+/// or node type so a failure names what broke. `GoldenRenderingTests` renders
+/// this set to checked-in HTML fixtures, `CommentAnchorParityTests` draws its
+/// anchoring corpus from here, and several diff suites reuse the documents.
+/// It began as the Stage 0 corpus for the single-parser-rendering migration
+/// (Doc/Plans/Archive/2026-07-single-parser-rendering.md).
 enum ParityCorpus {
   struct Document: Sendable, CustomTestStringConvertible {
     let name: String
@@ -302,7 +302,7 @@ enum ParityCorpus {
   /// alert body (the alert `>` markers take a different column offset on
   /// the opener line than on continuation lines). Every definition is
   /// referenced: cmark unlinks orphan definitions, whose Down rendering
-  /// deliberately diverges — pinned in `DownRenderingParityTests`.
+  /// deliberately diverges — pinned in `DownRenderingTests`.
   static let footnoteDefBodyVariants = Document(
     name: "footnoteDefBodyVariants",
     markdown: """
@@ -349,7 +349,7 @@ enum ParityCorpus {
   /// node — in the one surrounding shape where both modes render
   /// identically either way: paragraphs. A definition between two *lists*
   /// genuinely splits them under cmark where legacy merges them, so that
-  /// shape lives in `DownRenderingParityTests` (where Down's spanless
+  /// shape lives in `DownRenderingTests` (where Down's spanless
   /// list rendering keeps the bytes equal) and is excluded here, where it
   /// would fail the Up sweep.
   static let footnoteDefMidDocument = Document(
@@ -375,6 +375,17 @@ enum ParityCorpus {
 
       > Warning:  Two spaces after the colon on the core-map path.
       """)
+
+  /// The documents whose rendered output depends on `DocCAlertMode` —
+  /// blockquotes that may parse as DocC asides. `GoldenRenderingTests` sweeps
+  /// these across the non-default alert modes; every other corpus document
+  /// renders identically regardless of mode and is pinned at the default mode
+  /// only. Keep this in sync when adding a document with an aside-shaped
+  /// blockquote.
+  static let docCVariants: [Document] = [
+    alertBodyParagraphs, gfmAlertVariants, docCAsideVariants,
+    docCAsideTrailingSpaces,
+  ]
 
   static let all: [Document] = [
     paragraphsWithInlineSyntax, hardBreakParagraph, headings, listItems,

@@ -3,26 +3,13 @@ import Testing
 
 @testable import MudCore
 
-/// Up-mode body rendering, now that `CMarkUpHTMLVisitor` is the sole
-/// pipeline. One footnote-aware cmark parse renders the raw source; the
-/// legacy swift-markdown pipeline it replaced has been deleted. These tests
-/// keep the cmark-side coverage: a smoke sweep over the shared corpus plus
-/// focused assertions on the footnote-numbering, diff, and marker behavior
-/// the port owns.
+/// Up-mode body rendering. One footnote-aware cmark parse renders the raw
+/// source. These tests make focused assertions on the footnote-numbering,
+/// diff, and marker behavior the visitor owns, and pin that the retained-tree
+/// overload matches the string overload. Whole-document output is pinned
+/// separately by `GoldenRenderingTests`.
 @Suite("Up-mode rendering")
-struct UpRenderingParityTests {
-
-    @Test(arguments: ParityCorpus.all, DocCAlertMode.allCases)
-    func bodyHTMLRendersOverCorpus(
-        _ document: ParityCorpus.Document, _ mode: DocCAlertMode
-    ) {
-        var options = RenderOptions()
-        options.docCAlertMode = mode
-        let ported = CMarkUpHTMLVisitor.renderBody(
-            document.markdown, options: options)
-        // Every corpus document has body content, so the render is non-empty.
-        #expect(!ported.isEmpty)
-    }
+struct UpRenderingTests {
 
     // MARK: - Footnote numbering
 
@@ -80,7 +67,7 @@ struct UpRenderingParityTests {
     /// (list items, table rows, hoisting, deferral, reclaiming, trailing),
     /// word spans in every activating block shape, alerts, and the
     /// footnote/comment interplay with change tracking. Consumed by the
-    /// overload-parity sweep below and by `DownRenderingParityTests`' diffed
+    /// overload-parity sweep below and by `DownRenderingTests`' diffed
     /// sweep.
     ///
     /// Footnote cases with a *paired* edit deliberately use low-similarity

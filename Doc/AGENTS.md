@@ -50,9 +50,10 @@ MVP plan.
   `Mud.swiftmodule` — the binary is still `mud`.
 - **MudCore** (Core/) -- Swift Package, platform-independent rendering and
   syntax highlighting
-- **MudPreferences** (Preferences/) -- Swift Package, Foundation-only
-  preference persistence shared between the app and the Quick Look extension.
-  Depends on MudCore.
+- **MudPreferences** (Preferences/) -- Swift Package for preference
+  persistence, shared between the app and the Quick Look extension. Depends on
+  MudCore for the render-configuration types its snapshot maps into
+  `RenderOptions` (`Theme`, `DocCAlertMode`, …).
 - **QuickLook** (QuickLook/) -- `.appex` Quick Look preview extension, bundled
   in `Mud.app/Contents/PlugIns/`. Renders `.md` previews via MudCore and reads
   preferences from the app-group mirror via MudPreferences.
@@ -186,40 +187,46 @@ MVP plan.
 
 **Core/ key files:**
 
-- `ParsedMarkdown.swift` — Parse-once handle: AST, headings, title
+- `ParsedMarkdown.swift` — Parse-once handle: owns the one footnote-aware
+  `CMarkDocument` parse and exposes headings, title, and the frontmatter split.
+  Every consumer — the visitors, the diff layer, heading extraction — reads
+  this one tree.
+- `FrontMatterExtractor.swift` — Detects and extracts YAML frontmatter (`---` …
+  `---` / `...` at the top of the file) and parses its top-level keys for the
+  frontmatter table.
 - `RenderExtension.swift` — Client-side rendering extension type and registry
 - `RenderOptions.swift` — Rendering configuration value type
 - `Theme.swift` — austere/blues/earthy/riot enum (plus internal `.system`)
 - `Mode.swift` — up/down enum (Mark Up / Mark Down)
-- `CMark/CMarkDocument.swift` — Owning wrapper over one footnote-aware
-  cmark-gfm parse (single-parser plan, Stage 1): hard-coded
-  swift-markdown-parity parse options, range APIs in swift-markdown's
-  conventions (exclusive upper bound, UTF-8 byte columns, backtick widening),
-  and the `verifiedRange(of:)` delimiter defense
+- `MudCore.swift` — Public API facade: the Up- and Down-mode entry points
+  (dispatch only — HTML emission lives in `Rendering/`), the shared
+  `renderUpPipeline`, `exportDocument` (the one self-contained export recipe),
+  `computeChanges`, and the extractHeadings / parseComments / removeComments
+  convenience calls
+- `CMark/CMarkDocument.swift` — Owning wrapper over the one footnote-aware
+  cmark-gfm parse every render runs on: hard-coded parse options, range APIs in
+  swift-markdown's byte conventions (exclusive upper bound, UTF-8 byte columns,
+  backtick widening), and the `verifiedRange(of:)` delimiter defense. Frees the
+  tree in `deinit`; every `CMarkNode` retains it
 - `CMark/CMarkNode.swift` — Document-retaining node handle: `CMarkNodeKind`
-  (extension nodes identified by type string), content and structure accessors
-- `CMark/CMarkWalker.swift` — Depth-first walker with default-descend behavior,
-  mirroring `MarkupWalker`'s method vocabulary for mechanical ports
-- `MudCore.swift` — Public API facade: rendering entry points (dispatch only —
-  HTML emission lives in `Rendering/`), the shared Up-mode pipeline,
-  `exportDocument` (the one self-contained export recipe), extractHeadings /
-  parseComments / removeComments convenience
-- `Rendering/UpHTMLVisitor.swift` — AST → rendered HTML; `renderBody` is the
-  visitor + frontmatter-prefix core every Up-mode fragment render goes through
-- `Rendering/CMarkUpHTMLVisitor.swift` — Stages 3–4 cmark port of
-  `UpHTMLVisitor` (single-parser plan): renders the Up-mode body from one
-  footnote-aware parse, emitting footnote/comment markers in the visitor, with
-  change tracking wired to the `CMark*` diff layer (no waypoint preprocessing).
-  Parallel and unwired — `UpRenderingParityTests` holds it byte-identical to
-  the legacy visitor, plain and diffed, until the pipelines cut over
-- `Rendering/DownHTMLVisitor.swift` — AST → syntax-highlighted raw HTML
-- `Rendering/CMarkDownHTMLVisitor.swift` — Stage 5 cmark port of
-  `DownHTMLVisitor` (single-parser plan): one footnote-aware parse replaces the
-  definition-line blanking and the per-definition body sub-parse; footnote
-  reference/definition spans come from the AST. Parallel and unwired —
-  `DownRenderingParityTests` holds it byte-identical to the legacy visitor,
-  plain and diffed, until the pipelines cut over
-- `Rendering/WordSpanEmitter.swift` — Word-level `<ins>`/ `<del>` cursor
+  (extension nodes identified by type string), content and structure accessors.
+  Accessors stay read-only — the `@unchecked Sendable` conformance depends on
+  the tree being immutable after parsing
+- `CMark/CMarkWalker.swift` — Depth-first walker over a `CMarkDocument` tree:
+  one visit method per node kind, descending into children by default
+- `CMark/SourceGeometry.swift` — Byte/line geometry over a UTF-8 source (line
+  starts, byte offsets, blank-line and `[^…]`-delimiter checks). Shared by
+  `CMarkDocument`, `FootnoteProcessor`, and `CommentAnchor`; it lives in
+  `CMark/` because it is about source bytes, not rendering
+- `Rendering/UpHTMLVisitor.swift` — AST → rendered Up-mode HTML. `renderBody`
+  (the visitor plus the frontmatter prefix) is the core every Up-mode render
+  goes through; it emits footnote and comment markers straight from the AST and
+  skips definitions structurally. With a waypoint set, it wires change
+  annotations and inline deletions through `DiffContext`
+- `Rendering/DownHTMLVisitor.swift` — AST → syntax-highlighted raw-source HTML
+  table (Down mode). `highlightWithChanges` projects a `ChangePlan` onto the
+  source lines when a waypoint is set
+- `Rendering/WordSpanEmitter.swift` — Word-level `<ins>` / `<del>` cursor
   machine; advances through a block's `[WordSpan]` in step with the visitor's
   character stream (aligned with `WordDiff.inlineText`)
 - `Rendering/DeletionPlacer.swift` — Places pre-rendered deletions into the
@@ -227,13 +234,16 @@ MVP plan.
   `</table>`
 - `Rendering/DeletionRenderer.swift` — Renders deleted blocks to HTML for the
   Up-mode overlay; injected into `DiffContext` so `Diff/` never calls rendering
-  code
-- `Rendering/CMarkDeletionPlacer.swift` — Stage 4 port of `DeletionPlacer` onto
-  `CMarkNode` (parallel, unwired)
-- `Rendering/CMarkDeletionRenderer.swift` — Stage 4 port of `DeletionRenderer`;
-  seeds deletion visitors with the old document's footnote numbering (deleted
-  blocks walk the raw old tree, where markers aren't pre-baked) and hosts the
-  `CMarkDiffContext(old:new:)` convenience initializer
+  code. Seeds deletion visitors with the old document's footnote numbering
+  (deleted blocks walk the raw old tree, where markers aren't pre-baked) and
+  hosts the `DiffContext(old:new:)` convenience initializer
+- `Rendering/FootnoteProcessor.swift` — Scans a source's footnotes and comments
+  through one memoized `FootnoteScan` (a cmark footnote parse). Builds the
+  footnote and comment models for the bottom sections, classifies
+  `^comment-[\w-]+$` labels as comments (rendered as `[⋯]` markers that consume
+  no footnote number), and supplies the comment byte geometry
+  (`CommentLocation`), `removeComments`, and `stripCommentTokens`. It rewrites
+  no source — the visitor emits every marker from the AST
 - `Rendering/FootnoteHTMLRenderer.swift` — Bottom footnotes section and the
   per-footnote popover documents
 - `Rendering/CommentHTMLRenderer.swift` — Bottom comments section, single
@@ -241,14 +251,11 @@ MVP plan.
 - `Rendering/FrontMatterHTMLRenderer.swift` — Frontmatter for both modes: Up's
   collapsible table, Down's highlighted source lines
 - `Rendering/HTMLDocument.swift` — Structured HTML document builder
-- `Rendering/HTMLTemplate.swift` — Document wrapping and resource loading
-- `Rendering/MarkdownParser.swift` — swift-cmark wrapper
-- `Rendering/FootnoteProcessor.swift` — Pre-parses footnotes via cmark;
-  classifies `^comment-[\w-]+$` labels as comments (diverted to `[⋯]` markers,
-  authorial footnotes renumbered to skip them). All entry points derive from
-  one memoized `FootnoteScan` per source
+- `Rendering/HTMLTemplate.swift` — Document wrapping and resource loading (CSS
+  and JS inlined into the final document)
 - `Rendering/SlugGenerator.swift` — Heading ID generation
-- `Rendering/HeadingExtractor.swift` — Heading extraction for sidebar
+- `Rendering/HeadingExtractor.swift` — Heading extraction for the sidebar (a
+  `CMarkWalker`)
 - `Rendering/CodeHighlighter.swift` — Syntax highlighting via highlight.js
 - `Rendering/EmojiShortcodes.swift` — `:shortcode:` → emoji replacement
 - `Rendering/AlertDetector.swift` — GFM alert and DocC aside detection
@@ -265,33 +272,28 @@ MVP plan.
 - `Comments/CommentAnchor.swift` — Maps a rendered-DOM selection end to a
   source UTF-8 byte (via the cmark footnote AST) so the marker lands where the
   quotation ends
-- `Diff/BlockMatcher.swift` — Block-level diff: leaf collection, fingerprint
-  matching, and gap ordering between two parsed documents
+- `Diff/BlockMatcher.swift` — Block-level diff over two `CMarkDocument` trees:
+  leaf collection, fingerprint matching, and gap ordering. Footnote and comment
+  definitions are handled by `DefinitionDiffPolicy` (Up skips every definition;
+  Down descends plain footnote definitions so their edits stay diffable;
+  comment definitions are always skipped). Feeds `ChangePlan`
 - `Diff/ChangePlan.swift` — The single diff pass every consumer projects from:
-  change-ID minting, gap pairing, code-block pairs, word spans, and grouping;
-  memoized per (waypoint, content) pair
-- `Diff/LineLevelDiff.swift` — Shared line-level diff algorithm
-- `Diff/LineDiffMap.swift` — Down mode change tracking (projects `ChangePlan`
-  onto line numbers)
-- `Diff/CodeBlockDiff.swift` — Line-level diff within paired code blocks (Up
-  mode)
-- `Diff/DiffContext.swift` — Up mode change tracking (projects `ChangePlan`
-  into annotation lookups and rendered deletions)
-- `Diff/WordDiff.swift` — Word-level diff and inline text extraction
-- `Diff/WordPairing.swift` — Greedy best-match pairing of deleted/inserted
-  lines
+  change-ID minting, gap pairing, code-block pairs, word spans, and grouping.
+  Memoized per (source text, policy) pair; every join keys on a source position
+  (`SourceKey`), never node identity, so the cache can return nodes from a
+  different but textually identical tree
+- `Diff/DiffContext.swift` — Up-mode change tracking: projects `ChangePlan`
+  into annotation lookups and rendered deletions
+- `Diff/LineDiffMap.swift` — Down-mode change tracking: projects `ChangePlan`
+  onto line numbers
 - `Diff/ChangeList.swift` — Sidebar change list projected from `ChangePlan`
 - `Diff/ChangeGroup.swift` — Groups consecutive changes by `groupID`
-- `Diff/CMarkBlockMatcher.swift`, `Diff/CMarkChangePlan.swift`,
-  `Diff/CMarkDiffContext.swift`, `Diff/CMarkLineDiffMap.swift`,
-  `Diff/CMarkChangeList.swift` — Stage 4 ports of the diff layer onto
-  `CMarkNode` (single-parser plan; parallel, unwired). The collector treats
-  footnote definitions by policy (`CMarkDefinitionDiffPolicy`: Up mode skips
-  every definition structurally, Down mode descends plain footnote definitions
-  so their edits stay diffable; comment definitions are always skipped), and
-  all joins key on source positions (`CMarkSourceKey`), never node identity —
-  the plan cache, keyed by source text plus policy, returns nodes from a
-  different, textually identical tree
+- `Diff/CodeBlockDiff.swift` — Line-level diff within paired code blocks (Up
+  mode)
+- `Diff/LineLevelDiff.swift` — Shared line-level diff algorithm
+- `Diff/WordDiff.swift` — Word-level diff and inline text extraction
+- `Diff/WordPairing.swift` — Greedy best-match pairing of deleted / inserted
+  lines
 - `ChangeTracker.swift` — Waypoint history and active-waypoint selection
 
 **QuickLook/ key files:**
@@ -410,51 +412,74 @@ MVP plan.
 
 ## Rendering pipeline
 
+Both modes start from one `ParsedMarkdown`, which holds a single footnote-aware
+cmark parse (`CMarkDocument`) of the source. Every consumer — the visitors,
+heading extraction, and the diff layer — reads that one tree; no one re-parses.
+
 ```
 RenderOptions (configuration value type)
   ↓
 Markdown string (up mode)
-  → MarkdownParser (cmark-gfm) → AST
-  → UpHTMLVisitor → rendered HTML body (SlugGenerator adds heading IDs)
-  → HTMLTemplate.wrapUp() → full HTML document (CSS + JS inlined)
+  → MudCore.renderUpPipeline
+    → FootnoteProcessor.process  (footnote + comment models; no rewriting)
+    → ParsedMarkdown             (one footnote-aware cmark parse)
+    → UpHTMLVisitor.renderBody   (AST → HTML body; markers emitted from the AST,
+                                  SlugGenerator adds heading IDs,
+                                  DiffContext adds change overlays)
+    → FootnoteHTMLRenderer + CommentHTMLRenderer  (bottom sections appended)
+  → HTMLTemplate.wrapUp()        → full HTML document (CSS + JS inlined)
   → WKWebView
 
 Markdown string (down mode)
-  → DownHTMLVisitor → syntax-highlighted HTML table with spans
-  → HTMLTemplate.wrapDown() → full HTML document (CSS + JS inlined)
+  → ParsedMarkdown               (the same parse)
+  → DownHTMLVisitor              → syntax-highlighted raw-source table
+                                  (highlightWithChanges projects a ChangePlan
+                                  when a waypoint is set)
+  → HTMLTemplate.wrapDown()      → full HTML document (CSS + JS inlined)
   → WKWebView
 ```
 
 Both modes render into the same WKWebView; toggling mode swaps the HTML
-document. All public rendering functions accept a `RenderOptions` value
-bundling configuration (theme, baseURL, docCAlertMode, commentMode, etc.);
-adding an option means adding a field on the struct.
+document. All public rendering functions take a `RenderOptions` value bundling
+configuration (theme, baseURL, docCAlertMode, commentMode, waypoint, …); adding
+an option means adding a field on the struct.
 
-Footnotes are preprocessed at the **String** boundary (sourcepos needs raw
-bytes): `FootnoteProcessor` rewrites `[^ref]` to inline-HTML markers and strips
-definitions before `ParsedMarkdown` parsing. The bottom
+Footnotes and comments are **not** rewritten into the source.
+`FootnoteProcessor` scans the source once (a memoized `FootnoteScan`) to build
+the footnote and comment models for the bottom sections, and the Up visitor
+emits every marker straight from the AST — a numbered footnote marker for a
+reference, a `[⋯]` marker for a comment. The bottom
 `<section class="footnotes">` is always emitted; in `.popover` mode it is
 hidden on screen (`is-print-only`, shown under `@media print`) and
-`renderUpModeDocumentWithFootnotes` additionally returns each footnote body as
-a self-contained document for the in-app `NSPopover`.
+`renderUpModeDocumentWithFootnotes` also returns each footnote body as a
+self-contained document for the in-app `NSPopover`.
 
-Comments ride the same preprocessing pass. A footnote whose label matches
-`^comment-[\w-]+$` is classified as a comment: its reference renders as a `[⋯]`
-marker (consuming no footnote number) and its definition is parsed into a
-quotation + threaded messages. `RenderOptions.commentMode` (added to
-`contentIdentity`) selects the output: `.section` emits a visible bottom
+A footnote whose label matches `^comment-[\w-]+$` is a comment. Its reference
+renders as the `[⋯]` marker (consuming no footnote number) and its definition
+parses into a quotation plus threaded messages. `RenderOptions.commentMode`
+selects the output: `.section` emits a visible bottom
 `<section class="comments">` for every export path, while `.interactive` (the
 live app) keeps that section `is-print-only` and instead draws hover-revealed
-highlights and feeds the Comments Column. The bottom section always follows any
-footnotes section.
+highlights and feeds the Comments Column. The bottom comments section always
+follows any footnotes section.
 
-Comments are **invisible to change tracking**: `BlockMatcher.collectLeafBlocks`
-excludes comment-definition blocks (via
-`FootnoteProcessor.commentDefinitionLineRanges`) and strips comment tokens from
-block fingerprints (`stripCommentTokens`), so a comment-only edit produces zero
-changes and no new waypoint across all three diff consumers (sidebar, Up
-overlay, Down highlighting). Both are gated to a strict no-op on comment-free
-input. Correspondingly, the Up-mode `contentID` is **comment-invariant**
+Comments are **invisible to change tracking**, through two mechanisms in the
+leaf-block collector (`BlockMatcher`):
+
+- Comment **definitions** never become leaf blocks. `visitFootnoteDefinition`
+  drops any definition whose label is a comment label, on either policy — and
+  the Up policy (`.skipAll`) skips every definition anyway.
+- Inline comment **references** are stripped from each block's fingerprint
+  (`FootnoteProcessor.stripCommentTokens`), so a paragraph that only gains or
+  loses a `[^comment-x]` marker fingerprints the same and produces no change.
+
+So a comment-only edit yields zero changes and no new waypoint across all three
+diff consumers (sidebar, Up overlay, Down highlighting). The sidebar picks its
+policy from the on-screen mode (`MudCore.computeChanges(old:new:mode:)`: `.up`
+→ `.skipAll`, `.down` and waypoint dedup → `.descendPlainFootnotes`), because
+change IDs are a running counter — a definition edit that one mode draws and
+the other doesn't must not renumber the visible list. Correspondingly, the
+Up-mode `contentID` is **comment-invariant**
 (`DocumentContentView.displayContentID` hashes `MudCore.removeComments(...)`),
 so a comment add/remove updates the live Up view in place (`mud-comments.js`
 marker sync) with no reload; Down mode keeps the full markdown so its raw

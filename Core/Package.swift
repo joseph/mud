@@ -9,8 +9,9 @@ let package = Package(
     ],
     dependencies: [
         // The single Markdown parser. Mud links cmark-gfm directly; the
-        // swift-markdown wrapper it used to render through was removed in
-        // Stage 6–7 of Doc/Plans/2026-07-single-parser-rendering.md. Pinned to
+        // swift-markdown wrapper it used to render through was removed at the
+        // single-parser cutover (see
+        // Doc/Plans/Archive/2026-07-single-parser-rendering.md). Pinned to
         // 0.8.0 (via Package.resolved), the version `CMarkDocument`'s
         // hard-coded parse options are calibrated to.
         .package(

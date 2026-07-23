@@ -232,8 +232,8 @@ public enum CommentAnchor {
         text.split(whereSeparator: { $0.isWhitespace }).joined(separator: " ")
     }
 
-    /// Folds smart typography back to its ASCII source form so the rendered
-    /// (swift-markdown, smart-quoted) block text matches cmark's raw-source text.
+    /// Folds smart typography back to its ASCII source form so the rendered,
+    /// smart-quoted block text matches cmark's raw-source text.
     /// Quotes and apostrophes are length-preserving, so the byte walk over the
     /// raw literals stays aligned; dashes and ellipses change length, so an
     /// offset *past* one of those characters can drift by a char or two (rare;

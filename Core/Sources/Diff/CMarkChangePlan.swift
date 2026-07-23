@@ -1,9 +1,9 @@
 import Foundation
 
-/// The single diff pass shared by every cmark change-tracking consumer — the
-/// Stage 4 port of ``ChangePlan`` onto ``CMarkLeafBlock``
-/// (Doc/Plans/2026-07-single-parser-rendering.md). The decisions all
-/// consumers must agree on are made exactly once, matching the legacy plan:
+/// The single diff pass shared by every cmark change-tracking consumer
+/// (ported from the swift-markdown pipeline; see
+/// Doc/Plans/Archive/2026-07-single-parser-rendering.md). The decisions all
+/// consumers must agree on are made exactly once, here:
 ///
 /// - Change-ID numbering: `change-N`, minted in match order. A code-block
 ///   pair's line clusters mint their IDs when the pair's gap closes, after
@@ -17,9 +17,8 @@ import Foundation
 /// - Grouping: `group-N` IDs, badge indices, positions, and each group's
 ///   ins/del/mix type — including one group per code-block line cluster.
 ///
-/// **Parallel and unwired.** `CMarkDiffContext`, `CMarkLineDiffMap`, and
-/// `CMarkChangeList` project from this plan; production consumers stay on
-/// the legacy `ChangePlan` until Stage 6.
+/// `CMarkDiffContext`, `CMarkLineDiffMap`, and `CMarkChangeList` all project
+/// from this one plan.
 struct CMarkChangePlan {
     /// A changed block with its minted change ID.
     struct Change {
@@ -320,8 +319,7 @@ extension CMarkChangePlan {
 extension CMarkChangePlan {
     /// swift-markdown's `CodeBlock.language` equivalent for a `.codeBlock`
     /// node: the fence info string, with an empty info (bare fence, indented
-    /// block) mapped to nil — the mapping the Stage 3 rendering parity
-    /// harness already proves over the corpus.
+    /// block) mapped to nil.
     static func codeLanguage(_ codeBlock: CMarkNode) -> String? {
         codeBlock.fenceInfo.flatMap { $0.isEmpty ? nil : $0 }
     }
@@ -447,8 +445,7 @@ enum GroupType: String {
 }
 
 /// Describes a change's membership in a consecutive group — a shared,
-/// parser-agnostic value type `CMarkChangePlan` produces (it moved here from
-/// the legacy `ChangePlan` when that was deleted at the Stage 6 cutover).
+/// parser-agnostic value type `CMarkChangePlan` produces.
 struct GroupInfo {
     /// The group identifier (e.g. "group-1").
     let groupID: String

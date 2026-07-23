@@ -421,7 +421,7 @@ struct CommentSerializationTests {
 
   // MARK: - Byte identity
 
-  // Stage 7 of Doc/Plans/2026-07-single-parser-rendering.md: `parse` slices each
+  // `parse` slices each
   // message body verbatim out of the source instead of re-serializing it
   // through a Markdown formatter. So a message no one has touched must survive a
   // reply byte-for-byte — including formatting a formatter would have

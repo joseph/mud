@@ -1,5 +1,4 @@
-/// Walks a `CMarkDocument` and collects headings for the outline sidebar
-/// (Doc/Plans/2026-07-single-parser-rendering.md, Stage 2).
+/// Walks a `CMarkDocument` and collects headings for the outline sidebar.
 struct HeadingExtractor: CMarkWalker {
     var headings: [OutlineHeading] = []
     private var slugTracker = SlugGenerator.Tracker()

@@ -35,8 +35,7 @@ struct DownRenderingTests {
         let html = CMarkDownHTMLVisitor().highlight(
             ParityCorpus.footnoteNumbering.markdown)
         // `[^missing]` never becomes a reference node, so its literal
-        // text renders unhighlighted — as legacy, whose scan only sees
-        // resolved references.
+        // text renders unhighlighted: only a resolved reference gets a span.
         #expect(!html.contains(
             "<span class=\"md-footnote-ref\">[^missing]</span>"))
         #expect(html.contains("[^missing]"))
@@ -57,9 +56,8 @@ struct DownRenderingTests {
         let html = CMarkDownHTMLVisitor().highlight(
             ParityCorpus.footnoteDefCodeBlocks.markdown)
         // Code inside a definition body gets fence/content spans, but no
-        // highlight.js substitution and no scrollable code-line roles —
-        // legacy discarded the body sub-parse's code blocks, keeping the
-        // body's verbatim indentation on screen.
+        // highlight.js substitution and no scrollable code-line roles, so
+        // the body's verbatim indentation stays on screen.
         #expect(html.contains("md-code-fence"))
         #expect(html.contains("md-code-block"))
         #expect(!html.contains("hljs"))

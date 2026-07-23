@@ -2,14 +2,13 @@ import Testing
 
 @testable import MudCore
 
-/// Stage 1 of Doc/Plans/2026-07-single-parser-rendering.md: the `CMarkDocument`
-/// wrapper. These unit-test the wrapper's kinds, ranges, walker, lifetime, and
-/// smart-typography literals directly. (Through Stage 6 a parity suite here
-/// also compared every range and text literal against swift-markdown; that
-/// cross-check was scaffolding for the port and left with the dependency in
-/// Stage 7. The range conventions it guarded — exclusive upper bound, UTF-8
-/// byte columns, backtick widening — are now pinned as self-contained golden
-/// slices below.)
+/// Unit tests for the `CMarkDocument` wrapper (see
+/// Doc/Plans/Archive/2026-07-single-parser-rendering.md): its kinds, ranges,
+/// walker, lifetime, and smart-typography literals. (A parity suite here once
+/// compared every range and text literal against swift-markdown; that
+/// cross-check was scaffolding for the port and left with the dependency. The
+/// range conventions it guarded — exclusive upper bound, UTF-8 byte columns,
+/// backtick widening — are now pinned as self-contained golden slices below.)
 @Suite("CMarkDocument")
 struct CMarkDocumentTests {
 
@@ -272,8 +271,8 @@ struct CMarkDocumentTests {
     // MARK: - Multibyte range conventions (golden)
 
     /// The range conventions the whole port relies on, pinned as byte slices
-    /// through a multibyte source (through Stage 6 these were checked against
-    /// swift-markdown; the cross-check left with the dependency). `ö` and `é`
+    /// through a multibyte source (these were once checked against
+    /// swift-markdown; that cross-check left with the dependency). `ö` and `é`
     /// are two UTF-8 bytes each, so every token after them sits at a byte
     /// column past its character column — the case that separates UTF-8 byte
     /// columns from character columns. Inline code slices include the widening

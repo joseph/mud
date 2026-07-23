@@ -1,26 +1,18 @@
 import Foundation
 
-/// AST → web HTML visitor over the single cmark parse — the Stage 3 port of
-/// ``UpHTMLVisitor`` (Doc/Plans/2026-07-single-parser-rendering.md). Walks a
+/// AST → web HTML visitor: renders the Up-mode body from one footnote-aware
+/// cmark parse (ported from the swift-markdown pipeline; see
+/// Doc/Plans/Archive/2026-07-single-parser-rendering.md). It walks a
 /// ``CMarkDocument`` whose parse is footnote-aware, so `[^label]` references
-/// arrive as AST nodes: ``visitFootnoteReference(_:)`` emits the same marker
-/// HTML the legacy pipeline bakes into the source, and the numbering logic
-/// (first-reference order over authorial references only, occurrence-suffixed
-/// back-link ids) moves from `FootnoteProcessor.process`'s rewrite pass into
-/// the render.
+/// arrive as AST nodes: ``visitFootnoteReference(_:)`` emits the marker HTML,
+/// and the visitor owns footnote numbering directly (first-reference order
+/// over authorial references only, occurrence-suffixed back-link ids).
 ///
-/// Stage 4 wired in change tracking: `diffContext` / `CMarkDeletionPlacer`
-/// emit change attributes and pre-rendered deletions, `WordSpanEmitter`
-/// (already parser-agnostic) drives word-level markers, and `renderBody`
-/// builds a `CMarkDiffContext` when `options.waypoint` is set — with **no**
-/// waypoint preprocessing: cmark parses footnotes directly, so there is no
-/// transformed source to reconcile (`MudCore.processingWaypoint` has no
-/// counterpart here).
-///
-/// **Parallel and unwired.** The legacy `UpHTMLVisitor` remains the production
-/// renderer; `UpRenderingParityTests` holds this visitor byte-identical to it
-/// over the parity corpus — plain and diffed — and that harness gates the
-/// eventual cutover.
+/// Change tracking rides the same walk: `diffContext` / `CMarkDeletionPlacer`
+/// emit change attributes and pre-rendered deletions, `WordSpanEmitter` drives
+/// word-level markers, and `renderBody` builds a `CMarkDiffContext` when
+/// `options.waypoint` is set. There is no waypoint preprocessing — cmark
+/// parses footnotes directly, so no transformed source needs reconciling.
 struct CMarkUpHTMLVisitor: CMarkWalker {
     var result = ""
 
@@ -36,8 +28,7 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
     private var slugTracker = SlugGenerator.Tracker()
 
     // List tightness state (saved/restored for nesting). Read straight off
-    // the parser (`listIsTight`) — this replaces the legacy visitor's
-    // `isLooseList` range arithmetic.
+    // the parser (`listIsTight`).
     private var inTightList = false
 
     // Table rendering state.
@@ -65,10 +56,9 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
     /// blocks are silently skipped instead of emitted inline.
     var showInlineDeletions = false
 
-    // Footnote numbering state, moved here from `FootnoteProcessor.process`'s
-    // rewrite pass: numbers are assigned in first-reference order over
-    // authorial references only, so comments occupy no number and leave no
-    // gap; the per-label occurrence index drives back-link ids (fnref-N-K).
+    // Footnote numbering state: numbers are assigned in first-reference order
+    // over authorial references only, so comments occupy no number and leave
+    // no gap; the per-label occurrence index drives back-link ids (fnref-N-K).
     private var authorialNumber: [String: Int] = [:]
     private var nextFootnoteNumber = 1
     private var occurrence: [String: Int] = [:]
@@ -278,8 +268,7 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
     }
 
     /// Renders the inner HTML of a code block (`<code>` with optional
-    /// language header and syntax highlighting) — the counterpart of
-    /// `UpHTMLVisitor.codeBlockInnerHTML`. Shared by `visitCodeBlock`
+    /// language header and syntax highlighting). Shared by `visitCodeBlock`
     /// and `CMarkDeletionRenderer.render`.
     static func codeBlockInnerHTML(_ codeBlock: CMarkNode) -> String {
         let lang = codeBlock.fenceInfo.flatMap { $0.isEmpty ? nil : $0 }
@@ -325,25 +314,22 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
 
     // MARK: - Footnotes and comments
 
-    /// Definitions render nothing in the body: the legacy pipeline deletes
-    /// them from the source before its render parse; here they are skipped
-    /// structurally (their references never enter the numbering either).
-    /// Their bodies feed the bottom sections via `FootnoteProcessor`, not
-    /// this walk. `CMarkBlockMatcher`'s collector skips them the same way,
-    /// so change tracking never asks this visitor to place a change inside
-    /// a definition.
+    /// Definitions render nothing in the body: they are skipped structurally
+    /// (their references never enter the numbering either). Their bodies feed
+    /// the bottom sections via `FootnoteProcessor`, not this walk.
+    /// `CMarkBlockMatcher`'s collector skips them the same way, so change
+    /// tracking never asks this visitor to place a change inside a definition.
     mutating func visitFootnoteDefinition(_ node: CMarkNode) {}
 
     mutating func visitFootnoteReference(_ node: CMarkNode) {
         // cmark keeps the label on the resolved definition and stores its own
         // per-reference number as the literal. A reference always resolves —
         // cmark drops unmatched `[^label]` back to literal text — so the
-        // guards below mirror the legacy rewrite pass's defenses exactly:
-        // an integer number literal and a sourcepos that verifiably delimits
-        // `[^…]`. The legacy pass leaves a failing reference's raw text in
-        // the source; emit the equivalent text here. (The definition's label
-        // spelling stands in for the reference's raw bytes, which a broken
-        // sourcepos can no longer locate.)
+        // guards below require an integer number literal and a sourcepos that
+        // verifiably delimits `[^…]`. A reference that fails either guard
+        // renders as its raw text. (The definition's label spelling stands in
+        // for the reference's raw bytes, which a broken sourcepos can no
+        // longer locate.)
         guard let label = node.parentFootnoteDefinition?.literal else { return }
         guard let literal = node.literal, Int(literal) != nil,
               let range = node.verifiedRange else {
@@ -384,11 +370,10 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
     mutating func visitTable(_ table: CMarkNode) {
         tableAlignments = table.tableAlignments
         // cmark has no table-body node: the first child row is the header,
-        // the rest are body rows (the legacy pipeline's Table.Head /
-        // Table.Body structure, flattened). The legacy visitor's deletion
-        // handling folds in accordingly: hoisting before <table> hangs off
-        // the header row, and the per-row placement loop lives in the
-        // body-rows walk below instead of a visitTableBody method.
+        // the rest are body rows. Deletion handling folds in accordingly:
+        // hoisting before <table> hangs off the header row, and the per-row
+        // placement loop lives in the body-rows walk below instead of a
+        // visitTableBody method.
         let rows = Array(table.children)
 
         // Emit preceding deletions BEFORE opening <table> so they don't
@@ -566,8 +551,7 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
 
     // MARK: - Change tracking helpers
 
-    /// Attribute bundle for a changed element — the counterpart of
-    /// `UpHTMLVisitor.ChangeAttrs`.
+    /// Attribute bundle for a changed element.
     struct ChangeAttrs {
         let classes: String   // "mud-change-ins" or "mud-change-del"
         let dataAttrs: String // ' data-change-id="..." data-group-id="..."'
@@ -635,8 +619,9 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
         var index = 0
         var opened = false
 
-        // Strip the [!TYPE] tag from the first text node. The legacy visitor
-        // escapes the remainder without emoji replacement; match it.
+        // Strip the [!TYPE] tag from the first text node, then escape the
+        // remainder without emoji replacement (so a `:tada:` on the tag line
+        // stays literal).
         if let tagNode = inlines.first, tagNode.kind == .text {
             index = 1
             let literal = tagNode.literal ?? ""
@@ -690,9 +675,9 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
     }
 
     /// Concatenated plain text of an array of inline nodes, used for the
-    /// length check before inlining same-line content. Matches the legacy
-    /// visitor's `plainTextOf`: inline code contributes its bare literal
-    /// (no backticks), unlike `CMarkNode.plainText`.
+    /// length check before inlining same-line content. Inline code
+    /// contributes its bare literal (no backticks), unlike
+    /// `CMarkNode.plainText`.
     private static func plainTextOf(_ nodes: [CMarkNode]) -> String {
         nodes.map { node -> String in
             switch node.kind {
@@ -708,14 +693,12 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
         return !plainText.isEmpty && plainText.count < 60
     }
 
-    /// Emits the title and body content for a DocC aside. Where the legacy
-    /// path works on `Aside`'s rebuilt content blocks, this port works on the
+    /// Emits the title and body content for a DocC aside, working from the
     /// original blockquote plus the detector's `tagByteLength`: the first
-    /// text node's literal minus that prefix is the tag-stripped text the
-    /// rebuilt tree would have carried. When the same-line content (before
-    /// the first soft break) is under 60 characters, it is bolded on the
-    /// title line; otherwise all content renders roman in separate
-    /// paragraphs.
+    /// text node's literal minus that prefix is the tag-stripped text. When
+    /// the same-line content (before the first soft break) is under 60
+    /// characters, it is bolded on the title line; otherwise all content
+    /// renders roman in separate paragraphs.
     private mutating func emitDocCAlertTitleAndContent(
         _ category: AlertCategory,
         _ title: String,
@@ -744,7 +727,7 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
         let strippedFirst = String(tagLiteral[strippedStart...])
 
         // Split the first paragraph's remaining inlines at the first soft
-        // break, as the legacy visitor does.
+        // break.
         var sameLineNodes: [CMarkNode] = []
         var restInlines: [CMarkNode] = []
         let tail = Array(firstPara.children.dropFirst())
@@ -783,11 +766,9 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
             emitTextRun(strippedFirst)
             for node in firstPara.children.dropFirst() { visit(node) }
             result += "</p>\n"
-            // The legacy path routes this paragraph through visitParagraph
-            // (on `Aside`'s rebuilt node), whose tail flushes and clears the
-            // span emitter; mirror that lifecycle here so leftover
-            // non-consuming spans land at the same byte position and later
-            // blocks render without the emitter.
+            // Flush and clear the span emitter at the paragraph's end, so
+            // leftover non-consuming spans land at the right byte position and
+            // later blocks render without the emitter.
             deactivateWordSpans()
         }
         for child in children.dropFirst() { visit(child) }
@@ -803,11 +784,9 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
 
     /// Activates word spans for a DocC aside's inner paragraph, advancing
     /// the cursor past the tag prefix so spans align with the rendered
-    /// content. Where the legacy visitor derives the prefix length from an
-    /// inline-text count subtraction against `Aside`'s rebuilt content, the
-    /// detector's `tagByteLength` is the same quantity directly: the prefix
-    /// is ASCII (`Kind:` plus spaces/tabs), so its **byte** length equals
-    /// the **character** count `skipPrefix` expects.
+    /// content. The prefix length is the detector's `tagByteLength`: the
+    /// prefix is ASCII (`Kind:` plus spaces/tabs), so its **byte** length
+    /// equals the **character** count `skipPrefix` expects.
     private mutating func activateAlertWordSpans(
         for paragraph: CMarkNode?, tagByteLength: Int
     ) {
@@ -950,14 +929,12 @@ private struct FootnoteNumberingWalker: CMarkWalker {
 // MARK: - Body rendering entry point
 
 extension CMarkUpHTMLVisitor {
-    /// The cmark-pipeline counterpart of `UpHTMLVisitor.renderBody`: CRLF
-    /// normalization and frontmatter extraction (matching `ParsedMarkdown`),
-    /// one footnote-aware parse of the body, the visitor walk, and the
-    /// rendered-frontmatter prefix. No footnote preprocessing happens — that
-    /// is the point of the port. When `options.waypoint` is set, the
-    /// waypoint's body is parsed as-is and diffed against this parse — no
-    /// `MudCore.processingWaypoint` counterpart exists, because there is no
-    /// transformed source to compare like-with-like.
+    /// Renders the Up-mode body from a source string: CRLF normalization and
+    /// frontmatter extraction (matching `ParsedMarkdown`), one footnote-aware
+    /// parse of the body, the visitor walk, and the rendered-frontmatter
+    /// prefix. No footnote preprocessing happens. When `options.waypoint` is
+    /// set, the waypoint's body is parsed as-is and diffed against this parse;
+    /// with no transformed source on either side, they compare like-with-like.
     ///
     /// This String overload parses on the spot; the `ParsedMarkdown` overload
     /// below reuses the retained parse. Both drive the same private core.
@@ -987,9 +964,9 @@ extension CMarkUpHTMLVisitor {
     }
 
     /// The production entry: renders from `ParsedMarkdown`'s retained
-    /// `cmarkDocument` (the Stage 6 keystone) and, when a waypoint is set,
-    /// its retained tree too — one owned parse per render, no re-parsing.
-    /// This is the overload `MudCore.renderUpToHTML` calls at cutover.
+    /// `cmarkDocument` and, when a waypoint is set, its retained tree too —
+    /// one owned parse per render, no re-parsing. This is the overload
+    /// `MudCore.renderUpToHTML` calls.
     static func renderBody(
         _ parsed: ParsedMarkdown,
         options: RenderOptions,

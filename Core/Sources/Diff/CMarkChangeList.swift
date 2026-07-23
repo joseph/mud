@@ -1,11 +1,10 @@
 /// Projects a `CMarkChangePlan` into a flat list of document changes for the
-/// sidebar — the port of the old swift-markdown `ChangeList`
-/// (Doc/Plans/2026-07-single-parser-rendering.md). Its output model
-/// (`DocumentChange` / `ChangeType`, defined below) and the downstream grouping
-/// (`ChangeGroup.build(from:)`) carry no node references, so they are shared,
-/// parser-agnostic value types — they moved here from the legacy list when it
-/// was deleted at the Stage 6 cutover. The code-block projection and
-/// HTML-summary helpers live here for the same reason.
+/// sidebar (ported from the swift-markdown pipeline; see
+/// Doc/Plans/Archive/2026-07-single-parser-rendering.md). Its output model
+/// (`DocumentChange` / `ChangeType`, defined below) and the downstream
+/// grouping (`ChangeGroup.build(from:)`) carry no node references, so they
+/// are shared, parser-agnostic value types defined here, along with the
+/// code-block projection and HTML-summary helpers.
 enum CMarkChangeList {
     /// Computes a list of changes between old and new documents.
     static func computeChanges(
@@ -153,7 +152,7 @@ enum CMarkChangeList {
 
 /// A single change entry for the sidebar list. `Equatable` so the diff-layer
 /// parity tests can compare projections directly. A shared, parser-agnostic
-/// value type (formerly inline in the legacy `ChangeList`).
+/// value type.
 public struct DocumentChange: Identifiable, Sendable, Equatable {
     public let id: String
     public let type: ChangeType

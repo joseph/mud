@@ -1,8 +1,8 @@
 /// Places pre-rendered deleted blocks (`RenderedDeletion`) into the cmark
-/// Up-mode HTML stream — the Stage 4 port of ``DeletionPlacer``
-/// (Doc/Plans/2026-07-single-parser-rendering.md). Pure type substitution:
-/// the bookkeeping operates over `RenderedDeletion` values and tag strings,
-/// which are parser-agnostic.
+/// Up-mode HTML stream (ported from the swift-markdown pipeline; see
+/// Doc/Plans/Archive/2026-07-single-parser-rendering.md). The bookkeeping
+/// operates over `RenderedDeletion` values and tag strings, which are
+/// parser-agnostic.
 ///
 /// `CMarkDiffContext` keys each deletion to a surviving block in the new
 /// AST; `CMarkUpHTMLVisitor` asks for the HTML at the matching point in its

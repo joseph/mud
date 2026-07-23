@@ -19,7 +19,7 @@ import Testing
 @Suite("CommentAnchor parity with the JS extraction")
 struct CommentAnchorParityTests {
 
-  // MARK: - Tests, over ParityCorpus (Doc/Plans/2026-07-single-parser-rendering.md, Stage 0)
+  // MARK: - Tests, over ParityCorpus
 
   @Test func paragraphsWithInlineSyntaxAnchor() {
     #expect(failingBlocks(ParityCorpus.paragraphsWithInlineSyntax.markdown).isEmpty)

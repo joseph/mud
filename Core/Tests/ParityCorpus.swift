@@ -178,8 +178,7 @@ enum ParityCorpus {
       """)
 
   /// Footnote numbering is assigned Mud-side in first-reference order over
-  /// authorial references only — the logic Stage 3 moves from
-  /// `FootnoteProcessor.process`'s rewrite pass into the render. References
+  /// authorial references only, in the render visitor. References
   /// arrive out of definition order; a repeated reference exercises the
   /// occurrence-suffixed back-link ids; the interleaved comment consumes no
   /// number; the undefined reference stays literal text; and the orphan
@@ -221,9 +220,9 @@ enum ParityCorpus {
 
   /// DocC asides beyond the long-roman case in `alertBodyParagraphs`: a
   /// short same-line body (bolded on the title line) with a continuation, a
-  /// two-word display name (`SeeAlso` → "See Also"), and the `Don't:`
-  /// smart-typography input that crashed swift-markdown's `Aside` parser —
-  /// both pipelines must render it as a plain blockquote.
+  /// two-word display name (`SeeAlso` → "See Also"), and the `Don't:` input
+  /// whose smart-typography apostrophe makes the tag unrecognized, so it
+  /// renders as a plain blockquote.
   static let docCAsideVariants = Document(
     name: "docCAsideVariants",
     markdown: """
@@ -266,11 +265,10 @@ enum ParityCorpus {
       """)
 
   /// Code blocks beyond the plain `swift` fence in
-  /// `codeBlockAndThematicBreak`: a multi-word info string (the language
-  /// mapping must agree between the two pipelines), an indented code block
-  /// (no info string at all), and a bare fence. The closing paragraph keeps
-  /// the document from being all code blocks: the Stage 1 parity tests'
-  /// sanity guards require at least one text inline to collect.
+  /// `codeBlockAndThematicBreak`: a multi-word info string, an indented code
+  /// block (no info string at all), and a bare fence. The closing paragraph
+  /// keeps the document from being all code blocks, so the diff and anchor
+  /// suites that reuse it have at least one text inline to collect.
   static let codeBlockVariants = Document(
     name: "codeBlockVariants",
     markdown: """
@@ -295,14 +293,13 @@ enum ParityCorpus {
       4. Continues at four
       """)
 
-  /// Definition bodies for the Stage 5 Down-mode port: inline constructs
-  /// across a lazy continuation line, a reference *inside* a body (legacy
-  /// highlights nothing there — its scan drops in-body refs and its body
-  /// sub-parse sees plain text), a blockquote body, and a two-line GFM
-  /// alert body (the alert `>` markers take a different column offset on
-  /// the opener line than on continuation lines). Every definition is
-  /// referenced: cmark unlinks orphan definitions, whose Down rendering
-  /// deliberately diverges — pinned in `DownRenderingTests`.
+  /// Definition bodies for Down mode: inline constructs across a lazy
+  /// continuation line, a reference *inside* a body (Down highlights nothing
+  /// there — an in-body reference renders as plain text), a blockquote body,
+  /// and a two-line GFM alert body (the alert `>` markers take a different
+  /// column offset on the opener line than on continuation lines). Every
+  /// definition is referenced: cmark unlinks orphan definitions, whose Down
+  /// rendering deliberately diverges — pinned in `DownRenderingTests`.
   static let footnoteDefBodyVariants = Document(
     name: "footnoteDefBodyVariants",
     markdown: """
@@ -320,11 +317,10 @@ enum ParityCorpus {
           > A second alert line inside the body.
       """)
 
-  /// Code blocks inside definition bodies (Stage 5): span-colored but
-  /// never highlight.js-rendered and never given `dc-*` line roles, in
-  /// both pipelines. The fence's last content line is blank — the one
-  /// shape where the close-column arithmetic can't be simplified to the
-  /// raw line width.
+  /// Code blocks inside definition bodies: span-colored but never
+  /// highlight.js-rendered and never given `dc-*` line roles. The fence's
+  /// last content line is blank — the one shape where the close-column
+  /// arithmetic can't be simplified to the raw line width.
   static let footnoteDefCodeBlocks = Document(
     name: "footnoteDefCodeBlocks",
     markdown: """
@@ -343,15 +339,13 @@ enum ParityCorpus {
               a second indented line
       """)
 
-  /// A definition in the middle of the document (Stage 5). This probes
-  /// the seam between the pipelines' parses — legacy sees the definition
-  /// lines blanked (Down) or deleted (Up), cmark sees a real definition
-  /// node — in the one surrounding shape where both modes render
-  /// identically either way: paragraphs. A definition between two *lists*
-  /// genuinely splits them under cmark where legacy merges them, so that
-  /// shape lives in `DownRenderingTests` (where Down's spanless
-  /// list rendering keeps the bytes equal) and is excluded here, where it
-  /// would fail the Up sweep.
+  /// A definition in the middle of the document. cmark parses it as a real
+  /// definition node between two paragraphs — the one surrounding shape that
+  /// renders identically in both modes. A definition between two *lists*
+  /// splits them (cmark ends the first list at the definition), so that
+  /// shape lives in `DownRenderingTests` (where Down's spanless list
+  /// rendering keeps the bytes equal) and is excluded here, where it would
+  /// fail the Up sweep.
   static let footnoteDefMidDocument = Document(
     name: "footnoteDefMidDocument",
     markdown: """
@@ -364,10 +358,10 @@ enum ParityCorpus {
       A closing paragraph.
       """)
 
-  /// Whitespace after a DocC aside's colon (Stage 5): the tag span must
-  /// cover `Note:` only, excluding the trailing spaces — the width the
-  /// legacy pipeline derives from `Aside.kind`, not `detectDocCAlert`'s
-  /// whitespace-inclusive `tagByteLength`.
+  /// Whitespace after a DocC aside's colon: the tag span must cover `Note:`
+  /// only, excluding the trailing spaces — `docCTagSpanWidth` measures the
+  /// literal through the colon, not `detectDocCAlert`'s whitespace-inclusive
+  /// `tagByteLength`.
   static let docCAsideTrailingSpaces = Document(
     name: "docCAsideTrailingSpaces",
     markdown: """

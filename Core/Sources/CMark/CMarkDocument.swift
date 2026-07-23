@@ -31,8 +31,8 @@ struct CMarkSourceLocation: Equatable, Comparable, Sendable,
     var description: String { "\(line):\(column)" }
 }
 
-/// An owning wrapper around one `cmark-gfm` parse — the single-parser pipeline
-/// of Doc/Plans/2026-07-single-parser-rendering.md (Stage 1).
+/// An owning wrapper around one `cmark-gfm` parse — the parse every render
+/// runs on (see Doc/Plans/Archive/2026-07-single-parser-rendering.md).
 ///
 /// **Parse configuration is hard-coded** to the exact setup swift-markdown
 /// 0.8.0 uses (its `Parser/CommonMarkConverter.swift`): options

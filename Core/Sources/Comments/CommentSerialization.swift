@@ -277,9 +277,8 @@ enum CommentSerialization {
     /// the first block's start through the last block's end, joined exactly as
     /// they appear in `lines`. Slicing the source — rather than re-serializing
     /// each block through a Markdown formatter — is what lets an unedited
-    /// message round-trip byte-for-byte (the Stage 7 property of
-    /// Doc/Plans/2026-07-single-parser-rendering.md). Returns nil for an empty
-    /// run, or when a block reports line numbers outside the source.
+    /// message round-trip byte-for-byte. Returns nil for an empty run, or
+    /// when a block reports line numbers outside the source.
     private static func sliceBody(
         _ blocks: ArraySlice<CMarkNode>, lines: [String]
     ) -> String? {

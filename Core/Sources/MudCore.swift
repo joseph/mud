@@ -350,7 +350,7 @@ public enum MudCore {
     /// `.descendPlainFootnotes`: a footnote-definition edit is real content
     /// and should count and create a waypoint, regardless of which mode is on
     /// screen. See "Settle the sidebar and Down-mode diff policy" in
-    /// Doc/Plans/2026-07-single-parser-rendering.md.
+    /// Doc/Plans/Archive/2026-07-single-parser-rendering.md.
     public static func computeChanges(
         old: ParsedMarkdown, new: ParsedMarkdown, mode: Mode? = nil
     ) -> [DocumentChange] {

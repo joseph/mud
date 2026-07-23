@@ -1,17 +1,15 @@
-/// Renders deleted blocks to HTML for the cmark Up-mode overlay — the
-/// Stage 4 port of ``DeletionRenderer``
-/// (Doc/Plans/2026-07-single-parser-rendering.md).
+/// Renders deleted blocks to HTML for the cmark Up-mode overlay (ported from
+/// the swift-markdown pipeline; see
+/// Doc/Plans/Archive/2026-07-single-parser-rendering.md).
 ///
 /// Lives in the rendering layer so that `Diff/` never calls rendering code:
 /// `CMarkDiffContext` receives `render` as a function at construction.
 ///
-/// One addition over the legacy renderer: `footnoteNumbers`. Deleted blocks
-/// belong to the *old* document, and in the legacy pipeline their footnote
-/// markers arrive pre-baked into the transformed source with the old
-/// document's numbering. Here the old parse is raw, so the deletion
-/// visitors — which start mid-document and cannot count first references
-/// for themselves — take the numbering a full walk of the old document
-/// assigns (`CMarkUpHTMLVisitor.footnoteNumbering(for:)`).
+/// `footnoteNumbers` seeds the old document's footnote numbering. Deleted
+/// blocks belong to the *old* document, and the old parse is raw, so the
+/// deletion visitors — which start mid-document and cannot count first
+/// references for themselves — take the numbering a full walk of the old
+/// document assigns (`CMarkUpHTMLVisitor.footnoteNumbering(for:)`).
 enum CMarkDeletionRenderer {
     /// The native HTML tag for a leaf block.
     static func tagForBlock(_ markup: CMarkNode) -> String {
@@ -119,8 +117,7 @@ extension CMarkDiffContext {
 // MARK: - Rendered deletion
 
 /// A pre-rendered deleted block, ready for injection into the HTML output — a
-/// shared, parser-agnostic value type (it moved here from the legacy
-/// `DiffContext` when that was deleted at the Stage 6 cutover).
+/// shared, parser-agnostic value type.
 struct RenderedDeletion {
     /// The inner HTML content of the deleted block (no outer tag).
     let html: String

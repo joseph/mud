@@ -1,12 +1,8 @@
-/// Maps a `CMarkChangePlan` to line-level annotations for Down mode — the
-/// Stage 4 port of ``LineDiffMap``
-/// (Doc/Plans/2026-07-single-parser-rendering.md). Reuses the legacy output
-/// types (`LineAnnotation`, `DeletionGroup`, `BlockWordData`) unchanged:
-/// they carry no node references, only line numbers and word spans.
-///
-/// **Parallel and unwired.** Down mode still projects the legacy plan; this
-/// port has no live consumer until Stage 5, so its parity tests are its only
-/// proof of correctness for now.
+/// Maps a `CMarkChangePlan` to line-level annotations for Down mode (ported
+/// from the swift-markdown pipeline; see
+/// Doc/Plans/Archive/2026-07-single-parser-rendering.md). Its output types
+/// (`LineAnnotation`, `DeletionGroup`, `BlockWordData`) carry no node
+/// references, only line numbers and word spans.
 struct CMarkLineDiffMap {
     private let annotations: [Int: LineAnnotation]
     let deletionGroups: [DeletionGroup]
@@ -399,9 +395,8 @@ extension CMarkLineDiffMap {
 
 // MARK: - Line diff value types
 
-// Shared, parser-agnostic value types the line map projects into. They moved
-// here from the legacy `LineDiffMap` when it was deleted at the Stage 6
-// cutover. `Equatable` so diff-layer parity tests can compare projections.
+// Shared, parser-agnostic value types the line map projects into.
+// `Equatable` so diff-layer parity tests can compare projections.
 
 /// A line in the new document that belongs to a changed block.
 struct LineAnnotation: Equatable {

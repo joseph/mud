@@ -2,20 +2,16 @@ import Foundation
 
 /// Produces syntax-highlighted HTML from raw Markdown source by walking a
 /// footnote-aware ``CMarkDocument`` tree and wrapping recognized nodes in
-/// `<span class="md-*">` tags — the Stage 5 port of ``DownHTMLVisitor``
-/// (Doc/Plans/2026-07-single-parser-rendering.md). All source text is
+/// `<span class="md-*">` tags (ported from the swift-markdown pipeline; see
+/// Doc/Plans/Archive/2026-07-single-parser-rendering.md). All source text is
 /// HTML-escaped in the output.
 ///
-/// **Parallel and unwired.** The legacy `DownHTMLVisitor` still renders
-/// every production document; `DownRenderingParityTests` holds this port
-/// byte-identical to it until Stage 6 cuts the pipelines over. Phases 2–3
-/// (per-line rendering and layout) are parser-agnostic string machinery
-/// duplicated verbatim from the legacy file, matching how Stages 3–4 built
-/// their ports; Phase 1 is the real port. One footnote-aware parse replaces
-/// the legacy trio of `FootnoteProcessor.scan`, the definition-line
-/// blanking, and the per-definition body sub-parse: references and
-/// definitions arrive as AST nodes whose positions are already original
-/// source coordinates, which is exactly what the deleted remap produced.
+/// The work runs in three phases: Phase 1 walks the AST and collects span
+/// events, Phase 2 renders one HTML string per source line, and Phase 3
+/// builds the div-based layout. One footnote-aware parse feeds all three:
+/// footnote references and definitions arrive as AST nodes whose positions
+/// are already original source coordinates, so their marker spans and body
+/// highlighting come straight off the tree.
 struct CMarkDownHTMLVisitor: Sendable {
 
     init() {}
@@ -95,12 +91,10 @@ struct CMarkDownHTMLVisitor: Sendable {
             collector.alertDetector = alertDetector
             collector.visit(document.root)
             // Main-parse events first, then every reference span, then each
-            // definition's marker span with its body events — the exact
-            // pre-sort grouping the legacy pipeline builds by layering
-            // `scan`'s spans onto the blanked parse's events (main, then
-            // `layout.refs`, then per-def marker + `subParseDefBody`).
-            // `SpanEvent`'s comparator has no total order and Swift's sort
-            // is unstable, so this grouping is part of byte parity.
+            // definition's marker span with its body events. `SpanEvent`'s
+            // comparator has no total order and Swift's sort is unstable, so
+            // this pre-sort grouping is what keeps the rendered bytes
+            // deterministic across runs.
             events = collector.events
                 + collector.refEvents + collector.defEvents
             codeBlocks = collector.codeBlocks
@@ -161,21 +155,19 @@ struct CMarkDownHTMLVisitor: Sendable {
         let document: CMarkDocument
         var events: [SpanEvent] = []
         /// Reference spans, kept apart from `events` and `defEvents` so the
-        /// pre-sort order matches the legacy pipeline's layering (see
-        /// `highlightLines`): main events, then all references, then
-        /// definitions.
+        /// pre-sort order stays fixed (see `highlightLines`): main events,
+        /// then all references, then definitions.
         var refEvents: [SpanEvent] = []
         /// Definition marker spans and the events emitted while descending a
-        /// definition body — grouped per definition in document order,
-        /// mirroring legacy's per-def marker + `subParseDefBody` append.
+        /// definition body — grouped per definition in document order, so
+        /// each marker stays adjacent to its own body events before the sort.
         var defEvents: [SpanEvent] = []
         var codeBlocks: [CodeBlockInfo] = []
         var alertDetector = AlertDetector()
 
-        /// Set while descending a footnote definition. Carries the
-        /// geometry legacy's `subParseDefBody` used to de-indent the body
-        /// before re-parsing it, so `lineDrop` can reproduce the per-line
-        /// column offset its remap added back — and it doubles as the
+        /// Set while descending a footnote definition. Carries the body's
+        /// indentation geometry so `lineDrop` can shift each body event's
+        /// column back to raw source coordinates — and it doubles as the
         /// "inside a definition" flag that suppresses reference spans and
         /// code-block recording.
         private struct DefinitionContext {
@@ -226,12 +218,10 @@ struct CMarkDownHTMLVisitor: Sendable {
         /// Emits a 1-character `md-alert-tag` span over the `>` marker
         /// on every line of the blockquote.
         ///
-        /// The column is constant in *body* coordinates: legacy emitted it
-        /// from the blockquote's start column and, inside a definition
-        /// body, the sub-parse remap then added each line's stripped
-        /// prefix back. Reproduce that by converting the raw start column
-        /// to a body column once and re-adding the per-line drop (a no-op
-        /// outside definitions, where every drop is zero).
+        /// The column is constant in *body* coordinates: convert the raw
+        /// start column to a body column once, then re-add each line's drop
+        /// (a no-op outside definitions, where every drop is zero) so the
+        /// span lands on the `>` on every line.
         private mutating func emitAlertMarkers(
             in blockQuote: CMarkNode, depth: Int32
         ) {
@@ -264,12 +254,10 @@ struct CMarkDownHTMLVisitor: Sendable {
         }
 
         /// The UTF-8 byte width of a DocC aside's tag span: the first text
-        /// literal through its colon. Matches the legacy span width,
-        /// `Aside.kind.rawValue.utf8.count + 1` — both measure the
-        /// smart-typography-substituted literal, not source bytes — and is
-        /// deliberately not `detectDocCAlert`'s `tagByteLength`, which
-        /// also counts the whitespace after the colon that the legacy span
-        /// excludes.
+        /// literal through its colon. It measures the
+        /// smart-typography-substituted literal, not source bytes, and is
+        /// deliberately not `detectDocCAlert`'s `tagByteLength`, which also
+        /// counts the whitespace after the colon that this span excludes.
         private static func docCTagSpanWidth(
             _ blockQuote: CMarkNode
         ) -> Int? {
@@ -338,11 +326,10 @@ struct CMarkDownHTMLVisitor: Sendable {
         }
 
         /// A `[^label]` reference becomes an `md-footnote-ref` span at its
-        /// verified position. Inside a definition body, nothing is emitted
-        /// — legacy emits nothing there either (`scan` drops in-body
-        /// references, and its body sub-parse saw them as plain text).
-        /// The guards mirror `FootnoteProcessor.scan`'s byte-for-byte: a
-        /// position is trusted only when it actually delimits `[^…]`.
+        /// verified position. Inside a definition body nothing is emitted:
+        /// Down mode highlights an in-body reference as plain text, not as a
+        /// footnote reference. The position is trusted only when it actually
+        /// delimits `[^…]`.
         mutating func visitFootnoteReference(_ node: CMarkNode) {
             guard definitionContext == nil else { return }
             let geo = document.geometry
@@ -362,14 +349,11 @@ struct CMarkDownHTMLVisitor: Sendable {
         }
 
         /// A definition emits its `md-footnote-def` marker span, then
-        /// descends so its body highlights through the normal visit
-        /// methods — the single-parse replacement for legacy's body
-        /// sub-parse. Body node positions are already original source
-        /// coordinates (what the deleted remap produced); only explicit
-        /// column arithmetic needs the definition context (see
-        /// `lineDrop`). Comment definitions are handled identically —
-        /// Down mode shows the raw source and draws no comment-specific
-        /// structure.
+        /// descends so its body highlights through the normal visit methods.
+        /// Body node positions are already original source coordinates, so
+        /// only explicit column arithmetic needs the definition context (see
+        /// `lineDrop`). Comment definitions are handled identically — Down
+        /// mode shows the raw source and draws no comment-specific structure.
         mutating func visitFootnoteDefinition(_ node: CMarkNode) {
             let geo = document.geometry
             let startLine = node.startLine
@@ -380,7 +364,7 @@ struct CMarkDownHTMLVisitor: Sendable {
             else { return }
             // cmark's definition start_column points at the *body*, not
             // the marker, so locate the `[` as the opener line's first
-            // non-whitespace byte — the same math as scan's Def.
+            // non-whitespace byte.
             let startColumn = geo.firstNonSpaceColumn(line: startLine)
             // `[^` + label + `]:` → label.utf8.count + 4 chars.
             let markerEndColumn = startColumn + label.utf8.count + 4
@@ -399,10 +383,11 @@ struct CMarkDownHTMLVisitor: Sendable {
             definitionContext = nil
         }
 
-        /// The stripped-prefix byte width legacy's `subParseDefBody`
-        /// removed from `line` before re-parsing — the amount its remap
-        /// added back to every event column. Zero outside a definition
-        /// body, so callers can apply it unconditionally.
+        /// The body-indentation byte width to add back to an event column on
+        /// `line` so it lands in raw source coordinates: the opener line's
+        /// prefix before the definition body, or a continuation line's
+        /// shared indent. Zero outside a definition body, so callers can
+        /// apply it unconditionally.
         private func lineDrop(_ line: Int) -> Int {
             guard let def = definitionContext else { return 0 }
             let idx = line - 1
@@ -435,29 +420,28 @@ struct CMarkDownHTMLVisitor: Sendable {
             let depth = Self.nodeDepth(codeBlock)
             let fenceLen = measureFence(at: range.lowerBound)
 
-            // Inside a definition body, spans are emitted but the block
-            // is not recorded: legacy discarded the body sub-parse's
-            // `codeBlocks`, so definition-body code gets no highlight.js
-            // substitution and no `dc-fence`/`dc-code` line roles.
+            // Inside a definition body, spans are emitted but the block is
+            // not recorded, so definition-body code gets no highlight.js
+            // substitution and no `dc-fence`/`dc-code` line roles — its
+            // verbatim indentation stays on screen.
             let inDefinition = definitionContext != nil
 
             if fenceLen > 0 {
                 // -- Fenced code block: fence / content / fence --
 
-                // Opening fence line. The close column is the full raw
-                // line width regardless of definition context: legacy
-                // measured the stripped line and its remap added the
-                // stripped width back.
+                // Opening fence line. The close column is the full raw line
+                // width — `lineLen` already measures the raw line, so no
+                // per-line drop is added here.
                 emitSpan("md-code-fence", depth: depth,
                          from: (range.lowerBound.line,
                                 range.lowerBound.column),
                          to: (range.lowerBound.line,
                               lineLen(range.lowerBound.line) + 1))
 
-                // Content lines (between the fences), if any. Legacy's
-                // column-1 anchors and `max(len, 1)` floor were in body
-                // coordinates, so both take the per-line drop here (a
-                // no-op at the top level).
+                // Content lines (between the fences), if any. The column-1
+                // anchors and `max(len, 1)` floor are in body coordinates,
+                // so both take the per-line drop here (a no-op at the top
+                // level).
                 let firstContent = range.lowerBound.line + 1
                 let lastContent = range.upperBound.line - 1
                 var highlighted: [String] = []
@@ -655,14 +639,12 @@ struct CMarkDownHTMLVisitor: Sendable {
             return sourceLines[idx].count
         }
 
-        /// Ancestor count. For definition-body nodes this runs one deeper
-        /// than legacy's sub-parse depths (the `footnoteDefinition`
-        /// ancestor stands in for the sub-parse's own document root, plus
-        /// the real root above it) — a uniform shift within the body.
-        /// That cannot change output bytes: the `SpanEvent` comparator
-        /// consults depth only among events tied on (line, column,
-        /// isClose), body events shift together, and the depth-1000
-        /// footnote marker spans stay outermost either way.
+        /// Ancestor count. For definition-body nodes the `footnoteDefinition`
+        /// ancestor adds one level, a uniform shift within the body. That
+        /// cannot change output bytes: the `SpanEvent` comparator consults
+        /// depth only among events tied on (line, column, isClose), body
+        /// events shift together, and the depth-1000 footnote marker spans
+        /// stay outermost either way.
         private static func nodeDepth(_ node: CMarkNode) -> Int32 {
             var depth: Int32 = 0
             var current = node.parent

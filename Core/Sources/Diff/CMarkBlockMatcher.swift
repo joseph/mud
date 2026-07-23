@@ -6,29 +6,25 @@ import Foundation
 /// differently: the Up visitor draws nothing for a definition (its body
 /// reaches the page via the footnotes section and popovers), so a collected
 /// definition change could only be misplaced; Down mode shows the raw
-/// source, definitions included, so their edits must diff like ordinary
-/// content — matching the legacy raw-source plan Down mode projects today.
+/// source, definitions included, so their edits must diff like any other
+/// Down-mode line.
 enum CMarkDefinitionDiffPolicy: Hashable, Sendable {
     /// Every definition — footnote or comment — is invisible to change
     /// tracking; the whole subtree is skipped. The Up-mode policy.
     case skipAll
     /// Comment definitions stay skipped, but plain footnote definitions
     /// are descended so their body blocks become leaf blocks. The
-    /// Down-mode policy (Stage 5).
+    /// Down-mode policy.
     case descendPlainFootnotes
 }
 
-/// Matches leaf blocks between two cmark-parsed Markdown documents — the
-/// Stage 4 port of ``BlockMatcher`` onto ``CMarkDocument``
-/// (Doc/Plans/2026-07-single-parser-rendering.md). A direct structural port:
-/// the outer algorithm (fingerprint `CollectionDifference`, anchor walk, gap
-/// ordering) is carried over unchanged; only the node type and the
-/// definition policy differ (see ``CMarkDefinitionDiffPolicy`` and
-/// `visitFootnoteDefinition` below).
-///
-/// **Parallel and unwired.** The legacy `BlockMatcher` still serves every
-/// production diff; this port feeds `CMarkChangePlan` for the cmark pipeline
-/// until Stage 6 cuts over.
+/// Matches leaf blocks between two cmark-parsed Markdown documents (ported
+/// from the swift-markdown pipeline; see
+/// Doc/Plans/Archive/2026-07-single-parser-rendering.md). The algorithm —
+/// fingerprint `CollectionDifference`, anchor walk, gap ordering — runs over
+/// `CMarkDocument` nodes; footnote-definition handling depends on the mode
+/// (see ``CMarkDefinitionDiffPolicy`` and `visitFootnoteDefinition` below).
+/// It feeds `CMarkChangePlan`.
 enum CMarkBlockMatcher {
     /// Compares the leaf blocks of two documents and returns an ordered
     /// list of matches describing how blocks changed.
@@ -127,8 +123,7 @@ extension CMarkBlockMatcher {
         // the end of the tree in first-reference order, so definition-body
         // blocks are walked out of place. Restore source order (stably —
         // ties keep walk order) so anchor pairing and change-ID minting
-        // see the document as written, like the legacy raw-source
-        // collector does.
+        // see the document as written.
         return collector.blocks
             .enumerated()
             .sorted { ($0.element.sourceLine, $0.offset)
@@ -167,19 +162,17 @@ private struct CMarkLeafBlockCollector: CMarkWalker {
 
     /// Definition handling follows `policy`. Comment definitions are always
     /// skipped whole — comments are invisible to change tracking everywhere,
-    /// replacing the legacy collector's `commentDefLines` line filter
-    /// structurally. Plain footnote definitions split by mode:
+    /// so a comment-only edit produces no change. Plain footnote definitions
+    /// split by mode:
     ///
     /// - `.skipAll` (Up): skipped too. The Up visitor renders nothing for a
     ///   definition (its body reaches the page via the footnotes section),
     ///   so a collected definition change could only be misplaced. The
-    ///   legacy Up path never faces this because `FootnoteProcessor.process`
-    ///   deletes every definition before its parse; this collector walks the
-    ///   raw source, where definitions survive as real nodes.
-    /// - `.descendPlainFootnotes` (Down, Stage 5): descended, so body blocks
-    ///   become leaf blocks — Down mode renders the raw source, definitions
-    ///   included, and their edits diff exactly as the legacy raw-source
-    ///   plan diffs them.
+    ///   collector walks the raw source, where definitions survive as real
+    ///   nodes, so it has to skip them here rather than rely on the parse.
+    /// - `.descendPlainFootnotes` (Down): descended, so body blocks become
+    ///   leaf blocks — Down mode renders the raw source, definitions
+    ///   included, and their edits diff like any other line.
     mutating func visitFootnoteDefinition(_ node: CMarkNode) {
         guard policy == .descendPlainFootnotes,
               let label = node.literal,

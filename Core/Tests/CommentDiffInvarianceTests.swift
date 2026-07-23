@@ -194,8 +194,7 @@ struct CommentDiffInvarianceTests {
 }
 
 private extension CMarkBlockMatch {
-  /// True when this match is an unchanged pair (the legacy `BlockMatch`
-  /// exposed the same convenience).
+  /// True when this match is an unchanged pair.
   var isUnchanged: Bool {
     if case .unchanged = self { return true }
     return false

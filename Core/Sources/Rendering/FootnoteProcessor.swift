@@ -600,7 +600,7 @@ enum FootnoteProcessor {
     /// real `#fn-N` anchor (for export/print) plus `data-*` attributes the
     /// in-app JS reads to trigger the popover. Internal (not private) because
     /// `CMarkUpHTMLVisitor` emits the same marker from its footnote-reference
-    /// visit case — one implementation, so the two pipelines cannot drift.
+    /// visit case — one implementation, so its callers cannot drift.
     static func markerHTML(number: Int, label: String, occurrence: Int) -> String {
         let idSuffix = occurrence > 1 ? "-\(occurrence)" : ""
         let escLabel = HTMLEscaping.escape(label)

@@ -350,14 +350,14 @@ struct UpRenderingTests {
     }
 
     /// A paired **edit** of a roman-path DocC aside (first line over the
-    /// 60-character bold-inline threshold). The old swift-markdown pipeline
-    /// produced three defects at once here: the preceding deletion emitted a
-    /// second time inside the alert, the inner `<p>` duplicated the
-    /// `mud-change-ins` attributes already on the blockquote, and the
-    /// word markers sheared by the stripped `Warning: ` prefix. The cmark
-    /// visitor never routes the first paragraph through a separate paragraph
-    /// visit, so none of that can happen; this pins the correct behavior.
-    @Test func romanAsideEditAvoidsLegacyDefects() {
+    /// 60-character bold-inline threshold). The visitor renders the first
+    /// paragraph inline, never routing it through a separate paragraph visit,
+    /// so this pins three properties: the preceding deletion emits exactly
+    /// once (not a second time inside the alert), the `mud-change-ins`
+    /// attributes sit on the blockquote alone (not duplicated on an inner
+    /// `<p>`), and the word markers align past the stripped `Warning: `
+    /// prefix (not sheared by its length).
+    @Test func romanAsideEditRendersCleanly() {
         let old = "> Warning: This DocC aside body is long enough that "
             + "the renderer keeps it\n> roman in its own paragraph "
             + "instead of bolding it once.\n"
@@ -366,15 +366,14 @@ struct UpRenderingTests {
             + "instead of bolding it twice.\n"
         let body = cmarkDiffedBody(new: new, old: old, options: .init())
 
-        // The deleted alert renders exactly once (legacy: twice).
+        // The deleted alert renders exactly once.
         #expect(body.components(separatedBy: "mud-change-del").count - 1 == 1)
-        // Change attributes sit on the alert blockquote only (legacy also
-        // puts them on the inner <p>).
+        // Change attributes sit on the alert blockquote only, not the
+        // inner <p>.
         #expect(body.contains(
             "<blockquote class=\"alert alert-warning mud-change-ins\""))
         #expect(!body.contains("<p class=\"mud-change-ins\""))
-        // Word markers align past the stripped "Warning: " prefix
-        // (legacy shears them by its length).
+        // Word markers align past the stripped "Warning: " prefix.
         #expect(body.contains("<ins>twice.</ins>"))
         #expect(body.contains("<del>once.</del>"))
     }

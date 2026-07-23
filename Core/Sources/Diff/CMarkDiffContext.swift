@@ -1,6 +1,6 @@
-/// Bridge between the cmark diff engine and `CMarkUpHTMLVisitor` — the
-/// Stage 4 port of ``DiffContext``
-/// (Doc/Plans/2026-07-single-parser-rendering.md).
+/// Bridge between the cmark diff engine and `CMarkUpHTMLVisitor` (ported from
+/// the swift-markdown pipeline; see
+/// Doc/Plans/Archive/2026-07-single-parser-rendering.md).
 ///
 /// A projection of `CMarkChangePlan` for the Up-mode overlay: annotation
 /// lookups for AST nodes (used during rendering) and pre-rendered HTML
@@ -189,8 +189,7 @@ private struct AnnotationEntry {
 // MARK: - Block annotation
 
 /// The type of change for a block in the new document — a shared,
-/// parser-agnostic value type (it moved here from the legacy `DiffContext`
-/// when that was deleted at the Stage 6 cutover).
+/// parser-agnostic value type.
 enum BlockAnnotation: Equatable {
     case inserted
 }

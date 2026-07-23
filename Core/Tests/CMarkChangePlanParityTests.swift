@@ -75,10 +75,10 @@ struct CMarkChangePlanParityTests {
         #expect(ported.isEmpty)
     }
 
-    // MARK: - Down policy (Stage 5)
+    // MARK: - Down policy
 
     /// Footnote-definition edit cases for `.descendPlainFootnotes`, shared
-    /// with the Stage 5 diffed rendering sweep. Every definition body is a
+    /// with the Down-mode diffed rendering sweep. Every definition body is a
     /// single-paragraph shape. Two authoring rules keep the cases
     /// well-formed: bodies are always multi-word (a one-word body like
     /// `[^a]: Alpha.` parses as a link-reference definition, not a footnote

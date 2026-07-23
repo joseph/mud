@@ -4,8 +4,8 @@
 /// operates over `RenderedDeletion` values and tag strings, which are
 /// parser-agnostic.
 ///
-/// `CMarkDiffContext` keys each deletion to a surviving block in the new
-/// AST; `CMarkUpHTMLVisitor` asks for the HTML at the matching point in its
+/// `DiffContext` keys each deletion to a surviving block in the new
+/// AST; `UpHTMLVisitor` asks for the HTML at the matching point in its
 /// walk. The placer owns the bookkeeping that keeps every deletion emitted
 /// exactly once as valid HTML:
 /// - deletions emitted early (peeked ahead of a list item, hoisted out
@@ -15,12 +15,12 @@
 ///   after `</table>`;
 /// - `<tr>` deletions that surface outside a table are wrapped in their
 ///   own `<table><tbody>`.
-struct CMarkDeletionPlacer {
-    private let diffContext: CMarkDiffContext
+struct DeletionPlacer {
+    private let diffContext: DiffContext
     private var consumedIDs: Set<String> = []
     private var deferred: [RenderedDeletion] = []
 
-    init(diffContext: CMarkDiffContext) {
+    init(diffContext: DiffContext) {
         self.diffContext = diffContext
     }
 

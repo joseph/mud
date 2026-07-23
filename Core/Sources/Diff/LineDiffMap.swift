@@ -1,9 +1,9 @@
-/// Maps a `CMarkChangePlan` to line-level annotations for Down mode (ported
+/// Maps a `ChangePlan` to line-level annotations for Down mode (ported
 /// from the swift-markdown pipeline; see
 /// Doc/Plans/Archive/2026-07-single-parser-rendering.md). Its output types
 /// (`LineAnnotation`, `DeletionGroup`, `BlockWordData`) carry no node
 /// references, only line numbers and word spans.
-struct CMarkLineDiffMap {
+struct LineDiffMap {
     private let annotations: [Int: LineAnnotation]
     let deletionGroups: [DeletionGroup]
     private let delWordData: [String: [Int: BlockWordData]]
@@ -28,8 +28,8 @@ struct CMarkLineDiffMap {
 
 // MARK: - Construction
 
-extension CMarkLineDiffMap {
-    init(plan: CMarkChangePlan, wordDiffThreshold: Double = 0.25) {
+extension LineDiffMap {
+    init(plan: ChangePlan, wordDiffThreshold: Double = 0.25) {
         var annotations: [Int: LineAnnotation] = [:]
         var groups: [DeletionGroup] = []
         var delWD: [String: [Int: BlockWordData]] = [:]
@@ -41,7 +41,7 @@ extension CMarkLineDiffMap {
         /// emits fine-grained annotations, deletion groups, and
         /// per-line word data.
         func processLineLevelPair(
-            _ pair: CMarkChangePlan.Pair,
+            _ pair: ChangePlan.Pair,
             insLineRange: ClosedRange<Int>,
             anchorLine: Int
         ) {
@@ -156,7 +156,7 @@ extension CMarkLineDiffMap {
         /// Projects a code block pair's cluster lines (change IDs
         /// pre-assigned by the plan) onto document line numbers.
         func processCodeBlockPair(
-            _ pair: CMarkChangePlan.CodeBlockPair
+            _ pair: ChangePlan.CodeBlockPair
         ) {
             let del = pair.deletion
             let ins = pair.insertion
@@ -275,7 +275,7 @@ extension CMarkLineDiffMap {
         /// Falls back to block-level treatment: all lines of the old
         /// block are deleted, all lines of the new block are inserted.
         func emitBlockLevel(
-            _ pair: CMarkChangePlan.Pair,
+            _ pair: ChangePlan.Pair,
             insLineRange: ClosedRange<Int>
         ) {
             let del = pair.deletion
@@ -382,7 +382,7 @@ extension CMarkLineDiffMap {
 
     /// Derives the 1-based line range from a leaf block's source text.
     private static func lineRange(
-        for block: CMarkLeafBlock
+        for block: LeafBlock
     ) -> ClosedRange<Int>? {
         guard block.markup.range != nil else { return nil }
         let lineCount = block.sourceText.split(

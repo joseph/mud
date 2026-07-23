@@ -1,22 +1,22 @@
-/// Projects a `CMarkChangePlan` into a flat list of document changes for the
+/// Projects a `ChangePlan` into a flat list of document changes for the
 /// sidebar (ported from the swift-markdown pipeline; see
 /// Doc/Plans/Archive/2026-07-single-parser-rendering.md). Its output model
 /// (`DocumentChange` / `ChangeType`, defined below) and the downstream
 /// grouping (`ChangeGroup.build(from:)`) carry no node references, so they
 /// are shared, parser-agnostic value types defined here, along with the
 /// code-block projection and HTML-summary helpers.
-enum CMarkChangeList {
+enum ChangeList {
     /// Computes a list of changes between old and new documents.
     static func computeChanges(
         old: CMarkDocument, new: CMarkDocument
     ) -> [DocumentChange] {
-        computeChanges(plan: CMarkChangePlan.plan(old: old, new: new))
+        computeChanges(plan: ChangePlan.plan(old: old, new: new))
     }
 
     /// Projects the plan's gaps, in document order. Within a gap,
     /// deletions come first (they attach to the block they precede),
     /// then insertions and code-block pairs in document order.
-    static func computeChanges(plan: CMarkChangePlan) -> [DocumentChange] {
+    static func computeChanges(plan: ChangePlan) -> [DocumentChange] {
         var changes: [DocumentChange] = []
         var sawUnchangedSinceLastChange = true
         var lastSurvivingLine = 1
@@ -37,7 +37,7 @@ enum CMarkChangeList {
                 changes.append(DocumentChange(
                     id: del.changeID,
                     type: .deletion,
-                    summary: CMarkChangePlan.deletionSummary(del.block),
+                    summary: ChangePlan.deletionSummary(del.block),
                     sourceLine: hostLine,
                     isConsecutive: consecutive,
                     groupID: info?.groupID ?? "",
@@ -56,7 +56,7 @@ enum CMarkChangeList {
                     changes.append(DocumentChange(
                         id: change.changeID,
                         type: .insertion,
-                        summary: CMarkChangePlan.blockSummary(change.block),
+                        summary: ChangePlan.blockSummary(change.block),
                         sourceLine: change.block.sourceLine,
                         isConsecutive: consecutive,
                         groupID: info?.groupID ?? "",

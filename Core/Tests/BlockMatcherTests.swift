@@ -6,11 +6,11 @@ import Testing
 /// cmark is now the only diff data layer, so these tests pin its behavior
 /// directly. The focus is footnote and comment definitions: the collector
 /// walks the raw source, where definitions survive as real subtrees, and
-/// must skip them exactly as `CMarkUpHTMLVisitor` skips rendering them —
+/// must skip them exactly as `UpHTMLVisitor` skips rendering them —
 /// otherwise a definition-body edit would surface as a change the visitor
 /// cannot place.
 @Suite("CMark block matcher")
-struct CMarkBlockMatcherTests {
+struct BlockMatcherTests {
 
     // MARK: - Helpers
 
@@ -28,7 +28,7 @@ struct CMarkBlockMatcherTests {
             CMarkDocument(parsing: ParsedMarkdown(old).body))
         let newDoc = try #require(
             CMarkDocument(parsing: ParsedMarkdown(new).body))
-        return CMarkBlockMatcher.match(old: oldDoc, new: newDoc).map {
+        return BlockMatcher.match(old: oldDoc, new: newDoc).map {
             switch $0 {
             case .unchanged(let o, let n):
                 return MatchRecord(
@@ -47,17 +47,17 @@ struct CMarkBlockMatcherTests {
         }
     }
 
-    private func cmarkBlocks(_ markdown: String) throws -> [CMarkLeafBlock] {
+    private func cmarkBlocks(_ markdown: String) throws -> [LeafBlock] {
         let doc = try #require(
             CMarkDocument(parsing: ParsedMarkdown(markdown).body))
-        return CMarkBlockMatcher.collectLeafBlocks(from: doc)
+        return BlockMatcher.collectLeafBlocks(from: doc)
     }
 
     // MARK: - Definitions are invisible (plan finding #2)
 
     // The cmark collector walks the raw source, where footnote definitions
     // survive as `.footnoteDefinition` subtrees; it must skip them exactly
-    // as `CMarkUpHTMLVisitor` skips rendering them, or a definition-body
+    // as `UpHTMLVisitor` skips rendering them, or a definition-body
     // edit would surface as a change the visitor cannot place.
 
     @Test func footnoteDefinitionProducesNoLeafBlocks() throws {

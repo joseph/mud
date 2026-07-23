@@ -17,13 +17,13 @@ import Foundation
 /// - Grouping: `group-N` IDs, badge indices, positions, and each group's
 ///   ins/del/mix type — including one group per code-block line cluster.
 ///
-/// `CMarkDiffContext`, `CMarkLineDiffMap`, and `CMarkChangeList` all project
+/// `DiffContext`, `LineDiffMap`, and `ChangeList` all project
 /// from this one plan.
-struct CMarkChangePlan {
+struct ChangePlan {
     /// A changed block with its minted change ID.
     struct Change {
         let changeID: String
-        let block: CMarkLeafBlock
+        let block: LeafBlock
     }
 
     /// A deletion and insertion paired within a gap. `wordSpans` is `nil`
@@ -52,7 +52,7 @@ struct CMarkChangePlan {
         case codeBlockPair(CodeBlockPair)
 
         /// The inserted block occupying this slot.
-        var insertionBlock: CMarkLeafBlock {
+        var insertionBlock: LeafBlock {
             switch self {
             case .block(let change): return change.block
             case .codeBlockPair(let pair): return pair.insertion.block
@@ -72,9 +72,9 @@ struct CMarkChangePlan {
         /// the i-th deletion with the i-th block insertion.
         let pairs: [Pair]
         /// The unchanged block before this gap; `nil` at document start.
-        let precedingAnchor: CMarkLeafBlock?
+        let precedingAnchor: LeafBlock?
         /// The unchanged block after this gap; `nil` at document end.
-        let followingAnchor: CMarkLeafBlock?
+        let followingAnchor: LeafBlock?
     }
 
     /// Gaps in document order.
@@ -89,9 +89,9 @@ struct CMarkChangePlan {
 
 // MARK: - Construction
 
-extension CMarkChangePlan {
-    /// Runs the pass over `CMarkBlockMatcher.match` output.
-    init(matches: [CMarkBlockMatch], wordDiffThreshold: Double = 0.25) {
+extension ChangePlan {
+    /// Runs the pass over `BlockMatcher.match` output.
+    init(matches: [BlockMatch], wordDiffThreshold: Double = 0.25) {
         var changeCounter = 0
         func nextChangeID() -> String {
             changeCounter += 1
@@ -104,9 +104,9 @@ extension CMarkChangePlan {
         var gaps: [Gap] = []
         var pendingDeletions: [Change] = []
         var pendingInsertions: [Change] = []
-        var precedingAnchor: CMarkLeafBlock?
+        var precedingAnchor: LeafBlock?
 
-        func closeGap(followingAnchor: CMarkLeafBlock?) {
+        func closeGap(followingAnchor: LeafBlock?) {
             guard !pendingDeletions.isEmpty || !pendingInsertions.isEmpty
             else { return }
 
@@ -316,7 +316,7 @@ extension CMarkChangePlan {
 
 // MARK: - Code-block language
 
-extension CMarkChangePlan {
+extension ChangePlan {
     /// swift-markdown's `CodeBlock.language` equivalent for a `.codeBlock`
     /// node: the fence info string, with an empty info (bare fence, indented
     /// block) mapped to nil.
@@ -327,12 +327,12 @@ extension CMarkChangePlan {
 
 // MARK: - Summaries
 
-extension CMarkChangePlan {
+extension ChangePlan {
     /// Extracts a plain-text summary (~60 chars) from a leaf block.
     ///
     /// Strips markdown syntax (list markers, code fences, emphasis) so the
     /// sidebar shows clean, readable text.
-    static func blockSummary(_ block: CMarkLeafBlock) -> String {
+    static func blockSummary(_ block: LeafBlock) -> String {
         let raw: String
         switch block.markup.kind {
         case .paragraph, .heading:
@@ -365,7 +365,7 @@ extension CMarkChangePlan {
 
     /// The sidebar summary for a deleted block. Mermaid diagrams show a
     /// placeholder, matching their rendered deletion.
-    static func deletionSummary(_ block: CMarkLeafBlock) -> String {
+    static func deletionSummary(_ block: LeafBlock) -> String {
         if block.markup.kind == .codeBlock,
            Self.codeLanguage(block.markup)?.lowercased() == "mermaid" {
             return "[revised diagram]"
@@ -376,17 +376,17 @@ extension CMarkChangePlan {
 
 // MARK: - Cache
 
-extension CMarkChangePlan {
+extension ChangePlan {
     private struct CacheKey: Equatable {
         let old: String
         let new: String
         let threshold: Double
-        let policy: CMarkDefinitionDiffPolicy
+        let policy: DefinitionDiffPolicy
     }
 
     private static let cacheLock = NSLock()
     nonisolated(unsafe) private static var cache:
-        [(key: CacheKey, plan: CMarkChangePlan)] = []
+        [(key: CacheKey, plan: ChangePlan)] = []
     private static let cacheLimit = 8
 
     /// Returns the plan for a (waypoint, content) pair, computing it at
@@ -396,12 +396,12 @@ extension CMarkChangePlan {
     /// cache hit returns a plan whose leaf-block nodes point into a
     /// *different* (textually identical) tree than the caller's documents —
     /// which is why every consumer joins on position-derived keys, never
-    /// node identity (see `CMarkSourceKey`).
+    /// node identity (see `SourceKey`).
     static func plan(
         old: CMarkDocument, new: CMarkDocument,
         wordDiffThreshold: Double = 0.25,
-        definitionPolicy: CMarkDefinitionDiffPolicy = .skipAll
-    ) -> CMarkChangePlan {
+        definitionPolicy: DefinitionDiffPolicy = .skipAll
+    ) -> ChangePlan {
         let key = CacheKey(
             old: old.source, new: new.source,
             threshold: wordDiffThreshold,
@@ -416,8 +416,8 @@ extension CMarkChangePlan {
         }
         cacheLock.unlock()
 
-        let plan = CMarkChangePlan(
-            matches: CMarkBlockMatcher.match(
+        let plan = ChangePlan(
+            matches: BlockMatcher.match(
                 old: old, new: new, definitionPolicy: definitionPolicy),
             wordDiffThreshold: wordDiffThreshold)
 
@@ -445,7 +445,7 @@ enum GroupType: String {
 }
 
 /// Describes a change's membership in a consecutive group — a shared,
-/// parser-agnostic value type `CMarkChangePlan` produces.
+/// parser-agnostic value type `ChangePlan` produces.
 struct GroupInfo {
     /// The group identifier (e.g. "group-1").
     let groupID: String

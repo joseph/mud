@@ -100,7 +100,7 @@ enum CommentHTMLRenderer {
                 html += attribution
                 html += "</div>\n"
             }
-            let fragment = CMarkUpHTMLVisitor.renderBody(
+            let fragment = UpHTMLVisitor.renderBody(
                 ParsedMarkdown(message.body),
                 options: options, resolveImageSource: resolveImageSource)
             html += "<div class=\"mud-comment-body\">\(fragment)</div>\n"

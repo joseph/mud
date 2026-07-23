@@ -4,19 +4,19 @@ import Testing
 
 /// Comments are metadata, not document content: adding or removing one must be
 /// invisible to change tracking across every diff consumer. The shared fix
-/// lives in `CMarkBlockMatcher.collectLeafBlocks` (skip comment-def blocks,
+/// lives in `BlockMatcher.collectLeafBlocks` (skip comment-def blocks,
 /// normalize comment tokens out of fingerprints), so these exercise the matcher
 /// directly plus the Down-mode render and the `removeComments` /
 /// `commentDefinitionLineRanges` / `stripCommentTokens` helpers it relies on.
 @Suite("Comment diff invariance")
 struct CommentDiffInvarianceTests {
 
-  // MARK: - CMarkBlockMatcher (covers sidebar + Down, RAW source)
+  // MARK: - BlockMatcher (covers sidebar + Down, RAW source)
 
   /// The Down/sidebar policy: plain footnote definitions diff like ordinary
   /// content; comment definitions stay invisible. (No plain footnote
   /// definitions appear in these cases, so `.skipAll` would agree.)
-  private static let rawPolicy: CMarkDefinitionDiffPolicy = .descendPlainFootnotes
+  private static let rawPolicy: DefinitionDiffPolicy = .descendPlainFootnotes
 
   @Test func addingACommentLeavesAllBlocksUnchanged() {
     let old = "The quick brown fox jumped.\n"
@@ -25,7 +25,7 @@ struct CommentDiffInvarianceTests {
 
       [^comment-a]: A note.
       """
-    let matches = CMarkBlockMatcher.match(
+    let matches = BlockMatcher.match(
       old: CMarkDocument(parsing: old)!, new: CMarkDocument(parsing: new)!,
       definitionPolicy: Self.rawPolicy)
     #expect(matches.count == 1)
@@ -39,7 +39,7 @@ struct CommentDiffInvarianceTests {
       [^comment-a]: A note.
       """
     let new = "The quick brown fox jumped.\n"
-    let matches = CMarkBlockMatcher.match(
+    let matches = BlockMatcher.match(
       old: CMarkDocument(parsing: old)!, new: CMarkDocument(parsing: new)!,
       definitionPolicy: Self.rawPolicy)
     #expect(matches.count == 1)
@@ -58,10 +58,10 @@ struct CommentDiffInvarianceTests {
 
       [^comment-a]: A note.
       """
-    let plain = CMarkBlockMatcher.match(
+    let plain = BlockMatcher.match(
       old: CMarkDocument(parsing: oldPlain)!,
       new: CMarkDocument(parsing: newPlain)!, definitionPolicy: Self.rawPolicy)
-    let commented = CMarkBlockMatcher.match(
+    let commented = BlockMatcher.match(
       old: CMarkDocument(parsing: oldPlain)!,
       new: CMarkDocument(parsing: newCommented)!, definitionPolicy: Self.rawPolicy)
     #expect(commented.count == plain.count)
@@ -80,9 +80,9 @@ struct CommentDiffInvarianceTests {
 
       [^comment-a]: A note.
       """
-    #expect(CMarkBlockMatcher.collectLeafBlocks(
+    #expect(BlockMatcher.collectLeafBlocks(
       from: CMarkDocument(parsing: plain)!, policy: Self.rawPolicy).count
-      == CMarkBlockMatcher.collectLeafBlocks(
+      == BlockMatcher.collectLeafBlocks(
         from: CMarkDocument(parsing: commented)!, policy: Self.rawPolicy).count)
   }
 
@@ -193,7 +193,7 @@ struct CommentDiffInvarianceTests {
   }
 }
 
-private extension CMarkBlockMatch {
+private extension BlockMatch {
   /// True when this match is an unchanged pair.
   var isUnchanged: Bool {
     if case .unchanged = self { return true }

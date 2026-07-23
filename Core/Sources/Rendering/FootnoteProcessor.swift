@@ -221,7 +221,7 @@ enum FootnoteProcessor {
 
     /// Collects the authorial footnotes and comments in `source` for the
     /// bottom sections and the comment layer. It rewrites nothing — the render
-    /// visitor (`CMarkUpHTMLVisitor`) emits the footnote/comment markers from
+    /// visitor (`UpHTMLVisitor`) emits the footnote/comment markers from
     /// the AST. Its only real work is classifying comment definitions apart
     /// from footnotes and assigning authorial footnote numbers in
     /// first-reference order (comments consume no number and leave no gap).
@@ -495,7 +495,7 @@ enum FootnoteProcessor {
     /// The inline-HTML marker that replaces a `[^label]` reference. Carries a
     /// real `#fn-N` anchor (for export/print) plus `data-*` attributes the
     /// in-app JS reads to trigger the popover. Internal (not private) because
-    /// `CMarkUpHTMLVisitor` emits the same marker from its footnote-reference
+    /// `UpHTMLVisitor` emits the same marker from its footnote-reference
     /// visit case — one implementation, so its callers cannot drift.
     static func markerHTML(number: Int, label: String, occurrence: Int) -> String {
         let idSuffix = occurrence > 1 ? "-\(occurrence)" : ""
@@ -569,7 +569,7 @@ extension FootnoteScan {
 
     /// Returns the scan for `source`, computing it at most once per source
     /// (keyed by the source text, LRU-bounded — the same pattern as
-    /// `CMarkChangePlan.plan`).
+    /// `ChangePlan.plan`).
     static func scan(_ source: String) -> FootnoteScan {
         cacheLock.lock()
         if let index = cache.firstIndex(where: { $0.source == source }) {

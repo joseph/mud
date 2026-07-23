@@ -12,7 +12,7 @@ import Foundation
 /// footnote references and definitions arrive as AST nodes whose positions
 /// are already original source coordinates, so their marker spans and body
 /// highlighting come straight off the tree.
-struct CMarkDownHTMLVisitor: Sendable {
+struct DownHTMLVisitor: Sendable {
 
     init() {}
 
@@ -32,7 +32,7 @@ struct CMarkDownHTMLVisitor: Sendable {
 
     /// Renders with change-tracking markers for Down mode.
     ///
-    /// Highlights both old and new markdown, builds a `CMarkLineDiffMap`
+    /// Highlights both old and new markdown, builds a `LineDiffMap`
     /// from the change plan, and produces a layout that interleaves
     /// deleted old-doc lines and annotates inserted/modified new-doc
     /// lines. The plan should be built with the
@@ -41,7 +41,7 @@ struct CMarkDownHTMLVisitor: Sendable {
     func highlightWithChanges(
         new newMarkdown: String,
         old oldMarkdown: String,
-        plan: CMarkChangePlan,
+        plan: ChangePlan,
         docCAlertMode: DocCAlertMode = .extended,
         wordDiffThreshold: Double = 0.25,
         frontMatterRendered: [String] = []
@@ -50,7 +50,7 @@ struct CMarkDownHTMLVisitor: Sendable {
             newMarkdown, docCAlertMode: docCAlertMode)
         let oldResult = highlightLines(
             oldMarkdown, docCAlertMode: docCAlertMode)
-        let diffMap = CMarkLineDiffMap(
+        let diffMap = LineDiffMap(
             plan: plan,
             wordDiffThreshold: wordDiffThreshold)
         return buildLayoutWithChanges(
@@ -457,7 +457,7 @@ struct CMarkDownHTMLVisitor: Sendable {
                     if !inDefinition,
                        let html = CodeHighlighter.highlight(
                         codeBlock.literal ?? "",
-                        language: CMarkChangePlan.codeLanguage(codeBlock))
+                        language: ChangePlan.codeLanguage(codeBlock))
                     {
                         highlighted = HTMLLineSplitter
                             .splitByLine(html)
@@ -473,7 +473,7 @@ struct CMarkDownHTMLVisitor: Sendable {
 
                 // Info string (language name) on the opening
                 // fence, nested inside md-code-fence.
-                if let lang = CMarkChangePlan.codeLanguage(codeBlock),
+                if let lang = ChangePlan.codeLanguage(codeBlock),
                    !lang.isEmpty {
                     let infoCol = range.lowerBound.column + fenceLen
                     emitSpan("md-code-info", depth: depth + 1,
@@ -929,7 +929,7 @@ struct CMarkDownHTMLVisitor: Sendable {
     private func buildLayoutWithChanges(
         _ rendered: [String],
         codeBlocks: [CodeBlockInfo],
-        diffMap: CMarkLineDiffMap,
+        diffMap: LineDiffMap,
         oldRendered: [String],
         frontMatterRendered: [String] = []
     ) -> String {
@@ -1025,7 +1025,7 @@ struct CMarkDownHTMLVisitor: Sendable {
     private func emitDeletionGroup(
         _ group: DeletionGroup,
         oldRendered: [String],
-        diffMap: CMarkLineDiffMap,
+        diffMap: LineDiffMap,
         to html: inout String
     ) {
         for oldLine in group.oldLineRange {

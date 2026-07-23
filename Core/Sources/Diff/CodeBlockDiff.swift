@@ -150,7 +150,7 @@ extension CodeBlockDiff {
   /// Assigns a change ID to each cluster of consecutive changed lines.
   ///
   /// Callers must mint cluster change IDs at gap-finalization time so
-  /// that `CMarkDiffContext` and `CMarkLineDiffMap` number the same edit
+  /// that `DiffContext` and `LineDiffMap` number the same edit
   /// identically — a sidebar click finds its Down-mode target by
   /// matching `data-change-id` values.
   static func assignChangeIDs(
@@ -269,8 +269,8 @@ extension CodeBlockDiff {
       guard hasWordChanges else { continue }
 
       // Build markers for the deletion line.
-      var delMarkers: [CMarkDownHTMLVisitor.WordMarker] = []
-      var insMarkers: [CMarkDownHTMLVisitor.WordMarker] = []
+      var delMarkers: [DownHTMLVisitor.WordMarker] = []
+      var insMarkers: [DownHTMLVisitor.WordMarker] = []
       var oldPos = 0, newPos = 0
       for span in spans {
         switch span {
@@ -289,11 +289,11 @@ extension CodeBlockDiff {
       }
 
       if !delMarkers.isEmpty {
-        delMarked[di] = CMarkDownHTMLVisitor.injectMarkers(
+        delMarked[di] = DownHTMLVisitor.injectMarkers(
           into: oldHighlighted[di], markers: delMarkers)
       }
       if !insMarkers.isEmpty {
-        insMarked[ii] = CMarkDownHTMLVisitor.injectMarkers(
+        insMarked[ii] = DownHTMLVisitor.injectMarkers(
           into: newHighlighted[ii], markers: insMarkers)
       }
     }

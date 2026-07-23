@@ -1,31 +1,31 @@
-/// Bridge between the cmark diff engine and `CMarkUpHTMLVisitor` (ported from
+/// Bridge between the cmark diff engine and `UpHTMLVisitor` (ported from
 /// the swift-markdown pipeline; see
 /// Doc/Plans/Archive/2026-07-single-parser-rendering.md).
 ///
-/// A projection of `CMarkChangePlan` for the Up-mode overlay: annotation
+/// A projection of `ChangePlan` for the Up-mode overlay: annotation
 /// lookups for AST nodes (used during rendering) and pre-rendered HTML
 /// for deleted blocks. Deletion HTML is produced by the `renderDeletion`
 /// function injected at construction — the standard one lives in
-/// `Rendering/CMarkDeletionRenderer.swift`, which also supplies the
-/// `CMarkDiffContext(old:new:)` convenience initializer.
-struct CMarkDiffContext {
-    private let plan: CMarkChangePlan
-    private let annotations: [CMarkSourceKey: AnnotationEntry]
-    private let precedingDeletionMap: [CMarkSourceKey: [RenderedDeletion]]
-    private let followingDeletionMap: [CMarkSourceKey: [RenderedDeletion]]
+/// `Rendering/DeletionRenderer.swift`, which also supplies the
+/// `DiffContext(old:new:)` convenience initializer.
+struct DiffContext {
+    private let plan: ChangePlan
+    private let annotations: [SourceKey: AnnotationEntry]
+    private let precedingDeletionMap: [SourceKey: [RenderedDeletion]]
+    private let followingDeletionMap: [SourceKey: [RenderedDeletion]]
     private let _trailingDeletions: [RenderedDeletion]
-    private let _codeBlockDiffMap: [CMarkSourceKey: CodeBlockDiff]
+    private let _codeBlockDiffMap: [SourceKey: CodeBlockDiff]
 
     /// Projects a change plan into rendering lookups.
     init(
-        plan: CMarkChangePlan,
-        renderDeletion: (CMarkLeafBlock, String, [WordSpan]?) -> RenderedDeletion
+        plan: ChangePlan,
+        renderDeletion: (LeafBlock, String, [WordSpan]?) -> RenderedDeletion
     ) {
-        var annotations: [CMarkSourceKey: AnnotationEntry] = [:]
-        var precedingMap: [CMarkSourceKey: [RenderedDeletion]] = [:]
-        var followingMap: [CMarkSourceKey: [RenderedDeletion]] = [:]
+        var annotations: [SourceKey: AnnotationEntry] = [:]
+        var precedingMap: [SourceKey: [RenderedDeletion]] = [:]
+        var followingMap: [SourceKey: [RenderedDeletion]] = [:]
         var trailing: [RenderedDeletion] = []
-        var codeBlockDiffMap: [CMarkSourceKey: CodeBlockDiff] = [:]
+        var codeBlockDiffMap: [SourceKey: CodeBlockDiff] = [:]
 
         for gap in plan.gaps {
             for slot in gap.insertionSlots {
@@ -146,22 +146,22 @@ struct CMarkDiffContext {
 /// annotations by AST node.
 ///
 /// This must stay a position value — **never collapse it to `CMarkNode`'s
-/// own (pointer) identity**, tempting as that looks. `CMarkChangePlan`
+/// own (pointer) identity**, tempting as that looks. `ChangePlan`
 /// caches by source text, and every production render parses fresh, so a
 /// cache hit routinely returns a plan whose leaf-block nodes point into a
 /// different (textually identical) tree than the one the visitor is
 /// walking. Only position matching joins across those trees; node identity
 /// would silently miss on every cache hit.
-private struct CMarkSourceKey: Hashable {
+private struct SourceKey: Hashable {
     let startLine: Int
     let startColumn: Int
     let endLine: Int
     let endColumn: Int
 }
 
-private func sourceKey(for node: CMarkNode) -> CMarkSourceKey? {
+private func sourceKey(for node: CMarkNode) -> SourceKey? {
     guard let range = node.range else { return nil }
-    return CMarkSourceKey(
+    return SourceKey(
         startLine: range.lowerBound.line,
         startColumn: range.lowerBound.column,
         endLine: range.upperBound.line,

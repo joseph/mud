@@ -2,7 +2,7 @@ import Testing
 
 @testable import MudCore
 
-/// Pins the word-span cursor machine extracted from `CMarkUpHTMLVisitor`
+/// Pins the word-span cursor machine extracted from `UpHTMLVisitor`
 /// (Phase 3f). The emitter's contract with the visitor: the character
 /// stream fed through `advance` is exactly `WordDiff.inlineText(of:)`
 /// for the block, consuming spans concatenate to that same text, and

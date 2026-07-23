@@ -27,7 +27,7 @@ public struct ChangeGroup: Identifiable, Sendable {
     }
 
     public static func build(from changes: [DocumentChange]) -> [ChangeGroup] {
-        // Group by the pre-computed groupID from CMarkDiffContext.
+        // Group by the pre-computed groupID from DiffContext.
         // Preserve document order (first occurrence of each groupID).
         var order: [String] = []
         var buckets: [String: [DocumentChange]] = [:]

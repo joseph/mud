@@ -1,9 +1,9 @@
 import Testing
 @testable import MudCore
 
-/// Change IDs (`change-N`) are minted once, in `CMarkChangePlan`, and every
-/// consumer — the Up-mode overlay (`CMarkDiffContext`), Down mode
-/// (`CMarkLineDiffMap`), and the sidebar (`CMarkChangeList`) — projects from
+/// Change IDs (`change-N`) are minted once, in `ChangePlan`, and every
+/// consumer — the Up-mode overlay (`DiffContext`), Down mode
+/// (`LineDiffMap`), and the sidebar (`ChangeList`) — projects from
 /// that plan. A sidebar click finds its document target by matching
 /// `data-change-id`, so all three must assign the same ID to the same
 /// change. These tests pin that contract over an edit corpus.

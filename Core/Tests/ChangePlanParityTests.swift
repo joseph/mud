@@ -3,7 +3,7 @@ import Testing
 @testable import MudCore
 
 /// Self-contained coverage of the cmark change plan and its sidebar
-/// projection (`CMarkChangeList`). cmark is now the only diff data layer,
+/// projection (`ChangeList`). cmark is now the only diff data layer,
 /// so these tests pin concrete properties of its output directly rather
 /// than comparing against a second implementation: every corpus edit
 /// produces changes, footnote and comment definitions stay invisible under
@@ -11,17 +11,17 @@ import Testing
 /// Down policy descends plain footnote definitions where the Up policy
 /// skips them.
 @Suite("CMark change plan")
-struct CMarkChangePlanParityTests {
+struct ChangePlanParityTests {
 
     private func cmarkPlan(
         _ c: ChangeIDParityTests.EditCase,
-        policy: CMarkDefinitionDiffPolicy = .skipAll
-    ) throws -> CMarkChangePlan {
+        policy: DefinitionDiffPolicy = .skipAll
+    ) throws -> ChangePlan {
         let oldDoc = try #require(
             CMarkDocument(parsing: ParsedMarkdown(c.old).body))
         let newDoc = try #require(
             CMarkDocument(parsing: ParsedMarkdown(c.new).body))
-        return CMarkChangePlan.plan(
+        return ChangePlan.plan(
             old: oldDoc, new: newDoc, definitionPolicy: policy)
     }
 
@@ -31,7 +31,7 @@ struct CMarkChangePlanParityTests {
     /// report at least one change for each.
     @Test(arguments: ChangeIDParityTests.corpus)
     func changeListReportsChanges(_ c: ChangeIDParityTests.EditCase) throws {
-        let ported = CMarkChangeList.computeChanges(plan: try cmarkPlan(c))
+        let ported = ChangeList.computeChanges(plan: try cmarkPlan(c))
         #expect(!ported.isEmpty, "Corpus case should produce changes")
     }
 
@@ -42,7 +42,7 @@ struct CMarkChangePlanParityTests {
             label: "footnote definition body edit",
             old: "Text with a footnote[^a].\n\n[^a]: Old body.\n",
             new: "Text with a footnote[^a].\n\n[^a]: New body.\n")
-        let ported = CMarkChangeList.computeChanges(plan: try cmarkPlan(c))
+        let ported = ChangeList.computeChanges(plan: try cmarkPlan(c))
         #expect(ported.isEmpty)
     }
 
@@ -70,7 +70,7 @@ struct CMarkChangePlanParityTests {
             """)
 
     @Test func commentDefinitionBodyEditYieldsNoChanges() throws {
-        let ported = CMarkChangeList.computeChanges(
+        let ported = ChangeList.computeChanges(
             plan: try cmarkPlan(Self.commentBodyEditCase))
         #expect(ported.isEmpty)
     }
@@ -126,13 +126,13 @@ struct CMarkChangePlanParityTests {
     func downPolicyDescendsFootnoteDefinitions(
         _ c: ChangeIDParityTests.EditCase
     ) throws {
-        let descended = CMarkChangeList.computeChanges(
+        let descended = ChangeList.computeChanges(
             plan: try cmarkPlan(c, policy: .descendPlainFootnotes))
         #expect(!descended.isEmpty, "Edit case should produce changes")
     }
 
     @Test func downPolicyKeepsCommentDefinitionsInvisible() throws {
-        let ported = CMarkChangeList.computeChanges(
+        let ported = ChangeList.computeChanges(
             plan: try cmarkPlan(
                 Self.commentBodyEditCase, policy: .descendPlainFootnotes))
         #expect(ported.isEmpty)
@@ -146,8 +146,8 @@ struct CMarkChangePlanParityTests {
             label: "cache key",
             old: "Ref[^a] here.\n\n[^a]: Cached old body.\n",
             new: "Ref[^a] here.\n\n[^a]: Cached new body.\n")
-        let skipped = CMarkChangeList.computeChanges(plan: try cmarkPlan(c))
-        let descended = CMarkChangeList.computeChanges(
+        let skipped = ChangeList.computeChanges(plan: try cmarkPlan(c))
+        let descended = ChangeList.computeChanges(
             plan: try cmarkPlan(c, policy: .descendPlainFootnotes))
         #expect(skipped.isEmpty)
         #expect(!descended.isEmpty)

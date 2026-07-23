@@ -8,7 +8,7 @@ import Foundation
 /// definition change could only be misplaced; Down mode shows the raw
 /// source, definitions included, so their edits must diff like any other
 /// Down-mode line.
-enum CMarkDefinitionDiffPolicy: Hashable, Sendable {
+enum DefinitionDiffPolicy: Hashable, Sendable {
     /// Every definition — footnote or comment — is invisible to change
     /// tracking; the whole subtree is skipped. The Up-mode policy.
     case skipAll
@@ -23,15 +23,15 @@ enum CMarkDefinitionDiffPolicy: Hashable, Sendable {
 /// Doc/Plans/Archive/2026-07-single-parser-rendering.md). The algorithm —
 /// fingerprint `CollectionDifference`, anchor walk, gap ordering — runs over
 /// `CMarkDocument` nodes; footnote-definition handling depends on the mode
-/// (see ``CMarkDefinitionDiffPolicy`` and `visitFootnoteDefinition` below).
-/// It feeds `CMarkChangePlan`.
-enum CMarkBlockMatcher {
+/// (see ``DefinitionDiffPolicy`` and `visitFootnoteDefinition` below).
+/// It feeds `ChangePlan`.
+enum BlockMatcher {
     /// Compares the leaf blocks of two documents and returns an ordered
     /// list of matches describing how blocks changed.
     static func match(
         old: CMarkDocument, new: CMarkDocument,
-        definitionPolicy: CMarkDefinitionDiffPolicy = .skipAll
-    ) -> [CMarkBlockMatch] {
+        definitionPolicy: DefinitionDiffPolicy = .skipAll
+    ) -> [BlockMatch] {
         let oldBlocks = collectLeafBlocks(from: old, policy: definitionPolicy)
         let newBlocks = collectLeafBlocks(from: new, policy: definitionPolicy)
 
@@ -78,25 +78,25 @@ enum CMarkBlockMatcher {
     }
 }
 
-// MARK: - CMarkBlockMatch enum
+// MARK: - BlockMatch enum
 
 /// Describes the relationship between a block in the old and new documents.
-enum CMarkBlockMatch {
+enum BlockMatch {
     /// Block is unchanged between old and new.
-    case unchanged(old: CMarkLeafBlock, new: CMarkLeafBlock)
+    case unchanged(old: LeafBlock, new: LeafBlock)
     /// Block was inserted in the new document.
-    case inserted(new: CMarkLeafBlock)
+    case inserted(new: LeafBlock)
     /// Block was deleted from the old document.
-    case deleted(old: CMarkLeafBlock)
+    case deleted(old: LeafBlock)
 }
 
-// MARK: - CMarkLeafBlock
+// MARK: - LeafBlock
 
 /// A leaf-level block extracted from a cmark AST, carrying its
 /// source text fingerprint and AST node reference. The node handle retains
 /// its owning document, so blocks from the *old* document keep that tree
 /// alive for deletion rendering.
-struct CMarkLeafBlock {
+struct LeafBlock {
     /// The AST node for this block.
     let markup: CMarkNode
     /// Hash of the source text within this block's range.
@@ -109,13 +109,13 @@ struct CMarkLeafBlock {
 
 // MARK: - Leaf block collection
 
-extension CMarkBlockMatcher {
+extension BlockMatcher {
     /// Flattens an AST into an ordered list of leaf blocks.
     static func collectLeafBlocks(
         from document: CMarkDocument,
-        policy: CMarkDefinitionDiffPolicy = .skipAll
-    ) -> [CMarkLeafBlock] {
-        var collector = CMarkLeafBlockCollector(
+        policy: DefinitionDiffPolicy = .skipAll
+    ) -> [LeafBlock] {
+        var collector = LeafBlockCollector(
             markdown: document.source, policy: policy)
         collector.visit(document.root)
         guard policy == .descendPlainFootnotes else { return collector.blocks }
@@ -135,13 +135,13 @@ extension CMarkBlockMatcher {
 /// Walks a cmark AST and collects leaf blocks: paragraphs, headings,
 /// code blocks, list items, table rows, blockquote paragraphs, thematic
 /// breaks, and HTML blocks.
-private struct CMarkLeafBlockCollector: CMarkWalker {
+private struct LeafBlockCollector: CMarkWalker {
     let markdown: String
-    let policy: CMarkDefinitionDiffPolicy
+    let policy: DefinitionDiffPolicy
     private let lines: [Substring]
-    var blocks: [CMarkLeafBlock] = []
+    var blocks: [LeafBlock] = []
 
-    init(markdown: String, policy: CMarkDefinitionDiffPolicy) {
+    init(markdown: String, policy: DefinitionDiffPolicy) {
         self.markdown = markdown
         self.policy = policy
         self.lines = markdown.split(
@@ -193,7 +193,7 @@ private struct CMarkLeafBlockCollector: CMarkWalker {
             // Ordered list items: fingerprint using the child
             // paragraph's column-aware source text so that renumbering
             // (e.g. "5. Foo" → "4. Foo") does not cause a false diff.
-            // The CMarkLeafBlock keeps the list item as its markup node
+            // The LeafBlock keeps the list item as its markup node
             // for correct annotation keying downstream.
             var fingerprint = ""
             for child in listItem.children {
@@ -238,7 +238,7 @@ private struct CMarkLeafBlockCollector: CMarkWalker {
     private mutating func appendBlock(_ node: CMarkNode) {
         let line = node.range?.lowerBound.line ?? 0
         let sourceText = extractSourceText(for: node)
-        blocks.append(CMarkLeafBlock(
+        blocks.append(LeafBlock(
             markup: node,
             fingerprint: FootnoteProcessor.stripCommentTokens(sourceText),
             sourceLine: line, sourceText: sourceText
@@ -248,7 +248,7 @@ private struct CMarkLeafBlockCollector: CMarkWalker {
     private mutating func appendBlock(_ node: CMarkNode, fingerprint: String) {
         let line = node.range?.lowerBound.line ?? 0
         let sourceText = extractSourceText(for: node)
-        blocks.append(CMarkLeafBlock(
+        blocks.append(LeafBlock(
             markup: node,
             fingerprint: FootnoteProcessor.stripCommentTokens(fingerprint),
             sourceLine: line, sourceText: sourceText
@@ -337,18 +337,18 @@ private struct CMarkLeafBlockCollector: CMarkWalker {
 
 // MARK: - Result builder
 
-private extension CMarkBlockMatcher {
+private extension BlockMatcher {
     /// Builds the result array by processing gaps between anchors.
     /// Within each gap, deletions are emitted before insertions so
     /// that the old content precedes the new content at each position.
     static func buildResult(
-        oldBlocks: [CMarkLeafBlock],
-        newBlocks: [CMarkLeafBlock],
+        oldBlocks: [LeafBlock],
+        newBlocks: [LeafBlock],
         removedOld: Set<Int>,
         insertedNew: Set<Int>,
         anchors: [(old: Int, new: Int)]
-    ) -> [CMarkBlockMatch] {
-        var result: [CMarkBlockMatch] = []
+    ) -> [BlockMatch] {
+        var result: [BlockMatch] = []
 
         let boundaries =
             [(-1, -1)]

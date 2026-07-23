@@ -8,12 +8,12 @@ import Foundation
 /// and the visitor owns footnote numbering directly (first-reference order
 /// over authorial references only, occurrence-suffixed back-link ids).
 ///
-/// Change tracking rides the same walk: `diffContext` / `CMarkDeletionPlacer`
+/// Change tracking rides the same walk: `diffContext` / `DeletionPlacer`
 /// emit change attributes and pre-rendered deletions, `WordSpanEmitter` drives
-/// word-level markers, and `renderBody` builds a `CMarkDiffContext` when
+/// word-level markers, and `renderBody` builds a `DiffContext` when
 /// `options.waypoint` is set. There is no waypoint preprocessing — cmark
 /// parses footnotes directly, so no transformed source needs reconciling.
-struct CMarkUpHTMLVisitor: CMarkWalker {
+struct UpHTMLVisitor: CMarkWalker {
     var result = ""
 
     /// Base URL of the document being rendered (typically its file URL).
@@ -40,17 +40,17 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
 
     /// When non-nil, change attributes are emitted on native elements
     /// for blocks that differ from the waypoint document.
-    var diffContext: CMarkDiffContext? {
+    var diffContext: DiffContext? {
         didSet {
             deletionPlacer = diffContext.map {
-                CMarkDeletionPlacer(diffContext: $0)
+                DeletionPlacer(diffContext: $0)
             }
         }
     }
 
     /// Renders deletions into the output stream and owns their
     /// exactly-once bookkeeping. Created alongside `diffContext`.
-    private var deletionPlacer: CMarkDeletionPlacer?
+    private var deletionPlacer: DeletionPlacer?
 
     /// When false, non-consuming `<del>` spans in paired insertion
     /// blocks are silently skipped instead of emitted inline.
@@ -214,7 +214,7 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
     private mutating func emitDiffedCodeBlock(
         _ codeBlock: CMarkNode, diff: CodeBlockDiff
     ) {
-        let lang = CMarkChangePlan.codeLanguage(codeBlock)
+        let lang = ChangePlan.codeLanguage(codeBlock)
 
         // <pre> has mud-code-diff but no block-level data-change-id.
         result += "<pre class=\"mud-code mud-code-diff\">"
@@ -269,7 +269,7 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
 
     /// Renders the inner HTML of a code block (`<code>` with optional
     /// language header and syntax highlighting). Shared by `visitCodeBlock`
-    /// and `CMarkDeletionRenderer.render`.
+    /// and `DeletionRenderer.render`.
     static func codeBlockInnerHTML(_ codeBlock: CMarkNode) -> String {
         let lang = codeBlock.fenceInfo.flatMap { $0.isEmpty ? nil : $0 }
         let code = codeBlock.literal ?? ""
@@ -317,7 +317,7 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
     /// Definitions render nothing in the body: they are skipped structurally
     /// (their references never enter the numbering either). Their bodies feed
     /// the bottom sections via `FootnoteProcessor`, not this walk.
-    /// `CMarkBlockMatcher`'s collector skips them the same way, so change
+    /// `BlockMatcher`'s collector skips them the same way, so change
     /// tracking never asks this visitor to place a change inside a definition.
     mutating func visitFootnoteDefinition(_ node: CMarkNode) {}
 
@@ -826,7 +826,7 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
         let detector = AlertDetector()
 
         if let (category, title) = detector.detectGFMAlert(blockQuote) {
-            var visitor = CMarkUpHTMLVisitor()
+            var visitor = UpHTMLVisitor()
             visitor.footnoteNumbers = footnoteNumbers
             visitor.emitAlertTitle(category, title)
             visitor.emitGFMAlertContent(blockQuote, category: category)
@@ -834,7 +834,7 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
         }
 
         if let alert = detector.detectDocCAlert(blockQuote) {
-            var visitor = CMarkUpHTMLVisitor()
+            var visitor = UpHTMLVisitor()
             visitor.footnoteNumbers = footnoteNumbers
             if let spans = wordSpans, !spans.isEmpty {
                 visitor.spanEmitter = WordSpanEmitter(
@@ -857,13 +857,13 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
 
     /// Renders a node's inner HTML using word spans.
     ///
-    /// Used by `CMarkDeletionRenderer` to render deletion HTML with
+    /// Used by `DeletionRenderer` to render deletion HTML with
     /// word-level `<del>` markers for the red block.
     static func renderWithWordSpans(
         _ node: CMarkNode, spans: [WordSpan], role: WordSpanEmitter.Role,
         footnoteNumbers: FootnoteNumbering? = nil
     ) -> String {
-        var visitor = CMarkUpHTMLVisitor()
+        var visitor = UpHTMLVisitor()
         visitor.footnoteNumbers = footnoteNumbers
         visitor.spanEmitter = WordSpanEmitter(
             spans: spans, role: role, showInlineDeletions: false)
@@ -875,7 +875,7 @@ struct CMarkUpHTMLVisitor: CMarkWalker {
 
 // MARK: - Footnote numbering for mid-document walks
 
-extension CMarkUpHTMLVisitor {
+extension UpHTMLVisitor {
     /// The (number, occurrence) a full-document walk assigns each authorial
     /// footnote reference, keyed by the reference's **verified byte range**
     /// — a position key, not the node handle, because the plan cache hands
@@ -898,10 +898,10 @@ extension CMarkUpHTMLVisitor {
     }
 }
 
-/// The numbering pass behind `CMarkUpHTMLVisitor.footnoteNumbering(for:)`,
+/// The numbering pass behind `UpHTMLVisitor.footnoteNumbering(for:)`,
 /// mirroring `visitFootnoteReference`'s guards and counters exactly.
 private struct FootnoteNumberingWalker: CMarkWalker {
-    var numbers: CMarkUpHTMLVisitor.FootnoteNumbering = [:]
+    var numbers: UpHTMLVisitor.FootnoteNumbering = [:]
     private var authorialNumber: [String: Int] = [:]
     private var nextFootnoteNumber = 1
     private var occurrence: [String: Int] = [:]
@@ -928,7 +928,7 @@ private struct FootnoteNumberingWalker: CMarkWalker {
 
 // MARK: - Body rendering entry point
 
-extension CMarkUpHTMLVisitor {
+extension UpHTMLVisitor {
     /// Renders the Up-mode body from a source string: CRLF normalization and
     /// frontmatter extraction (matching `ParsedMarkdown`), one footnote-aware
     /// parse of the body, the visitor walk, and the rendered-frontmatter
@@ -991,13 +991,13 @@ extension CMarkUpHTMLVisitor {
         resolveImageSource: ((_ source: String, _ baseURL: URL) -> String?)?
     ) -> String {
         let prefix = frontMatterYAML.map(FrontMatterHTMLRenderer.upModeHTML) ?? ""
-        var visitor = CMarkUpHTMLVisitor()
+        var visitor = UpHTMLVisitor()
         visitor.baseURL = options.baseURL
         visitor.resolveImageSource = resolveImageSource
         visitor.alertDetector.docCAlertMode = options.docCAlertMode
         visitor.showInlineDeletions = options.showInlineDeletions
         if let oldDocument {
-            visitor.diffContext = CMarkDiffContext(
+            visitor.diffContext = DiffContext(
                 old: oldDocument, new: document,
                 wordDiffThreshold: options.wordDiffThreshold)
         }

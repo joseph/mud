@@ -37,7 +37,7 @@ public struct RenderedFootnote: Sendable {
 public enum MudCore {
     public static let version = "1.0.0"
 
-    private static let downVisitor = CMarkDownHTMLVisitor()
+    private static let downVisitor = DownHTMLVisitor()
 
     // MARK: - ParsedMarkdown API
 
@@ -53,7 +53,7 @@ public enum MudCore {
         options: RenderOptions = .init(),
         resolveImageSource: ((_ source: String, _ baseURL: URL) -> String?)? = nil
     ) -> String {
-        CMarkUpHTMLVisitor.renderBody(
+        UpHTMLVisitor.renderBody(
             parsed, options: options, resolveImageSource: resolveImageSource)
     }
 
@@ -93,7 +93,7 @@ public enum MudCore {
             // list shares this policy (`computeChanges(mode: .down)`), so its
             // change IDs match this body's by construction; waypoint dedup
             // uses it too (`computeChanges(mode: nil)`).
-            let plan = CMarkChangePlan.plan(
+            let plan = ChangePlan.plan(
                 old: oldDoc, new: newDoc,
                 wordDiffThreshold: options.wordDiffThreshold,
                 definitionPolicy: .descendPlainFootnotes)
@@ -153,11 +153,11 @@ public enum MudCore {
         // `process` supplies the footnote/comment models for the bottom
         // sections; it rewrites nothing. The cmark visitor emits the markers
         // itself and skips definitions structurally, rendering the raw source
-        // directly, and `CMarkUpHTMLVisitor.renderBody` diffs the raw waypoint
+        // directly, and `UpHTMLVisitor.renderBody` diffs the raw waypoint
         // against the raw body — so the waypoint needs no reprocessing either.
         let result = FootnoteProcessor.process(source, mode: options.footnoteMode)
         let parsed = ParsedMarkdown(source)
-        var body = CMarkUpHTMLVisitor.renderBody(
+        var body = UpHTMLVisitor.renderBody(
             parsed, options: options, resolveImageSource: resolveImageSource)
         body += FootnoteHTMLRenderer.section(
             result.footnotes, options: options,
@@ -356,10 +356,10 @@ public enum MudCore {
     ) -> [DocumentChange] {
         guard let oldDoc = old.cmarkDocument,
               let newDoc = new.cmarkDocument else { return [] }
-        let policy: CMarkDefinitionDiffPolicy =
+        let policy: DefinitionDiffPolicy =
             mode == .up ? .skipAll : .descendPlainFootnotes
-        return CMarkChangeList.computeChanges(
-            plan: CMarkChangePlan.plan(
+        return ChangeList.computeChanges(
+            plan: ChangePlan.plan(
                 old: oldDoc, new: newDoc,
                 definitionPolicy: policy))
     }

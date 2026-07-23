@@ -17,7 +17,7 @@ struct DownRenderingTests {
     // the logic instead of pointing at a whole-document byte diff.
 
     @Test func referenceAndDefinitionMarkersSpanTheSourceTokens() {
-        let html = CMarkDownHTMLVisitor().highlight(
+        let html = DownHTMLVisitor().highlight(
             ParityCorpus.footnoteNumbering.markdown)
         #expect(html.contains(
             "<span class=\"md-footnote-ref\">[^beta]</span>"))
@@ -32,7 +32,7 @@ struct DownRenderingTests {
     }
 
     @Test func undefinedReferenceGetsNoSpan() {
-        let html = CMarkDownHTMLVisitor().highlight(
+        let html = DownHTMLVisitor().highlight(
             ParityCorpus.footnoteNumbering.markdown)
         // `[^missing]` never becomes a reference node, so its literal
         // text renders unhighlighted: only a resolved reference gets a span.
@@ -42,7 +42,7 @@ struct DownRenderingTests {
     }
 
     @Test func referenceInsideADefinitionBodyGetsNoSpan() {
-        let html = CMarkDownHTMLVisitor().highlight(
+        let html = DownHTMLVisitor().highlight(
             ParityCorpus.footnoteDefBodyVariants.markdown)
         // `[^nested]`'s body references `[^inline]`. Legacy emits nothing
         // there (scan drops in-body refs; the body sub-parse sees plain
@@ -53,7 +53,7 @@ struct DownRenderingTests {
     }
 
     @Test func definitionBodyCodeIsSpannedButNotRendered() {
-        let html = CMarkDownHTMLVisitor().highlight(
+        let html = DownHTMLVisitor().highlight(
             ParityCorpus.footnoteDefCodeBlocks.markdown)
         // Code inside a definition body gets fence/content spans, but no
         // highlight.js substitution and no scrollable code-line roles, so
@@ -79,10 +79,10 @@ struct DownRenderingTests {
             lineCount: parsedNew.frontMatterLineCount)
         let oldDoc = try #require(CMarkDocument(parsing: parsedOld.body))
         let newDoc = try #require(CMarkDocument(parsing: parsedNew.body))
-        let plan = CMarkChangePlan.plan(
+        let plan = ChangePlan.plan(
             old: oldDoc, new: newDoc,
             definitionPolicy: .descendPlainFootnotes)
-        return CMarkDownHTMLVisitor().highlightWithChanges(
+        return DownHTMLVisitor().highlightWithChanges(
             new: parsedNew.body, old: parsedOld.body, plan: plan,
             docCAlertMode: mode, frontMatterRendered: fmRendered)
     }
@@ -115,7 +115,7 @@ struct DownRenderingTests {
     static let diffedDownSweepCases: [ChangeIDParityTests.EditCase] =
         ChangeIDParityTests.corpus
         + UpRenderingTests.diffEditCases
-        + CMarkChangePlanParityTests.downPolicyEditCases
+        + ChangePlanParityTests.downPolicyEditCases
         + downDiffEditCases
 
     @Test(arguments: Self.diffedDownSweepCases)
@@ -137,10 +137,10 @@ struct DownRenderingTests {
             parsing: "A paragraph.\n\n[^orphan]: Old body text.\n"))
         let newDoc = try #require(CMarkDocument(
             parsing: "A paragraph.\n\n[^orphan]: New body text.\n"))
-        let plan = CMarkChangePlan.plan(
+        let plan = ChangePlan.plan(
             old: oldDoc, new: newDoc,
             definitionPolicy: .descendPlainFootnotes)
-        #expect(CMarkChangeList.computeChanges(plan: plan).isEmpty)
+        #expect(ChangeList.computeChanges(plan: plan).isEmpty)
     }
 
     /// A multi-paragraph definition body is one leaf per *paragraph* to
@@ -152,10 +152,10 @@ struct DownRenderingTests {
             + "    Second paragraph new.\n"
         let oldDoc = try #require(CMarkDocument(parsing: old))
         let newDoc = try #require(CMarkDocument(parsing: new))
-        let plan = CMarkChangePlan.plan(
+        let plan = ChangePlan.plan(
             old: oldDoc, new: newDoc,
             definitionPolicy: .descendPlainFootnotes)
-        let map = CMarkLineDiffMap(plan: plan)
+        let map = LineDiffMap(plan: plan)
         #expect(map.annotation(forLine: 5) != nil)
         #expect(map.deletionGroups.count == 1)
         #expect(map.deletionGroups.first?.oldLineRange == 5...5)
@@ -176,16 +176,16 @@ struct DownRenderingTests {
         let new = "First[^a].\n\nTail.\n\n[^a]: A.\n\n[^b]: B.\n"
         let oldDoc = try #require(CMarkDocument(parsing: old))
         let newDoc = try #require(CMarkDocument(parsing: new))
-        let plan = CMarkChangePlan.plan(
+        let plan = ChangePlan.plan(
             old: oldDoc, new: newDoc,
             definitionPolicy: .descendPlainFootnotes)
         // Two deletions: the paragraph, and the now-orphaned definition.
-        let ported = CMarkChangeList.computeChanges(plan: plan)
+        let ported = ChangeList.computeChanges(plan: plan)
         #expect(ported.count == 2)
     }
 
     /// A fenced block inside a definition body is a real fenced block to
-    /// cmark (fence lines outside the literal), and `CMarkLineDiffMap`'s
+    /// cmark (fence lines outside the literal), and `LineDiffMap`'s
     /// fence detection reads the source-text prefix, which an indented fence
     /// defeats. Pin only that the edit produces changes annotated within the
     /// definition's lines.
@@ -196,10 +196,10 @@ struct DownRenderingTests {
             + "    ```\n    let x = 2\n    ```\n"
         let oldDoc = try #require(CMarkDocument(parsing: old))
         let newDoc = try #require(CMarkDocument(parsing: new))
-        let plan = CMarkChangePlan.plan(
+        let plan = ChangePlan.plan(
             old: oldDoc, new: newDoc,
             definitionPolicy: .descendPlainFootnotes)
-        let map = CMarkLineDiffMap(plan: plan)
+        let map = LineDiffMap(plan: plan)
         let annotated = (1...7).filter { map.annotation(forLine: $0) != nil }
         #expect(!annotated.isEmpty)
         #expect(annotated.allSatisfy { $0 >= 5 && $0 <= 7 })
@@ -213,7 +213,7 @@ struct DownRenderingTests {
     /// text still renders, since Phase 2 draws raw source lines regardless;
     /// only the highlighting is lost, on this degenerate input.
     @Test func orphanDefinitionBodyLosesHighlighting() {
-        let html = CMarkDownHTMLVisitor().highlight(
+        let html = DownHTMLVisitor().highlight(
             "A paragraph.\n\n[^orphan]: A body with **bold** text.\n")
         #expect(html.contains("[^orphan]: A body with **bold** text."))
         #expect(!html.contains("md-footnote-def"))

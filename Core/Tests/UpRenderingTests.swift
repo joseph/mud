@@ -17,7 +17,7 @@ struct UpRenderingTests {
     // the logic instead of pointing at a whole-document byte diff.
 
     @Test func footnoteNumberingFollowsFirstReferenceOrder() {
-        let body = CMarkUpHTMLVisitor.renderBody(
+        let body = UpHTMLVisitor.renderBody(
             ParityCorpus.footnoteNumbering.markdown, options: .init())
         // beta is referenced first → number 1; alpha second → number 2,
         // regardless of definition order.
@@ -30,7 +30,7 @@ struct UpRenderingTests {
     }
 
     @Test func commentReferenceConsumesNoFootnoteNumber() {
-        let body = CMarkUpHTMLVisitor.renderBody(
+        let body = UpHTMLVisitor.renderBody(
             ParityCorpus.footnoteNumbering.markdown, options: .init())
         // The comment renders as a 💬 marker between footnotes 1 and 2 and
         // leaves no gap in the numbering.
@@ -39,7 +39,7 @@ struct UpRenderingTests {
     }
 
     @Test func undefinedReferenceStaysLiteralAndOrphanDefinitionVanishes() {
-        let body = CMarkUpHTMLVisitor.renderBody(
+        let body = UpHTMLVisitor.renderBody(
             ParityCorpus.footnoteNumbering.markdown, options: .init())
         // `[^missing]` resolves to no definition, so its text survives.
         #expect(body.contains("[^missing]"))
@@ -59,7 +59,7 @@ struct UpRenderingTests {
     ) -> String {
         var options = options
         options.waypoint = ParsedMarkdown(old)
-        return CMarkUpHTMLVisitor.renderBody(new, options: options)
+        return UpHTMLVisitor.renderBody(new, options: options)
     }
 
     /// Edit cases beyond `ChangeIDParityTests.corpus` (which covers
@@ -272,7 +272,7 @@ struct UpRenderingTests {
 
     // MARK: - Retained-tree overload parity
 
-    // `CMarkUpHTMLVisitor.renderBody(_ parsed:)` reuses `ParsedMarkdown`'s
+    // `UpHTMLVisitor.renderBody(_ parsed:)` reuses `ParsedMarkdown`'s
     // retained `cmarkDocument` instead of re-parsing the source string. It is
     // the entry production calls, so it must render byte-identically to the
     // String overload — plain and diffed.
@@ -283,9 +283,9 @@ struct UpRenderingTests {
     ) {
         var options = RenderOptions()
         options.docCAlertMode = mode
-        let viaString = CMarkUpHTMLVisitor.renderBody(
+        let viaString = UpHTMLVisitor.renderBody(
             document.markdown, options: options)
-        let viaParsed = CMarkUpHTMLVisitor.renderBody(
+        let viaParsed = UpHTMLVisitor.renderBody(
             ParsedMarkdown(document.markdown), options: options)
         #expect(viaParsed == viaString)
     }
@@ -297,8 +297,8 @@ struct UpRenderingTests {
         var options = RenderOptions()
         options.showInlineDeletions = showInlineDeletions
         options.waypoint = ParsedMarkdown(c.old)
-        let viaString = CMarkUpHTMLVisitor.renderBody(c.new, options: options)
-        let viaParsed = CMarkUpHTMLVisitor.renderBody(
+        let viaString = UpHTMLVisitor.renderBody(c.new, options: options)
+        let viaParsed = UpHTMLVisitor.renderBody(
             ParsedMarkdown(c.new), options: options)
         #expect(viaParsed == viaString)
     }
@@ -306,7 +306,7 @@ struct UpRenderingTests {
     // MARK: - Deletion footnote numbering
 
     // Deleted blocks belong to the old document. The cmark deletion path
-    // seeds their numbering via `CMarkUpHTMLVisitor.footnoteNumbering(for:)`;
+    // seeds their numbering via `UpHTMLVisitor.footnoteNumbering(for:)`;
     // asserted directly so a failure names the seeding, not a byte diff.
 
     @Test func deletedBlockKeepsOldDocumentFootnoteNumber() {

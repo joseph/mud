@@ -3,14 +3,14 @@
 /// Doc/Plans/Archive/2026-07-single-parser-rendering.md).
 ///
 /// Lives in the rendering layer so that `Diff/` never calls rendering code:
-/// `CMarkDiffContext` receives `render` as a function at construction.
+/// `DiffContext` receives `render` as a function at construction.
 ///
 /// `footnoteNumbers` seeds the old document's footnote numbering. Deleted
 /// blocks belong to the *old* document, and the old parse is raw, so the
 /// deletion visitors — which start mid-document and cannot count first
 /// references for themselves — take the numbering a full walk of the old
-/// document assigns (`CMarkUpHTMLVisitor.footnoteNumbering(for:)`).
-enum CMarkDeletionRenderer {
+/// document assigns (`UpHTMLVisitor.footnoteNumbering(for:)`).
+enum DeletionRenderer {
     /// The native HTML tag for a leaf block.
     static func tagForBlock(_ markup: CMarkNode) -> String {
         switch markup.kind {
@@ -30,8 +30,8 @@ enum CMarkDeletionRenderer {
     /// When `wordSpans` is provided, the deletion's inner HTML is
     /// rendered with word-level `<del>` markers for the red block.
     static func render(
-        _ block: CMarkLeafBlock, changeID: String, wordSpans: [WordSpan]?,
-        footnoteNumbers: CMarkUpHTMLVisitor.FootnoteNumbering? = nil
+        _ block: LeafBlock, changeID: String, wordSpans: [WordSpan]?,
+        footnoteNumbers: UpHTMLVisitor.FootnoteNumbering? = nil
     ) -> RenderedDeletion {
         let markup = block.markup
 
@@ -39,12 +39,12 @@ enum CMarkDeletionRenderer {
         // render the deletion as a full alert with proper styling.
         if let blockQuote = markup.parent, blockQuote.kind == .blockQuote,
            let (alertHTML, category) =
-               CMarkUpHTMLVisitor.renderAlertInnerHTML(
+               UpHTMLVisitor.renderAlertInnerHTML(
                    blockQuote, wordSpans: wordSpans,
                    footnoteNumbers: footnoteNumbers) {
             return RenderedDeletion(
                 html: alertHTML, changeID: changeID,
-                summary: CMarkChangePlan.blockSummary(block),
+                summary: ChangePlan.blockSummary(block),
                 tag: "blockquote",
                 wordSpans: wordSpans,
                 extraClasses: "alert \(category.cssClass)")
@@ -55,7 +55,7 @@ enum CMarkDeletionRenderer {
 
         // Mermaid diagrams: show placeholder instead of raw source.
         if markup.kind == .codeBlock,
-           CMarkChangePlan.codeLanguage(markup)?.lowercased() == "mermaid" {
+           ChangePlan.codeLanguage(markup)?.lowercased() == "mermaid" {
             html = "<code><em>[revised diagram]</em></code>"
             return RenderedDeletion(
                 html: html, changeID: changeID,
@@ -63,19 +63,19 @@ enum CMarkDeletionRenderer {
         }
 
         if let wordSpans, !wordSpans.isEmpty {
-            html = CMarkUpHTMLVisitor.renderWithWordSpans(
+            html = UpHTMLVisitor.renderWithWordSpans(
                 markup, spans: wordSpans, role: .deletion,
                 footnoteNumbers: footnoteNumbers)
         } else {
             switch markup.kind {
             case .codeBlock:
-                html = CMarkUpHTMLVisitor.codeBlockInnerHTML(markup)
+                html = UpHTMLVisitor.codeBlockInnerHTML(markup)
             case .thematicBreak:
                 html = ""
             case .htmlBlock:
                 html = markup.literal ?? ""
             default:
-                var visitor = CMarkUpHTMLVisitor()
+                var visitor = UpHTMLVisitor()
                 visitor.footnoteNumbers = footnoteNumbers
                 for child in markup.children { visitor.visit(child) }
                 html = visitor.result
@@ -84,30 +84,30 @@ enum CMarkDeletionRenderer {
 
         return RenderedDeletion(
             html: html, changeID: changeID,
-            summary: CMarkChangePlan.blockSummary(block), tag: tag,
+            summary: ChangePlan.blockSummary(block), tag: tag,
             wordSpans: wordSpans
         )
     }
 }
 
-// MARK: - CMarkDiffContext convenience
+// MARK: - DiffContext convenience
 
-extension CMarkDiffContext {
+extension DiffContext {
     /// Creates a diff context by matching blocks between old and new
     /// documents, rendering deletions with the standard Up-mode renderer.
-    /// The underlying `CMarkChangePlan` is computed at most once per
-    /// (old, new) pair — see `CMarkChangePlan.plan`. The old document's
+    /// The underlying `ChangePlan` is computed at most once per
+    /// (old, new) pair — see `ChangePlan.plan`. The old document's
     /// footnote numbering is computed here and captured by the renderer,
     /// so every deletion of one render shares one numbering pass.
     init(old: CMarkDocument, new: CMarkDocument,
          wordDiffThreshold: Double = 0.25) {
-        let numbering = CMarkUpHTMLVisitor.footnoteNumbering(for: old)
+        let numbering = UpHTMLVisitor.footnoteNumbering(for: old)
         self.init(
-            plan: CMarkChangePlan.plan(
+            plan: ChangePlan.plan(
                 old: old, new: new,
                 wordDiffThreshold: wordDiffThreshold),
             renderDeletion: { block, changeID, wordSpans in
-                CMarkDeletionRenderer.render(
+                DeletionRenderer.render(
                     block, changeID: changeID, wordSpans: wordSpans,
                     footnoteNumbers: numbering)
             })

@@ -50,6 +50,43 @@ struct UpRenderingTests {
         #expect(!body.contains("Alpha body"))
     }
 
+    // MARK: - Table column alignment
+
+    // The delimiter row's alignment reaches the HTML as the presentational
+    // `align` attribute on each cell (`mud-up.css` then honors it with
+    // attribute selectors that outrank the bare `th, td` rule). These pin the
+    // markup so a regression is caught at the render layer, not only in CSS.
+
+    @Test func tableCellsCarryColumnAlignmentAttributes() {
+        let markdown = """
+            | Left | Center | Right | Default |
+            | :--- | :----: | ----: | ------- |
+            | a    | b      | c     | d       |
+
+            """
+        let body = UpHTMLVisitor.renderBody(markdown, options: .init())
+        // Header cells carry the column's alignment.
+        #expect(body.contains("<th align=\"left\">Left</th>"))
+        #expect(body.contains("<th align=\"center\">Center</th>"))
+        #expect(body.contains("<th align=\"right\">Right</th>"))
+        // A plain `---` column gets no attribute, so it falls to the default.
+        #expect(body.contains("<th>Default</th>"))
+        // Body cells carry the same per-column alignment.
+        #expect(body.contains("<td align=\"left\">a</td>"))
+        #expect(body.contains("<td align=\"center\">b</td>"))
+        #expect(body.contains("<td align=\"right\">c</td>"))
+        #expect(body.contains("<td>d</td>"))
+    }
+
+    /// The Up stylesheet honors the `align` attribute with attribute-selector
+    /// rules. Without them a bare `th, td { text-align: left }` would override
+    /// the presentational hint, which is the bug this pins against.
+    @Test func upStylesheetHonorsAlignmentAttributes() throws {
+        let css = try #require(HTMLTemplate.loadResource("mud-up", type: "css"))
+        #expect(css.contains("td[align=\"center\"]"))
+        #expect(css.contains("td[align=\"right\"]"))
+    }
+
     // MARK: - Diffed rendering
 
     /// The cmark pipeline's diffed body render: the raw waypoint goes

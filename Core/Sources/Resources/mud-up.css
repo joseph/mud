@@ -358,6 +358,15 @@ th, td {
   vertical-align: top;
 }
 
+/* Honor the delimiter-row alignment. The visitor emits it as the presentational
+   `align` attribute, which an author `text-align` rule (the one above) would
+   otherwise override — a presentational hint loses to any author CSS. These
+   attribute selectors outrank the bare `th, td` rule, so the column alignment
+   wins. */
+th[align="left"], td[align="left"] { text-align: left; }
+th[align="center"], td[align="center"] { text-align: center; }
+th[align="right"], td[align="right"] { text-align: right; }
+
 th {
   font-weight: 600;
   background-color: var(--code-bg);

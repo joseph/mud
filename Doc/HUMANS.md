@@ -31,6 +31,7 @@ Mud does just one thing — it marks up Markdown! — and it does it really well
 - [Alerts & asides](Examples/alerts-and-asides.md)
 - [Emoji shortcodes](Examples/emoji-shortcodes.md)
 - [Mermaid diagrams](Examples/mermaid-diagrams.md)
+- [Math expressions](Examples/math-expressions.md)
 - [Code highlighting](Examples/code-highlighting.md)
 - [Image embedding](Examples/image-embedding.md)
 - [Link handling](Examples/link-handling.md)

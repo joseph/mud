@@ -38,7 +38,10 @@ work — use them where they make the document clearer:
   diagram (flowcharts, sequence, gantt, etc.). Diagrams are a _great_ way to
   illustrate concepts and flows. Reach for them instead of ASCII art.
 - **Footnotes**: `text[^1]` with a `[^1]: definition` block.
-- **Math**: not supported yet — don't emit LaTeX or `$…$` math.
+- **Math**: TeX rendered to MathML, in three GFM forms — a ```` ```math ````
+  fenced block, a paragraph fenced by `$$…$$`, and inline `` $`…`$ ``
+  (backticks required). A bare `$…$` is _not_ math, so prices like `$5` stay
+  literal. Write inline math as `` $`e^{i\pi}+1=0`$ ``, not `$e^{i\pi}+1=0$`.
 
 Use a clear heading hierarchy: Mud builds a navigable outline sidebar from your
 headings, and gives each one a slug ID, so internal links like
@@ -72,7 +75,6 @@ The definition holds:
 - One or more **messages**. Each opens with an attribution line —
   `💬 {author @ YYYY-MM-DD HH:MM:SS}:` — followed by the message body in the
   paragraph below.
-
 
 An example thread with a quotation, an opening message, and a reply:
 

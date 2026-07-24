@@ -18,6 +18,8 @@ MVP plan.
 ## Features
 
 - GFM rendering with syntax highlighting (highlight.js)
+- GFM math: TeX rendered to MathML server-side (Temml), three delimiter forms
+  (```` ```math ````, `$$…$$`, inline `` $`…`$ ``); no client-side JS
 - Two modes: Mark Up (rendered) and Mark Down (raw, syntax-highlighted)
 - Space bar toggles modes; scroll position preserved
 - Auto-reload on file change (DispatchSource)
@@ -257,6 +259,8 @@ MVP plan.
 - `Rendering/HeadingExtractor.swift` — Heading extraction for the sidebar (a
   `CMarkWalker`)
 - `Rendering/CodeHighlighter.swift` — Syntax highlighting via highlight.js
+- `Rendering/MathRenderer.swift` — TeX → MathML via Temml in a JSContext
+  (server-side, no client JS); same pattern as `CodeHighlighter`
 - `Rendering/EmojiShortcodes.swift` — `:shortcode:` → emoji replacement
 - `Rendering/AlertDetector.swift` — GFM alert and DocC aside detection
 - `Rendering/HTMLEscaping.swift` — Shared HTML entity escaping
@@ -361,6 +365,11 @@ MVP plan.
   lighting variables in `mud.css`. Appended to both Up and Down documents only
   when `!options.standalone`, so exports (which have no Find bar) never carry
   it.
+- `mud-math.css` — Math (MathML) styles: display-block layout plus the
+  per-engine spacing/accent rules adapted from Temml-Local.css. Appended to an
+  Up document only when its body contains math (a `<math>` element or a
+  `temml-error` span), so a math-free document never carries it. No matching JS
+  — MathML renders natively.
 - `mud.js` — Shared JS: find, scroll, lighting, zoom
 - `mud-changes.js` — Change tracking JS: overlays, expand/collapse, navigation
 - `mud-comment-anchor.js` — Shared comment-anchoring primitives
@@ -369,7 +378,9 @@ MVP plan.
   `HTMLTemplate.mudCommentsJS` concatenates it ahead of `mud-comments.js`, so
   it ships wherever the read side does (app and exports); the write side,
   injected separately, sees it too. The one skip rule (comment markers and
-  footnote references) matches `CommentAnchor.swift`.
+  footnote references) matches `CommentAnchor.swift`; its `isSkippedSubtree`
+  also drops math (a `<math>` element, `.mud-math-block`, `.temml-error`),
+  mirrored in `CommentAnchorParityTests`.
 - `mud-comments.js` — Comments column (read side, bundled everywhere): projects
   a capsule per comment from the hidden bottom section, anchors quotation
   highlights off the hidden markers, runs the slot solver, and on `setData`
@@ -388,6 +399,8 @@ MVP plan.
 - `theme-system.css` — System theme (internal; used for error pages)
 - `mermaid.min.js` — Mermaid diagram library (v11, UMD build)
 - `mermaid-init.js` — Mermaid init script for Up mode rendering
+- `temml.min.js` — Temml TeX-to-MathML library (v0.13.3, MIT). Loaded into a
+  `JSContext` by `MathRenderer`; renders server-side, never shipped in exports
 - `Doc/Guides/command-line.md` — Bundled guide: CLI usage
 - `Doc/Guides/primer.md` — Bundled guide: dense Markdown authoring primer for
   coding agents, printed by `mud --primer`
@@ -425,6 +438,7 @@ Markdown string (up mode)
     → ParsedMarkdown             (one footnote-aware cmark parse)
     → UpHTMLVisitor.renderBody   (AST → HTML body; markers emitted from the AST,
                                   SlugGenerator adds heading IDs,
+                                  MathRenderer converts TeX to MathML,
                                   DiffContext adds change overlays)
     → FootnoteHTMLRenderer + CommentHTMLRenderer  (bottom sections appended)
   → HTMLTemplate.wrapUp()        → full HTML document (CSS + JS inlined)
@@ -462,6 +476,19 @@ selects the output: `.section` emits a visible bottom
 live app) keeps that section `is-print-only` and instead draws hover-revealed
 highlights and feeds the Comments Column. The bottom comments section always
 follows any footnotes section.
+
+**Math** is rendered in the Up visitor by `MathRenderer` (Temml in a
+`JSContext`, server-side, no client JS). Three GFM forms are recognized: a
+```` ```math ```` fenced block (`visitCodeBlock`), a paragraph that is exactly
+`$$…$$` (`visitParagraph`), and inline `` $`…`$ `` (`visitInlineCode`). For the
+`$$…$$` form the visitor reads the paragraph's **raw source bytes** rather than
+its children, because cmark has already inline-parsed the interior (turning `_`
+into emphasis); a bare `$…$` is deliberately not math. Math-bearing blocks take
+whole-block change annotations and never word-level spans (like code blocks),
+so `WordSpanEmitter` can't desync; inline math renders only when the emitter is
+inactive. Comment anchoring skips math on both sides (see
+`mud-comment-anchor.js` / `CommentAnchor.swift`). `mud-math.css` ships only
+when the body contains math.
 
 Comments are **invisible to change tracking**, through two mechanisms in the
 leaf-block collector (`BlockMatcher`):

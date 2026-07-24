@@ -167,12 +167,22 @@
   }
 
   // A selection is commentable when it is non-empty, lives in the body, is not
-  // inside a code block or a Mermaid diagram, and resolves to a source byte.
+  // inside a code block, a Mermaid diagram, or math, and resolves to a source
+  // byte.
   function commentableDraft() {
     var sel = window.getSelection();
     if (!sel || sel.isCollapsed || sel.rangeCount === 0) return null;
     var range = sel.getRangeAt(0);
     if (!container.contains(range.commonAncestorContainer)) return null;
+    // Rendered math (an inline `<math>`, a display `.mud-math-block`, or a
+    // `temml-error` span) has no source byte its rendered text maps back to, so
+    // a selection ending inside one is not commentable. Inline math sits inside
+    // an otherwise-commentable `<p>`, so this end-container check catches it
+    // where the leaf-block check below cannot.
+    var endEl = range.endContainer.nodeType === Node.ELEMENT_NODE
+      ? range.endContainer : range.endContainer.parentNode;
+    if (endEl && endEl.closest &&
+        endEl.closest("math, .mud-math-block, .temml-error")) return null;
     var block = leafBlock(range.endContainer);
     if (!block || block.tagName === "PRE") return null;
     // A Mermaid diagram (a `<div class="mermaid">` whose rendered SVG labels

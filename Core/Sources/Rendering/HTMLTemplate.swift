@@ -12,6 +12,12 @@ public enum HTMLTemplate {
         if options.waypoint != nil { doc.styles.append(changesCSS) }
         // Find styles only in the live app view — exports have no Find bar.
         if !options.standalone { doc.styles.append(findCSS) }
+        // Math styles only when the body actually contains math (a `<math>`
+        // element, or a `temml-error` span from invalid TeX). A math-free
+        // document carries none of this.
+        if body.contains("<math") || body.contains("temml-error") {
+            doc.styles.append(mathCSS)
+        }
         // Print overrides come last so they win over the on-screen defaults.
         doc.styles.append(printCSS)
         doc.cspImgSrc = options.blockRemoteContent
@@ -97,6 +103,13 @@ public enum HTMLTemplate {
 
     public static var changesCSS: String {
         loadResource("mud-changes", type: "css") ?? ""
+    }
+
+    /// Math styles (`mud-math.css`): display-block layout plus the adapted
+    /// Temml per-engine rules. Appended in `wrapUp` only when the body
+    /// contains math, so a math-free document never carries them.
+    private static var mathCSS: String {
+        loadResource("mud-math", type: "css") ?? ""
     }
 
     /// Find highlight styles (`mud-find.css`): the search-match colors, themed

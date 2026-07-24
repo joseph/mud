@@ -1,7 +1,7 @@
 Plan: GFM Math Support
 ===============================================================================
 
-> Status: Planning
+> Status: Underway
 
 GitHub issue #8 asks for "the MathJax feature of GFM": math expressions written
 in TeX, as
@@ -77,6 +77,22 @@ the word-diff span emitter aligned — a separate design. If we add it later, it
 gets its own plan and probably a Settings toggle; the three forms above are
 safe enough to be always-on with no preference.
 
+> [!NOTE]
+> **All three forms survive the house formatter.** `odmarkdown` (the Ruby gem
+> we run on every Markdown file) leaves math intact:
+>
+> - Inline `` $`…`$ `` is preserved — the `$` stays attached to its code span
+>   and the span is never split across a line wrap. (This needed a formatter
+>   fix: `odmarkdown` commit "keep inline code spans attached to adjacent
+>   text"; earlier versions inserted a space, turning `` $`x`$ `` into
+>   `` $ `x`$ ``. Authoring math files depends on that fix being in the
+>   installed gem.)
+> - ```` ```math ```` fences are left untouched.
+> - A standalone `$$…$$` paragraph collapses to one line, but keeps its
+>   delimiters and does **not** escape interior underscores (`a_1` stays `a_1`)
+>   — so the `$$` display path and its key subscript test both survive
+>   formatting.
+
 
 ## Rendering pipeline change
 
@@ -101,8 +117,8 @@ other conditional styles).
 
 ### 1. Vendor Temml
 
-- Add `temml.min.js` to `Core/Sources/Resources/`, version-pinned, with license
-  text alongside the existing highlight.js attribution.
+- Add `temml.min.js` (v0.13.3) to `Core/Sources/Resources/`, with license text
+  alongside the existing highlight.js attribution.
 - **Verify it evaluates in a bare `JSContext`.** Temml's docs steer server-side
   users toward `temml.cjs`/ `temml.mjs`; if the browser build touches
   `document`, either stub the one global it needs or produce our own minified
@@ -118,8 +134,10 @@ other conditional styles).
 
 - API: `render(_ tex: String, displayMode: Bool) -> String?` calling
   `temml.renderToString`.
-- Invalid TeX: use Temml's non-throwing mode, which emits the literal source
-  inside an `<merror>`-styled element — same reader experience as GitHub. A
+- Invalid TeX: use Temml's non-throwing mode (`throwOnError: false`), which
+  emits the literal source inside a `<span class="temml-error">` — same reader
+  experience as GitHub. (Verified: Temml uses this span, not an `<merror>`
+  element; the CSS trigger and comment-anchor skip rules account for it.) A
   JSC-level failure returns `nil` and the caller falls back to plain rendering
   (code block stays a code block, inline span stays a code span), so a Temml
   bug can never lose document content.
@@ -176,7 +194,13 @@ plan's one JS/Swift rule pair, like the existing marker skip rule).
 
 - `Doc/Guides/primer.md`: replace "math is not supported" with the three
   supported forms and a note that bare `$…$` is not recognized.
-- Add `Doc/Examples/math.md` alongside `mermaid-diagrams.md`.
+- `Doc/Examples/math-expressions.md` — **written** (this is the first built
+  piece). A showcase that doubles as a render fixture: a fenced-block gallery
+  (Gaussian integral, Basel sum, matrix product, `cases`, `aligned`), a `$$`
+  display section including the subscript-survival case, an inline section, a
+  "what is not math" section (currency and bare `$…$` stay literal), math in a
+  footnote, and a deliberately malformed block. It round-trips through the
+  fixed `odmarkdown` unchanged (see the Scope note).
 - Update the AGENTS.md file quick reference (new `MathRenderer.swift`,
   `mud-math.css`) and the rendering-pipeline section.
 - After release: note in `Doc/RELEASES.md`. The workspace-level markdown rules
@@ -208,6 +232,8 @@ are the feature; 3 depends on 2. Items 6–8 can land in any order after.
 ## Open questions
 
 - Exact size of the trimmed math CSS — measured during item 5.
+
 - Whether Chromium's rendering of our typical output is acceptable without a
   bundled font — eyeballed during item 5 with an Open In Browser export.
+
 - mhchem / chemistry extension: not planned; note in the primer if anyone asks.

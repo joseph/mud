@@ -64,14 +64,18 @@
   // A subtree with no source byte to anchor a comment to, skipped wholesale
   // when enumerating logical blocks and computing their text: code blocks, a
   // Mermaid diagram's rendered SVG, a raw-HTML block passed through verbatim,
-  // and a change-tracking deletion overlay (text that is not in the current
-  // source). CommentAnchor.swift never matches any of these.
+  // a change-tracking deletion overlay (text that is not in the current
+  // source), and rendered math (a `<math>` element or a `temml-error` span —
+  // the rendered MathML text bears no relation to the TeX source, so a
+  // quotation anchored there could never match). CommentAnchor.swift never
+  // matches any of these.
   function isSkippedSubtree(node) {
     if (node.nodeType !== Node.ELEMENT_NODE) return false;
-    if (node.tagName === "PRE") return true;
+    if (node.tagName === "PRE" || node.tagName === "MATH") return true;
     var cl = node.classList;
     return !!cl && (cl.contains("mermaid") || cl.contains("mud-html-block") ||
-      cl.contains("mud-change-del"));
+      cl.contains("mud-change-del") || cl.contains("mud-math-block") ||
+      cl.contains("temml-error"));
   }
 
   // The bottom sections, never the selection's source.

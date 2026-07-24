@@ -26,6 +26,14 @@ import cmark_gfm
 /// Returns nil only when **no block matches**. When the block matches but the
 /// exact offset within it can't be resolved, it falls back to the block's end
 /// rather than refusing — the marker still lands in the right paragraph.
+///
+/// Math has no source-anchoring counterpart: a `<math>` element (or a
+/// `temml-error` span) renders MathML that bears no relation to the TeX source,
+/// so `mud-comment-anchor.js` skips it wholesale (a selection inside math is not
+/// commentable) and a display-math block anchors nothing. This resolver never
+/// sees a math element — it walks the source AST — so it needs no math rule; a
+/// paragraph mixing prose with inline `` $`…`$ `` math simply won't match the
+/// JS-computed segment text and falls back to the block-end / quotation path.
 public enum CommentAnchor {
     public static func insertionOffset(
         in source: String, blockText: String, offsetInBlock: Int,

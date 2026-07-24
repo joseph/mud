@@ -165,9 +165,12 @@ struct CommentAnchorParityTests {
   /// The tags/classes the walker skips wholesale (no source byte to anchor):
   /// mirrors `isSkippedSubtree` in `mud-comment-anchor.js`.
   private func isSkippedSubtree(_ node: Node) -> Bool {
-    node.tag == "pre" || node.classes.contains("mermaid")
+    node.tag == "pre" || node.tag == "math"
+      || node.classes.contains("mermaid")
       || node.classes.contains("mud-html-block")
       || node.classes.contains("mud-change-del")
+      || node.classes.contains("mud-math-block")
+      || node.classes.contains("temml-error")
   }
 
   private func isBottomSection(_ node: Node) -> Bool {

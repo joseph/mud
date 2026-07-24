@@ -14,16 +14,8 @@ import os
 enum MathRenderer {
     private static let lock = OSAllocatedUnfairLock()
 
-    nonisolated(unsafe) private static var context: JSContext? = {
-        guard let ctx = JSContext() else { return nil }
-        guard let url = Bundle.module.url(
-            forResource: "temml.min", withExtension: "js"
-        ),
-            let source = try? String(contentsOf: url, encoding: .utf8)
-        else { return nil }
-        ctx.evaluateScript(source)
-        return ctx
-    }()
+    nonisolated(unsafe) private static var context =
+        BundledJSContext.load(resource: "temml.min")
 
     /// Converts a TeX expression to a MathML string.
     ///

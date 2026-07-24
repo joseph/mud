@@ -19,10 +19,6 @@
   overflow-y: hidden;
 }
 
-.mud-math-block > math {
-  margin: 0 auto;
-}
-
 /* Invalid TeX: Temml emits a `<span class="temml-error">` carrying the source
  * and a parse message, hard-coded to a harsh red with `white-space:pre-line`.
  * Reframe it as a contained, themed error chip — the `color` override needs

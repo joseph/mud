@@ -21,16 +21,8 @@ import os
 enum CodeHighlighter {
     private static let lock = OSAllocatedUnfairLock()
 
-    nonisolated(unsafe) private static var context: JSContext? = {
-        guard let ctx = JSContext() else { return nil }
-        guard let url = Bundle.module.url(
-            forResource: "highlight.min", withExtension: "js"
-        ),
-            let source = try? String(contentsOf: url, encoding: .utf8)
-        else { return nil }
-        ctx.evaluateScript(source)
-        return ctx
-    }()
+    nonisolated(unsafe) private static var context =
+        BundledJSContext.load(resource: "highlight.min")
 
     /// Highlights source code, returning HTML with `<span class="hljs-*">` tags.
     ///

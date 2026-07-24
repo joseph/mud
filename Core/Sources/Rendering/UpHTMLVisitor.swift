@@ -628,7 +628,12 @@ struct UpHTMLVisitor: CMarkWalker {
     /// `DeletionRenderer` routes deleted paragraphs through the same test.
     static func displayMathInterior(of paragraph: CMarkNode) -> String? {
         guard paragraph.kind == .paragraph,
-              var raw = rawSource(of: paragraph) else { return nil }
+              let range = paragraph.byteRange else { return nil }
+        let bytes = paragraph.document.geometry.bytes[range]
+        // Every paragraph takes this test and almost none is display math:
+        // reject on the raw bytes (no `$` at all) before decoding a String.
+        guard bytes.contains(UInt8(ascii: "$")) else { return nil }
+        var raw = String(decoding: bytes, as: UTF8.self)
         // A multi-line paragraph inside a blockquote captures the `> `
         // continuation markers in its byte range (cmark's sourcepos has no
         // per-line columns), so strip them before reading the TeX.
@@ -728,15 +733,6 @@ struct UpHTMLVisitor: CMarkWalker {
             if isInlineMath(child) || containsInlineMath(child) { return true }
         }
         return false
-    }
-
-    /// The exact source text a node spans, decoded from the parse's UTF-8
-    /// bytes (`byteRange` is bounds-checked against the source geometry), or
-    /// nil if its position can't be resolved.
-    private static func rawSource(of node: CMarkNode) -> String? {
-        guard let range = node.byteRange else { return nil }
-        return String(
-            decoding: node.document.geometry.bytes[range], as: UTF8.self)
     }
 
     // MARK: - Change tracking helpers

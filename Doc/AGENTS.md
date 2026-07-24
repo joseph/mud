@@ -261,6 +261,8 @@ MVP plan.
 - `Rendering/CodeHighlighter.swift` — Syntax highlighting via highlight.js
 - `Rendering/MathRenderer.swift` — TeX → MathML via Temml in a JSContext
   (server-side, no client JS); same pattern as `CodeHighlighter`
+- `Rendering/BundledJSContext.swift` — Shared bootstrap loading a bundled JS
+  library (highlight.js, Temml) into a fresh `JSContext`
 - `Rendering/EmojiShortcodes.swift` — `:shortcode:` → emoji replacement
 - `Rendering/AlertDetector.swift` — GFM alert and DocC aside detection
 - `Rendering/HTMLEscaping.swift` — Shared HTML entity escaping

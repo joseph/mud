@@ -31,14 +31,14 @@
   var lastVisible = null;     // last applied visibility (idempotent setVisible)
 
   // Shared anchoring primitives (mud-comment-anchor.js, concatenated ahead of
-  // this file by HTMLTemplate). markerFreeText / isMarkerElement skip footnote
-  // references as well as comment markers, so exact marker placement now matches
-  // the write side in a block that also holds a footnote reference (Phase 3e).
+  // this file by HTMLTemplate). eachLogicalBlock enumerates the same
+  // logical blocks the write side anchors to (segments in tight list items
+  // included); isMarkerElement skips footnote references as well as comment
+  // markers, so exact marker placement matches the write side in a block that
+  // also holds a footnote reference (Phase 3e).
   var anchor = window.Mud.commentAnchor;
   var normalizeWS = anchor.normalizeWS;
   var isMarkerElement = anchor.isMarkerElement;
-  var isInnermostLeaf = anchor.isInnermostLeaf;
-  var markerFreeText = anchor.markerFreeText;
 
   // The element's top in layout (pre-zoom) pixels, summed up the offsetParent
   // chain to the body. Robust to the document `zoom`, which scales container and
@@ -864,53 +864,58 @@
     return a;
   }
 
+  // The occurrence-th logical block whose marker-free text matches, in document
+  // order — the shared walk the write side counted against. Returns a logical
+  // block {element, childStart, childEnd, text}, so a tight-list segment
+  // resolves to its own inline run and not the whole `<li>`.
   function findBlockByOccurrence(blockText, occurrence) {
     var target = normalizeWS(blockText).trim(), count = 0, result = null;
-    (function w(node) {
-      if (result || node.nodeType !== Node.ELEMENT_NODE) return;
-      if (node.classList && (node.classList.contains("comments") ||
-          node.classList.contains("footnotes"))) return;
-      if (isInnermostLeaf(node)) {
-        if (normalizeWS(markerFreeText(node)).trim() === target) {
-          if (count === occurrence) { result = node; return; }
-          count++;
-        }
-        return;
+    anchor.eachLogicalBlock(container, function (lb) {
+      if (result) return;
+      if (normalizeWS(lb.text).trim() === target) {
+        if (count === occurrence) { result = lb; return; }
+        count++;
       }
-      for (var c = node.firstChild; c && !result; c = c.nextSibling) w(c);
-    })(container);
+    });
     return result;
   }
 
-  // The block's characters with a parallel char → (textNode, offset) map. Skips
-  // the same marker elements as markerFreeText (comment markers and footnote
-  // references), so the char index the write side computed over its marker-free
-  // block text lands on the right node here.
-  function blockTextMap(block) {
+  // A logical block's characters with a parallel char → (textNode, offset) map,
+  // over its child range only. Skips the same marker elements as markerFreeText
+  // (comment markers and footnote references) and any skipped subtree, so the
+  // char index the write side computed over its marker-free segment text lands
+  // on the right node here.
+  function blockTextMap(lb) {
     var text = "", map = [];
-    (function w(n) {
+    function w(n) {
       if (n.nodeType === Node.TEXT_NODE) {
         var v = n.nodeValue;
         for (var i = 0; i < v.length; i++) { text += v[i]; map.push({ node: n, offset: i }); }
         return;
       }
-      if (n.nodeType !== Node.ELEMENT_NODE || isMarkerElement(n)) return;
+      if (n.nodeType !== Node.ELEMENT_NODE || isMarkerElement(n) ||
+          anchor.isSkippedSubtree(n)) return;
       for (var c = n.firstChild; c; c = c.nextSibling) w(c);
-    })(block);
+    }
+    var kids = lb.element.childNodes;
+    for (var i = lb.childStart; i < lb.childEnd; i++) w(kids[i]);
     return { text: text, map: map };
   }
 
   function insertMarkerExact(label, blockText, offset, occurrence) {
-    var block = findBlockByOccurrence(blockText, occurrence);
-    if (!block) return false;
-    var bm = blockTextMap(block);
+    var lb = findBlockByOccurrence(blockText, occurrence);
+    if (!lb) return false;
+    var bm = blockTextMap(lb);
     var lead = bm.text.length - bm.text.replace(/^\s+/, "").length;
     var k = offset + lead;
     if (k < 0) k = 0;
     var marker = makeMarker(label);
     try {
       if (k >= bm.map.length) {
-        block.appendChild(marker);
+        // Past the segment's mapped text: land just after it — before whatever
+        // follows the segment (a nested list, in a tight item), or appended
+        // when the segment runs to the element's end.
+        lb.element.insertBefore(marker, lb.element.childNodes[lb.childEnd] || null);
       } else {
         var pos = bm.map[k];
         var after = pos.offset > 0 ? pos.node.splitText(pos.offset) : pos.node;

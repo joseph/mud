@@ -90,8 +90,13 @@ final class CommentController {
             offsetInBlock: draft.offsetInBlock,
             occurrenceIndex: draft.occurrence)
         else {
+            // Log the locator the page sent so the next field report pinpoints
+            // the block without a debugger (issue #5).
             NSLog("Mud: comment add failed; the quoted text no longer matches "
-                + "the source, so the marker couldn't be anchored.")
+                + "the source, so the marker couldn't be anchored. "
+                + "blockText=\(String(reflecting: draft.blockText)) "
+                + "offsetInBlock=\(draft.offsetInBlock) "
+                + "occurrence=\(draft.occurrence)")
             return .failure(.anchorFailed)
         }
         let message = CommentMessage(author: author, created: Date(), body: body)

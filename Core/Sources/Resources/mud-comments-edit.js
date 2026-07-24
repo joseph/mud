@@ -91,16 +91,13 @@
 
   // -- Locator (selection end → source byte) --------------------------------
 
-  // The leaf-block / marker-text primitives are shared with the read side; see
-  // mud-comment-anchor.js. leafBlock and occurrenceOf are wrapped to bind the
-  // container as their root so the call sites below stay unchanged.
+  // The leaf-block / segment / marker-text primitives are shared with the read
+  // side; see mud-comment-anchor.js. leafBlock is wrapped to bind the container
+  // as its root so the call site below stays unchanged.
   var anchor = window.Mud.commentAnchor;
   var normalizeWS = anchor.normalizeWS;
   var isMarkerElement = anchor.isMarkerElement;
   function leafBlock(node) { return anchor.leafBlock(node, container); }
-  function occurrenceOf(block, blockText) {
-    return anchor.occurrenceOf(block, blockText, container);
-  }
 
   // -- Quotation truncation -------------------------------------------------
 
@@ -133,30 +130,40 @@
   function endLocator(range) {
     var endNode = range.endContainer;
     var endOffset = range.endOffset;
-    var block = leafBlock(endNode);
-    if (!block) return null;
+    // The logical block the selection ends in: the whole leaf block, or — in a
+    // tight `<li>` that also holds a nested list — just the inline segment the
+    // end sits in, so `blockText` is the one cmark paragraph and not the item's
+    // concatenated text (issue #5). The text and offset are walked over the
+    // segment's child range only.
+    var seg = anchor.segmentAt(endNode, container);
+    if (!seg) return null;
 
     var text = "", offset = null;
-    (function walk(node) {
+    function walk(node) {
       if (node.nodeType === Node.TEXT_NODE) {
         if (node === endNode && offset === null) offset = text.length + endOffset;
         text += node.nodeValue;
         return;
       }
-      if (node.nodeType !== Node.ELEMENT_NODE) return;
+      if (node.nodeType !== Node.ELEMENT_NODE || anchor.isSkippedSubtree(node)) return;
       if (isMarkerElement(node)) {
         if (offset === null && node.contains(endNode)) offset = text.length;
         return;
       }
       for (var c = node.firstChild; c; c = c.nextSibling) walk(c);
       if (node === endNode && offset === null) offset = text.length;
-    })(block);
+    }
+    var kids = seg.element.childNodes;
+    for (var i = seg.childStart; i < seg.childEnd; i++) walk(kids[i]);
 
     if (offset === null) offset = text.length;
     var lead = text.length - text.replace(/^\s+/, "").length;
     if (lead) { text = text.slice(lead); offset = Math.max(0, offset - lead); }
     while (offset > 0 && /\s/.test(text[offset - 1])) offset--;
-    return { offset: offset, blockText: text, occurrence: occurrenceOf(block, text) };
+    return {
+      offset: offset, blockText: text,
+      occurrence: anchor.occurrenceOf(seg, text, container)
+    };
   }
 
   // A selection is commentable when it is non-empty, lives in the body, is not
@@ -168,10 +175,13 @@
     if (!container.contains(range.commonAncestorContainer)) return null;
     var block = leafBlock(range.endContainer);
     if (!block || block.tagName === "PRE") return null;
-    // A Mermaid diagram replaces its `<pre>` with a `<div class="mermaid">`;
-    // its rendered SVG labels are HTML (a `<p>` in a foreignObject) with no
-    // source byte to anchor to, so a selection inside one is not commentable.
-    if (block.closest && block.closest(".mermaid")) return null;
+    // A Mermaid diagram (a `<div class="mermaid">` whose rendered SVG labels
+    // are HTML with no source byte), a raw-HTML block (one cmark `htmlBlock`
+    // node CommentAnchor can never match), and a change-tracking deletion
+    // overlay (text that isn't even in the current source) are all
+    // un-anchorable, so a selection inside one is not commentable.
+    if (block.closest &&
+        block.closest(".mermaid, .mud-html-block, .mud-change-del")) return null;
     var quotation = normalizeWS(sel.toString()).trim();
     if (!quotation) return null;
     var locator = endLocator(range);
@@ -304,7 +314,7 @@
         // The save failed (native explains why, and an alert says more). Keep
         // the box and its text; unlock for another try, or Cancel to refresh.
         composeNew.setBusy(false);
-        composeNew.showError(reason || "Cannot save: the highlighted text has changed.");
+        composeNew.showError(reason || "Cannot save: the highlighted text couldn't be matched.");
         composeNew.focusTextarea();
       });
     }, function () {

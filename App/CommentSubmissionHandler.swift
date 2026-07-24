@@ -39,7 +39,7 @@ struct CommentSubmissionHandler {
                     occurrence: draft.occurrence)
                 resolveCompose(true)
             case .failure(.anchorFailed):
-                resolveCompose(false, reason: "Cannot save: the highlighted text has changed.")
+                resolveCompose(false, reason: "Cannot save: the highlighted text couldn't be matched.")
                 presentCommentFailure(message: anchorFailureMessage, note: body)
             case .failure(.writeFailed):
                 resolveCompose(false, reason: "Cannot save: Mud couldn't write to the file.")
@@ -98,11 +98,16 @@ struct CommentSubmissionHandler {
             + "Make it writable to add comments."
     }
 
-    /// The marker couldn't be anchored: the quoted text no longer maps to a spot
-    /// in the source (it changed on disk, or hit a mapping gap).
+    /// The marker couldn't be anchored: Mud couldn't match the quoted text to a
+    /// spot in the source. Two honest possibilities — the file changed on disk,
+    /// or the text is somewhere Mud can't yet anchor a comment — rather than
+    /// asserting the file changed (issue #5: nothing had changed, and the old
+    /// copy sent both reporter and maintainer chasing file permissions).
     private var anchorFailureMessage: String {
-        "The text you commented on has changed, so the comment couldn't be "
-            + "placed. Your note is still in the compose box."
+        "Mud couldn't match the highlighted text to the file on disk. The file "
+            + "may have changed since it was loaded, or this text may be in a "
+            + "spot Mud can't anchor a comment to yet. Your note is still in the "
+            + "compose box."
     }
 
     /// The file itself couldn't be written (permission, lock, or another IO

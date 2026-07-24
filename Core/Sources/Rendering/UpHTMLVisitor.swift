@@ -293,14 +293,17 @@ struct UpHTMLVisitor: CMarkWalker {
     }
 
     mutating func visitHTMLBlock(_ html: CMarkNode) {
+        // Always wrap the pass-through literal in a `.mud-html-block` div. cmark
+        // parses a raw-HTML block as one `htmlBlock` node with no source byte a
+        // comment could anchor to, so the wrapper marks the subtree the comment
+        // scripts skip — the affordances disable up front instead of failing at
+        // save (issue #5, raw-HTML case). Change attributes fold into the same
+        // wrapper (previously the only reason a div appeared here).
         let attrs = changeAttributes(for: html)
-        if attrs != nil {
-            result += "<div\(attrs!.asString)>"
-            result += html.literal ?? ""
-            result += "</div>\n"
-        } else {
-            result += html.literal ?? ""
-        }
+        let classes = attrs.map { "mud-html-block \($0.classes)" } ?? "mud-html-block"
+        result += "<div class=\"\(classes)\"\(attrs?.dataAttrs ?? "")>"
+        result += html.literal ?? ""
+        result += "</div>\n"
     }
 
     mutating func visitThematicBreak(_ thematicBreak: CMarkNode) {

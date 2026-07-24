@@ -3,18 +3,22 @@ import Testing
 
 @testable import MudCore
 
-/// The anchoring contract, pinned (Phase 3e): a comment anchors byte-exactly
-/// only when the block text the JS locator computes from the rendered DOM
-/// (`endLocator` in `mud-comments-edit.js`: `textContent` of the innermost
-/// leaf block, marker elements skipped) equals the text `CommentAnchor`
-/// computes from the cmark AST (`inlineText(of:)`, folded and collapsed).
+/// The anchoring contract, pinned: a comment anchors byte-exactly only when the
+/// block text the JS locator computes from the rendered DOM (`endLocator` in
+/// `mud-comments-edit.js`, via `Mud.commentAnchor.segmentAt`) equals the text
+/// `CommentAnchor` computes from the cmark AST (`inlineText(of:)`, folded and
+/// collapsed).
 ///
-/// The JS cannot run here, so these tests re-implement its extraction over the
-/// rendered Up-mode HTML — the DOM rules it applies are small and fixed — and
-/// assert that every extracted leaf block resolves through the public
-/// `CommentAnchor.insertionOffset`, whose block-matching step *is* the
-/// required equality. A corpus block that stops anchoring here would surface
-/// in the app as a comment whose marker falls back to the block end or the
+/// The JS cannot run here, so `logicalBlocks(_:)` below re-implements the shared
+/// walker in `mud-comment-anchor.js` (`eachLogicalBlock`): every innermost leaf
+/// block, plus every inline *segment* of a tight list item that also holds a
+/// nested list — the shape issue #5 turned on — with the same exclusions
+/// (`<pre>`, `.mermaid`, `.mud-html-block`, `.mud-change-del`, and the bottom
+/// sections). This driver is the pinned mirror of those JS rules; the two sides
+/// name each other. Each enumerated logical block must resolve through the
+/// public `CommentAnchor.insertionOffset`, whose block-matching step *is* the
+/// required equality. A corpus block that stops anchoring here would surface in
+/// the app as a comment whose marker falls back to the block end or the
 /// quotation-search path.
 @Suite("CommentAnchor parity with the JS extraction")
 struct CommentAnchorParityTests {
@@ -34,7 +38,18 @@ struct CommentAnchorParityTests {
   }
 
   @Test func listItemsAnchor() {
+    // The `listItems` corpus already holds a tight parent of a nested list
+    // ("Second tight item with **bold**"). The old innermost-only driver never
+    // exercised that parent; the logical-block driver anchors its segment,
+    // covering the reported bug directly.
     #expect(failingBlocks(ParityCorpus.listItems.markdown).isEmpty)
+  }
+
+  @Test func tightNestedListsAnchor() {
+    // The dedicated issue #5 corpus: two-level nesting, a multi-segment item,
+    // and a duplicate sentence across the plain-paragraph and tight-segment
+    // shapes.
+    #expect(failingBlocks(ParityCorpus.tightNestedLists.markdown).isEmpty)
   }
 
   @Test func taskListItemsAnchor() {
@@ -86,12 +101,13 @@ struct CommentAnchorParityTests {
 
   // MARK: - Driver
 
-  /// Renders `markdown`, extracts every leaf block the way the JS locator
-  /// does, and returns the (normalized) texts of blocks that fail to anchor.
-  /// Excluded, with reasons:
-  /// - `pre`: code blocks are not commentable (`commentableDraft` refuses
-  ///   them) and `CommentAnchor.isLeafBlock` excludes them by design.
-  /// - `p.alert-title`: renderer-generated, no matching source block.
+  /// Renders `markdown`, enumerates every logical block the way the JS locator
+  /// does (`logicalBlocks`), and returns the (normalized) texts of blocks that
+  /// fail to anchor. `<pre>`, `.mermaid`, `.mud-html-block`, and
+  /// `.mud-change-del` are excluded inside the walker (no source byte to match);
+  /// `p.alert-title` is renderer-generated (no matching source block) and is
+  /// dropped here without counting, its unique text never colliding with a real
+  /// block's occurrence.
   private func failingBlocks(
     _ markdown: String, options: RenderOptions = .init()
   ) -> [String] {
@@ -99,19 +115,15 @@ struct CommentAnchorParityTests {
     let root = parseHTML(html)
     var failures: [String] = []
     var seen: [String: Int] = [:]  // normalized text → occurrences so far
-    for block in leafBlocks(root) {
-      if block.tag == "pre" || block.classes.contains("alert-title") {
-        continue
-      }
+    for block in logicalBlocks(root) {
+      if block.element.classes.contains("alert-title") { continue }
       // endLocator's whitespace rules: leading whitespace is dropped from the
-      // block text, and the end offset backs over trailing whitespace. (The
-      // corpus keeps code-block text distinct from other blocks, so skipping
-      // `pre` above cannot shift the occurrence counts the JS would compute.)
-      let text = String(markerFreeText(block).drop(while: { $0.isWhitespace }))
+      // block text, and the end offset backs over trailing whitespace.
+      let text = String(block.text.drop(while: { $0.isWhitespace }))
       let normalized = normalizeWS(text)
+      if normalized.isEmpty { continue }
       let occurrence = seen[normalized, default: 0]
       seen[normalized] = occurrence + 1
-      if normalized.isEmpty { continue }
       var trimmed = text
       while let last = trimmed.last, last.isWhitespace { trimmed.removeLast() }
       if CommentAnchor.insertionOffset(
@@ -150,18 +162,16 @@ struct CommentAnchorParityTests {
     }
   }
 
-  /// Innermost leaf blocks in document order, skipping the bottom footnotes
-  /// and comments sections like the JS walk does.
-  private func leafBlocks(_ node: Node) -> [Node] {
-    if node.classes.contains("footnotes") || node.classes.contains("comments") {
-      return []
-    }
-    if !node.tag.isEmpty, Self.leafTags.contains(node.tag),
-      !hasLeafDescendant(node)
-    {
-      return [node]
-    }
-    return node.children.flatMap(leafBlocks)
+  /// The tags/classes the walker skips wholesale (no source byte to anchor):
+  /// mirrors `isSkippedSubtree` in `mud-comment-anchor.js`.
+  private func isSkippedSubtree(_ node: Node) -> Bool {
+    node.tag == "pre" || node.classes.contains("mermaid")
+      || node.classes.contains("mud-html-block")
+      || node.classes.contains("mud-change-del")
+  }
+
+  private func isBottomSection(_ node: Node) -> Bool {
+    node.classes.contains("footnotes") || node.classes.contains("comments")
   }
 
   private func hasLeafDescendant(_ node: Node) -> Bool {
@@ -171,11 +181,81 @@ struct CommentAnchorParityTests {
     }
   }
 
-  /// The DOM's `textContent` with marker elements skipped.
+  /// A child of a leaf block that breaks an inline run: a nested leaf block, an
+  /// element holding one, or a skipped subtree. Mirrors `breaksSegment`.
+  private func breaksSegment(_ node: Node) -> Bool {
+    if node.tag.isEmpty { return false }
+    if isSkippedSubtree(node) { return true }
+    return Self.leafTags.contains(node.tag) || hasLeafDescendant(node)
+  }
+
+  /// A logical block: a whole innermost leaf, or one inline segment of a leaf
+  /// block that also holds nested leaf blocks. `text` is its marker-free text;
+  /// `element` is the enclosing leaf element (kept only to drop the generated
+  /// `p.alert-title`). Occurrence is recounted by text in `failingBlocks`, so no
+  /// child range is retained here.
+  private struct LogicalBlock {
+    let element: Node
+    let text: String
+  }
+
+  /// The marker-free text of `element`'s children in [start, end), skipping
+  /// marker elements and skipped subtrees. Mirrors `rangeText` / `markerFreeText`.
   private func markerFreeText(_ node: Node) -> String {
     if node.tag.isEmpty { return node.text }
     if !node.classes.isDisjoint(with: Self.markerClasses) { return "" }
+    if isSkippedSubtree(node) { return "" }
     return node.children.map(markerFreeText).joined()
+  }
+
+  private func rangeText(_ element: Node, _ start: Int, _ end: Int) -> String {
+    (start..<end).map { markerFreeText(element.children[$0]) }.joined()
+  }
+
+  /// Every logical block under `root` in document order — the Swift mirror of
+  /// `eachLogicalBlock` in `mud-comment-anchor.js`.
+  private func logicalBlocks(_ root: Node) -> [LogicalBlock] {
+    var out: [LogicalBlock] = []
+
+    func walk(_ node: Node, inLeaf: Bool) {
+      let kids = node.children
+      var runStart = -1
+      var i = 0
+      while i <= kids.count {
+        let child = i < kids.count ? kids[i] : nil
+        let isBreak = child == nil || breaksSegment(child!) || isBottomSection(child!)
+        if !isBreak {
+          if runStart < 0 { runStart = i }
+          i += 1
+          continue
+        }
+        // Close the pending inline run: a segment, if we're in a leaf block.
+        if inLeaf, runStart >= 0 {
+          let text = rangeText(node, runStart, i)
+          if !normalizeWS(text).isEmpty {
+            out.append(LogicalBlock(element: node, text: text))
+          }
+        }
+        runStart = -1
+        if let child, !isSkippedSubtree(child), !isBottomSection(child) {
+          if Self.leafTags.contains(child.tag) {
+            if hasLeafDescendant(child) {
+              walk(child, inLeaf: true)   // leaf block with nested leaf blocks
+            } else {
+              out.append(LogicalBlock(
+                element: child,
+                text: rangeText(child, 0, child.children.count)))
+            }
+          } else {
+            walk(child, inLeaf: false)    // plain container
+          }
+        }
+        i += 1
+      }
+    }
+
+    walk(root, inLeaf: false)
+    return out
   }
 
   /// JS `normalizeWS(s).trim()`.

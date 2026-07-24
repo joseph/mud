@@ -261,6 +261,40 @@ struct CommentAnchorTests {
     #expect(offset != nil)
   }
 
+  @Test func anchorsTightItemTextBeforeNestedList() {
+    // Issue #5: a tight parent item whose own text ("Parent item text") the JS
+    // locator now sends as the item's segment, not the `<li>`'s concatenated
+    // "Parent item text Nested item". Swift matches the parent item's cmark
+    // paragraph and anchors the marker at its end, before the nested list.
+    let source = """
+      - Parent item text
+        - Nested item
+      """
+    #expect(
+      CommentAnchor.insertionOffset(
+        in: source, blockText: "Parent item text", offsetInBlock: 16) != nil)
+  }
+
+  @Test func tightItemSegmentOccurrenceAfterPlainParagraph() {
+    // The same sentence as a plain paragraph and then as a tight parent-item
+    // segment. Commenting on the second (occurrence 1) must anchor to the item,
+    // not the earlier paragraph — the JS counts logical blocks the same way.
+    let source = """
+      Shared sentence.
+
+      - Shared sentence.
+        - A nested child
+      """
+    let first = CommentAnchor.insertionOffset(
+      in: source, blockText: "Shared sentence.", offsetInBlock: 16,
+      occurrenceIndex: 0)
+    let second = CommentAnchor.insertionOffset(
+      in: source, blockText: "Shared sentence.", offsetInBlock: 16,
+      occurrenceIndex: 1)
+    #expect(first != nil && second != nil)
+    #expect((first ?? 0) < (second ?? 0))
+  }
+
   @Test func occurrenceAcrossIdenticalListItems() {
     // Two list items with identical text. The page counts <li> leaves while the
     // anchor counts the cmark paragraph inside each item; commenting on the

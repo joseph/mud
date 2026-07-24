@@ -72,6 +72,36 @@ enum ParityCorpus {
       - Loose item two
       """)
 
+  /// The tight-list shapes issue #5 turns on. A tight parent item renders its
+  /// paragraph bare (no `<p>`) directly inside the `<li>`, so when the item also
+  /// holds a nested list the JS locator must anchor to the item's own inline
+  /// *segment*, not the `<li>`'s concatenated text. Covered here: a two-level
+  /// nested list, a multi-segment item (a fenced code block between two inline
+  /// runs), and a duplicate sentence as both a plain paragraph and a tight
+  /// parent-item segment — pinning occurrence counting across the two shapes.
+  /// Separating paragraphs keep each list tight (a blank line between items
+  /// would make the whole list loose and restore the `<p>` wrapper).
+  static let tightNestedLists = Document(
+    name: "tightNestedLists",
+    markdown: """
+      - Parent item text
+        - Nested item text
+          - Deeply nested item
+
+      A separating paragraph keeps the lists apart.
+
+      - Opening run before the fence
+        ```swift
+        let code = true
+        ```
+        Trailing run after the fence
+
+      Duplicate sentence here.
+
+      - Duplicate sentence here.
+        - A nested child item
+      """)
+
   static let taskListItems = Document(
     name: "taskListItems",
     markdown: """
@@ -400,7 +430,8 @@ enum ParityCorpus {
 
   static let all: [Document] = [
     paragraphsWithInlineSyntax, hardBreakParagraph, headings, listItems,
-    taskListItems, blockquoteParagraphs, alertBodyParagraphs, tableCells,
+    tightNestedLists, taskListItems, blockquoteParagraphs, alertBodyParagraphs,
+    tableCells,
     duplicateBlocks, smartTypography, setextHeadings, frontMatter,
     codeBlockAndThematicBreak, footnoteNumbering, gfmAlertVariants,
     docCAsideVariants, rawHTML, linkVariants, autolinkVariants,

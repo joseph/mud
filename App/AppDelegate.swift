@@ -3,8 +3,6 @@ import UniformTypeIdentifiers
 import MudPreferences
 
 class AppDelegate: NSObject, NSApplicationDelegate {
-    private var hasOpenedDocument = false
-
     func applicationWillFinishLaunching(_ notification: Notification) {
         // Suppress system Edit menu items irrelevant for a read-only app
         UserDefaults.standard.set(true, forKey: "NSDisabledDictationMenuItem")
@@ -65,11 +63,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        hasOpenedDocument && AppState.shared.quitOnClose
+        (NSDocumentController.shared as? DocumentController)?.hasOpenedDocument == true
+            && AppState.shared.quitOnClose
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
-        hasOpenedDocument = true
         for url in urls {
             NSDocumentController.shared.openDocument(
                 withContentsOf: url,
@@ -108,18 +106,22 @@ class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func openBundledReadme() {
-        hasOpenedDocument = true
         DocumentController.openBundledDocument("HUMANS", subdirectory: "Doc")
     }
 
     private func openOrQuit() {
-        DocumentController.showOpenPanel()
-
-        // If user cancelled and no windows are open, quit
-        if NSApp.windows.filter({ $0.isVisible }).isEmpty {
-            NSApp.terminate(nil)
-        } else {
-            hasOpenedDocument = true
+        guard let controller = NSDocumentController.shared as? DocumentController else { return }
+        controller.presentOpenPanel {
+            // The panel is modeless, so this runs after it closes. If no
+            // document window is up, the user cancelled an empty launch — quit,
+            // since there's nothing to show. Opening a document (via the panel
+            // or Open Recent) leaves its window on screen, so we stay.
+            let hasDocumentWindow = NSApp.windows.contains {
+                $0.isVisible && $0.windowController is DocumentWindowController
+            }
+            if !hasDocumentWindow {
+                NSApp.terminate(nil)
+            }
         }
     }
 }

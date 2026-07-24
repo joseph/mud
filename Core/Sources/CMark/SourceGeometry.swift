@@ -58,6 +58,20 @@ struct SourceGeometry {
             && bytes[end - 1] == 0x5D
     }
 
+    /// Count of leading whitespace bytes on `line` — space or tab, each one
+    /// byte — capped at `cap`. Byte-counted, and never past the line's
+    /// content, so the width maps cleanly back to a source column.
+    func leadingWhitespace(line: Int, max cap: Int) -> Int {
+        var n = 0
+        var i = lineStart[line]
+        let end = contentEnd(line)
+        while i < end, n < cap, bytes[i] == 0x20 || bytes[i] == 0x09 {
+            n += 1
+            i += 1
+        }
+        return n
+    }
+
     /// Column (1-based) of the first non-whitespace byte on `line` — the
     /// `[` of a definition opener, after any leading indent.
     func firstNonSpaceColumn(line: Int) -> Int {

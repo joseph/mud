@@ -47,6 +47,32 @@ enum CMarkNodeKind: Hashable, Sendable {
     /// An unrecognized type string — future extensions. Walkers descend
     /// through it by default.
     case unknown(String)
+
+    /// Whether the kind is an inline node rather than a block.
+    ///
+    /// The distinction matters for source positions: cmark derives an inline
+    /// node's position from its offset within the enclosing block's content,
+    /// while a block node's position comes from the source line directly. The
+    /// two only diverge inside a container whose content offset varies by
+    /// line — a footnote definition, whose opener line carries the
+    /// `[^label]: ` prefix and whose continuation lines carry a plain indent.
+    ///
+    /// `.unknown` counts as a block: a future extension node is far more
+    /// likely to be one, and treating an inline as a block leaves positions
+    /// exactly as they are today.
+    var isInline: Bool {
+        switch self {
+        case .text, .softBreak, .lineBreak, .inlineCode, .inlineHTML,
+             .customInline, .emphasis, .strong, .link, .image,
+             .footnoteReference, .strikethrough:
+            return true
+        case .document, .blockQuote, .list, .listItem, .taskListItem,
+             .codeBlock, .htmlBlock, .customBlock, .paragraph, .heading,
+             .thematicBreak, .footnoteDefinition, .table, .tableHead,
+             .tableRow, .tableCell, .unknown:
+            return false
+        }
+    }
 }
 
 /// The list flavor of a `.list` node.

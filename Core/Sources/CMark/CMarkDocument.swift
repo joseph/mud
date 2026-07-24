@@ -78,6 +78,24 @@ final class CMarkDocument {
 
     private let rootPointer: UnsafeMutablePointer<cmark_node>
 
+    /// Line span and indentation of one footnote definition.
+    private struct DefinitionGeometry {
+        let startLine: Int
+        let endLine: Int
+        /// Byte width of the opener line's `[^label]: ` prefix — the content
+        /// offset cmark fixes for the whole definition.
+        let openerDrop: Int
+        /// Shared continuation-line indent, capped at 4.
+        let contentIndent: Int
+    }
+
+    /// Every footnote definition in the tree, in document order. Precomputed
+    /// at parse so `range(of:)` can correct an inline's position without
+    /// walking ancestors or rescanning the definition once per node — and so
+    /// the tree stays immutable after parsing, which `@unchecked Sendable`
+    /// depends on.
+    private let definitions: [DefinitionGeometry]
+
     /// The document node. Handles derived from it (children, siblings) all
     /// retain this document.
     var root: CMarkNode { CMarkNode(raw: rootPointer, document: self) }
@@ -105,9 +123,56 @@ final class CMarkDocument {
             }
         }
         guard let root = cmark_parser_finish(parser) else { return nil }
+        let geometry = SourceGeometry(bytes)
         self.source = source
-        self.geometry = SourceGeometry(bytes)
+        self.geometry = geometry
         self.rootPointer = root
+        self.definitions = Self.collectDefinitions(
+            root: root, geometry: geometry)
+    }
+
+    /// Measures every footnote definition's line span and indentation in one
+    /// pass. Walks raw cmark pointers rather than `CMarkNode` because it runs
+    /// during `init`, before `self` exists for a node to retain.
+    ///
+    /// Sorted by start line on the way out, because the walk does **not**
+    /// yield source order: cmark-gfm moves footnote definitions to the end of
+    /// the document ordered by first reference, so a definition referenced
+    /// early but written late comes first.
+    private static func collectDefinitions(
+        root: UnsafeMutablePointer<cmark_node>, geometry: SourceGeometry
+    ) -> [DefinitionGeometry] {
+        var result: [DefinitionGeometry] = []
+        let iter = cmark_iter_new(root)
+        defer { cmark_iter_free(iter) }
+        while true {
+            let event = cmark_iter_next(iter)
+            if event == CMARK_EVENT_DONE { break }
+            guard event == CMARK_EVENT_ENTER,
+                  let node = cmark_iter_get_node(iter),
+                  cmark_node_get_type(node) == CMARK_NODE_FOOTNOTE_DEFINITION
+            else { continue }
+            let startLine = Int(cmark_node_get_start_line(node))
+            let endLine = Int(cmark_node_get_end_line(node))
+            guard startLine >= 1, endLine >= startLine,
+                  endLine <= geometry.lastLine
+            else { continue }
+            // cmark keeps the label as the definition's literal.
+            let label = cmark_node_get_literal(node)
+                .map { String(cString: $0) } ?? ""
+            // `[^` + label + `]:` → the label's bytes plus four.
+            let markerEnd = geometry.firstNonSpaceColumn(line: startLine)
+                + label.utf8.count + 4
+            let contentStart = geometry.firstContentColumn(
+                line: startLine, from: markerEnd)
+            result.append(DefinitionGeometry(
+                startLine: startLine,
+                endLine: endLine,
+                openerDrop: contentStart - 1,
+                contentIndent: geometry.continuationIndent(
+                    startLine: startLine, endLine: endLine)))
+        }
+        return result.sorted { $0.startLine < $1.startLine }
     }
 
     deinit {
@@ -138,12 +203,94 @@ final class CMarkDocument {
         guard node.startLine > 0, node.startColumn > 0 else { return nil }
         let endColumn = node.endColumn + 1
         let backticks = node.backtickCount
-        let lower = CMarkSourceLocation(
+        var lower = CMarkSourceLocation(
             line: node.startLine, column: node.startColumn - backticks)
-        let upper = CMarkSourceLocation(
+        var upper = CMarkSourceLocation(
             line: node.endLine, column: endColumn + backticks)
+        if node.kind.isInline, let body = definitionBody(of: node) {
+            lower = correctInline(lower, in: body)
+            upper = correctInline(upper, in: body)
+        }
         guard lower <= upper else { return nil }
         return lower..<upper
+    }
+
+    /// The footnote definition whose lines cover `line`, if any. Definitions
+    /// are block-level and never overlap, and `definitions` is sorted by start
+    /// line, so the scan can stop at the first one starting past `line`.
+    private func definition(containing line: Int) -> DefinitionGeometry? {
+        for definition in definitions {
+            if line < definition.startLine { return nil }
+            if line <= definition.endLine { return definition }
+        }
+        return nil
+    }
+
+    /// Where an inline sits for the purpose of correcting its column: the
+    /// enclosing definition's geometry, and the first line of the leaf block
+    /// holding the inline.
+    private struct DefinitionBody {
+        let definition: DefinitionGeometry
+        let blockStartLine: Int
+    }
+
+    /// The definition body an inline belongs to, or nil if it isn't in one.
+    ///
+    /// Requires the inline's block to be a *direct* child of the definition. A
+    /// block nested in a blockquote or list inside the definition carries that
+    /// container's marker on every line too, a prefix this correction doesn't
+    /// model, so those are left exactly as cmark reported them.
+    private func definitionBody(of node: CMarkNode) -> DefinitionBody? {
+        var block = node
+        while block.kind.isInline {
+            guard let parent = block.parent else { return nil }
+            block = parent
+        }
+        guard block.parent?.kind == .footnoteDefinition, block.startLine >= 1,
+              let definition = definition(containing: block.startLine)
+        else { return nil }
+        return DefinitionBody(
+            definition: definition, blockStartLine: block.startLine)
+    }
+
+    /// Moves an inline position inside a definition body onto the raw source
+    /// column it actually occupies.
+    ///
+    /// cmark derives an inline's position from its offset within the enclosing
+    /// block's content, then adds back the prefix it stripped from that
+    /// block's **first** line — on every line of the block. So the column is
+    /// right on the block's first line and wrong on the rest by the difference
+    /// between the two lines' prefixes.
+    ///
+    /// The anchor is the block's first line, not the definition's opener: a
+    /// definition's later blocks (a comment thread's message paragraphs, say)
+    /// begin on a continuation line, where the stripped prefix is already the
+    /// plain indent and the correct adjustment is zero.
+    ///
+    /// Block positions come from the source line directly and are right on
+    /// every line, which is why only `isInline` nodes are corrected.
+    private func correctInline(
+        _ location: CMarkSourceLocation, in body: DefinitionBody
+    ) -> CMarkSourceLocation {
+        let definition = body.definition
+        guard location.line != body.blockStartLine,
+              location.line >= definition.startLine,
+              location.line <= definition.endLine
+        else { return location }
+        let correction = drop(line: location.line, in: definition)
+            - drop(line: body.blockStartLine, in: definition)
+        return CMarkSourceLocation(
+            line: location.line,
+            column: max(1, location.column + correction))
+    }
+
+    /// Bytes cmark strips from the front of `line` inside `definition`: the
+    /// `[^label]: ` prefix on the opener line, the shared indent on the rest.
+    private func drop(line: Int, in definition: DefinitionGeometry) -> Int {
+        line == definition.startLine
+            ? definition.openerDrop
+            : geometry.leadingWhitespace(
+                line: line, max: definition.contentIndent)
     }
 
     /// The node's range as a half-open byte range into `source`'s UTF-8

@@ -405,6 +405,80 @@ enum ParityCorpus {
       A closing paragraph.
       """)
 
+  /// Inline markup on a definition's *continuation* lines, at three label
+  /// widths. cmark reports an inline's column against the content offset it
+  /// fixed at the opener line, so a continuation line's spans land too far
+  /// right unless converted (`DownHTMLVisitor.inlineColumn`) — by
+  /// `len("[^label]: ") - indent`, which is +2, +20, and +14 here. Every
+  /// definition carries markup on two continuation lines, not just the first,
+  /// because the drift is per-line rather than a one-off on line two.
+  ///
+  /// `footnoteDefBodyVariants` has a continuation line but no markup on it,
+  /// which is exactly why it never caught this.
+  static let footnoteDefContinuationSpans = Document(
+    name: "footnoteDefContinuationSpans",
+    markdown: """
+      Short[^s], long[^a-much-longer-label], and comment[^comment-c] refs.
+
+      [^s]: Opener with `code`, _italic_, and a [link](https://example.org).
+          Second line with `code`, _italic_, and ~~struck~~ text.
+          Third line with `code` and _italic_.
+
+      [^a-much-longer-label]: Opener with `code` and _italic_.
+          Second line with `code`, _italic_, and a [link](https://example.org).
+          Third line with `code` and _italic_.
+
+      [^comment-c]: Opener with `code` and _italic_.
+          Second line with `code`, _italic_, and ~~struck~~ text.
+          Third line with `code` and _italic_.
+      """)
+
+  /// A definition whose *later* blocks begin on a continuation line — the
+  /// shape of a comment thread, whose message paragraphs all start indented.
+  ///
+  /// The correction anchors on the enclosing block's first line, not the
+  /// definition's opener, and these two regimes are why: the first block's
+  /// continuation lines need `indent - len("[^label]: ")` (-16 here), while a
+  /// later block's need nothing at all, because the prefix cmark stripped from
+  /// its first line is already the plain indent. Anchoring on the opener got
+  /// the first regime right and shifted every later block left.
+  static let footnoteDefLaterBlockSpans = Document(
+    name: "footnoteDefLaterBlockSpans",
+    markdown: """
+      A comment-shaped thread[^comment-t] and a plain one[^long-label-here].
+
+      [^comment-t]: > a quoted passage
+
+          A later block with `code` and _italic_ on its first line.
+          Its continuation line with `code` and _italic_.
+
+      [^long-label-here]: Opener with `code` and _italic_.
+          Opening block continuation with `code` and _italic_.
+
+          A later block with `code` and _italic_.
+          Its continuation with `code` and _italic_.
+      """)
+
+  /// A definition written early but referenced late, and vice versa.
+  ///
+  /// cmark-gfm moves footnote definitions to the end of the document ordered
+  /// by **first reference**, so walking the tree yields `zulu` before `alpha`
+  /// even though `alpha` is written first. Anything scanning definitions by
+  /// source position has to sort them first; the continuation line here is
+  /// only corrected if that happened.
+  static let footnoteDefOutOfOrder = Document(
+    name: "footnoteDefOutOfOrder",
+    markdown: """
+      A reference to the late definition[^zulu] comes first.
+
+      A reference to the early one[^alpha] comes second.
+
+      [^alpha]: Opener with `code` and _italic_.
+          Continuation with `code` and _italic_.
+
+      [^zulu]: Written after alpha, but referenced before it.
+      """)
+
   /// Whitespace after a DocC aside's colon: the tag span must cover `Note:`
   /// only, excluding the trailing spaces — `docCTagSpanWidth` measures the
   /// literal through the colon, not `detectDocCAlert`'s whitespace-inclusive
@@ -437,5 +511,7 @@ enum ParityCorpus {
     docCAsideVariants, rawHTML, linkVariants, autolinkVariants,
     codeBlockVariants, orderedListStart, footnoteDefBodyVariants,
     footnoteDefCodeBlocks, footnoteDefMidDocument, docCAsideTrailingSpaces,
+    footnoteDefContinuationSpans, footnoteDefLaterBlockSpans,
+    footnoteDefOutOfOrder,
   ]
 }

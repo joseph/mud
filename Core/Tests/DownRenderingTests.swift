@@ -65,6 +65,104 @@ struct DownRenderingTests {
         #expect(!html.contains("dc-fence"))
     }
 
+    // MARK: - Definition-body continuation lines
+
+    /// cmark derives an inline's position from its offset within the
+    /// enclosing block's content, and inside a definition it adds back the
+    /// content offset it fixed at the opener line. So on a continuation line
+    /// every inline span lands `len("[^label]: ") - indent` bytes too far
+    /// right unless converted — +2, +20, and +14 for the three labels here.
+    ///
+    /// Asserted as whole rendered lines with exact occurrence counts: a
+    /// slipped span still contains the same markup text, just wrapped around
+    /// the wrong characters, so a `contains` on the markup alone would pass.
+    @Test func definitionContinuationLinesSpanTheirOwnMarkup() {
+        let html = DownHTMLVisitor().highlight(
+            ParityCorpus.footnoteDefContinuationSpans.markdown)
+
+        func span(_ cssClass: String, _ text: String) -> String {
+            "<span class=\"\(cssClass)\">\(text)</span>"
+        }
+        func count(_ needle: String) -> Int {
+            html.components(separatedBy: needle).count - 1
+        }
+        let code = span("md-code", "`code`")
+        let italic = span("md-emphasis", "_italic_")
+        let struck = span("md-strikethrough", "~~struck~~")
+        let link = span("md-link", "[link](https://example.org)")
+
+        // Second lines: two definitions end in strikethrough, one in a link.
+        #expect(count("<span class=\"lc\">    Second line with \(code), "
+            + "\(italic), and \(struck) text.</span>") == 2)
+        #expect(count("<span class=\"lc\">    Second line with \(code), "
+            + "\(italic), and a \(link).</span>") == 1)
+        // Third lines: one per definition, all three identical.
+        #expect(count("<span class=\"lc\">    Third line with \(code) and "
+            + "\(italic).</span>") == 3)
+    }
+
+    /// A definition's *later* blocks begin on a continuation line, where the
+    /// prefix cmark stripped is already the plain indent — so those lines need
+    /// no correction at all, while the opening block's continuation lines
+    /// need the full `indent - len("[^label]: ")`. Both regimes appear in this
+    /// one document; anchoring the correction on the definition's opener
+    /// instead of the block's first line gets the first right and shifts every
+    /// later block left.
+    @Test func definitionLaterBlocksSpanTheirOwnMarkup() {
+        let html = DownHTMLVisitor().highlight(
+            ParityCorpus.footnoteDefLaterBlockSpans.markdown)
+
+        func span(_ cssClass: String, _ text: String) -> String {
+            "<span class=\"\(cssClass)\">\(text)</span>"
+        }
+        func count(_ needle: String) -> Int {
+            html.components(separatedBy: needle).count - 1
+        }
+        let code = span("md-code", "`code`")
+        let italic = span("md-emphasis", "_italic_")
+
+        // A later block's own continuation lines — correction is zero.
+        #expect(count("<span class=\"lc\">    Its continuation line with "
+            + "\(code) and \(italic).</span>") == 1)
+        #expect(count("<span class=\"lc\">    Its continuation with "
+            + "\(code) and \(italic).</span>") == 1)
+        // The opening block's continuation line — correction is -16.
+        #expect(count("<span class=\"lc\">    Opening block continuation with "
+            + "\(code) and \(italic).</span>") == 1)
+        // Both later blocks' first lines, which take no correction either.
+        #expect(count("<span class=\"lc\">    A later block with \(code) and "
+            + "\(italic) on its first line.</span>") == 1)
+        #expect(count("<span class=\"lc\">    A later block with \(code) and "
+            + "\(italic).</span>") == 1)
+    }
+
+    /// cmark-gfm orders footnote definitions by first reference, not by where
+    /// they are written, so a definition referenced early but written late is
+    /// walked first. A scan that assumes source order and stops early misses
+    /// every definition written before it — leaving this continuation line
+    /// uncorrected.
+    @Test func definitionSpansSurviveOutOfOrderDefinitions() {
+        let html = DownHTMLVisitor().highlight(
+            ParityCorpus.footnoteDefOutOfOrder.markdown)
+        #expect(html.contains(
+            "<span class=\"lc\">    Continuation with "
+            + "<span class=\"md-code\">`code`</span> and "
+            + "<span class=\"md-emphasis\">_italic_</span>.</span>"))
+    }
+
+    /// The opener line is the case the conversion must leave alone: there the
+    /// offset cmark fixed *is* the real prefix, so its columns are already
+    /// raw.
+    @Test func definitionOpenerLineSpansAreUnshifted() {
+        let html = DownHTMLVisitor().highlight(
+            ParityCorpus.footnoteDefContinuationSpans.markdown)
+        #expect(html.contains(
+            "<span class=\"md-footnote-def\">[^s]:</span> Opener with "
+            + "<span class=\"md-code\">`code`</span>, "
+            + "<span class=\"md-emphasis\">_italic_</span>, and a "
+            + "<span class=\"md-link\">[link](https://example.org)</span>."))
+    }
+
     // MARK: - Diffed rendering
 
     /// The cmark pipeline's diffed render: the plan is built under the Down

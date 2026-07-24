@@ -208,8 +208,13 @@ MVP plan.
 - `CMark/CMarkDocument.swift` — Owning wrapper over the one footnote-aware
   cmark-gfm parse every render runs on: hard-coded parse options, range APIs in
   swift-markdown's byte conventions (exclusive upper bound, UTF-8 byte columns,
-  backtick widening), and the `verifiedRange(of:)` delimiter defense. Frees the
-  tree in `deinit`; every `CMarkNode` retains it
+  backtick widening), and the `verifiedRange(of:)` delimiter defense. Also
+  corrects inline positions inside footnote and comment definitions
+  (`correctInline`): cmark reports an inline's column against the prefix it
+  stripped from the enclosing block's _first_ line, which is wrong on that
+  block's later lines. Measures every definition once at parse, sorted by start
+  line — the tree walk yields definitions in first-reference order, not source
+  order. Frees the tree in `deinit`; every `CMarkNode` retains it
 - `CMark/CMarkNode.swift` — Document-retaining node handle: `CMarkNodeKind`
   (extension nodes identified by type string), content and structure accessors.
   Accessors stay read-only — the `@unchecked Sendable` conformance depends on

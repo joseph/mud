@@ -350,10 +350,12 @@ struct DownHTMLVisitor: Sendable {
 
         /// A definition emits its `md-footnote-def` marker span, then
         /// descends so its body highlights through the normal visit methods.
-        /// Body node positions are already original source coordinates, so
-        /// only explicit column arithmetic needs the definition context (see
-        /// `lineDrop`). Comment definitions are handled identically — Down
-        /// mode shows the raw source and draws no comment-specific structure.
+        /// Body node positions are already original source coordinates —
+        /// `CMarkDocument.correctInline` is what makes that true for inlines
+        /// on continuation lines — so only explicit column arithmetic needs
+        /// the definition context (see `lineDrop`). Comment definitions are
+        /// handled identically — Down mode shows the raw source and draws no
+        /// comment-specific structure.
         mutating func visitFootnoteDefinition(_ node: CMarkNode) {
             let geo = document.geometry
             let startLine = node.startLine

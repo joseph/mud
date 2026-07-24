@@ -34,6 +34,7 @@ Mud does just one thing — it marks up Markdown! — and it does it really well
 - [Code highlighting](Examples/code-highlighting.md)
 - [Image embedding](Examples/image-embedding.md)
 - [Link handling](Examples/link-handling.md)
+- [Tables](Examples/tables.md)
 - [Markdown parsing stress test](Examples/markdown-parsing.md)
 
 

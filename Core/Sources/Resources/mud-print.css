@@ -70,4 +70,12 @@
 
   /* Down mode: don't clip code blocks. */
   .dc-scroll { overflow-x: visible; }
+
+  /* Up mode: on screen a wide content table is its own horizontal scroll box
+     (display: block, in mud-up.css); paper can't scroll, so restore normal
+     table layout and let cells wrap within the page width. */
+  .up-mode-output table:not(.mud-frontmatter-table) {
+    display: table;
+    width: 100%;
+  }
 }

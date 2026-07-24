@@ -336,6 +336,21 @@ table {
   border-spacing: 0;
 }
 
+/* A table too wide to fit — many columns, or a cell that can't wrap — would
+   otherwise be clipped by `.up-mode-output { overflow-x: hidden }`. Make each
+   content table its own horizontal scroll box so the overflow stays reachable
+   without scrolling the whole document. `display: block` turns the table into
+   a scroll container; `width: fit-content` (overriding the `width: 100%` above)
+   sizes it to its columns, and `max-width: 100%` caps that at the text width so
+   a wide table scrolls instead of overflowing. Excludes the frontmatter table,
+   which has its own layout. */
+.up-mode-output table:not(.mud-frontmatter-table) {
+  display: block;
+  overflow-x: auto;
+  width: fit-content;
+  max-width: 100%;
+}
+
 th, td {
   padding: 8px 12px;
   border: 1px solid var(--border-color);

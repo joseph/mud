@@ -62,7 +62,24 @@ enum DeletionRenderer {
                 summary: "[revised diagram]", tag: tag)
         }
 
-        if let wordSpans, !wordSpans.isEmpty {
+        // Deleted math renders as MathML too, never through the word-span
+        // paths below — their character stream can't take a MathML
+        // substitution (the insertion side skips word spans the same way).
+        if markup.kind == .codeBlock, markup.fenceInfo == "math" {
+            return RenderedDeletion(
+                html: mathInnerHTML(markup.literal ?? ""), changeID: changeID,
+                summary: ChangePlan.blockSummary(block),
+                tag: "div", extraClasses: "mud-math-block")
+        }
+        if let tex = UpHTMLVisitor.displayMathInterior(of: markup) {
+            return RenderedDeletion(
+                html: mathInnerHTML(tex), changeID: changeID,
+                summary: ChangePlan.blockSummary(block),
+                tag: "div", extraClasses: "mud-math-block")
+        }
+
+        if let wordSpans, !wordSpans.isEmpty,
+           !UpHTMLVisitor.containsInlineMath(markup) {
             html = UpHTMLVisitor.renderWithWordSpans(
                 markup, spans: wordSpans, role: .deletion,
                 footnoteNumbers: footnoteNumbers)
@@ -87,6 +104,13 @@ enum DeletionRenderer {
             summary: ChangePlan.blockSummary(block), tag: tag,
             wordSpans: wordSpans
         )
+    }
+
+    /// The inner HTML of a deleted display-math block: the rendered MathML,
+    /// or the escaped TeX when the JS layer is unavailable — the same
+    /// fallback `UpHTMLVisitor.emitMathBlock` uses.
+    private static func mathInnerHTML(_ tex: String) -> String {
+        MathRenderer.render(tex, displayMode: true) ?? HTMLEscaping.escape(tex)
     }
 }
 

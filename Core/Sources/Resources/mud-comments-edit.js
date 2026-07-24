@@ -174,15 +174,13 @@
     if (!sel || sel.isCollapsed || sel.rangeCount === 0) return null;
     var range = sel.getRangeAt(0);
     if (!container.contains(range.commonAncestorContainer)) return null;
-    // Rendered math (an inline `<math>`, a display `.mud-math-block`, or a
-    // `temml-error` span) has no source byte its rendered text maps back to, so
-    // a selection ending inside one is not commentable. Inline math sits inside
-    // an otherwise-commentable `<p>`, so this end-container check catches it
-    // where the leaf-block check below cannot.
-    var endEl = range.endContainer.nodeType === Node.ELEMENT_NODE
-      ? range.endContainer : range.endContainer.parentNode;
-    if (endEl && endEl.closest &&
-        endEl.closest("math, .mud-math-block, .temml-error")) return null;
+    // A skipped subtree (rendered math, a code block, a Mermaid diagram, …)
+    // has no source byte its rendered text maps back to, so a selection ending
+    // inside one is not commentable. Inline math sits inside an
+    // otherwise-commentable `<p>`, so this end-container ancestor walk catches
+    // it where the leaf-block check below cannot; the skip list itself lives
+    // in `Mud.commentAnchor.isSkippedSubtree`.
+    if (anchor.inSkippedSubtree(range.endContainer, container)) return null;
     var block = leafBlock(range.endContainer);
     if (!block || block.tagName === "PRE") return null;
     // A Mermaid diagram (a `<div class="mermaid">` whose rendered SVG labels

@@ -30,10 +30,12 @@ import cmark_gfm
 /// Math has no source-anchoring counterpart: a `<math>` element (or a
 /// `temml-error` span) renders MathML that bears no relation to the TeX source,
 /// so `mud-comment-anchor.js` skips it wholesale (a selection inside math is not
-/// commentable) and a display-math block anchors nothing. This resolver never
-/// sees a math element — it walks the source AST — so it needs no math rule; a
-/// paragraph mixing prose with inline `` $`…`$ `` math simply won't match the
-/// JS-computed segment text and falls back to the block-end / quotation path.
+/// commentable) and a display-math block anchors nothing. The rendered text of
+/// a paragraph with inline `` $`…`$ `` math therefore omits the span *and* its
+/// bounding `$` delimiters — `inlineText` and `resolveByte` subtract the same
+/// three pieces (`isInlineMathCode`, the raw-AST twin of
+/// `UpHTMLVisitor.isInlineMath`), so a prose selection in such a paragraph
+/// still matches its block and anchors byte-exactly.
 public enum CommentAnchor {
     public static func insertionOffset(
         in source: String, blockText: String, offsetInBlock: Int,
@@ -79,7 +81,7 @@ public enum CommentAnchor {
                 // the rendered body is only a **suffix** of cmark's paragraph. In a
                 // block quote, accept that suffix and skip the stripped title when
                 // resolving the offset; elsewhere require an exact match.
-                let full = fold(collapse(inlineText(of: node)))
+                let full = fold(collapse(inlineText(of: node, geo: geo)))
                 var prefixLen = 0
                 if full != target {
                     guard inBlockQuote > 0, full.count > target.count,
@@ -123,9 +125,14 @@ public enum CommentAnchor {
     /// The rendered text of a node's inline content: `Text`/`Code` literals
     /// (emoji shortcodes substituted in `Text`), breaks → a space, footnote/
     /// comment references and images skipped (a footnote renders as a marker, an
-    /// image as `<img>` — neither adds to the DOM's `textContent`). Mirrors the
-    /// DOM's marker-free `textContent`.
-    private static func inlineText(of node: UnsafeMutablePointer<cmark_node>) -> String {
+    /// image as `<img>` — neither adds to the DOM's `textContent`). An
+    /// inline-math span is zero-width (it renders as MathML the JS skips) and
+    /// the `$` delimiters bounding it in the neighbor text nodes are dropped
+    /// (the visitor strips them from the rendered text). Mirrors the DOM's
+    /// marker-free `textContent`.
+    private static func inlineText(
+        of node: UnsafeMutablePointer<cmark_node>, geo: SourceGeometry
+    ) -> String {
         var text = ""
         var child = cmark_node_first_child(node)
         while let current = child {
@@ -135,10 +142,21 @@ public enum CommentAnchor {
                 // text, so the match (and the offset walk below) count 🎉, not
                 // `:tada:`. Inline code is left literal (it isn't substituted).
                 if let literal = cmark_node_get_literal(current) {
-                    text += EmojiShortcodes.replaceShortcodes(
-                        in: String(cString: literal))
+                    var s = String(cString: literal)
+                    if let next = cmark_node_next(current),
+                       isInlineMathCode(next, geo: geo), s.hasSuffix("$") {
+                        s = String(s.dropLast())
+                    }
+                    if let prev = cmark_node_previous(current),
+                       isInlineMathCode(prev, geo: geo), s.hasPrefix("$") {
+                        s = String(s.dropFirst())
+                    }
+                    text += EmojiShortcodes.replaceShortcodes(in: s)
                 }
             case CMARK_NODE_CODE:
+                if isInlineMathCode(current, geo: geo) {
+                    break  // zero-width: renders as skipped MathML
+                }
                 if let literal = cmark_node_get_literal(current) {
                     text += String(cString: literal)
                 }
@@ -150,11 +168,51 @@ public enum CommentAnchor {
                 break  // cmark holds the alt as child text, but the DOM's <img>
                        // adds nothing to textContent — skip it to match.
             default:
-                text += inlineText(of: current)  // emphasis, strong, link, …
+                // emphasis, strong, link, …
+                text += inlineText(of: current, geo: geo)
             }
             child = cmark_node_next(current)
         }
         return text
+    }
+
+    /// True when `code` is the body of an inline-math span `` $`…`$ `` — the
+    /// mirror of `UpHTMLVisitor.isInlineMath` over the raw footnote AST,
+    /// including its raw-source delimiter checks (a `\$`-escaped dollar is not
+    /// a delimiter). The two must agree: whatever the visitor renders as math
+    /// is exactly what this side subtracts from the block text.
+    private static func isInlineMathCode(
+        _ code: UnsafeMutablePointer<cmark_node>, geo: SourceGeometry
+    ) -> Bool {
+        guard cmark_node_get_type(code) == CMARK_NODE_CODE,
+              let prev = cmark_node_previous(code),
+              cmark_node_get_type(prev) == CMARK_NODE_TEXT,
+              (cmark_node_get_literal(prev).map { String(cString: $0) } ?? "")
+                  .hasSuffix("$"),
+              let next = cmark_node_next(code),
+              cmark_node_get_type(next) == CMARK_NODE_TEXT,
+              (cmark_node_get_literal(next).map { String(cString: $0) } ?? "")
+                  .hasPrefix("$"),
+              let contentStart = startByte(of: code, geo: geo),
+              let contentEnd = endByte(of: code, geo: geo)
+        else { return false }
+        // cmark's span covers the content between the backtick runs; widen by
+        // the backtick count to reach the delimiters (as `CMarkDocument.range`
+        // does for the visitor's byteRange).
+        let backticks = Int(cmark_node_get_backtick_count(code))
+        let open = contentStart - backticks - 1   // the `$` before the span
+        let close = contentEnd + backticks        // the `$` after the span
+        let dollar = UInt8(ascii: "$")
+        guard open >= 0, close < geo.bytes.count,
+              geo.bytes[open] == dollar, geo.bytes[close] == dollar
+        else { return false }
+        var backslashes = 0
+        var i = open - 1
+        while i >= 0, geo.bytes[i] == UInt8(ascii: "\\") {
+            backslashes += 1
+            i -= 1
+        }
+        return backslashes.isMultiple(of: 2)
     }
 
     /// Walks `node`'s inline content in the same order as ``inlineText(of:)``,
@@ -169,8 +227,22 @@ public enum CommentAnchor {
             let type = cmark_node_get_type(current)
             switch type {
             case CMARK_NODE_TEXT:
-                let literal = cmark_node_get_literal(current)
+                var literal = cmark_node_get_literal(current)
                     .map { String(cString: $0) } ?? ""
+                // The `$` delimiters bounding an adjacent inline-math span are
+                // absent from the rendered text (see inlineText); drop them
+                // here too so the walk counts what the DOM shows. A stripped
+                // leading `$` shifts the node's source base by one byte.
+                var leadingStripped = 0
+                if let next = cmark_node_next(current),
+                   isInlineMathCode(next, geo: geo), literal.hasSuffix("$") {
+                    literal = String(literal.dropLast())
+                }
+                if let prev = cmark_node_previous(current),
+                   isInlineMathCode(prev, geo: geo), literal.hasPrefix("$") {
+                    literal = String(literal.dropFirst())
+                    leadingStripped = 1
+                }
                 // `remaining` counts rendered characters (emoji substituted), so
                 // measure and step by the rendered length, then map the offset
                 // back to a raw byte without splitting a shortcode.
@@ -181,10 +253,14 @@ public enum CommentAnchor {
                     else { return nil }
                     let rawChars = EmojiShortcodes.rawOffset(
                         forRendered: remaining, in: literal)
-                    return base + String(literal.prefix(rawChars)).utf8.count
+                    return base + leadingStripped
+                        + String(literal.prefix(rawChars)).utf8.count
                 }
                 remaining -= renderedCount
             case CMARK_NODE_CODE:
+                if isInlineMathCode(current, geo: geo) {
+                    break  // zero-width: renders as skipped MathML
+                }
                 let literal = cmark_node_get_literal(current)
                     .map { String(cString: $0) } ?? ""
                 if remaining <= literal.count {

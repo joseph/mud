@@ -56,6 +56,18 @@ struct MathRenderingTests {
         #expect(!body.contains("<em>"))
     }
 
+    @Test func blockquotedDisplayMathStripsQuoteMarkers() {
+        // A multi-line $$ paragraph inside a blockquote spans the `> `
+        // continuation markers in its byte range; they must not reach Temml
+        // as TeX relation operators.
+        let body = UpHTMLVisitor.renderBody(
+            "> $$\n> a_1 + b_1\n> $$", options: .init())
+        #expect(body.contains("<math"))
+        #expect(body.contains("<msub>"))
+        #expect(!body.contains("temml-error"))
+        #expect(!body.contains("&gt;"))
+    }
+
     // MARK: - What is not math
 
     @Test func bareDollarsAreNotMath() {
@@ -76,6 +88,18 @@ struct MathRenderingTests {
         #expect(body.contains("$x + y$"))
     }
 
+    @Test func escapedDollarsAreNotMathDelimiters() {
+        // `\$` is GitHub's opt-out: the resolved literal still ends with a
+        // plain `$`, so the raw-source byte check must decline the span.
+        let body = UpHTMLVisitor.renderBody(
+            "pay \\$`amount`\\$ upfront", options: .init())
+        #expect(!body.contains("<math"))
+        #expect(body.contains("<code>amount</code>"))
+        // Both dollars survive as literal text.
+        #expect(body.contains("pay $"))
+        #expect(body.contains("$ upfront"))
+    }
+
     // MARK: - Math in context
 
     @Test func mathInFootnoteBodyRenders() {
@@ -89,6 +113,57 @@ struct MathRenderingTests {
             """
         let doc = MudCore.renderUpModeDocument(markdown)
         #expect(doc.contains("<math"))
+    }
+
+    // MARK: - Change tracking
+
+    @Test func editedHeadingKeepsInlineMath() {
+        // Word spans never activate on a math-bearing block (any block kind,
+        // any nesting depth), so an edited heading renders MathML instead of
+        // degrading to a literal code span with visible `$` delimiters.
+        var options = RenderOptions()
+        options.waypoint = ParsedMarkdown("## Energy $`E=mc^2`$ was")
+        let body = UpHTMLVisitor.renderBody(
+            "## Energy $`E=mc^2`$ is", options: options)
+        #expect(body.contains("<math"))
+        #expect(!body.contains("$`"))
+    }
+
+    @Test func editedParagraphKeepsEmphasisNestedMath() {
+        // Math nested inside emphasis is still math when the paragraph is
+        // change-annotated: the word-span choke point sees any depth.
+        var options = RenderOptions()
+        options.waypoint = ParsedMarkdown("*see $`x_1`$* maybe")
+        let body = UpHTMLVisitor.renderBody(
+            "*see $`x_1`$* certainly", options: options)
+        #expect(body.contains("<math"))
+        #expect(!body.contains("$`"))
+    }
+
+    @Test func editedMathBlockAnnotatesWholeBlock() {
+        // An edited ```math block never code-block-pairs (no per-line code
+        // display to project a line diff onto), so the new block carries the
+        // whole-block insertion annotation the sidebar's change IDs point at.
+        var options = RenderOptions()
+        options.waypoint = ParsedMarkdown("```math\na+b\n```")
+        let body = UpHTMLVisitor.renderBody(
+            "```math\na+c\n```", options: options)
+        #expect(body.contains("mud-math-block mud-change-ins"))
+        #expect(body.contains("data-change-id"))
+        #expect(body.contains("<math"))
+    }
+
+    @Test func deletedDisplayMathRendersMathML() {
+        // The deletion overlay renders deleted math as MathML, not as raw
+        // TeX with cmark's emphasis mangling.
+        var options = RenderOptions()
+        options.waypoint = ParsedMarkdown(
+            "Intro.\n\n$$ a_1 + b_1 $$\n\nOutro.")
+        let body = UpHTMLVisitor.renderBody(
+            "Intro.\n\nOutro.", options: options)
+        #expect(body.contains("mud-math-block"))
+        #expect(body.contains("<math"))
+        #expect(!body.contains("$$"))
     }
 
     // MARK: - Conditional stylesheet

@@ -367,9 +367,10 @@ MVP plan.
   it.
 - `mud-math.css` — Math (MathML) styles: display-block layout plus the
   per-engine spacing/accent rules adapted from Temml-Local.css. Appended to an
-  Up document only when its body contains math (a `<math>` element or a
-  `temml-error` span), so a math-free document never carries it. No matching JS
-  — MathML renders natively.
+  Up document only when its body contains math (a `<math>` element, a
+  `mud-math-block` div — present even for the renderer-unavailable escaped-TeX
+  fallback — or a `temml-error` span), so a math-free document never carries
+  it. No matching JS — MathML renders natively.
 - `mud.js` — Shared JS: find, scroll, lighting, zoom
 - `mud-changes.js` — Change tracking JS: overlays, expand/collapse, navigation
 - `mud-comment-anchor.js` — Shared comment-anchoring primitives

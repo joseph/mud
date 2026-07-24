@@ -99,6 +99,20 @@ struct CommentAnchorParityTests {
     #expect(failingBlocks(markdown).isEmpty)
   }
 
+  @Test func inlineMathParagraphsAnchor() {
+    // A paragraph with inline `` $`…`$ `` math: the rendered DOM omits the
+    // MathML subtree (skipped wholesale) and the bounding `$` delimiters
+    // (stripped by the visitor), and CommentAnchor's inlineText/resolveByte
+    // subtract the same three pieces — so prose selections in the paragraph
+    // still match their block and anchor.
+    let markdown = """
+      The area $`\\pi r^2`$ is well known.
+
+      Math at the start: $`a`$ then prose, and at the end $`b`$
+      """
+    #expect(failingBlocks(markdown).isEmpty)
+  }
+
   // MARK: - Driver
 
   /// Renders `markdown`, enumerates every logical block the way the JS locator
@@ -163,7 +177,9 @@ struct CommentAnchorParityTests {
   }
 
   /// The tags/classes the walker skips wholesale (no source byte to anchor):
-  /// mirrors `isSkippedSubtree` in `mud-comment-anchor.js`.
+  /// mirrors `isSkippedSubtree` in `mud-comment-anchor.js`. The lowercase
+  /// `"math"` matches the JS's `localName` check — a MathML element's
+  /// `tagName` never uppercases (it is not an HTML-namespace element).
   private func isSkippedSubtree(_ node: Node) -> Bool {
     node.tag == "pre" || node.tag == "math"
       || node.classes.contains("mermaid")

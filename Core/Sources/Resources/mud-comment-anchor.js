@@ -71,11 +71,26 @@
   // matches any of these.
   function isSkippedSubtree(node) {
     if (node.nodeType !== Node.ELEMENT_NODE) return false;
-    if (node.tagName === "PRE" || node.tagName === "MATH") return true;
+    // localName for math, not tagName: a MathML element is foreign-namespace,
+    // so its tagName stays lowercase "math" (tagName is uppercased only for
+    // HTML elements) and comparing against "MATH" would never match.
+    if (node.tagName === "PRE" || node.localName === "math") return true;
     var cl = node.classList;
     return !!cl && (cl.contains("mermaid") || cl.contains("mud-html-block") ||
       cl.contains("mud-change-del") || cl.contains("mud-math-block") ||
       cl.contains("temml-error"));
+  }
+
+  // Whether `node` sits anywhere inside a skipped subtree — the ancestor walk
+  // the write side uses to reject a selection the anchor rules would refuse.
+  // Keeping it here means the skip list lives in exactly one place.
+  function inSkippedSubtree(node, root) {
+    var el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentNode;
+    while (el && el !== root) {
+      if (isSkippedSubtree(el)) return true;
+      el = el.parentNode;
+    }
+    return false;
   }
 
   // The bottom sections, never the selection's source.
@@ -241,6 +256,7 @@
     isMarkerElement: isMarkerElement,
     isInnermostLeaf: isInnermostLeaf,
     isSkippedSubtree: isSkippedSubtree,
+    inSkippedSubtree: inSkippedSubtree,
     markerFreeText: markerFreeText,
     leafBlock: leafBlock,
     eachLogicalBlock: eachLogicalBlock,

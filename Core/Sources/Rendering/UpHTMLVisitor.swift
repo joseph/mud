@@ -166,24 +166,18 @@ struct UpHTMLVisitor: CMarkWalker {
         // A paragraph that is exactly `$$…$$` is display math. Recover the raw
         // source (cmark has already inline-parsed the interior — turning `_`
         // into emphasis) and render it as a block instead of descending.
-        if let tex = displayMathInterior(of: paragraph) {
+        if let tex = Self.displayMathInterior(of: paragraph) {
             emitMathBlock(paragraph, tex: tex)
             return
         }
 
         let attrs = changeAttributes(for: paragraph)
-        // Inline `$`…`$` math renders only when word spans are inactive (see
-        // visitInlineCode), so a paragraph carrying inline math skips word
-        // spans and takes a whole-block change annotation instead — the same
-        // treatment code and display-math blocks get.
-        let hasInlineMath = paragraphContainsInlineMath(paragraph)
-        if !hasInlineMath { activateWordSpans(for: paragraph) }
+        activateWordSpans(for: paragraph)
         let parentKind = paragraph.parent?.kind
         let inListItem = parentKind == .listItem || parentKind == .taskListItem
         // List items store their annotation on the list-item node,
         // not the inner paragraph. Fall back to the parent.
-        if !hasInlineMath, spanEmitter == nil, inListItem,
-           let listItem = paragraph.parent {
+        if spanEmitter == nil, inListItem, let listItem = paragraph.parent {
             activateWordSpans(for: listItem)
         }
         if inTightList && inListItem {
@@ -531,11 +525,11 @@ struct UpHTMLVisitor: CMarkWalker {
         // the emitter's character count never desyncs (math-bearing paragraphs
         // skip word spans — see visitParagraph).
         if spanEmitter == nil {
-            if let next = text.nextSibling, isInlineMath(next),
+            if let next = text.nextSibling, Self.isInlineMath(next),
                literal.hasSuffix("$") {
                 literal = String(literal.dropLast())
             }
-            if let prev = text.previousSibling, isInlineMath(prev),
+            if let prev = text.previousSibling, Self.isInlineMath(prev),
                literal.hasPrefix("$") {
                 literal = String(literal.dropFirst())
             }
@@ -561,10 +555,16 @@ struct UpHTMLVisitor: CMarkWalker {
         // A code span bounded by `$` on both sides is GitHub inline math
         // (`` $`…`$ ``). Render it to MathML — but only with word spans
         // inactive, so the adjacent `$`-stripping in visitText stays in step.
-        if spanEmitter == nil, isInlineMath(inlineCode),
-           let mathml = MathRenderer.render(
-               inlineCode.literal ?? "", displayMode: false) {
-            result += mathml
+        if spanEmitter == nil, Self.isInlineMath(inlineCode) {
+            let tex = inlineCode.literal ?? ""
+            if let mathml = MathRenderer.render(tex, displayMode: false) {
+                result += mathml
+            } else {
+                // JS layer unavailable: visitText has already stripped the
+                // bounding `$` delimiters, so restore them around the plain
+                // code fallback — no source characters may be lost.
+                result += "$<code>\(HTMLEscaping.escape(tex))</code>$"
+            }
             return
         }
         if spanEmitter != nil { result += spanEmitter!.closeOpenTag() }
@@ -624,9 +624,18 @@ struct UpHTMLVisitor: CMarkWalker {
     /// TeX interior (delimiters stripped); otherwise nil. Reads the raw source
     /// so cmark's inline parse of the interior (emphasis, smart punctuation)
     /// never reaches the renderer. A paragraph mixing text with `$$…$$`, or
-    /// carrying more than one display span, is rejected.
-    private func displayMathInterior(of paragraph: CMarkNode) -> String? {
-        guard let raw = rawSource(of: paragraph) else { return nil }
+    /// carrying more than one display span, is rejected. Static so
+    /// `DeletionRenderer` routes deleted paragraphs through the same test.
+    static func displayMathInterior(of paragraph: CMarkNode) -> String? {
+        guard paragraph.kind == .paragraph,
+              var raw = rawSource(of: paragraph) else { return nil }
+        // A multi-line paragraph inside a blockquote captures the `> `
+        // continuation markers in its byte range (cmark's sourcepos has no
+        // per-line columns), so strip them before reading the TeX.
+        let quoteDepth = blockquoteDepth(of: paragraph)
+        if quoteDepth > 0, raw.contains("\n") {
+            raw = strippingQuoteMarkers(raw, depth: quoteDepth)
+        }
         let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.hasPrefix("$$"), trimmed.hasSuffix("$$"),
               trimmed.count >= 4 else { return nil }
@@ -635,36 +644,99 @@ struct UpHTMLVisitor: CMarkWalker {
         return String(interior)
     }
 
+    /// How many blockquotes enclose `node`.
+    private static func blockquoteDepth(of node: CMarkNode) -> Int {
+        var depth = 0
+        var ancestor = node.parent
+        while let a = ancestor {
+            if a.kind == .blockQuote { depth += 1 }
+            ancestor = a.parent
+        }
+        return depth
+    }
+
+    /// Strips `depth` blockquote markers (` {0,3}> `, the trailing space
+    /// optional) from every continuation line of a raw paragraph slice. The
+    /// first line starts at the paragraph's own position and carries no
+    /// marker; a lazy-continuation line may carry fewer than `depth`, so
+    /// stripping stops at the first non-marker. A line inside the paragraph
+    /// can't otherwise start with `>` — that would have opened a nested
+    /// blockquote and split the paragraph.
+    private static func strippingQuoteMarkers(
+        _ raw: String, depth: Int
+    ) -> String {
+        var lines = raw.components(separatedBy: "\n")
+        for i in 1..<lines.count {
+            var line = Substring(lines[i])
+            for _ in 0..<depth {
+                var rest = line
+                var indent = 0
+                while indent < 3, rest.first == " " {
+                    rest = rest.dropFirst()
+                    indent += 1
+                }
+                guard rest.first == ">" else { break }
+                rest = rest.dropFirst()
+                if rest.first == " " { rest = rest.dropFirst() }
+                line = rest
+            }
+            lines[i] = String(line)
+        }
+        return lines.joined(separator: "\n")
+    }
+
     /// True when `node` is the body of a GitHub inline-math span `` $`…`$ ``:
     /// an inline-code node whose previous sibling text ends with `$` and whose
     /// next sibling text starts with `$`. The three visit methods that touch
-    /// inline math all key off this one predicate so their edits stay in step.
-    private func isInlineMath(_ node: CMarkNode) -> Bool {
+    /// inline math all key off this one predicate so their edits stay in step;
+    /// `CommentAnchor.isInlineMathCode` mirrors it over the raw footnote AST.
+    ///
+    /// The literals see through backslash escapes (`\$` resolves to a plain
+    /// `$`), so both delimiters are confirmed against the raw source: the byte
+    /// before the span's opening backtick must be a `$` preceded by an even
+    /// run of backslashes, and the byte after its closing backtick a literal
+    /// `$` (an escaped one reads `\` there). GitHub honors `\$` as an opt-out.
+    static func isInlineMath(_ node: CMarkNode) -> Bool {
         guard node.kind == .inlineCode,
               let prev = node.previousSibling, prev.kind == .text,
               (prev.literal ?? "").hasSuffix("$"),
               let next = node.nextSibling, next.kind == .text,
-              (next.literal ?? "").hasPrefix("$")
+              (next.literal ?? "").hasPrefix("$"),
+              let range = node.byteRange  // includes the backtick runs
         else { return false }
-        return true
+        let bytes = node.document.geometry.bytes
+        let dollar = UInt8(ascii: "$")
+        guard range.lowerBound >= 1, range.upperBound < bytes.count,
+              bytes[range.lowerBound - 1] == dollar,
+              bytes[range.upperBound] == dollar
+        else { return false }
+        var backslashes = 0
+        var i = range.lowerBound - 2
+        while i >= 0, bytes[i] == UInt8(ascii: "\\") {
+            backslashes += 1
+            i -= 1
+        }
+        return backslashes.isMultiple(of: 2)
     }
 
-    /// True when any inline child of `paragraph` is an inline-math span.
-    private func paragraphContainsInlineMath(_ paragraph: CMarkNode) -> Bool {
-        for child in paragraph.children where isInlineMath(child) {
-            return true
+    /// True when any descendant inline of `node` is an inline-math span.
+    /// The word-span choke point (`activateWordSpans`) keys off this, so it
+    /// must see math at any depth — nested in emphasis, links, or a list
+    /// item's inner paragraph.
+    static func containsInlineMath(_ node: CMarkNode) -> Bool {
+        for child in node.children {
+            if isInlineMath(child) || containsInlineMath(child) { return true }
         }
         return false
     }
 
     /// The exact source text a node spans, decoded from the parse's UTF-8
-    /// bytes, or nil if its position can't be resolved.
-    private func rawSource(of node: CMarkNode) -> String? {
+    /// bytes (`byteRange` is bounds-checked against the source geometry), or
+    /// nil if its position can't be resolved.
+    private static func rawSource(of node: CMarkNode) -> String? {
         guard let range = node.byteRange else { return nil }
-        let bytes = node.document.geometry.bytes
-        guard range.lowerBound >= 0, range.upperBound <= bytes.count
-        else { return nil }
-        return String(decoding: bytes[range], as: UTF8.self)
+        return String(
+            decoding: node.document.geometry.bytes[range], as: UTF8.self)
     }
 
     // MARK: - Change tracking helpers
@@ -743,10 +815,16 @@ struct UpHTMLVisitor: CMarkWalker {
         if let tagNode = inlines.first, tagNode.kind == .text {
             index = 1
             let literal = tagNode.literal ?? ""
-            let after = String(
+            var after = String(
                 literal.dropFirst(tag.count)
                     .drop(while: { $0 == " " })
             )
+            // Mirror visitText: when the tag text node abuts an inline-math
+            // span, its trailing `$` is a math delimiter, not content.
+            if spanEmitter == nil, let next = tagNode.nextSibling,
+               Self.isInlineMath(next), after.hasSuffix("$") {
+                after.removeLast()
+            }
             if !after.isEmpty {
                 opened = true
                 result += "<p>"
@@ -842,7 +920,13 @@ struct UpHTMLVisitor: CMarkWalker {
         let utf8 = tagLiteral.utf8
         let strippedStart = utf8.index(
             utf8.startIndex, offsetBy: min(tagByteLength, utf8.count))
-        let strippedFirst = String(tagLiteral[strippedStart...])
+        var strippedFirst = String(tagLiteral[strippedStart...])
+        // Mirror visitText: when the tag text node abuts an inline-math span,
+        // its trailing `$` is a math delimiter, not content.
+        if spanEmitter == nil, let next = tagNode.nextSibling,
+           Self.isInlineMath(next), strippedFirst.hasSuffix("$") {
+            strippedFirst.removeLast()
+        }
 
         // Split the first paragraph's remaining inlines at the first soft
         // break.
@@ -917,8 +1001,18 @@ struct UpHTMLVisitor: CMarkWalker {
     }
 
     /// Activates word-span rendering if the block has word spans.
+    ///
+    /// A block that renders math never takes them: the emitter's character
+    /// stream is aligned with `WordDiff.inlineText`, which the MathML
+    /// substitution (and its `$`-delimiter stripping) would desync — such a
+    /// block keeps its whole-block change annotation instead, like a code
+    /// block. Declining here covers every activation site with one rule:
+    /// paragraphs, headings, list-item fallbacks, and aside paragraphs.
+    /// (Display-math paragraphs never get here — `visitParagraph` intercepts
+    /// them first.)
     private mutating func activateWordSpans(for node: CMarkNode) {
         if let spans = diffContext?.wordSpans(for: node), !spans.isEmpty {
+            guard !Self.containsInlineMath(node) else { return }
             spanEmitter = WordSpanEmitter(
                 spans: spans, role: .insertion,
                 showInlineDeletions: showInlineDeletions)
@@ -954,7 +1048,10 @@ struct UpHTMLVisitor: CMarkWalker {
         if let alert = detector.detectDocCAlert(blockQuote) {
             var visitor = UpHTMLVisitor()
             visitor.footnoteNumbers = footnoteNumbers
-            if let spans = wordSpans, !spans.isEmpty {
+            // Math-bearing asides skip word spans, the same rule
+            // `activateWordSpans` applies on the insertion side.
+            if let spans = wordSpans, !spans.isEmpty,
+               !containsInlineMath(blockQuote) {
                 visitor.spanEmitter = WordSpanEmitter(
                     spans: spans, role: .deletion,
                     showInlineDeletions: false)

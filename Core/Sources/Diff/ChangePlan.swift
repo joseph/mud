@@ -130,9 +130,16 @@ extension ChangePlan {
                 let oldLang = Self.codeLanguage(oldCB)
                 let newLang = Self.codeLanguage(newCB)
 
-                let isMermaid = oldLang?.lowercased() == "mermaid"
-                    || newLang?.lowercased() == "mermaid"
-                if isMermaid { continue }
+                // Mermaid and math blocks have no per-line code display to
+                // project a line diff onto (Up mode shows a diagram / MathML),
+                // so they never pair: an edit stays a whole-block deletion
+                // plus insertion, and the annotation the sidebar lists is one
+                // the visitor actually emits.
+                let unpairable = ["mermaid", "math"]
+                let isUnpairable =
+                    unpairable.contains(oldLang?.lowercased() ?? "")
+                    || unpairable.contains(newLang?.lowercased() ?? "")
+                if isUnpairable { continue }
                 guard newCB.range != nil else { continue }
                 guard let raw = CodeBlockDiff.computeRaw(
                     oldCode: oldCB.literal ?? "", newCode: newCB.literal ?? "",

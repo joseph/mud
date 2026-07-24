@@ -12,10 +12,13 @@ public enum HTMLTemplate {
         if options.waypoint != nil { doc.styles.append(changesCSS) }
         // Find styles only in the live app view — exports have no Find bar.
         if !options.standalone { doc.styles.append(findCSS) }
-        // Math styles only when the body actually contains math (a `<math>`
-        // element, or a `temml-error` span from invalid TeX). A math-free
+        // Math styles only when the body actually contains math: a `<math>`
+        // element, a `mud-math-block` div (present even when the renderer is
+        // unavailable and the block falls back to escaped TeX), or a
+        // `temml-error` span from invalid TeX. A math-free
         // document carries none of this.
-        if body.contains("<math") || body.contains("temml-error") {
+        if body.contains("<math") || body.contains("mud-math-block")
+            || body.contains("temml-error") {
             doc.styles.append(mathCSS)
         }
         // Print overrides come last so they win over the on-screen defaults.

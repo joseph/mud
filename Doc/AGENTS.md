@@ -214,7 +214,9 @@ MVP plan.
   stripped from the enclosing block's _first_ line, which is wrong on that
   block's later lines. Measures every definition once at parse, sorted by start
   line — the tree walk yields definitions in first-reference order, not source
-  order. Frees the tree in `deinit`; every `CMarkNode` retains it
+  order. Also trims a link's leading whitespace, since the GFM autolink match
+  starts at the boundary character before a bare URL. Frees the tree in
+  `deinit`; every `CMarkNode` retains it
 - `CMark/CMarkNode.swift` — Document-retaining node handle: `CMarkNodeKind`
   (extension nodes identified by type string), content and structure accessors.
   Accessors stay read-only — the `@unchecked Sendable` conformance depends on

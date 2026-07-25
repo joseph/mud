@@ -181,24 +181,35 @@ final class CMarkDocument {
 
     // MARK: - Ranges
 
-    /// The node's source range in swift-markdown's conventions, reproducing
-    /// its converter's `range(_:)` exactly so ported consumers keep their
-    /// range math:
+    /// The node's source range, in these conventions:
     ///
     /// - 1-based lines; 1-based UTF-8 **byte** columns within the line;
-    /// - an **exclusive** upper bound (cmark's inclusive end column plus one);
-    /// - inline code spans widened by their backtick count on both sides, so
-    ///   the range includes the ticks (cmark's raw span covers only the
-    ///   content between them).
+    /// - an **exclusive** upper bound (cmark's inclusive end column plus one).
     ///
-    /// Returns nil when cmark tracked no start position for the node. The
-    /// **end** is converted blindly — raw column plus one, no zero check —
-    /// exactly as swift-markdown does, because a raw end column of 0 can be
-    /// meaningful rather than untracked: a setext heading ends at (line after
-    /// the underline, 0), which converts to an exclusive bound at that line's
-    /// first byte. One deliberate divergence: an inverted position pair (end
-    /// before start — a fully untracked end, or garbage sourcepos) returns
-    /// nil instead of trapping in `Range.init`.
+    /// The conventions came from swift-markdown's converter, which the ported
+    /// consumers' range math was written against. That dependency is gone, so
+    /// they now stand on their own — matching it is no longer a reason to keep
+    /// a behavior, and the normalizations below already diverge from it.
+    ///
+    /// Three normalizations turn cmark's raw spans into the bytes a reader
+    /// would point at:
+    ///
+    /// - inline code widens by its backtick count on both sides, so the range
+    ///   includes the ticks (cmark's raw span covers only the content);
+    /// - an inline inside a footnote or comment definition is corrected for
+    ///   the prefix cmark stripped from its block's first line
+    ///   (`correctInline`);
+    /// - a link's start is moved past leading whitespace
+    ///   (`trimmingLeadingWhitespace`).
+    ///
+    /// Returns nil when cmark tracked no start position — which includes email
+    /// autolinks, for which the GFM extension records none at all. The **end**
+    /// is converted blindly — raw column plus one, no zero check — because a
+    /// raw end column of 0 can be meaningful rather than untracked: a setext
+    /// heading ends at (line after the underline, 0), which converts to an
+    /// exclusive bound at that line's first byte. An inverted position pair
+    /// (end before start — a fully untracked end, or garbage sourcepos)
+    /// returns nil instead of trapping in `Range.init`.
     func range(of node: CMarkNode) -> Range<CMarkSourceLocation>? {
         guard node.startLine > 0, node.startColumn > 0 else { return nil }
         let endColumn = node.endColumn + 1
@@ -211,8 +222,42 @@ final class CMarkDocument {
             lower = correctInline(lower, in: body)
             upper = correctInline(upper, in: body)
         }
+        // After `correctInline`, so the bytes it inspects are the ones the
+        // location actually points at.
+        if node.kind == .link {
+            lower = trimmingLeadingWhitespace(lower, notPast: upper)
+        }
         guard lower <= upper else { return nil }
         return lower..<upper
+    }
+
+    /// Moves a link's start past any leading space or tab.
+    ///
+    /// The GFM autolink extension begins its match at the boundary character
+    /// before a bare URL, so `Visit https://example.org` reports a range that
+    /// starts on the space. No link range legitimately begins with whitespace
+    /// — a bracketed link starts at `[`, an angled autolink at `<`, and a bare
+    /// autolink at its scheme — so trimming is safe for every link form.
+    ///
+    /// This fixes the shape we can observe. Whether the extension is also off
+    /// by one after a non-space boundary (an opening paren, say) is pinned by
+    /// `ParityCorpus.autolinkPositions` rather than assumed here.
+    private func trimmingLeadingWhitespace(
+        _ location: CMarkSourceLocation, notPast limit: CMarkSourceLocation
+    ) -> CMarkSourceLocation {
+        guard location.line >= 1, location.line <= geometry.lastLine
+        else { return location }
+        let end = geometry.contentEnd(location.line)
+        var column = location.column
+        while location.line < limit.line || column < limit.column {
+            let offset = geometry.offset(line: location.line, column: column)
+            guard offset >= 0, offset < end,
+                  geometry.bytes[offset] == 0x20
+                    || geometry.bytes[offset] == 0x09
+            else { break }
+            column += 1
+        }
+        return CMarkSourceLocation(line: location.line, column: column)
     }
 
     /// The footnote definition whose lines cover `line`, if any. Definitions

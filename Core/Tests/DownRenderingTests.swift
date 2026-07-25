@@ -65,6 +65,22 @@ struct DownRenderingTests {
         #expect(!html.contains("dc-fence"))
     }
 
+    // MARK: - Autolink spans
+
+    /// The GFM autolink extension begins its match at the boundary character
+    /// before a bare URL, so the reported range covers the preceding space.
+    /// The highlight belongs on the URL alone.
+    @Test func bareAutolinkSpanExcludesThePrecedingSpace() {
+        let html = DownHTMLVisitor().highlight(
+            ParityCorpus.autolinkVariants.markdown)
+        #expect(html.contains(
+            "Visit <span class=\"md-link\">https://example.org/bare</span>"))
+        #expect(html.contains(
+            "at <span class=\"md-link\">www.example.org</span>"))
+        // No link span anywhere may open on whitespace.
+        #expect(!html.contains("<span class=\"md-link\"> "))
+    }
+
     // MARK: - Definition-body continuation lines
 
     /// cmark derives an inline's position from its offset within the

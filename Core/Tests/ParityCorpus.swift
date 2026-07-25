@@ -459,6 +459,28 @@ enum ParityCorpus {
           Its continuation with `code` and _italic_.
       """)
 
+  /// Bare autolinks at the positions `autolinkVariants` doesn't reach.
+  ///
+  /// The GFM extension starts its match at the boundary character before a
+  /// bare URL, which is why a space-preceded one reported a range covering the
+  /// space (`trimmingLeadingWhitespace`). Whether the same is true after a
+  /// non-space boundary, or at the very start of a line where there is no
+  /// boundary at all, is not something to assume — these pin it, and the Down
+  /// fixture shows exactly which bytes each span covers.
+  static let autolinkPositions = Document(
+    name: "autolinkPositions",
+    markdown: """
+      https://example.org/line-start opens this line with no boundary.
+
+      Parenthesized (https://example.org/parens) mid-sentence.
+
+      After a comma, https://example.org/comma continues.
+
+      Wrapped in an angled autolink: <https://example.org/angled>.
+
+      A bracketed [link](https://example.org/bracketed) for contrast.
+      """)
+
   /// A definition written early but referenced late, and vice versa.
   ///
   /// cmark-gfm moves footnote definitions to the end of the document ordered
@@ -512,6 +534,6 @@ enum ParityCorpus {
     codeBlockVariants, orderedListStart, footnoteDefBodyVariants,
     footnoteDefCodeBlocks, footnoteDefMidDocument, docCAsideTrailingSpaces,
     footnoteDefContinuationSpans, footnoteDefLaterBlockSpans,
-    footnoteDefOutOfOrder,
+    footnoteDefOutOfOrder, autolinkPositions,
   ]
 }

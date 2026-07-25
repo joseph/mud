@@ -1,6 +1,68 @@
 RELEASES
 ===============================================================================
 
+## v4.0.0
+
+This version introduces **math**. Write TeX in your Markdown the same way you
+do on GitHub, and Mud typesets it.
+
+**Math**:
+
+- Three forms are recognized: a fenced code block tagged `math`, a
+  paragraph wrapped in `$$…$$`, and GitHub's inline `` $`…`$ `` form.
+- Math prints, exports, and previews in Quick Look like everything else.
+
+**Tables**:
+
+- **Column alignment** — the `:---`, `:--:` and `---:` markers in a table's
+  delimiter row now align the column, instead of being ignored.
+- **Wide tables scroll** — a table too wide for the window gets its own
+  horizontal scrollbar rather than being cut off at the window's edge.
+
+**Windows**:
+
+- **Zoom is per window** — zooming one window no longer zooms every other open
+  window. Each window remembers its own Mark Up and Mark Down zoom.
+- **Sidebar tab is per window** — switching a window's sidebar between Outline
+  and Changes no longer switches every other window to match.
+- **Size and position are per file** — each file keeps its own remembered
+  window frame, so closing one window no longer overwrites the size and
+  position of another, or of a file you reopen later.
+
+**Other improvements**:
+
+- **Bare links** — a URL, a `www.` host, or an email address typed in ordinary
+  prose now renders as a clickable link, with no need to wrap it in Markdown
+  link syntax. Text inside code spans and code blocks is left alone.
+- Commenting on a list item that also contains a nested list now works, instead
+  of failing with "the text you commented on has changed".
+- A failed comment save now reports what actually went wrong, and a failed
+  delete no longer fails in silence. Passages Mud can't anchor a comment to
+  are now refused as you select them.
+- File > Open Recent works while the Open dialog is showing.
+- Find highlight colors follow the current theme and light/dark setting.
+- Clicking a change in the sidebar now scrolls Mark Down mode to that change,
+  not to a neighboring one, after an edit inside a code block.
+- Control-clicking a background window's text offers Add Comment based on that
+  window's mode, rather than the frontmost window's.
+- Two windows exporting files of the same name from different folders no longer
+  overwrite each other's output.
+- `mud --standalone`, `mud --exclude-comments`, and `mud --theme=NAME` now
+  reach the command-line tool instead of opening the app.
+- Preferences whose names contained a dot have been renamed to use hyphens
+  (`changes.enabled` becomes `changes-enabled`, and so on), so that changing
+  them with `defaults write` now takes effect in the running app. Existing
+  settings are carried over automatically on first launch.
+
+**Under the hood**: this release replaces the engine that reads your Markdown.
+Until now Mud ran two parsers side by side — Apple's swift-markdown for some
+jobs, and cmark-gfm, the reference GitHub Flavored Markdown parser, for others
+— and the two didn't always agree on where a piece of text started and stopped.
+Rendering, the outline sidebar, change tracking, and comment anchoring now all
+read one shared cmark-gfm parse of the file. Mud follows GitHub-Flavored
+Markdown more closely as a result.
+
+
 ## v3.1.0
 
 [The v3.0.0 release](https://apps.josephpearson.org/mud/releases/v3.0.0.html)

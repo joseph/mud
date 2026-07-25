@@ -123,6 +123,24 @@ article {
 }
 
 
+/* -- Find highlight variables --------------------------------------------- */
+/* Consumed by mud-find.css (live app view only). */
+
+:root {
+  --find-match-bg: #fde68a;
+  --find-match-active-bg: #f59e0b;
+  --find-match-active-outline: #d97706;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --find-match-bg: rgba(253, 230, 138, 0.3);
+    --find-match-active-bg: rgba(245, 158, 11, 0.5);
+    --find-match-active-outline: rgba(217, 119, 6, 0.7);
+  }
+}
+
+
 /* -- Syntax highlighting -------------------------------------------------- */
 
 .hljs {
@@ -545,12 +563,36 @@ table {
   border-spacing: 0;
 }
 
+/* A table too wide to fit — many columns, or a cell that can't wrap — would
+   otherwise be clipped by `.up-mode-output { overflow-x: hidden }`. Make each
+   content table its own horizontal scroll box so the overflow stays reachable
+   without scrolling the whole document. `display: block` turns the table into
+   a scroll container; `width: fit-content` (overriding the `width: 100%` above)
+   sizes it to its columns, and `max-width: 100%` caps that at the text width so
+   a wide table scrolls instead of overflowing. Excludes the frontmatter table,
+   which has its own layout. */
+.up-mode-output table:not(.mud-frontmatter-table) {
+  display: block;
+  overflow-x: auto;
+  width: fit-content;
+  max-width: 100%;
+}
+
 th, td {
   padding: 8px 12px;
   border: 1px solid var(--border-color);
   text-align: left;
   vertical-align: top;
 }
+
+/* Honor the delimiter-row alignment. The visitor emits it as the presentational
+   `align` attribute, which an author `text-align` rule (the one above) would
+   otherwise override — a presentational hint loses to any author CSS. These
+   attribute selectors outrank the bare `th, td` rule, so the column alignment
+   wins. */
+th[align="left"], td[align="left"] { text-align: left; }
+th[align="center"], td[align="center"] { text-align: center; }
+th[align="right"], td[align="right"] { text-align: right; }
 
 th {
   font-weight: 600;
@@ -1043,6 +1085,23 @@ img {
 
 /* Items just inserted fade/scale in rather than snapping. */
 .mud-capsule.is-entering { opacity: 0; transform: scale(0.96); }
+/* -- Find highlights ------------------------------------------------------ */
+/* The search-match colors. Injected only into the live app view (see
+   HTMLTemplate.wrapUp / wrapDown, gated on !options.standalone); kept out of
+   HTML exports, which have no Find bar. Colors come from the lighting
+   variables in mud.css so they track the active theme and light/dark. */
+
+mark.mud-match {
+  background-color: var(--find-match-bg);
+  color: inherit;
+  border-radius: 2px;
+}
+
+mark.mud-match-active {
+  background-color: var(--find-match-active-bg);
+  outline: 2px solid var(--find-match-active-outline);
+  outline-offset: -1px;
+}
 /* All `@media print` overrides live here and this stylesheet is included last,
    so these rules win over the on-screen defaults set in mud-up.css,
    mud-down.css, and mud-comments.css. */
@@ -1115,12 +1174,95 @@ img {
 
   /* Down mode: don't clip code blocks. */
   .dc-scroll { overflow-x: visible; }
+
+  /* Up mode: on screen a wide content table is its own horizontal scroll box
+     (display: block, in mud-up.css); paper can't scroll, so restore normal
+     table layout and let cells wrap within the page width. */
+  .up-mode-output table:not(.mud-frontmatter-table) {
+    display: table;
+    width: 100%;
+  }
 }
 </style>
 </head>
 <body>
     <article class="up-mode-output">
 <h1 id="releases">RELEASES</h1>
+<h2 id="v400">v4.0.0</h2>
+<p>This version introduces <strong>math</strong>. Write TeX in your Markdown the same way you
+do on GitHub, and Mud typesets it.</p>
+<p><strong>Math</strong>:</p>
+<ul>
+<li>Three forms are recognized: a fenced code block tagged <code>math</code>, a
+paragraph wrapped in <code>$$…$$</code>, and GitHub’s inline <code>$`…`$</code> form.
+</li>
+<li>Math prints, exports, and previews in Quick Look like everything else.
+</li>
+</ul>
+<p><strong>Tables</strong>:</p>
+<ul>
+<li><strong>Column alignment</strong> — the <code>:---</code>, <code>:--:</code> and <code>---:</code> markers in a table’s
+delimiter row now align the column, instead of being ignored.
+</li>
+<li><strong>Wide tables scroll</strong> — a table too wide for the window gets its own
+horizontal scrollbar rather than being cut off at the window’s edge.
+</li>
+</ul>
+<p><strong>Windows</strong>:</p>
+<ul>
+<li><strong>Zoom is per window</strong> — zooming one window no longer zooms every other open
+window. Each window remembers its own Mark Up and Mark Down zoom.
+</li>
+<li><strong>Sidebar tab is per window</strong> — switching a window’s sidebar between Outline
+and Changes no longer switches every other window to match.
+</li>
+<li><strong>Size and position are per file</strong> — each file keeps its own remembered
+window frame, so closing one window no longer overwrites the size and
+position of another, or of a file you reopen later.
+</li>
+</ul>
+<p><strong>Other improvements</strong>:</p>
+<ul>
+<li><strong>Bare links</strong> — a URL, a <code>www.</code> host, or an email address typed in ordinary
+prose now renders as a clickable link, with no need to wrap it in Markdown
+link syntax. Text inside code spans and code blocks is left alone.
+</li>
+<li>Commenting on a list item that also contains a nested list now works, instead
+of failing with “the text you commented on has changed”.
+</li>
+<li>A failed comment save now reports what actually went wrong, and a failed
+delete no longer fails in silence. Passages Mud can’t anchor a comment to
+are now refused as you select them.
+</li>
+<li>File &gt; Open Recent works while the Open dialog is showing.
+</li>
+<li>Find highlight colors follow the current theme and light/dark setting.
+</li>
+<li>Clicking a change in the sidebar now scrolls Mark Down mode to that change,
+not to a neighboring one, after an edit inside a code block.
+</li>
+<li>Control-clicking a background window’s text offers Add Comment based on that
+window’s mode, rather than the frontmost window’s.
+</li>
+<li>Two windows exporting files of the same name from different folders no longer
+overwrite each other’s output.
+</li>
+<li><code>mud --standalone</code>, <code>mud --exclude-comments</code>, and <code>mud --theme=NAME</code> now
+reach the command-line tool instead of opening the app.
+</li>
+<li>Preferences whose names contained a dot have been renamed to use hyphens
+(<code>changes.enabled</code> becomes <code>changes-enabled</code>, and so on), so that changing
+them with <code>defaults write</code> now takes effect in the running app. Existing
+settings are carried over automatically on first launch.
+</li>
+</ul>
+<p><strong>Under the hood</strong>: this release replaces the engine that reads your Markdown.
+Until now Mud ran two parsers side by side — Apple’s swift-markdown for some
+jobs, and cmark-gfm, the reference GitHub Flavored Markdown parser, for others
+— and the two didn’t always agree on where a piece of text started and stopped.
+Rendering, the outline sidebar, change tracking, and comment anchoring now all
+read one shared cmark-gfm parse of the file. Mud follows GitHub-Flavored
+Markdown more closely as a result.</p>
 <h2 id="v310">v3.1.0</h2>
 <p><a href="https://apps.josephpearson.org/mud/releases/v3.0.0.html">The v3.0.0 release</a>
 introduced a major feature: Comments! This release adds a handful of

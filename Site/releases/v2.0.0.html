@@ -123,6 +123,24 @@ article {
 }
 
 
+/* -- Find highlight variables --------------------------------------------- */
+/* Consumed by mud-find.css (live app view only). */
+
+:root {
+  --find-match-bg: #fde68a;
+  --find-match-active-bg: #f59e0b;
+  --find-match-active-outline: #d97706;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --find-match-bg: rgba(253, 230, 138, 0.3);
+    --find-match-active-bg: rgba(245, 158, 11, 0.5);
+    --find-match-active-outline: rgba(217, 119, 6, 0.7);
+  }
+}
+
+
 /* -- Syntax highlighting -------------------------------------------------- */
 
 .hljs {
@@ -545,12 +563,36 @@ table {
   border-spacing: 0;
 }
 
+/* A table too wide to fit — many columns, or a cell that can't wrap — would
+   otherwise be clipped by `.up-mode-output { overflow-x: hidden }`. Make each
+   content table its own horizontal scroll box so the overflow stays reachable
+   without scrolling the whole document. `display: block` turns the table into
+   a scroll container; `width: fit-content` (overriding the `width: 100%` above)
+   sizes it to its columns, and `max-width: 100%` caps that at the text width so
+   a wide table scrolls instead of overflowing. Excludes the frontmatter table,
+   which has its own layout. */
+.up-mode-output table:not(.mud-frontmatter-table) {
+  display: block;
+  overflow-x: auto;
+  width: fit-content;
+  max-width: 100%;
+}
+
 th, td {
   padding: 8px 12px;
   border: 1px solid var(--border-color);
   text-align: left;
   vertical-align: top;
 }
+
+/* Honor the delimiter-row alignment. The visitor emits it as the presentational
+   `align` attribute, which an author `text-align` rule (the one above) would
+   otherwise override — a presentational hint loses to any author CSS. These
+   attribute selectors outrank the bare `th, td` rule, so the column alignment
+   wins. */
+th[align="left"], td[align="left"] { text-align: left; }
+th[align="center"], td[align="center"] { text-align: center; }
+th[align="right"], td[align="right"] { text-align: right; }
 
 th {
   font-weight: 600;
@@ -1043,6 +1085,23 @@ img {
 
 /* Items just inserted fade/scale in rather than snapping. */
 .mud-capsule.is-entering { opacity: 0; transform: scale(0.96); }
+/* -- Find highlights ------------------------------------------------------ */
+/* The search-match colors. Injected only into the live app view (see
+   HTMLTemplate.wrapUp / wrapDown, gated on !options.standalone); kept out of
+   HTML exports, which have no Find bar. Colors come from the lighting
+   variables in mud.css so they track the active theme and light/dark. */
+
+mark.mud-match {
+  background-color: var(--find-match-bg);
+  color: inherit;
+  border-radius: 2px;
+}
+
+mark.mud-match-active {
+  background-color: var(--find-match-active-bg);
+  outline: 2px solid var(--find-match-active-outline);
+  outline-offset: -1px;
+}
 /* All `@media print` overrides live here and this stylesheet is included last,
    so these rules win over the on-screen defaults set in mud-up.css,
    mud-down.css, and mud-comments.css. */
@@ -1115,6 +1174,14 @@ img {
 
   /* Down mode: don't clip code blocks. */
   .dc-scroll { overflow-x: visible; }
+
+  /* Up mode: on screen a wide content table is its own horizontal scroll box
+     (display: block, in mud-up.css); paper can't scroll, so restore normal
+     table layout and let cells wrap within the page width. */
+  .up-mode-output table:not(.mud-frontmatter-table) {
+    display: table;
+    width: 100%;
+  }
 }
 </style>
 </head>

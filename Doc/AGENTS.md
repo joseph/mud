@@ -325,7 +325,13 @@ MVP plan.
   `MudCore.exportDocument` (images inlined as data URIs). It is the one export
   path that passes `commentsColumn: false`: a preview pane is not the reader's
   to widen or toggle, so comments always render as the bottom Comments section
-  with visible `💬` markers, never the column, at any pane size.
+  with visible `💬` markers, never the column, at any pane size. For the same
+  reason it overrides the `zoomLevel` the shared snapshot mapping supplies
+  rather than inheriting the app's Up-mode zoom: a preview renders at 100%
+  above `Layout.compactBreakpoint` and 80% at or below it, measured on the
+  pane's width in points and re-applied on resize (`lockZoom`). It also sets
+  `is-zoom-locked`, which stands the Tight tier's 14px root font-size down in
+  `mud-narrow.css` so the two shrinks don't compound.
 - `Info.plist` — Quick Look preview extension point; principal class
   `MudPreviewProvider`; supports `net.daringfireball.markdown`.
 - `QuickLook.entitlements` / `QuickLookDirect.entitlements` — Sandboxed; MAS
@@ -406,7 +412,11 @@ MVP plan.
   goes on anyway and the page scrolls to the bottom Comments section instead
   (`WebCommand.scrollToComments`, which takes the clicked comment's label when
   there is one; `comments.scrollToSection` sets the class itself so the scroll
-  never measures a hidden section).
+  never measures a hidden section). The Tight tier's one type-scale rule
+  (`html:not(.is-zoom-locked)`, 14px) is the only rule in the file that a
+  document can opt out of: a Quick Look preview is already rendered at 80%
+  below the Compact breakpoint, so shrinking the root as well would land at
+  11.2px. Its geometry rules still apply there.
 - `mud-print.css` — Print styles: every `@media print` rule, gathered out of
   the mode and comments stylesheets. Included last in both Up and Down
   documents so its rules win over the on-screen defaults.

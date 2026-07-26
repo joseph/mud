@@ -136,7 +136,15 @@
 
 @media screen and (max-width: 420px) {
 
-  html {
+  /* Quick Look locks the document zoom below the Compact breakpoint
+     (PreviewProvider.zoom(paneWidth:)), which already buys this tier's line
+     length back: 16px at 80% reads as 12.8px, and a 350pt pane fits roughly
+     50 characters a line — more than the 40 this step was written for. Taking
+     14px on top of that lands at 11.2px, which is too small to read. The
+     `is-zoom-locked` class marks a document whose zoom the host set on the
+     reader's behalf, so only an unscaled one takes the step; everything else
+     in this tier is geometry and applies either way. */
+  html:not(.is-zoom-locked) {
     font-size: 14px;
   }
 

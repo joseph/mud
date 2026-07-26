@@ -235,9 +235,19 @@ enum CommentSerialization {
         withSeconds.string(from: date)
     }
 
+    /// The same wall clock as `formatTimestamp` in the form an HTML
+    /// `<time datetime="…">` takes: `YYYY-MM-DDTHH:MM:SS`. Deliberately
+    /// zone-less. A comment's on-disk stamp is a bare local wall clock, so a
+    /// *floating* date-time is its honest HTML rendering: it says the same thing
+    /// the source does and reads the same on every machine.
+    static func isoTimestamp(_ date: Date) -> String {
+        isoWithSeconds.string(from: date)
+    }
+
     private static let withSeconds = makeFormatter("yyyy-MM-dd HH:mm:ss")
     private static let withoutSeconds = makeFormatter("yyyy-MM-dd HH:mm")
     private static let dateOnly = makeFormatter("yyyy-MM-dd")
+    private static let isoWithSeconds = makeFormatter("yyyy-MM-dd'T'HH:mm:ss")
 
     private static func makeFormatter(_ format: String) -> DateFormatter {
         let formatter = DateFormatter()

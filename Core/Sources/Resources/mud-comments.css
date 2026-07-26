@@ -48,17 +48,69 @@
   }
 }
 
-/* The bottom Comments section (every export; `is-print-only` in the live app). */
-.comments {
-  margin-top: 2em;
-  padding-top: 1em;
+/* The bottom Comments section (every export; `is-print-only` in the live app).
+   It renders as a `<footer>` outside the article, as its next sibling, so it
+   carries the Up-mode page box itself rather than inheriting it: the same
+   centering and readable-column width, and the side inset and trailing
+   clearance mud-up.css hands the article through --up-page-inset and
+   --up-page-clearance. Both boxes carry that clearance — the article's marks
+   the end of the document, the footer's clears the floating bars. No
+   background of its own, so the comments sit on the body's --body-bg, half a
+   shade off the article: commentary beside the page rather than more page. Its
+   rule spans that whole box, as a page-level divider should, rather than the
+   article's text width.
+
+   The bare `.comments` rules that follow are shared with the comment-thread
+   popover document, which wraps the same markup in a plain div. */
+footer.comments {
+  box-sizing: border-box;
+  overflow-x: hidden;
   border-top: 1px solid var(--border-color);
+  margin: 0 auto;
+  padding: 1rem var(--up-page-inset) var(--up-page-clearance);
+}
+
+.is-readable-column footer.comments {
+  max-width: 800px;
+}
+
+footer.comments .mud-comment-attribution {
+  color: var(--heading-color);
+  font-weight: 500;
+  margin: 0.75rem 0 0.25rem;
+}
+
+footer.comments .mud-comment-attribution:before {
+  content: '💬 ';
+  margin-left: -0.2rem;
+  margin-right: 0.2rem;
+}
+
+footer.comments .mud-comment-time {
+  font-weight: normal;
+  opacity: 0.67;
+}
+
+footer.comments .mud-comment-time:before {
+  content: ' @ ';
+  opacity: 0.5;
+}
+
+footer.comments .mud-comment-time:after {
+  content: ': ';
+  opacity: 0.5;
+}
+
+.comments {
   font-size: 0.9em;
 }
 
 .comments h2 {
-  font-size: 1.1em;
-  margin: 0 0 0.5em;
+  font-size: 80%;
+  margin: 0 0 1.25rem;
+  border-width: 0;
+  font-weight: 500;
+  text-transform: uppercase;
 }
 
 .comments ol {
@@ -66,7 +118,7 @@
 }
 
 .comments li {
-  margin-bottom: 1em;
+  margin-bottom: 1.5em;
 }
 
 .comments li:target {
@@ -79,10 +131,6 @@
   border-left: 3px solid var(--border-color);
   font-style: italic;
   color: var(--blockquote-color);
-}
-
-.mud-comment-message {
-  margin: 0.4em 0;
 }
 
 /* On screen the column stands in for the bottom section; print shows the
@@ -110,8 +158,15 @@
    layout (the column reads its position to place a quote-less comment's
    capsule). Scoped to `@media screen` so print keeps the visible chip. The
    "Show comment markers" preference (`show-comment-markers`) opts out, letting
-   the marker fall back to its visible base styling. */
-@media screen {
+   the marker fall back to its visible base styling.
+
+   The `min-width` guard pairs with the 700px Compact tier in mud-narrow.css:
+   below it the column stands down and the markers are the only thing left
+   pointing at a comment, so they must be visible. Guarding here rather than
+   undoing there keeps this rule the single source of the marker's geometry.
+   (The .02px offset closes the sub-pixel gap a fractional viewport width —
+   browser zoom on an exported document — would otherwise fall into.) */
+@media screen and (min-width: 700.02px) {
   .comments-column:not(.show-comment-markers) .mud-comment-marker {
     position: absolute;
     width: 1px;
@@ -130,8 +185,12 @@
    the column (below) and shows the bottom Comments section instead, so the
    document must fill the page with no reserved gutter — hence the whole block is
    scoped to `@media screen`. (Reserving the gutter in print left a blank strip
-   down the right of every page.) */
-@media screen {
+   down the right of every page.)
+
+   The `min-width` guard pairs with the 700px Compact tier in mud-narrow.css:
+   below it the column plus its margins would leave the document nothing, so
+   the gutter is never reserved and the bottom Comments section takes over. */
+@media screen and (min-width: 700.02px) {
   /* With the column toggled on, reserve the right gutter. The body is the
      scroll and positioning container; capsules are absolutely placed within it,
      so the column scrolls with the document. */
@@ -334,7 +393,6 @@
 /* Each message is its own bordered box. The first (the original comment) is
    shaded to mark the active thread; replies below it stay white. */
 .mud-capsule-thread .mud-comment-message {
-  margin: 0;
   padding: 9px 14px;
   border-radius: 23px;
   border: 1px solid var(--blockquote-color);
@@ -348,7 +406,7 @@
 .mud-capsule-thread .mud-comment-attribution {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
   gap: 0.5em;
   font-weight: 600;
   margin-bottom: 0.2em;
@@ -370,8 +428,8 @@
   white-space: nowrap;
 }
 
-.mud-capsule-thread .mud-comment-message p,
-.mud-capsule-thread .mud-comment-message blockquote {
+.mud-comment-message p,
+.mud-comment-message blockquote {
   margin: 0.5em 0;
 }
 

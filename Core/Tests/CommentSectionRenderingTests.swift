@@ -2,8 +2,9 @@ import Testing
 
 @testable import MudCore
 
-/// Covers MudCore emitting the bottom `<section class="comments">` for export
-/// paths and marking it `is-print-only` in `.interactive` mode.
+/// Covers MudCore emitting the bottom Comments section — a
+/// `<footer class="comments">` outside the article — for export paths, and
+/// marking it `is-print-only` in `.interactive` mode.
 @Suite("Comment section rendering")
 struct CommentSectionRenderingTests {
 
@@ -19,7 +20,7 @@ struct CommentSectionRenderingTests {
       """
     let html = MudCore.renderUpModeDocument(md, options: RenderOptions())
 
-    #expect(html.contains("<section class=\"comments\""))
+    #expect(html.contains("<footer class=\"comments\""))
     #expect(html.contains("id=\"cmt-comment-a\""))
     #expect(html.contains("mud-comment-quote"))
     #expect(html.contains("mud-comment-attribution"))
@@ -45,8 +46,20 @@ struct CommentSectionRenderingTests {
     let md = "x[^comment-a].\n\n[^comment-a]: Note.\n"
     let html = MudCore.renderUpModeDocument(md, options: RenderOptions())
 
-    #expect(html.contains("<section class=\"comments\" data-comments>"))
+    #expect(html.contains("<footer class=\"comments\" data-comments>"))
     #expect(!html.contains("comments is-print-only"))
+  }
+
+  /// The comments are commentary on the document, not part of it: the footer is
+  /// the article's next sibling, not its last child.
+  @Test func commentsFooterFollowsTheArticle() {
+    let md = "x[^comment-a].\n\n[^comment-a]: Note.\n"
+    let html = MudCore.renderUpModeDocument(md, options: RenderOptions())
+
+    let close = html.range(of: "</article>")
+    let footer = html.range(of: "<footer class=\"comments")
+    #expect(close != nil && footer != nil)
+    if let close, let footer { #expect(close.upperBound <= footer.lowerBound) }
   }
 
   @Test func threadDocumentRendersQuotationAndMessages() {
@@ -92,8 +105,12 @@ struct CommentSectionRenderingTests {
     #expect(li.contains("data-mud-label=\"comment-a\""))
     #expect(li.contains("data-mud-quotation=\"the quoted text\""))
     #expect(li.contains("data-mud-author=\"JP\""))
-    #expect(li.contains("data-mud-time=\""))
-    #expect(li.contains("data-mud-time-abs=\"2026-06-01 18:33:00\""))
+    // The time is an element, not an attribute on the message div: the
+    // `datetime` is what the column parses, the text is what a reader sees.
+    #expect(li.contains(
+      "<time class=\"mud-comment-time\" datetime=\"2026-06-01T18:33:00\">"
+      + "2026-06-01 18:33:00</time>"))
+    #expect(!li.contains("data-mud-time"))
   }
 
   /// The opening `<html …>` tag, where the `comments-column` class lands. The
@@ -190,5 +207,30 @@ struct CommentSectionRenderingTests {
     let html = MudCore.renderUpModeDocument(md, options: RenderOptions())
 
     #expect(!html.contains(readJSMarker))
+  }
+
+  @Test func exportProjectsColumnByDefault() {
+    let md = "x[^comment-a].\n\n[^comment-a]: Note.\n"
+    let html = MudCore.exportDocument(
+      md, mode: .up, options: RenderOptions(), includeComments: true)
+
+    #expect(htmlOpeningTag(html).contains("comments-column"))
+    #expect(html.contains(readJSMarker))
+  }
+
+  /// The Quick Look guarantee: with `commentsColumn: false` the document can't
+  /// project a column at any width, because neither the class the JS keys off
+  /// nor the JS itself is in it. The bottom Comments section shows instead, and
+  /// visibly — no `is-print-only`.
+  @Test func exportWithoutColumnCannotProjectOne() {
+    let md = "x[^comment-a].\n\n[^comment-a]: Note.\n"
+    let html = MudCore.exportDocument(
+      md, mode: .up, options: RenderOptions(), includeComments: true,
+      commentsColumn: false)
+
+    #expect(!htmlOpeningTag(html).contains("comments-column"))
+    #expect(!html.contains(readJSMarker))
+    #expect(html.contains("<footer class=\"comments\" data-comments>"))
+    #expect(!html.contains("comments is-print-only"))
   }
 }

@@ -1,0 +1,205 @@
+/* All width-based overrides for both modes live here, and this stylesheet is
+   included second-to-last — after mud-up.css, mud-down.css, mud-comments.css
+   and the rest, so these rules win over the base layout, and before
+   mud-print.css, so the print overrides still win over these. The same
+   arrangement mud-print.css documents for its own rules.
+
+   Two tiers:
+
+     Compact   <= 700px   a narrow app window; a roomy Quick Look pane
+     Tight     <= 420px   Finder's column-view preview pane
+
+   Both queries below are scoped to `screen`, never left as a bare width test.
+   In paged output a width test is measured against the page box, and the
+   `@page` margin in mud-print.css leaves US Letter at roughly 680 CSS px and
+   A4 at roughly 660 — an unscoped 700px breakpoint would fire on every printed
+   page and quietly shrink the output. Scoping to `screen` makes that
+   impossible, and HTMLTemplateTests keeps it that way.
+
+   The aim is to fit more into a small viewport while the page still reads as
+   Mud. The themes, the background gradient, and the heading rules and colors
+   are untouched; only geometry and the type scale tighten. */
+
+
+/* == Compact: <= 700px ===================================================== */
+
+@media screen and (max-width: 700px) {
+
+  /* -- Up mode ------------------------------------------------------------ */
+
+  /* 2em a side is a quarter of a 250px pane. The bottom still clears the
+     floating Changes / Find bars, which are a fixed ~50px tall. Rewriting the
+     page box (mud-up.css) tightens the article and the bottom Comments footer
+     together — they are siblings, so neither inherits the other's padding. */
+  :root {
+    --up-page-inset: 1.25rem;
+    --up-page-clearance: 4rem;
+  }
+
+  ul, ol {
+    padding-left: 1.5em;
+  }
+
+  pre {
+    padding: 0.75em;
+  }
+
+  blockquote {
+    padding: 0 0.75em;
+  }
+
+  th, td {
+    padding: 6px 8px;
+  }
+
+  .mud-frontmatter summary {
+    padding: 0.7em;
+  }
+
+  /* The frontmatter table sets its own cell padding at a higher specificity
+     than the `th, td` rule above, so it needs its own override. */
+  .mud-frontmatter-table th {
+    padding: 5px 0.7em;
+  }
+
+  .mud-frontmatter-table td {
+    padding: 6px 0.7em;
+  }
+
+
+  /* -- Comments: the column gives way to the bottom section --------------- */
+
+  /* Below this width the 300px column plus its 24px of margins leaves the
+     document nothing, so the column stands down and the bottom Comments
+     section — the one print shows — takes over, with the inline markers
+     restored beside their quotations. Hovering a marker still lights its
+     quotation: those listeners in mud-comments.js are registered
+     unconditionally, and the highlights are anchored either way.
+
+     Neither the reserved gutter nor the marker-hiding rule is undone here.
+     The screen-scoped blocks in mud-comments.css and mud-comments-edit.css
+     carry a matching `min-width` guard so they never apply at this width —
+     undoing them would mean restating `.mud-comment-marker`'s base geometry
+     in this file, which would go stale the moment that rule changed. Keep the
+     three files' breakpoints in step.
+
+     That leaves the column element itself, which mud-comments.js has already
+     built into the DOM, and the bottom section. The column header, the
+     capsules and the compose box all live inside the column, so they go with
+     it.
+
+     The section stands in for the column, so it answers to the same
+     `is-comments-column` toggle: Show Comments reveals it and Hide Comments
+     takes it away, exactly as they do the column at a wider size. Revealing it
+     unconditionally instead would make Hide Comments look broken here — the
+     comments would stay on screen with nothing left to switch off — and would
+     put a Comments section under a document whose reader never asked for one.
+     (Print reveals the section on its own terms, in mud-print.css, so a
+     printed page still carries the comments whatever the toggle says.) */
+  #mud-comments-column {
+    display: none;
+  }
+
+  html.is-comments-column .comments.is-print-only {
+    display: block;
+  }
+
+
+  /* -- Down mode ---------------------------------------------------------- */
+
+  .ln {
+    flex-basis: 2.75em;
+    padding-right: 0.6em;
+  }
+
+  .lc {
+    padding: 0 0.6em;
+  }
+
+  .down-lines > .dl:first-child > *,
+  .down-lines > .dc-scroll:first-child > .dl:first-child > * {
+    padding-top: 1.25rem;
+  }
+
+  .down-lines > .dl:last-child > *,
+  .down-lines > .dc-scroll:last-child > .dl:last-child > * {
+    padding-bottom: 4rem;
+  }
+}
+
+
+/* == Tight: <= 420px ======================================================= */
+
+/* Finder's column-view preview pane. Everything above still applies; this tier
+   adds the type scale, which is what actually buys the line length back —
+   roughly 40 characters a line where 16px type gave 24. */
+
+@media screen and (max-width: 420px) {
+
+  html {
+    font-size: 14px;
+  }
+
+
+  /* -- Up mode ------------------------------------------------------------ */
+
+  /* Only the inset tightens further; the Compact tier's clearance still holds
+     at this width. */
+  :root {
+    --up-page-inset: 0.9rem;
+  }
+
+  /* The rules, the colors and the h1 / h2 underlines stay — they are the Mud
+     silhouette. Only the sizes come down, so a heading wraps once rather than
+     three or four times. h1 is left out of the margin rule: the base gives it
+     `margin-top: 0` and it must keep it. */
+  h2, h3, h4, h5, h6 {
+    margin-top: 1.2em;
+  }
+
+  h1 { font-size: 1.5em; }
+  h2 { font-size: 1.3em; }
+  h3 { font-size: 1.15em; }
+
+  ul, ol {
+    padding-left: 1.25em;
+  }
+
+  .footnotes ol,
+  .comments ol {
+    padding-left: 1.25em;
+  }
+
+  pre {
+    padding: 0.6em;
+  }
+
+  th, td {
+    padding: 4px 6px;
+  }
+
+  /* A fixed 20% key column that can't wrap forces the whole table wide on a
+     long key; let it size to its content and wrap instead. */
+  .mud-frontmatter-table th {
+    width: auto;
+    white-space: normal;
+    padding: 4px 0.6em;
+  }
+
+  .mud-frontmatter-table td {
+    padding: 5px 0.6em;
+  }
+
+
+  /* -- Down mode ---------------------------------------------------------- */
+
+  .ln {
+    flex-basis: 2.25em;
+    padding-right: 0.4em;
+    font-size: 0.8em;
+  }
+
+  .lc {
+    padding: 0 0.4em;
+  }
+}

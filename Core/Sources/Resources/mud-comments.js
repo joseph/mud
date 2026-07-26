@@ -52,8 +52,10 @@
     return y;
   }
 
+  // The bottom Comments section: a `<footer>` outside the article, as its next
+  // sibling (CommentHTMLRenderer / HTMLTemplate.wrapUp).
   function section() {
-    return document.querySelector("section.comments[data-comments]");
+    return document.querySelector("footer.comments[data-comments]");
   }
 
   // Visible when the render is in column mode and the column is toggled on. In
@@ -332,12 +334,21 @@
     return c;
   }
 
+  // The message's machine-readable time: the <time> in its attribution line.
+  // Scoped to that line, which only the renderer writes — a message body is
+  // Markdown and may itself hold a raw <time>.
+  function timeElementOf(el) {
+    return el.querySelector(".mud-comment-attribution time[datetime]");
+  }
+
   // Relative within a day ("Just now", "11 hours ago"); a locale-ordered short
-  // date ("Jun 16" / "16 Jun") beyond. Falls back to the preformatted absolute
-  // string only when the epoch is missing.
-  function formatTime(ms, abs) {
-    var t = parseInt(ms, 10);
-    if (!ms || isNaN(t)) return abs || "";
+  // date ("Jun 16" / "16 Jun") beyond. `iso` is a <time datetime> value — a
+  // floating local date-time, which JS reads in the reader's own zone, matching
+  // the bare wall clock the source stores. Falls back to the element's visible
+  // text (the absolute stamp) if that won't parse.
+  function formatTime(iso, text) {
+    var t = iso ? Date.parse(iso) : NaN;
+    if (isNaN(t)) return text || "";
     var diff = Date.now() - t;
     if (diff < 0) diff = 0;
     if (diff >= 24 * 3600 * 1000) {
@@ -357,23 +368,24 @@
     var m = document.createElement("div");
     m.className = "mud-comment-message";
     var author = src.getAttribute("data-mud-author") || "";
-    var ms = src.getAttribute("data-mud-time");
-    var abs = src.getAttribute("data-mud-time-abs");
-    var time = formatTime(ms, abs);
-    if (author || time) {
+    var srcTime = timeElementOf(src);
+    if (author || srcTime) {
       var attr = document.createElement("div");
       attr.className = "mud-comment-attribution";
       var a = document.createElement("span");
       a.className = "mud-comment-author";
       a.textContent = author ? "💬 " + author : "";
-      var tm = document.createElement("span");
-      tm.className = "mud-comment-time";
-      // Keep the raw time so the relative label can be recomputed on expand.
-      if (ms) tm.setAttribute("data-mud-time", ms);
-      if (abs) tm.setAttribute("data-mud-time-abs", abs);
-      tm.textContent = time;
       attr.appendChild(a);
-      attr.appendChild(tm);
+      if (srcTime) {
+        var tm = document.createElement("time");
+        tm.className = "mud-comment-time";
+        // The stamp rides along on the projected element too, so the relative
+        // label can be recomputed on expand.
+        var iso = srcTime.getAttribute("datetime");
+        tm.setAttribute("datetime", iso);
+        tm.textContent = formatTime(iso, srcTime.textContent);
+        attr.appendChild(tm);
+      }
       m.appendChild(attr);
     }
     var body = src.querySelector(".mud-comment-body");
@@ -381,14 +393,15 @@
     return m;
   }
 
-  // Recompute each message's relative time from its stored epoch — the projected
-  // label is a snapshot, so it goes stale until the thread is reopened.
+  // Recompute each message's relative time from its own datetime — the
+  // projected label is a snapshot, so it goes stale until the thread is
+  // reopened.
   function refreshTimes(cap) {
-    var spans = cap.querySelectorAll(".mud-comment-time[data-mud-time]");
-    for (var i = 0; i < spans.length; i++) {
-      spans[i].textContent = formatTime(
-        spans[i].getAttribute("data-mud-time"),
-        spans[i].getAttribute("data-mud-time-abs"));
+    var times = cap.querySelectorAll(
+      ".mud-comment-attribution time[datetime]");
+    for (var i = 0; i < times.length; i++) {
+      times[i].textContent = formatTime(
+        times[i].getAttribute("datetime"), times[i].textContent);
     }
   }
 
@@ -748,6 +761,24 @@
     if (anchor) anchor.scrollIntoView({ block: "center", behavior: "smooth" });
   }
 
+  // Scroll the bottom Comments section into view, or with a label the comment
+  // itself. The app calls this when the window can't be made wide enough for
+  // the column: below the Compact tier mud-narrow.css hides the column and
+  // reveals this section in its place, so "show comments" still lands the
+  // reader on the comments.
+  //
+  // The section is revealed by the same class the column is, so switch it on
+  // here rather than waiting for the app's class sync — otherwise the scroll
+  // measures an element that is still `display: none` and goes nowhere. The
+  // app persists the toggle on its side, as it does for `openToComment`.
+  function scrollToSection(label) {
+    var sec = section();
+    if (!sec) return;
+    document.documentElement.classList.add("is-comments-column");
+    var item = label && sec.querySelector("#cmt-" + cssEsc(label));
+    (item || sec).scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   // Step to the previous (-1) or next (+1) comment, wrapping around the ends.
   // The step is relative to the open comment; with none open, +1 lands on the
   // first comment and -1 on the last, like the Find bar.
@@ -792,17 +823,37 @@
     revealComment(label);
   });
 
-  // Open the column (and tell Swift so it persists the per-window toggle — a
-  // later class sync would otherwise tear the column back down), then expand and
-  // scroll to the comment. With the column already open, this just activates and
-  // scrolls. In a read-only export there is no handler, so the post is skipped.
+  // A marker click asks for the column, and the column needs a window wide
+  // enough to hold it — so in the app the decision belongs to Swift, which
+  // widens the window (or asks about the sidebar) and calls back into
+  // `openToComment`, persisting the per-window toggle on the way. A read-only
+  // export has no app to ask and no window to widen, so it decides for itself:
+  // the column if this viewport can show one, the bottom Comments section
+  // otherwise — which is what mud-narrow.css puts in the column's place.
   function revealComment(label) {
-    document.documentElement.classList.add("is-comments-column");
-    syncVisible();        // builds the column on an off→on flip
     var handlers = window.webkit && window.webkit.messageHandlers;
     if (handlers && handlers.mudRevealColumn) {
-      handlers.mudRevealColumn.postMessage(true);
+      handlers.mudRevealColumn.postMessage(label);
+      return;
     }
+    if (columnFits()) openToComment(label);
+    else scrollToSection(label);
+  }
+
+  // Whether this viewport is wide enough to show a column at all — read off the
+  // column's own width rather than restating the breakpoint, since below the
+  // Compact tier of mud-narrow.css it is `display: none`. Only the export path
+  // asks: in the app the window has room by the time `openToComment` is called,
+  // and the page's own view of the new width can lag the resize.
+  function columnFits() {
+    return !!ensureColumn().offsetWidth;
+  }
+
+  // Open the column, then expand and scroll to the comment. With the column
+  // already open, this just activates and scrolls.
+  function openToComment(label) {
+    document.documentElement.classList.add("is-comments-column");
+    syncVisible();        // builds the column on an off→on flip
     if (capsules[label]) {
       activate(label);
       scrollToComment(label);
@@ -976,7 +1027,8 @@
 
   // Replace the hidden section's items with the freshly rendered `<li>`s (the
   // single source the capsules project from), creating or removing the section
-  // as the comment count crosses zero.
+  // as the comment count crosses zero. A created one goes where the renderer
+  // puts it: after the article, not inside it.
   function rebuildSection(list) {
     var sec = section();
     if (!list.length) {
@@ -984,11 +1036,11 @@
       return;
     }
     if (!sec) {
-      sec = document.createElement("section");
+      sec = document.createElement("footer");
       sec.className = "comments is-print-only";
       sec.setAttribute("data-comments", "");
       sec.innerHTML = "<h2>Comments</h2>\n<ol></ol>";
-      container.appendChild(sec);
+      container.parentNode.insertBefore(sec, container.nextSibling);
     }
     var ol = sec.querySelector("ol");
     if (ol) ol.innerHTML = list.map(function (c) { return c.html || ""; }).join("");
@@ -1020,6 +1072,12 @@
     // Step to the previous (-1) or next (+1) comment, wrapping at the ends.
     navigate: navigate,
     isEnabled: enabled,
+    // Open the column to one comment. Called by the app after a marker click,
+    // once it has made room for the column (`CommentColumnFit`).
+    openToComment: openToComment,
+    // Fallback for a window too narrow to fit the column at all: the bottom
+    // Comments section, or with a label that comment within it.
+    scrollToSection: scrollToSection,
     activeLabel: function () { return activeLabel; },
     capsuleFor: function (label) { return capsules[label]; },
     section: section,

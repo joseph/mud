@@ -58,10 +58,12 @@ struct DocumentContentView: View {
             onColumnWidthChange: { width in
                 appState.commentColumnWidth = width
             },
-            onRevealColumn: {
-                // A marker click opened the column in JS; persist the per-window
-                // toggle so the next class sync keeps it up.
-                state.commentsColumnVisible = true
+            onRevealColumn: { label in
+                // A marker click wants the column. The window controller owns
+                // that: it makes room first (widening the window if need be),
+                // persists the per-window toggle, and tells the page which
+                // comment to open — or falls back to the bottom section.
+                state.windowController?.revealComment(label)
             },
             onSearchResult: { info in
                 findState.matchInfo = info

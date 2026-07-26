@@ -127,12 +127,18 @@ public enum MudCore {
     // MARK: - String convenience API
 
     /// Everything one Up-mode render of a Markdown source produces: the HTML
-    /// body (with the bottom footnotes and comments sections appended), the
-    /// processed footnotes and comments, the parsed document, and the options
-    /// after waypoint reprocessing. Both public Up-mode entry points project
-    /// from one of these.
+    /// body (with the bottom footnotes section appended), the bottom Comments
+    /// section, the processed footnotes and comments, the parsed document, and
+    /// the options after waypoint reprocessing. Both public Up-mode entry points
+    /// project from one of these.
+    ///
+    /// The Comments section is kept apart from `body` because it is emitted
+    /// **outside** the article, as its `<footer>` sibling; `body` is only what
+    /// goes inside. A fragment render, which has no article to sit outside of,
+    /// just concatenates the two.
     struct UpRenderPipeline {
         let body: String
+        let commentsSection: String
         let footnotes: [FootnoteEntry]
         let comments: [Comment]
         let parsed: ParsedMarkdown
@@ -162,23 +168,28 @@ public enum MudCore {
         body += FootnoteHTMLRenderer.section(
             result.footnotes, options: options,
             resolveImageSource: resolveImageSource)
-        body += CommentHTMLRenderer.section(
+        let commentsSection = CommentHTMLRenderer.section(
             result.comments, options: options,
             resolveImageSource: resolveImageSource)
         return UpRenderPipeline(
-            body: body, footnotes: result.footnotes,
+            body: body, commentsSection: commentsSection,
+            footnotes: result.footnotes,
             comments: result.comments, parsed: parsed, options: options)
     }
 
     /// Renders Markdown text to HTML body content, including footnote
-    /// preprocessing and the bottom footnotes section (if any).
+    /// preprocessing and the bottom footnotes and comments sections (if any).
+    /// A fragment has no article element, so the Comments footer — which a whole
+    /// document places outside it — is simply appended here.
     public static func renderUpToHTML(
         _ markdown: String,
         options: RenderOptions = .init(),
         resolveImageSource: ((_ source: String, _ baseURL: URL) -> String?)? = nil
     ) -> String {
-        renderUpPipeline(markdown, options: options,
-                         resolveImageSource: resolveImageSource).body
+        let pipeline = renderUpPipeline(
+            markdown, options: options,
+            resolveImageSource: resolveImageSource)
+        return pipeline.body + pipeline.commentsSection
     }
 
     /// Renders Markdown text to a complete HTML document with styles,
@@ -212,7 +223,9 @@ public enum MudCore {
         if options.title.isEmpty {
             options.title = pipeline.parsed.title ?? ""
         }
-        let html = HTMLTemplate.wrapUp(body: pipeline.body, options: options)
+        let html = HTMLTemplate.wrapUp(
+            body: pipeline.body, footer: pipeline.commentsSection,
+            options: options)
 
         var popovers: [RenderedFootnote] = []
         if options.footnoteMode == .popover {
@@ -234,14 +247,24 @@ public enum MudCore {
     /// recipe behind every export path: Open In Browser, the Open In editor
     /// HTML handoff, the `mud` CLI's standalone output, and Quick Look. It
     /// forces `standalone` on, drops any change-tracking waypoint, strips every
-    /// comment when `includeComments` is false, and — for an Up-mode document
-    /// that keeps its comments — projects the read-only Comments column and
-    /// inlines local images as data URIs (`ImageDataURI`).
+    /// comment when `includeComments` is false, and — for an Up-mode document —
+    /// inlines local images as data URIs (`ImageDataURI`) and projects the
+    /// read-only Comments column over a source that has comments.
+    ///
+    /// `commentsColumn: false` pins the export to the bottom Comments section
+    /// instead, at every width. Quick Look passes it: a preview is a pane the
+    /// reader can't widen and can't toggle, so a column that only fits above the
+    /// Compact tier is the wrong presentation there whatever the pane's size.
+    /// This is a stronger guarantee than hiding the column in CSS — without
+    /// `.interactive` the document carries neither the `comments-column` class
+    /// nor the column script (`HTMLTemplate.wrapUp`), so there is nothing to
+    /// project and nothing to hide.
     public static func exportDocument(
         _ markdown: String,
         mode: Mode,
         options: RenderOptions,
-        includeComments: Bool
+        includeComments: Bool,
+        commentsColumn: Bool = true
     ) -> String {
         var options = options
         options.standalone = true
@@ -253,7 +276,9 @@ public enum MudCore {
         case .down:
             return renderDownModeDocument(source, options: options)
         case .up:
-            options = showingReadOnlyComments(options, ifPresentIn: source)
+            if commentsColumn {
+                options = showingReadOnlyComments(options, ifPresentIn: source)
+            }
             return renderUpModeDocument(
                 source, options: options,
                 resolveImageSource: { source, baseURL in

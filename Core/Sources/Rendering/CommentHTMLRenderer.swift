@@ -1,17 +1,20 @@
 import Foundation
 
-/// Emits comment HTML: the bottom `<section class="comments">`, the single
-/// `<li>` item the live no-reload sync slots in, and the self-contained
-/// thread document for the editor popover. Moved out of the `MudCore`
-/// facade, which keeps only dispatch.
+/// Emits comment HTML: the bottom Comments section, the single `<li>` item the
+/// live no-reload sync slots in, and the self-contained thread document for the
+/// editor popover. Moved out of the `MudCore` facade, which keeps only
+/// dispatch.
 enum CommentHTMLRenderer {
-    /// The bottom `<section class="comments">`, emitted after any footnotes
-    /// section. Each comment renders its quotation (if any) and its thread of
-    /// messages — attribution plus body Markdown — with a back-reference to the
-    /// marker. Given `is-print-only` in `.interactive` mode (hidden on screen,
-    /// shown under `@media print`). Returns an empty string when there are no
-    /// comments. Mud renders the thread from the parsed `Comment` model with its
-    /// own markup, so styling never depends on the on-disk form.
+    /// The bottom Comments section, emitted as a `<footer class="comments">`
+    /// **outside** the article — commentary on the document rather than part of
+    /// it, so it is the article's next sibling rather than its last child (see
+    /// `HTMLTemplate.wrapUp`). Each comment renders its quotation (if any) and
+    /// its thread of messages — attribution plus body Markdown — with a
+    /// back-reference to the marker. Given `is-print-only` in `.interactive`
+    /// mode (hidden on screen, shown under `@media print`). Returns an empty
+    /// string when there are no comments. Mud renders the thread from the parsed
+    /// `Comment` model with its own markup, so styling never depends on the
+    /// on-disk form.
     static func section(
         _ comments: [Comment],
         options: RenderOptions,
@@ -21,14 +24,14 @@ enum CommentHTMLRenderer {
         var bodyOptions = options
         bodyOptions.waypoint = nil
         let printOnly = options.commentMode == .interactive ? " is-print-only" : ""
-        var html = "<section class=\"comments\(printOnly)\" data-comments>\n"
+        var html = "<footer class=\"comments\(printOnly)\" data-comments>\n"
         html += "<h2>Comments</h2>\n<ol>\n"
         for comment in comments {
             html += listItem(
                 comment, options: bodyOptions,
                 resolveImageSource: resolveImageSource)
         }
-        html += "</ol>\n</section>"
+        html += "</ol>\n</footer>"
         return html
     }
 
@@ -110,10 +113,11 @@ enum CommentHTMLRenderer {
     }
 
     /// The opening `<div class="mud-comment-message">` tag, carrying the
-    /// message's author and time as machine-readable `data-mud-*` attributes —
-    /// epoch milliseconds plus the preformatted absolute string — so the column
-    /// can show "💬 author" and a relative time without re-parsing the visible
-    /// attribution line.
+    /// message's author as a machine-readable `data-mud-author` so the column
+    /// can show "💬 author" without re-parsing the visible attribution line.
+    /// There is no matching time attribute: HTML has an element that means
+    /// "this text is a time", and `formatAttribution` uses it, so the column
+    /// reads the attribution's `<time datetime>` instead.
     ///
     /// In interactive mode the tag also carries `data-mud-body`: the message's
     /// **raw** Markdown source, so the write-side Edit action can fill the
@@ -126,13 +130,6 @@ enum CommentHTMLRenderer {
         if let author = message.author, !author.isEmpty {
             attrs += " data-mud-author=\"\(HTMLEscaping.escape(author))\""
         }
-        if let created = message.created {
-            let ms = Int((created.timeIntervalSince1970 * 1000).rounded())
-            attrs += " data-mud-time=\"\(ms)\""
-            attrs += " data-mud-time-abs=\""
-            attrs += HTMLEscaping.escape(CommentSerialization.formatTimestamp(created))
-            attrs += "\""
-        }
         if mode == .interactive {
             attrs += " data-mud-body=\"\(HTMLEscaping.escape(message.body))\""
         }
@@ -141,16 +138,26 @@ enum CommentHTMLRenderer {
 
     /// The `author · timestamp` attribution line for a message, HTML-escaped;
     /// empty when the message carries neither.
+    ///
+    /// The timestamp is a `<time>` carrying the wall clock twice: as the
+    /// `datetime` attribute for machines and as the visible text for readers.
+    /// That element is the message's one machine-readable time — the Comments
+    /// column reads its `datetime` rather than a parallel `data-mud-*`
+    /// attribute on the message div.
     private static func formatAttribution(_ message: CommentMessage) -> String {
         var parts: [String] = []
         if let author = message.author, !author.isEmpty {
             parts.append(HTMLEscaping.escape(author))
         }
         if let created = message.created {
-            parts.append(HTMLEscaping.escape(
-                CommentSerialization.formatTimestamp(created)))
+            let iso = CommentSerialization.isoTimestamp(created)
+            let stamp = HTMLEscaping.escape(
+                CommentSerialization.formatTimestamp(created))
+            parts.append(
+                "<time class=\"mud-comment-time\" datetime=\"\(iso)\">"
+                + "\(stamp)</time>")
         }
-        return parts.joined(separator: " \u{00B7} ")
+        return parts.joined(separator: " ")
     }
 }
 

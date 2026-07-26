@@ -22,7 +22,9 @@
 
   /* On screen the content padding reserves room for the floating bars and sits
      inside the window; on paper there are no bars and the printer adds its own
-     page margin, so trim the padding to a thin frame. */
+     page margin, so trim the box to a thin frame. That includes the trailing
+     clearance (mud-up.css), which on paper would be 6em of blank before the
+     Comments footer, or at the end of the run. */
   .up-mode-output {
     padding: 0;
   }
@@ -60,8 +62,13 @@
 
 
   /* Up mode: comments. The bottom Comments section is hidden on screen in
-     favor of the column, but prints in place of the column. */
+     favor of the column, but prints in place of the column. Being the
+     article's sibling rather than its child, the footer carries its own page
+     box (mud-comments.css) — so it needs the same trim the article gets above,
+     keeping only the gap under its rule. */
   .comments.is-print-only { display: block; }
+
+  footer.comments { padding: 1rem 0 0; }
 
   /* The comments column is an on-screen layout only; print shows the bottom
      Comments section instead (above). */
@@ -74,7 +81,7 @@
   /* Up mode: on screen a wide content table is its own horizontal scroll box
      (display: block, in mud-up.css); paper can't scroll, so restore normal
      table layout and let cells wrap within the page width. */
-  .up-mode-output table:not(.mud-frontmatter-table) {
+  :is(.up-mode-output, footer.comments) table:not(.mud-frontmatter-table) {
     display: table;
     width: 100%;
   }

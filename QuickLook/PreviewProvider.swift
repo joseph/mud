@@ -54,11 +54,15 @@ final class MudPreviewProvider: NSViewController, QLPreviewingController,
 
         let options = RenderOptions(snapshot: snapshot, baseURL: url)
 
-        // The shared export recipe: standalone wrapping, images inlined as
-        // data URIs, and — when the file has comments — the same read-only
-        // Comments column an exported document shows.
+        // The shared export recipe: standalone wrapping and images inlined as
+        // data URIs. Comments render as the bottom Comments section, never the
+        // column: a preview pane is not the reader's to widen or toggle, and a
+        // column that needs 700px would otherwise appear or vanish with the
+        // Finder window. `commentsColumn: false` keeps the column class and its
+        // script out of the document entirely.
         let html = MudCore.exportDocument(
-            source, mode: .up, options: options, includeComments: true)
+            source, mode: .up, options: options, includeComments: true,
+            commentsColumn: false)
 
         webView.loadHTMLString(html, baseURL: url.deletingLastPathComponent())
     }

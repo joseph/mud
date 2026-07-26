@@ -1,8 +1,17 @@
 /* -- Up Mode -------------------------------------------------------------- */
 
+/* The Up-mode page box. The article and the bottom Comments footer are
+   siblings — the comments sit outside the article — so they can't inherit one
+   box from the other; they read these two instead. mud-narrow.css tightens
+   both at once by rewriting them, rather than restating each box's padding. */
+:root {
+  --up-page-inset: 2em;
+  --up-page-clearance: 6em; /* space for floating bars beneath */
+}
+
 .up-mode-output {
   margin: 0 auto;
-  padding: 2em 2em 6em; /* space for floating bars beneath */
+  padding: var(--up-page-inset) var(--up-page-inset) var(--up-page-clearance);
   box-sizing: border-box;
   background: var(--bg-color);
   overflow-x: hidden;
@@ -308,7 +317,6 @@ blockquote > :last-child {
 
 .footnote-backref {
   text-decoration: none;
-  margin-left: 0.4em;
 }
 
 /* In `.popover` mode the section is hidden on screen (footnotes show in a
@@ -343,8 +351,9 @@ table {
    a scroll container; `width: fit-content` (overriding the `width: 100%` above)
    sizes it to its columns, and `max-width: 100%` caps that at the text width so
    a wide table scrolls instead of overflowing. Excludes the frontmatter table,
-   which has its own layout. */
-.up-mode-output table:not(.mud-frontmatter-table) {
+   which has its own layout. The Comments footer is named alongside the article
+   because a comment body is rendered Markdown and clips the same way. */
+:is(.up-mode-output, footer.comments) table:not(.mud-frontmatter-table) {
   display: block;
   overflow-x: auto;
   width: fit-content;

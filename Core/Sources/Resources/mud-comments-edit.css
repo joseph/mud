@@ -190,7 +190,11 @@
    classes). mud-comments-edit.js wires the drag. */
 .mud-column-resizer { display: none; }
 
-@media screen {
+/* The `min-width` guard matches the read side's gutter block in
+   mud-comments.css and the 700px Compact tier in mud-narrow.css: with the
+   column stood down there is no divider to grab, and an unguarded strip would
+   sit at a gutter edge that no longer exists. */
+@media screen and (min-width: 700.02px) {
   html.comments-column.is-comments-column .mud-column-resizer {
     display: block;
     position: fixed;

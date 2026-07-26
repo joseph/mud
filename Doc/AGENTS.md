@@ -109,6 +109,10 @@ MVP plan.
 - `CommentSubmissionHandler.swift` — Routes a page `CommentSubmission` to
   `CommentController`, resolves the compose box (`resolveCompose`), and
   presents the failure alert
+- `CommentColumnFit.swift` — Whether the Comments column fits in a window at
+  its current width, and `makeRoom` to make it fit: widen the window silently,
+  ask before collapsing the sidebar, or report back that neither is possible.
+  `remedy` is pure geometry, so the branches are testable
 - `OutlineSidebarView.swift` — Table of contents sidebar
 - `OutlineNode.swift` — Sidebar data model
 - `FindFeature.swift` — Search state and UI
@@ -277,6 +281,10 @@ MVP plan.
   balance (for diff display)
 - `Rendering/ImageDataURI.swift` — Image encoding for browser export
 - `OutlineHeading.swift` — Heading model shared between Core and App
+- `Layout.swift` — `Layout.compactBreakpoint`, the Compact tier width from
+  `mud-narrow.css`. A media query can only live in CSS, so the number is stated
+  in both places and `HTMLTemplateTests` checks they agree. The app measures
+  its content pane against it before opening a comment compose box.
 - `Comments/Comment.swift` — `Comment` / `CommentMessage` models and the
   `CommentMode` enum
 - `Comments/CommentSerialization.swift` — Read/write codec for a comment body
@@ -314,8 +322,10 @@ MVP plan.
 - `PreviewProvider.swift` — `MudPreviewProvider`, a view-based
   `QLPreviewingController` (not data-based — required for Finder's column-view
   pane to live-render) hosting a `WKWebView`. Renders self-contained HTML via
-  `MudCore.exportDocument` (images inlined as data URIs, read-only Comments
-  column for commented files).
+  `MudCore.exportDocument` (images inlined as data URIs). It is the one export
+  path that passes `commentsColumn: false`: a preview pane is not the reader's
+  to widen or toggle, so comments always render as the bottom Comments section
+  with visible `💬` markers, never the column, at any pane size.
 - `Info.plist` — Quick Look preview extension point; principal class
   `MudPreviewProvider`; supports `net.daringfireball.markdown`.
 - `QuickLook.entitlements` / `QuickLookDirect.entitlements` — Sandboxed; MAS
@@ -348,6 +358,8 @@ MVP plan.
 - `CommentControllerTests.swift` — Comment mutations on disk and the
   `anchorFailed` / `writeFailed` matrix
 - `OpenInFormatTests.swift` — The Open In `.auto` format truth table
+- `CommentColumnFitTests.swift` — `CommentColumnFit.remedy` truth table: how a
+  too-narrow window makes room (widen / hide sidebar / neither)
 - `WebViewParsingTests.swift` — `parseMatchInfo` and `commentSignature`
 - `MudJSBridgeTests.swift` — Outbound script building (escaping) and inbound
   message decoding
@@ -362,11 +374,39 @@ MVP plan.
 - `mud-comments.css` — Comments column styles (read side, bundled everywhere):
   markers, quotation highlights, the bottom Comments section, and the projected
   column (capsules, header, threads). Inlined into every Up document via
-  `wrapUp`, exports included.
+  `wrapUp`, exports included. The bottom section is a `<footer>` beside the
+  article rather than inside it, so its rules give it the Up-mode page box
+  (`--up-page-inset` / `--up-page-clearance`, from `mud-up.css`) itself. Both
+  boxes carry the trailing clearance: the article's ends the document, the
+  footer's clears the floating bars. The footer sets no background, so it sits
+  on the body's `--body-bg` rather than the article's `--bg-color`.
 - `mud-comments-edit.css` — Comments column styles (write side, app only): the
   compose box and the add / reply / edit / delete controls, plus the delete
   puff. Embedded only when `RenderOptions.commentsEditable` is set, so exports
   omit it. Mirrors the `mud-comments.js` / `mud-comments-edit.js` split.
+- `mud-narrow.css` — Narrow-viewport styles: every width-based rule for both
+  modes, gathered out of the mode and comments stylesheets. Two tiers, Compact
+  (≤ 700px, a narrow app window or a roomy Quick Look pane) and Tight (≤ 420px,
+  Finder's column-view preview pane), each scoped to
+  `@media screen and (max-width: …)` so a printed page — whose page box is
+  narrower than 700 CSS px — never trips them. Included second-to-last in both
+  Up and Down documents, after the base stylesheets it tightens and before
+  `mud-print.css`. Below the Compact tier the Comments column stands down in
+  favor of the bottom Comments section: the `@media screen` blocks in
+  `mud-comments.css` and `mud-comments-edit.css` carry a matching
+  `min-width: 700.02px` guard, so the gutter, the visually hidden markers and
+  the resize handle stop applying rather than being undone here. Standing in
+  for the column, the section answers to the same `is-comments-column` toggle,
+  so Show / Hide Comments still governs what's on screen at this width. Every
+  command that needs the column — Add Comment, Show Comments, and a marker
+  click (`mudRevealColumn`) — routes through `CommentColumnFit` first: when the
+  content pane falls short of `Layout.compactBreakpoint` the window widens
+  itself to fit the column. If it can't (already screen-wide), the one prompt
+  offers to collapse the sidebar; if that isn't possible either, the toggle
+  goes on anyway and the page scrolls to the bottom Comments section instead
+  (`WebCommand.scrollToComments`, which takes the clicked comment's label when
+  there is one; `comments.scrollToSection` sets the class itself so the scroll
+  never measures a hidden section).
 - `mud-print.css` — Print styles: every `@media print` rule, gathered out of
   the mode and comments stylesheets. Included last in both Up and Down
   documents so its rules win over the on-screen defaults.
@@ -395,7 +435,11 @@ MVP plan.
   a capsule per comment from the hidden bottom section, anchors quotation
   highlights off the hidden markers, runs the slot solver, and on `setData`
   rebuilds the section + syncs body markers + reprojects in place (no reload).
-  Uses `Mud.commentAnchor` for the leaf-block rules
+  Uses `Mud.commentAnchor` for the leaf-block rules. A marker click doesn't
+  open the column itself: it posts `mudRevealColumn` and waits for the app to
+  make room (`CommentColumnFit`) and call back into `openToComment`. An export
+  has no app to ask, so it picks between the column and the bottom section on
+  the column's own width
 - `mud-comments-edit.js` — Comments column (write side, app only): the Add
   Comment button on a commentable selection, the compose box, and the
   submit/reply/edit/delete bridge (`mudCommentSubmit`). Uses
@@ -481,11 +525,22 @@ self-contained document for the in-app `NSPopover`.
 A footnote whose label matches `^comment-[\w-]+$` is a comment. Its reference
 renders as the `[⋯]` marker (consuming no footnote number) and its definition
 parses into a quotation plus threaded messages. `RenderOptions.commentMode`
-selects the output: `.section` emits a visible bottom
-`<section class="comments">` for every export path, while `.interactive` (the
-live app) keeps that section `is-print-only` and instead draws hover-revealed
-highlights and feeds the Comments Column. The bottom comments section always
-follows any footnotes section.
+selects the output: `.section` emits a visible bottom Comments section with
+visible `💬` markers, while `.interactive` keeps that section `is-print-only`
+and instead draws hover-revealed highlights and feeds the Comments Column. The
+live app is always `.interactive`; an export is too — `exportDocument` upgrades
+a commented source through `showingReadOnlyComments` — except Quick Look, which
+passes `commentsColumn: false` and stays on `.section`. That is the strong form
+of "no column here": without `.interactive` the document carries neither the
+`comments-column` class nor the column script, so there is nothing to project
+and nothing for a media query to hide. It is emitted as a
+`<footer class="comments">` **outside** the `<article>`, as its next sibling —
+commentary on the document rather than part of it — and always follows any
+footnotes section. Being a sibling, it can't inherit the article's page box;
+`mud-up.css` publishes that box as `--up-page-inset` / `--up-page-clearance`
+and `mud-comments.css` gives `footer.comments` a matching one, so the two stay
+in step (including through `mud-narrow.css`, which tightens the box by
+rewriting those two properties).
 
 **Math** is rendered in the Up visitor by `MathRenderer` (Temml in a
 `JSContext`, server-side, no client JS). Three GFM forms are recognized: a

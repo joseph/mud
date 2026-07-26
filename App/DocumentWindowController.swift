@@ -144,9 +144,12 @@ class DocumentWindowController: NSWindowController {
         state.$mode
             .dropFirst()
             .sink { [weak self] mode in
-                self?.updateModeButton(mode)
-                self?.updateZoomLabel(for: mode)
-                self?.updateCommentButton()
+                guard let self else { return }
+                self.updateModeButton(mode)
+                self.updateZoomLabel(for: mode)
+                self.updateCommentButton(for: mode)
+                self.updateCommentsColumnButton(self.state.commentsColumnVisible,
+                                                for: mode)
             }
             .store(in: &cancellables)
 
@@ -262,8 +265,11 @@ class DocumentWindowController: NSWindowController {
     /// for a commentable selection in a writable Up-mode document. (The "Add
     /// Comment" menu item applies the same condition via
     /// `ActiveDocumentSnapshot.canAddComment`.)
-    private func updateCommentButton() {
-        commentButton?.isEnabled = state.mode == .up
+    ///
+    /// `mode` defaults to this window's current one; the `$mode` sink passes
+    /// the value it emitted, which `state.mode` doesn't hold yet (willSet).
+    private func updateCommentButton(for mode: Mode? = nil) {
+        commentButton?.isEnabled = (mode ?? state.mode) == .up
             && state.commentableSelection.value
             && !fileURL.isBundleResource
     }
@@ -279,10 +285,14 @@ class DocumentWindowController: NSWindowController {
         findButton?.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
     }
 
-    private func updateCommentsColumnButton(_ visible: Bool) {
+    /// The Comments column is an Up-mode layout, so its button — like the View
+    /// menu item — is live only in Up mode. See `updateCommentButton` on the
+    /// `mode` parameter.
+    private func updateCommentsColumnButton(_ visible: Bool, for mode: Mode? = nil) {
         let symbol = visible ? "bubble.left.and.text.bubble.right.fill" : "bubble.left.and.text.bubble.right"
         commentsColumnButton?.image = NSImage(systemSymbolName: symbol, accessibilityDescription: nil)
         commentsColumnButton?.toolTip = visible ? "Hide Comments" : "Show Comments"
+        commentsColumnButton?.isEnabled = (mode ?? state.mode) == .up
     }
 
     private func updateToggleButton(_ button: NSButton?, on: Bool) {
@@ -330,16 +340,76 @@ class DocumentWindowController: NSWindowController {
         AppState.shared.toggle(.readableColumn)
     }
 
-    /// Reveals the Comments column (per-window state, so a later class-sync keeps
-    /// it shown) and opens a compose box on the current selection.
+    /// Reveals the Comments column (per-window state, so a later class-sync
+    /// keeps it shown) and opens a compose box on the current selection.
+    ///
+    /// The one funnel for every entry point — the toolbar button, the Edit menu
+    /// item, the keyboard shortcut, and the WebView context menu all send this
+    /// selector.
     @objc func addComment(_ sender: Any?) {
+        withRoomForComments { [weak self] in self?.beginComment() }
+    }
+
+    private func beginComment() {
         state.commentsColumnVisible = true
         state.webCommands.send(.addCommentFromSelection)
     }
 
-    /// Shows or hides the Comments column for this window only.
+    /// Opens the Comments column to one comment (a marker click in the page),
+    /// making room the same way Show Comments does. The fallback names the
+    /// comment too: the click asked for that one, so a window too narrow for
+    /// the column lands on it in the bottom section rather than on the
+    /// section's top.
+    func revealComment(_ label: String) {
+        withRoomForComments(fallingBackTo: label) { [weak self] in
+            self?.state.commentsColumnVisible = true
+            self?.state.webCommands.send(.revealComment(label: label))
+        }
+    }
+
+    /// Runs `show` with the Comments column able to fit, widening the window
+    /// first if it's too narrow (see `CommentColumnFit`). When the window can't
+    /// be made wide enough, falls back to scrolling the bottom Comments section
+    /// into view — below the column's breakpoint that section is what the page
+    /// shows in the column's place, so the reader still lands on the comments.
+    /// `label`, when given, scrolls to that comment within the section.
+    ///
+    /// Either way the per-window toggle ends up on: the section answers to it
+    /// just as the column does (`mud-narrow.css`), so a fallback that only
+    /// scrolled would scroll to something still hidden — and Hide Comments
+    /// would then have nothing to turn off. The page reveals the section
+    /// itself, the same way `openToComment` opens the column, so this doesn't
+    /// depend on the class sync landing first.
+    private func withRoomForComments(fallingBackTo label: String? = nil,
+                                     _ show: @escaping () -> Void) {
+        guard let fit = CommentColumnFit(window: window, splitVC: splitVC) else {
+            show()
+            return
+        }
+        fit.makeRoom(then: show) { [weak self] in
+            guard let self else { return }
+            self.state.commentsColumnVisible = true
+            self.state.webCommands.send(.scrollToComments(label: label))
+        }
+    }
+
+    /// Shows or hides the Comments column for this window only. Showing it
+    /// makes room the same way Add Comment does; hiding it never resizes
+    /// anything, and never puts the width back — the window is the user's once
+    /// it has been widened.
     @objc func toggleCommentsColumn(_ sender: Any?) {
-        state.commentsColumnVisible.toggle()
+        guard !state.commentsColumnVisible else {
+            state.commentsColumnVisible = false
+            return
+        }
+        // The column is an Up-mode layout, and both entry points — the View
+        // menu item and the toolbar button — disable themselves in Down mode.
+        // Belt and braces, so nothing can widen a window for a column that
+        // wouldn't be drawn.
+        guard state.mode == .up else { return }
+        withRoomForComments { [weak self] in
+            self?.state.commentsColumnVisible = true
+        }
     }
 
     @objc func zoomAction(_ sender: NSSegmentedControl) {

@@ -15,7 +15,7 @@ import WebKit
 /// | `mudComposing`     | `Bool`                                          | `DocumentState.isColumnComposing`              |
 /// | `mudSelection`     | `Bool`                                          | `DocumentState.commentableSelection`           |
 /// | `mudColumnWidth`   | `Double`                                        | Persisted Comments Column width                |
-/// | `mudRevealColumn`  | `Bool` (value unused)                           | Per-window `commentsColumnVisible`             |
+/// | `mudRevealColumn`  | `String` (comment label)                        | `DocumentWindowController.revealComment`       |
 enum MudJSMessage {
     case open(URL)
     case footnoteClick(FootnoteClick)
@@ -23,7 +23,8 @@ enum MudJSMessage {
     case composing(Bool)
     case commentableSelection(Bool)
     case columnWidth(Double)
-    case revealColumn
+    /// A comment marker was clicked, naming the comment to open the column to.
+    case revealColumn(label: String)
 }
 
 /// The `mudFootnote` payload: which marker was clicked and where. The rect is
@@ -267,7 +268,8 @@ final class MudJSBridge: NSObject, WKScriptMessageHandler {
             guard let width = body as? Double else { return nil }
             return .columnWidth(width)
         case .revealColumn:
-            return .revealColumn
+            guard let label = body as? String else { return nil }
+            return .revealColumn(label: label)
         }
     }
 

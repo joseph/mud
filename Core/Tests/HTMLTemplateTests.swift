@@ -149,6 +149,43 @@ struct HTMLTemplateTests {
         #expect(!doc.contains("<script"))
     }
 
+    // MARK: - The Comments footer
+
+    /// The bottom Comments section is the article's sibling, not its last
+    /// child, so the template appends it after the closing tag.
+    @Test func commentsFooterIsPlacedAfterTheArticle() {
+        let doc = HTMLTemplate.wrapUp(
+            body: "<p>hi</p>",
+            footer: "<footer class=\"comments\" data-comments></footer>",
+            options: .init())
+        #expect(doc.contains("</article>\n<footer class=\"comments\""))
+    }
+
+    /// A comment body is rendered Markdown, so the footer can hold math or a
+    /// diagram the article doesn't — and every "document contains X" test in
+    /// the template has to see it, or the document ships without the styles or
+    /// scripts that content needs.
+    @Test func footerContentDrivesConditionalResources() {
+        // `tml-display` is the marker unique to mud-math.css.
+        let math = HTMLTemplate.wrapUp(
+            body: "<p>hi</p>",
+            footer: "<footer class=\"comments\"><math></math></footer>",
+            options: .init())
+        #expect(math.contains("tml-display"))
+        #expect(!HTMLTemplate.wrapUp(body: "<p>hi</p>", options: .init())
+            .contains("tml-display"))
+
+        var opts = RenderOptions()
+        opts.standalone = true
+        opts.extensions.insert("mermaid")
+        let mermaid = HTMLTemplate.wrapUp(
+            body: "<p>hi</p>",
+            footer: "<footer class=\"comments\"><pre><code "
+                + "class=\"language-mermaid\">graph TD</code></pre></footer>",
+            options: opts)
+        #expect(mermaid.contains("cdn.jsdelivr.net"))
+    }
+
     // MARK: - JS resources
 
     @Test func mudJSNotEmpty() {
@@ -193,6 +230,86 @@ struct HTMLTemplateTests {
         // mud-find.css, so mud.js no longer carries a `mark.mud-match` selector.
         // It still names the bare class to apply it to matches at runtime.
         #expect(!HTMLTemplate.mudJS.contains("mark.mud-match"))
+    }
+
+    // MARK: - Narrow-viewport styles
+
+    /// The narrow tiers are unconditional — unlike the Find styles, an export
+    /// gets them too. Quick Look renders through `exportDocument`, and a
+    /// Finder column-view pane is the narrowest viewport Mud draws into.
+    @Test func narrowStylesInEveryDocument() {
+        var export = RenderOptions()
+        export.standalone = true
+
+        for doc in [
+            HTMLTemplate.wrapUp(body: "", options: .init()),
+            HTMLTemplate.wrapUp(body: "", options: export),
+            HTMLTemplate.wrapDown(bodyHTML: "", options: .init()),
+            HTMLTemplate.wrapDown(bodyHTML: "", options: export),
+        ] {
+            #expect(doc.contains("@media screen and (max-width: 700px)"))
+            #expect(doc.contains("@media screen and (max-width: 420px)"))
+        }
+    }
+
+    /// The whole design rests on this cascade order: the narrow tiers tighten
+    /// the base layout, and the print overrides then win over both. Same-
+    /// specificity selectors appear in all three, so document order decides.
+    @Test func narrowStylesPrecedePrintStyles() {
+        let doc = HTMLTemplate.wrapUp(body: "", options: .init())
+        // The braces matter: the bare at-rule names also appear in the
+        // stylesheets' prose comments.
+        let narrow = doc.range(of: "@media screen and (max-width: 700px) {")
+        let paged = doc.range(of: "@media print {")
+        #expect(narrow != nil)
+        #expect(paged != nil)
+        if let narrow, let paged {
+            #expect(narrow.lowerBound < paged.lowerBound)
+        }
+    }
+
+    /// Every narrow query must be screen-scoped. A width test in paged output
+    /// is measured against the page box, and the `@page` margin in
+    /// mud-print.css leaves US Letter near 680 CSS px and A4 near 660 — an
+    /// unscoped `(max-width: 700px)` would fire on every printed page.
+    ///
+    /// The stylesheet holds exactly the two tiers and nothing else, so the
+    /// check is total: every query in the file is accounted for.
+    @Test func narrowStylesAreScreenScoped() {
+        let stylesheet = HTMLTemplate.loadResource("mud-narrow", type: "css") ?? ""
+        #expect(!stylesheet.isEmpty)
+
+        let queries = stylesheet.components(separatedBy: "@media").dropFirst()
+        #expect(queries.count == 2)
+        for query in queries {
+            #expect(query.hasPrefix(" screen and (max-width: "))
+        }
+    }
+
+    /// `Layout.compactBreakpoint` is what the app measures its content pane
+    /// against before offering to write a comment. A media query can only be
+    /// written in CSS, so the number is stated twice; if they drift, the app
+    /// opens a compose box into a column the stylesheet has already hidden.
+    @Test func compactBreakpointMatchesTheStylesheet() {
+        let stylesheet = HTMLTemplate.loadResource("mud-narrow", type: "css") ?? ""
+        let px = Int(Layout.compactBreakpoint)
+        #expect(stylesheet.contains("@media screen and (max-width: \(px)px) {"))
+
+        // And the guards the column's own stylesheets pair with it.
+        for name in ["mud-comments", "mud-comments-edit"] {
+            let css = HTMLTemplate.loadResource(name, type: "css") ?? ""
+            #expect(css.contains("@media screen and (min-width: \(px).02px) {"))
+        }
+    }
+
+    /// Every screen-scoped block in the column's own stylesheets must carry the
+    /// `min-width` guard — an unguarded one would reserve the gutter below the
+    /// Compact tier, leaving a blank strip with no column in it.
+    @Test func noCommentColumnBlockIsLeftUnguarded() {
+        for name in ["mud-comments", "mud-comments-edit"] {
+            let css = HTMLTemplate.loadResource(name, type: "css") ?? ""
+            #expect(!css.contains("@media screen {"))
+        }
     }
 
     // MARK: - Render extensions

@@ -4,9 +4,12 @@
 (function () {
   "use strict";
 
-  function CONTAINER() {
+  // What Find searches. Up mode is two roots, not one: the bottom Comments
+  // section is a `<footer>` beside the article rather than inside it, and its
+  // text is still part of the document a reader searches.
+  function CONTAINERS() {
     return document.querySelector(".up-mode-output")
-        ? ".up-mode-output"
+        ? ".up-mode-output, footer.comments"
         : ".down-mode-output";
   }
   var MATCH_CLASS = "mud-match";
@@ -17,14 +20,14 @@
 
   // -- Highlight helpers ---------------------------------------------------
 
-  // Walk all text nodes inside the container, split at case-insensitive
+  // Walk all text nodes inside the search roots, split at case-insensitive
   // matches, and wrap each match in <mark class="mud-match">.
   function highlightAll(text) {
     clearHighlights();
     if (!text) return;
 
-    var container = document.querySelector(CONTAINER());
-    if (!container) return;
+    var roots = document.querySelectorAll(CONTAINERS());
+    if (!roots.length) return;
 
     var pattern = new RegExp(
       text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"),
@@ -32,14 +35,17 @@
     );
 
     // Collect text nodes first (mutating the DOM while walking is unsafe).
-    var walker = document.createTreeWalker(
-      container,
-      NodeFilter.SHOW_TEXT,
-      null
-    );
+    // Roots come back in document order, so the marks do too.
     var nodes = [];
     var node;
-    while ((node = walker.nextNode())) nodes.push(node);
+    for (var r = 0; r < roots.length; r++) {
+      var walker = document.createTreeWalker(
+        roots[r],
+        NodeFilter.SHOW_TEXT,
+        null
+      );
+      while ((node = walker.nextNode())) nodes.push(node);
+    }
 
     for (var i = 0; i < nodes.length; i++) {
       var textNode = nodes[i];
@@ -77,9 +83,12 @@
       parent.removeChild(textNode);
     }
 
-    marks = Array.prototype.slice.call(
-      container.querySelectorAll("mark." + MATCH_CLASS)
-    );
+    marks = [];
+    for (var k = 0; k < roots.length; k++) {
+      marks = marks.concat(Array.prototype.slice.call(
+        roots[k].querySelectorAll("mark." + MATCH_CLASS)
+      ));
+    }
   }
 
   function activateMatch(n) {

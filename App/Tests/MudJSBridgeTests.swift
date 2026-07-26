@@ -161,8 +161,12 @@ import Testing
             Issue.record("expected .columnWidth(320)"); return
         }
         #expect(bridge.decode("wide", for: .columnWidth) == nil)
-        guard case .revealColumn? = bridge.decode(true, for: .revealColumn) else {
-            Issue.record("expected .revealColumn"); return
+        guard case .revealColumn(label: "comment-a")? =
+            bridge.decode("comment-a", for: .revealColumn) else {
+            Issue.record("expected .revealColumn(comment-a)"); return
         }
+        // The label is what makes the message actionable — without one there is
+        // no comment to open the column to, so the message drops.
+        #expect(bridge.decode(true, for: .revealColumn) == nil)
     }
 }

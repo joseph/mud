@@ -2,8 +2,9 @@ import Foundation
 
 /// Where comments go in the rendered output (parallel to `FootnoteMode`).
 ///
-/// - `.section`: emit a visible bottom `<section class="comments">` with
-///   visible quote markers (Quick Look, and any static render).
+/// - `.section`: emit a visible bottom Comments section — a
+///   `<footer class="comments">` following the article — with visible quote
+///   markers (Quick Look, and any static render).
 /// - `.interactive`: column mode. The bottom section is still emitted as the
 ///   single source of comment HTML, but marked `is-print-only` (hidden on
 ///   screen, shown under `@media print`); the `comments-column` class is set so

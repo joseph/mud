@@ -3,7 +3,22 @@ import Foundation
 /// Generates complete HTML documents with embedded styles and scripts.
 public enum HTMLTemplate {
     /// Wraps body HTML in an Up-mode document.
-    static func wrapUp(body: String, options: RenderOptions) -> String {
+    ///
+    /// `footer` is the bottom Comments section (empty when the document has no
+    /// comments). It is placed after `</article>`, as the article's next
+    /// sibling: the comments are commentary *on* the document, not part of it.
+    /// Since it no longer inherits the article's page box, `mud-comments.css`
+    /// gives `footer.comments` a matching one.
+    static func wrapUp(
+        body: String, footer: String = "", options: RenderOptions
+    ) -> String {
+        // Every "does this document contain X" test below scans the footer too:
+        // a comment body is rendered Markdown, so it can carry math or a
+        // diagram just as the article can. Testing the two separately rather
+        // than joining them keeps a large body from being copied per render.
+        func renders(anyOf needles: String...) -> Bool {
+            needles.contains { body.contains($0) || footer.contains($0) }
+        }
         var doc = HTMLDocument(options: options)
         doc.styles = [themeCSS(for: options.theme), sharedCSS, upCSS, commentsCSS]
         // The write-side comment styles ride along only in the app's editable
@@ -17,16 +32,18 @@ public enum HTMLTemplate {
         // unavailable and the block falls back to escaped TeX), or a
         // `temml-error` span from invalid TeX. A math-free
         // document carries none of this.
-        if body.contains("<math") || body.contains("mud-math-block")
-            || body.contains("temml-error") {
+        if renders(anyOf: "<math", "mud-math-block", "temml-error") {
             doc.styles.append(mathCSS)
         }
-        // Print overrides come last so they win over the on-screen defaults.
+        // Narrow-viewport overrides come after every base stylesheet they
+        // tighten, and before the print overrides, which win over both.
+        doc.styles.append(narrowCSS)
         doc.styles.append(printCSS)
         doc.cspImgSrc = options.blockRemoteContent
             ? ["mud-asset:", "data:"]
             : ["mud-asset:", "data:", "https:"]
         doc.bodyContent = "    <article class=\"up-mode-output\">\n\(body)\n    </article>"
+        if !footer.isEmpty { doc.bodyContent += "\n\(footer)" }
 
         // Column mode hides the bottom section and the quote markers on screen
         // and draws the Comments column instead; the JS keys off this class to
@@ -47,7 +64,7 @@ public enum HTMLTemplate {
         if options.standalone {
             for name in options.extensions {
                 guard let ext = RenderExtension.registry[name],
-                      body.contains(ext.marker) else { continue }
+                      renders(anyOf: ext.marker) else { continue }
                 doc.cspScriptSrc.append(contentsOf: ext.cspSources)
                 doc.bodyScripts.append(contentsOf: ext.embeddedScripts)
             }
@@ -63,7 +80,9 @@ public enum HTMLTemplate {
         if options.waypoint != nil { doc.styles.append(changesCSS) }
         // Find styles only in the live app view — exports have no Find bar.
         if !options.standalone { doc.styles.append(findCSS) }
-        // Print overrides come last so they win over the on-screen defaults.
+        // Narrow-viewport overrides come after every base stylesheet they
+        // tighten, and before the print overrides, which win over both.
+        doc.styles.append(narrowCSS)
         doc.styles.append(printCSS)
         doc.bodyContent = """
             <div class="down-mode-output">
@@ -121,6 +140,14 @@ public enum HTMLTemplate {
     /// runs, so exports never carry these styles.
     private static var findCSS: String {
         loadResource("mud-find", type: "css") ?? ""
+    }
+
+    /// Narrow-viewport overrides (`mud-narrow.css`): every width-based rule for
+    /// both modes, gathered out of the mode and comments stylesheets. Included
+    /// second-to-last in both modes, so these rules win over the on-screen
+    /// defaults and the print overrides win over these.
+    private static var narrowCSS: String {
+        loadResource("mud-narrow", type: "css") ?? ""
     }
 
     /// Print overrides (`mud-print.css`): every `@media print` rule, gathered

@@ -32,6 +32,15 @@ enum WebCommand {
     case scrollToHeading(OutlineHeading)
     /// Scroll to the first visible change of a sidebar group and flash it.
     case scrollToChanges([String])
+    /// Open the Comments column to one comment, expanded and scrolled into
+    /// view. Sent after a marker click, once the window has room for the
+    /// column (`CommentColumnFit`).
+    case revealComment(label: String)
+    /// Scroll to the bottom Comments section, or to one comment within it. The
+    /// fallback for "show comments" in a window too narrow to fit the column,
+    /// which is exactly where `mud-narrow.css` reveals that section in the
+    /// column's place.
+    case scrollToComments(label: String?)
 }
 
 /// A DOM-derived anchor for placing a comment's `💬` marker live, without a

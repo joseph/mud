@@ -170,9 +170,10 @@ struct WebView: NSViewRepresentable {
     /// The Comments Column was resized via its drag handle (the applied width,
     /// already clamped to 200–400 by the page). Persisted by the caller.
     var onColumnWidthChange: ((Double) -> Void)?
-    /// A comment marker was clicked, which opened the column in JS; the caller
-    /// persists the per-window visibility toggle so a later class sync keeps it.
-    var onRevealColumn: (() -> Void)?
+    /// A comment marker was clicked. The page waits on the caller to make room
+    /// for the column, persist the per-window visibility toggle, and send the
+    /// comment back over `.revealComment`.
+    var onRevealColumn: ((String) -> Void)?
     var onSearchResult: ((MatchInfo?) -> Void)?
 
     func makeNSView(context: Context) -> WKWebView {
@@ -326,7 +327,7 @@ struct WebView: NSViewRepresentable {
         var onComposing: ((Bool) -> Void)?
         var onCommentableSelection: ((Bool) -> Void)?
         var onColumnWidthChange: ((Double) -> Void)?
-        var onRevealColumn: (() -> Void)?
+        var onRevealColumn: ((String) -> Void)?
         /// The width last requested by updateNSView; `applyCommentColumnWidth`
         /// pushes only on a change, and `didFinish` reapplies it after a reload.
         var commentColumnWidth: Double = 300
@@ -361,8 +362,8 @@ struct WebView: NSViewRepresentable {
                 onCommentableSelection?(has)
             case .columnWidth(let width):
                 onColumnWidthChange?(width)
-            case .revealColumn:
-                onRevealColumn?()
+            case .revealColumn(let label):
+                onRevealColumn?(label)
             }
         }
 
@@ -411,6 +412,10 @@ struct WebView: NSViewRepresentable {
                 }
             case .scrollToChanges(let ids):
                 bridge.call("scrollToChange", ids)
+            case .revealComment(let label):
+                bridge.call("comments.openToComment", label)
+            case .scrollToComments(let label):
+                bridge.call("comments.scrollToSection", label)
             }
         }
 

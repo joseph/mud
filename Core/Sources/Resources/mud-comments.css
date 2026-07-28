@@ -199,10 +199,6 @@ footer.comments .mud-comment-time:after {
     padding-right: var(--comment-column-gutter);
   }
 
-  html.comments-column.is-comments-column .up-mode-output {
-    border-right: 1px solid var(--border-color);
-  }
-
   #mud-comments-column {
     position: absolute;
     top: 0;
@@ -262,8 +258,10 @@ footer.comments .mud-comment-time:after {
 }
 
 .mud-comments-title {
-  font-weight: 500;
   color: var(--heading-color);
+  text-transform: uppercase;
+  font-weight: 500;
+  font-size: 80%;
 }
 
 /* Title on the left; arrows and count grouped on the right. */

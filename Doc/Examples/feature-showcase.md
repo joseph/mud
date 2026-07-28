@@ -54,6 +54,45 @@ mud -f README.md           # fragment only, no <html> wrapper
 ```
 
 
+## Math
+
+Three forms are recognized, the same three GitHub accepts. A fenced code block
+tagged `math`:
+
+```math
+\zeta(s) = \sum_{n=1}^{\infty} \frac{1}{n^s}
+```
+
+A paragraph wrapped in `$$…$$`:
+
+$$ \int_0^\infty e^{-x^2}\,dx = \frac{\sqrt{\pi}}{2} $$
+
+And inline math, written `` $`…`$ ``, which sits in a line of prose: the
+Pythagorean theorem $`a^2 + b^2 = c^2`$, or Euler's identity
+$`e^{i\pi} + 1 = 0`$.
+
+The backticks are required — a bare `$…$` is not math — so a price like $5, or
+a shell variable written `$PATH`, stays literal.
+
+Anything Temml can typeset works, matrices and multi-case definitions included.
+
+```math
+A = \begin{pmatrix}
+a_{11} & a_{12} & \cdots & a_{1n} \\
+a_{21} & a_{22} & \cdots & a_{2n} \\
+\vdots & \vdots & \ddots & \vdots \\
+a_{m1} & a_{m2} & \cdots & a_{mn}
+\end{pmatrix}
+```
+
+```math
+f(n) = \begin{cases}
+  n / 2      & \text{if } n \text{ is even} \\
+  3n + 1     & \text{if } n \text{ is odd}
+\end{cases}
+```
+
+
 ## Task lists
 
 - [x] CommonMark baseline (headings, lists, links, images)
@@ -64,13 +103,13 @@ mud -f README.md           # fragment only, no <html> wrapper
 - [x] DocC asides
 - [x] Status asides
 - [x] Mermaid diagrams
+- [x] Math (TeX typeset to MathML)
 - [x] Syntax highlighting via highlight.js
 - [x] Emoji shortcodes
 - [x] YAML frontmatter
 - [x] Change tracking
 - [x] Footnotes
 - [x] Comments
-- [ ] Math rendering (not yet planned)
 
 
 ## Tables
@@ -81,6 +120,7 @@ GFM tables support per-column text alignment using `:` in the separator row.
 | ---------------- | :------------------: | -----: |
 | Alerts           | `> [!NOTE]`          | ✓      |
 | Mermaid diagrams | ```` ```mermaid ```` | ✓      |
+| Math             | ```` ```math ````    | ✓      |
 | Syntax highlight | ```` ```swift ````   | ✓      |
 | Emoji shortcodes | `:shortcode:`        | ✓      |
 | Task lists       | `- [ ]`              | ✓      |
@@ -238,8 +278,6 @@ bar from **View → Show Changes** (⌃⌘C) or the toolbar button.
 
 See `Doc/Guides/change-tracking.md` for the full guide.
 
-
-
 [^1]: This is a footnote. The marker above is a superscript number; this
     definition is collected here at the foot of the document.
 
@@ -253,17 +291,18 @@ See `Doc/Guides/change-tracking.md` for the full guide.
 
     💬 {Mud @ 2026-06-22 09:14:00}:
 
-    This is a comment, anchored to the quotation above. It appears in the
-    margin column to the right, beside the text it annotates.
+    This is a comment, anchored to the quotation above. It appears in
+    the margin column to the right, beside the text it annotates.
 
     💬 {Mudder @ 2026-06-22 09:15:30}:
 
-    Replies stack underneath. Each `💬 {author @ time}:` line starts a new
-    message in the same thread.
+    Replies stack underneath. Each `💬 {author @ time}:` line starts a
+    new message in the same thread.
 
 [^comment-b]: > a footnote whose label starts with `comment-`
 
     💬 {Claude @ 2026-06-22 09:18:42}:
 
-    For example, this thread is defined by a footnote labelled `comment-b`.
-    The label is a unique key — never renumber or reuse one.
+    For example, this thread is defined by a footnote labelled
+    `comment-b`. The label is a unique key — never renumber or reuse
+    one.

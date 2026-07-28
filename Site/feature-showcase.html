@@ -1,39 +1,39 @@
 <!DOCTYPE html>
-<html class="has-line-numbers is-readable-column">
+<html class="is-comments-column comments-column">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src mud-asset: data: https:; style-src 'unsafe-inline'; script-src https://cdn.jsdelivr.net 'unsafe-inline'">
-
-    <title></title>
-    <style id="mud-theme">/* Mud - Earthy theme */
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src mud-asset: data: https:; style-src 'unsafe-inline'; script-src 'unsafe-inline' https://cdn.jsdelivr.net 'unsafe-inline' 'unsafe-inline'">
+        
+    <title>Feature showcase</title>
+    <style>/* -- Theme: Earthy -------------------------------------------------------- */
 
 :root {
-    --text-color: #333;
-    --bg-color: #FFF;
-    --body-bg: #FCFCFA;
-    --link-color: #8E4740;
-    --border-color: #E0DBD4;
-    --code-bg: #F5F3EE;
-    --code-fg: #5D662E;
-    --heading-color: #7A4A2A;
-    --blockquote-color: #8A7B68;
-    --blockquote-border: #DCD6CE;
+  --text-color: #333;
+  --bg-color: #FFF;
+  --body-bg: #FCFCFA;
+  --link-color: #8E4740;
+  --border-color: #E0DBD4;
+  --code-bg: #F5F3EE;
+  --code-fg: #5D662E;
+  --heading-color: #7A4A2A;
+  --blockquote-color: #8A7B68;
+  --blockquote-border: #DCD6CE;
 
-    --syntax-comment: #9A7A4A;
-    --syntax-number: #705D73;
-    --syntax-function: #9A5435;
-    --syntax-type: #7A4A2A;
-    --syntax-constant: #705D73;
-    --syntax-keyword: var(--heading-color);
-    --syntax-string: var(--code-fg);
-    --syntax-variable: var(--text-color);
-    --syntax-operator: var(--text-color);
-    --syntax-punctuation: var(--text-color);
+  --syntax-comment: #9A7A4A;
+  --syntax-number: #705D73;
+  --syntax-function: #9A5435;
+  --syntax-type: #7A4A2A;
+  --syntax-constant: #705D73;
+  --syntax-keyword: var(--heading-color);
+  --syntax-string: var(--code-fg);
+  --syntax-variable: var(--text-color);
+  --syntax-operator: var(--text-color);
+  --syntax-punctuation: var(--text-color);
 }
 
 @media (prefers-color-scheme: dark) {
-:root {
+  :root {
     --text-color: #CFC9C0;
     --bg-color: #100E0D;
     --body-bg: #0E0C0B;
@@ -51,279 +51,62 @@
     --syntax-type: #D4A06A;
     --syntax-constant: #947E96;
     --syntax-keyword: #D4A06A;
+  }
 }
-}
-</style>
-    <style>/* Mud - structural styles (theme-agnostic) */
+/* -- Structure ------------------------------------------------------------ */
 
 * {
-    box-sizing: border-box;
+  box-sizing: border-box;
 }
 
 html {
-    font-size: 16px;
-    -webkit-text-size-adjust: 100%;
-    overscroll-behavior-x: none;
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior-x: none;
 }
 
 body {
-    position: absolute;
-    width: 100%;
-    height: 100%;
+  position: absolute;
+  width: 100%;
+  height: 100%;
 
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
-        Helvetica, Arial, sans-serif;
-    font-size: 1rem;
-    line-height: 1.6;
-    color: var(--text-color);
-    background-color: var(--body-bg);
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
+    Helvetica, Arial, sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--text-color);
+  background-color: var(--body-bg);
+  background-image: linear-gradient(to bottom, var(--bg-color), var(--body-bg) 45px);
+  background-attachment: fixed;
 }
 
-body *:first-child {
-    min-height: 100%;
+article {
+  min-height: 100%;
 }
 
-/* Syntax highlighting */
-.hljs {
-    color: var(--text-color);
-    background: var(--code-bg);
-}
 
-.hljs-comment,
-.hljs-quote {
-    color: var(--syntax-comment);
-    font-style: italic;
-}
+/* -- Alert color variables ------------------------------------------------ */
+/* Shared between Up and Down mode. */
+/* Themes may override these custom properties. */
 
-.hljs-keyword,
-.hljs-selector-tag {
-    color: var(--syntax-keyword);
-}
-
-.hljs-string,
-.hljs-doctag,
-.hljs-regexp {
-    color: var(--syntax-string);
-}
-
-.hljs-number,
-.hljs-literal,
-.hljs-boolean {
-    color: var(--syntax-number);
-}
-
-.hljs-function,
-.hljs-title,
-.hljs-section {
-    color: var(--syntax-function);
-}
-
-.hljs-variable,
-.hljs-template-variable,
-.hljs-attr {
-    color: var(--syntax-variable);
-}
-
-.hljs-type,
-.hljs-class .hljs-title,
-.hljs-built_in {
-    color: var(--syntax-type);
-}
-
-.hljs-symbol,
-.hljs-bullet,
-.hljs-link {
-    color: var(--syntax-constant);
-}
-
-.hljs-code {
-    color: var(--syntax-string);
-    background-color: var(--code-bg);
-    border-radius: 3px;
-    padding: 0.1em 0.3em;
-}
-
-.hljs-meta,
-.hljs-selector-id,
-.hljs-selector-class {
-    color: var(--syntax-function);
-}
-
-.hljs-emphasis {
-    font-style: italic;
-}
-
-.hljs-strong {
-    font-weight: bold;
-}
-
-.hljs-addition {
-    color: var(--syntax-string);
-    background-color: rgba(0, 165, 0, 0.1);
-}
-
-.hljs-deletion {
-    color: #f85149;
-    background-color: rgba(248, 81, 73, 0.1);
-}
-/* Mud - Up Mode styles */
-
-.up-mode-output {
-    margin: 0 auto;
-    padding: 2em;
-    box-sizing: content-box;
-    background: var(--bg-color);
-}
-
-.is-readable-column .up-mode-output {
-    max-width: 800px;
-}
-
-/* Typography */
-h1, h2, h3, h4, h5, h6 {
-    margin-top: 1.5em;
-    margin-bottom: 0.5em;
-    font-weight: 600;
-    line-height: 1.25;
-    color: var(--heading-color);
-}
-
-h1 { font-size: 2em; margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
-h2 { font-size: 1.5em; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
-h3 { font-size: 1.25em; }
-h4 { font-size: 1em; }
-h5 { font-size: 0.875em; }
-h6 { font-size: 0.85em; }
-
-p {
-    margin-top: 0;
-    margin-bottom: 1em;
-}
-
-/* Links */
-a {
-    color: var(--link-color);
-    text-decoration: none;
-}
-
-a:hover {
-    text-decoration: underline;
-}
-
-/* Lists */
-ul, ol {
-    margin-top: 0;
-    margin-bottom: 1em;
-    padding-left: 2em;
-}
-
-li {
-    margin-bottom: 0.25em;
-}
-
-li > ul, li > ol {
-    margin-bottom: 0;
-}
-
-/* Task lists — selectors match cmark-gfm's classless output.
-   Simplify to e.g. .task-list-item if we switch to our own tokenizer. */
-li:has(> input[type="checkbox"]) {
-    list-style: none;
-    margin-left: -1.5em;
-}
-
-li:has(> input[type="checkbox"]) > input[type="checkbox"] {
-    display: none;
-}
-
-li:has(> input[type="checkbox"])::before {
-    content: "";
-    display: inline-block;
-    width: 1em;
-    height: 1em;
-    border: 1.5px solid var(--border-color);
-    border-radius: 3px;
-    margin: 0.15em 0.5em 0 0;
-    float: left;
-    clear: left;
-}
-
-li:has(> input[type="checkbox"]:checked)::before {
-    background-color: var(--link-color);
-    border-color: var(--link-color);
-    content: "✓";
-    color: var(--bg-color);
-    font-weight: 700;
-    text-align: center;
-    line-height: 1em;
-}
-
-/* Code */
-code {
-    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-    font-size: 0.875em;
-    padding: 0.2em 0.4em;
-    color: var(--code-fg);
-    background-color: var(--code-bg);
-    border-radius: 4px;
-}
-
-pre {
-    margin-top: 0;
-    margin-bottom: 1em;
-    padding: 1em;
-    overflow-x: auto;
-    font-size: 0.875em;
-    line-height: 1.45;
-    background-color: var(--code-bg);
-    border-radius: 6px;
-}
-
-pre code {
-    padding: 0;
-    background-color: transparent;
-    border-radius: 0;
-    font-size: inherit;
-}
-
-/* Blockquotes */
-blockquote {
-    margin: 0 0 1em 0;
-    padding: 0 1em;
-    color: var(--blockquote-color);
-    border-left: 4px solid var(--blockquote-border);
-}
-
-blockquote > :first-child {
-    margin-top: 0;
-}
-
-blockquote > :last-child {
-    margin-bottom: 0;
-}
-
-/* Alerts (GFM alerts and DocC asides).
-   Colors are defined as custom properties so themes can override them. */
-.alert {
-    --alert-note-border: #0969da;
-    --alert-note-title: #0969da;
-    --alert-tip-border: #1a7f37;
-    --alert-tip-title: #1a7f37;
-    --alert-important-border: #8250df;
-    --alert-important-title: #8250df;
-    --alert-warning-border: #9a6700;
-    --alert-warning-title: #9a6700;
-    --alert-caution-border: #d1242f;
-    --alert-caution-title: #d1242f;
-    --alert-status-border: #ff7700;
-    --alert-status-title: #ff7700;
-
-    color: var(--text-color);
+:root {
+  --alert-note-border: #0969da;
+  --alert-note-title: #0969da;
+  --alert-tip-border: #1a7f37;
+  --alert-tip-title: #1a7f37;
+  --alert-important-border: #8250df;
+  --alert-important-title: #8250df;
+  --alert-warning-border: #9a6700;
+  --alert-warning-title: #9a6700;
+  --alert-caution-border: #d1242f;
+  --alert-caution-title: #d1242f;
+  --alert-status-border: #ff7700;
+  --alert-status-title: #ff7700;
 }
 
 @media (prefers-color-scheme: dark) {
-.alert {
+  :root {
     --alert-note-border: #4493f8;
     --alert-note-title: #4493f8;
     --alert-tip-border: #3fb950;
@@ -336,18 +119,362 @@ blockquote > :last-child {
     --alert-caution-title: #f85149;
     --alert-status-border: #ff6600;
     --alert-status-title: #ff6600;
+  }
 }
+
+
+/* -- Find highlight variables --------------------------------------------- */
+/* Consumed by mud-find.css (live app view only). */
+
+:root {
+  --find-match-bg: #fde68a;
+  --find-match-active-bg: #f59e0b;
+  --find-match-active-outline: #d97706;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --find-match-bg: rgba(253, 230, 138, 0.3);
+    --find-match-active-bg: rgba(245, 158, 11, 0.5);
+    --find-match-active-outline: rgba(217, 119, 6, 0.7);
+  }
+}
+
+
+/* -- Syntax highlighting -------------------------------------------------- */
+
+.hljs {
+  color: var(--text-color);
+  background: var(--code-bg);
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: var(--syntax-comment);
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag {
+  color: var(--syntax-keyword);
+}
+
+.hljs-string,
+.hljs-doctag,
+.hljs-regexp {
+  color: var(--syntax-string);
+}
+
+.hljs-number,
+.hljs-literal,
+.hljs-boolean {
+  color: var(--syntax-number);
+}
+
+.hljs-function,
+.hljs-title,
+.hljs-section {
+  color: var(--syntax-function);
+}
+
+.hljs-variable,
+.hljs-template-variable,
+.hljs-attr {
+  color: var(--syntax-variable);
+}
+
+.hljs-type,
+.hljs-class .hljs-title,
+.hljs-built_in {
+  color: var(--syntax-type);
+}
+
+.hljs-symbol,
+.hljs-bullet,
+.hljs-link {
+  color: var(--syntax-constant);
+}
+
+.hljs-code {
+  color: var(--syntax-string);
+  background-color: var(--code-bg);
+  border-radius: 3px;
+  padding: 0.1em 0.3em;
+}
+
+.hljs-meta,
+.hljs-selector-id,
+.hljs-selector-class {
+  color: var(--syntax-function);
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: bold;
+}
+
+.hljs-addition {
+  color: var(--syntax-string);
+  background-color: rgba(0, 165, 0, 0.1);
+}
+
+.hljs-deletion {
+  color: #f85149;
+  background-color: rgba(248, 81, 73, 0.1);
+}
+/* -- Up Mode -------------------------------------------------------------- */
+
+/* The Up-mode page box. The article and the bottom Comments footer are
+   siblings — the comments sit outside the article — so they can't inherit one
+   box from the other; they read these two instead. mud-narrow.css tightens
+   both at once by rewriting them, rather than restating each box's padding. */
+:root {
+  --up-page-inset: 2em;
+  --up-page-clearance: 6em; /* space for floating bars beneath */
+}
+
+.up-mode-output {
+  margin: 0 auto;
+  padding: var(--up-page-inset) var(--up-page-inset) var(--up-page-clearance);
+  box-sizing: border-box;
+  background: var(--bg-color);
+  overflow-x: hidden;
+}
+
+.is-readable-column .up-mode-output {
+  max-width: 800px;
+}
+
+
+/* -- Typography ----------------------------------------------------------- */
+
+h1, h2, h3, h4, h5, h6 {
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--heading-color);
+}
+
+h1 { font-size: 2em; margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
+h2 { font-size: 1.5em; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
+h3 { font-size: 1.25em; }
+h4 { font-size: 1em; }
+h5 { font-size: 0.875em; }
+h6 { font-size: 0.85em; }
+
+p {
+  margin-top: 0;
+  margin-bottom: 1em;
+}
+
+/* -- Links ---------------------------------------------------------------- */
+
+a {
+  color: var(--link-color);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+
+/* -- Lists ---------------------------------------------------------------- */
+
+ul, ol {
+  margin-top: 0;
+  margin-bottom: 1em;
+  padding-left: 2em;
+}
+
+li {
+  margin-bottom: 0.25em;
+}
+
+li > ul, li > ol {
+  margin-bottom: 0;
+}
+
+
+/* Task lists -------------------------------------------------------------- */
+
+li:has(> input[type="checkbox"]) {
+  list-style: none;
+  margin-left: -1.5em;
+}
+
+li:has(> input[type="checkbox"]) > input[type="checkbox"] {
+  display: none;
+}
+
+li:has(> input[type="checkbox"])::before {
+  content: "";
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border: 1.5px solid var(--border-color);
+  border-radius: 3px;
+  margin: 0.15em 0.5em 0 0;
+  float: left;
+  clear: left;
+}
+
+li:has(> input[type="checkbox"]:checked)::before {
+  background-color: var(--link-color);
+  border-color: var(--link-color);
+  content: "✓";
+  color: var(--bg-color);
+  font-weight: 700;
+  text-align: center;
+  line-height: 1em;
+}
+
+
+/* -- Code ----------------------------------------------------------------- */
+
+code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.875em;
+  padding: 0.2em 0.4em;
+  color: var(--code-fg);
+  background-color: var(--code-bg);
+  border-radius: 4px;
+}
+
+pre {
+  margin-top: 0;
+  margin-bottom: 1em;
+  padding: 1em;
+  overflow-x: auto;
+  font-size: 0.875em;
+  line-height: 1.45;
+  background-color: var(--code-bg);
+  border-radius: 6px;
+}
+
+pre.mud-code {
+  position: relative;
+}
+
+.is-code-header pre.mud-code:has(> .code-header) {
+  padding-top: 0;
+}
+
+pre code {
+  padding: 0;
+  background-color: transparent;
+  border-radius: 0;
+  font-size: inherit;
+}
+
+
+/* -- Code block header bar ------------------------------------------------ */
+
+.code-header {
+  display: none;
+}
+
+.is-code-header .code-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.4em 0;
+  border-bottom: 1px solid var(--border-color);
+  margin-bottom: 0.75em;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.8em;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.code-language {
+  color: var(--blockquote-color);
+  text-transform: lowercase;
+}
+
+.code-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35em;
+  margin-left: auto;
+  padding: 0.15em 0.4em;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--blockquote-color);
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.code-copy-btn svg {
+  padding-right: 0.25rem;
+}
+
+pre.mud-code:hover .code-copy-btn {
+  opacity: 1;
+}
+
+.code-copy-btn:hover {
+  background-color: var(--border-color);
+  color: var(--text-color);
+}
+
+
+/* -- Floating copy button (when header bar is hidden) --------------------- */
+
+.code-copy-floating {
+  position: absolute;
+  top: 0.4em;
+  right: 0.8em;
+}
+
+.code-copy-btn.copied {
+  opacity: 1;
+  color: var(--alert-tip-title);
+}
+
+
+/* -- Blockquotes ---------------------------------------------------------- */
+
+blockquote {
+  margin: 0 0 1em 0;
+  padding: 0 1em;
+  color: var(--blockquote-color);
+  border-left: 4px solid var(--blockquote-border);
+}
+
+blockquote > :first-child {
+  margin-top: 0;
+}
+
+blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+
+/* -- Alerts --------------------------------------------------------------- */
+
+.alert {
+  color: var(--text-color);
 }
 
 .alert-title {
-    display: flex;
-    align-items: center;
-    gap: 0.5em;
-    font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  font-weight: 600;
 }
 
 .alert-title svg {
-    flex-shrink: 0;
+  flex-shrink: 0;
 }
 
 .alert-note  { border-left-color: var(--alert-note-border); }
@@ -355,148 +482,1371 @@ blockquote > :last-child {
 .alert-important { border-left-color: var(--alert-important-border); }
 .alert-warning   { border-left-color: var(--alert-warning-border); }
 .alert-caution   { border-left-color: var(--alert-caution-border); }
-.alert-status    { border-left-color: var(--alert-status-border); }
+.alert-status  { border-left-color: var(--alert-status-border); }
 
 .alert-note  .alert-title { color: var(--alert-note-title); }
 .alert-tip   .alert-title { color: var(--alert-tip-title); }
 .alert-important .alert-title { color: var(--alert-important-title); }
 .alert-warning   .alert-title { color: var(--alert-warning-title); }
 .alert-caution   .alert-title { color: var(--alert-caution-title); }
-.alert-status    .alert-title { color: var(--alert-status-title); }
+.alert-status  .alert-title { color: var(--alert-status-title); }
 
 .alert-title strong {
-    font-weight: 700;
-    color: var(--text-color);
+  font-weight: 700;
+  color: var(--text-color);
 }
 
-/* Horizontal rules */
+
+/* -- Footnotes ------------------------------------------------------------ */
+
+.footnote-ref {
+  font-size: 0.667rem;
+  font-weight: initial;
+  font-style: initial;
+  text-decoration: initial;
+  line-height: 0;
+  white-space: nowrap;
+}
+
+.footnote-ref a {
+  text-decoration: none;
+  cursor: pointer;
+  padding: 0.175em 0.6em;
+  border-radius: 2em;
+  background-color: var(--code-bg);
+  transition: all 200ms;
+}
+
+.footnote-ref a:hover {
+  background-color: var(--link-color);
+  color: var(--bg-color);
+}
+
+.footnotes {
+  margin-top: 2em;
+  padding-top: 1em;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.9em;
+  color: var(--blockquote-color);
+}
+
+.footnotes ol {
+  padding-left: 1.5em;
+}
+
+.footnotes li {
+  margin-bottom: 0.5em;
+}
+
+.footnotes li:target {
+  background-color: var(--code-bg);
+}
+
+.footnote-backref {
+  text-decoration: none;
+}
+
+/* In `.popover` mode the section is hidden on screen (footnotes show in a
+   native popover) but reappears for Print / Save-PDF (see mud-print.css). */
+.footnotes.is-print-only { display: none; }
+
+
+/* -- Horizontal rules ----------------------------------------------------- */
+
 hr {
-    height: 2px;
-    margin: 1.5em 0;
-    padding: 0;
-    background-color: var(--border-color);
-    border: 0;
+  height: 2px;
+  margin: 1.5em 0;
+  padding: 0;
+  background-color: var(--border-color);
+  border: 0;
 }
 
-/* Tables */
+
+/* -- Tables --------------------------------------------------------------- */
+
 table {
-    width: 100%;
-    margin-bottom: 1em;
-    border-collapse: collapse;
-    border-spacing: 0;
+  width: 100%;
+  margin-bottom: 1em;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+/* A table too wide to fit — many columns, or a cell that can't wrap — would
+   otherwise be clipped by `.up-mode-output { overflow-x: hidden }`. Make each
+   content table its own horizontal scroll box so the overflow stays reachable
+   without scrolling the whole document. `display: block` turns the table into
+   a scroll container; `width: fit-content` (overriding the `width: 100%` above)
+   sizes it to its columns, and `max-width: 100%` caps that at the text width so
+   a wide table scrolls instead of overflowing. Excludes the frontmatter table,
+   which has its own layout. The Comments footer is named alongside the article
+   because a comment body is rendered Markdown and clips the same way. */
+:is(.up-mode-output, footer.comments) table:not(.mud-frontmatter-table) {
+  display: block;
+  overflow-x: auto;
+  width: fit-content;
+  max-width: 100%;
 }
 
 th, td {
-    padding: 8px 12px;
-    border: 1px solid var(--border-color);
-    text-align: left;
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  text-align: left;
+  vertical-align: top;
 }
 
+/* Honor the delimiter-row alignment. The visitor emits it as the presentational
+   `align` attribute, which an author `text-align` rule (the one above) would
+   otherwise override — a presentational hint loses to any author CSS. These
+   attribute selectors outrank the bare `th, td` rule, so the column alignment
+   wins. */
+th[align="left"], td[align="left"] { text-align: left; }
+th[align="center"], td[align="center"] { text-align: center; }
+th[align="right"], td[align="right"] { text-align: right; }
+
 th {
-    font-weight: 600;
-    background-color: var(--code-bg);
+  font-weight: 600;
+  background-color: var(--code-bg);
 }
 
 tr:nth-child(even) {
-    background-color: var(--code-bg);
+  background-color: var(--code-bg);
 }
 
-/* Mermaid diagrams */
+/* -- Mermaid diagrams ----------------------------------------------------- */
+
 .mermaid {
-    text-align: center;
-    margin-bottom: 1em;
+  text-align: center;
+  margin-bottom: 1em;
 }
 
 .mermaid svg {
-    max-width: 100%;
-    height: auto;
+  max-width: 100%;
+  height: auto;
 }
 
-/* Images */
+/* -- Images --------------------------------------------------------------- */
+
 img {
-    max-width: min(800px, 100%);
-    height: auto;
+  max-width: min(800px, 100%);
+  height: auto;
+}
+
+/* -- Frontmatter ---------------------------------------------------------- */
+
+.mud-frontmatter {
+  margin-bottom: 1.5em;
+  border-radius: 3px;
+  overflow: hidden;
+  color: var(--blockquote-color);
+  border: 1px solid var(--border-color);
+}
+
+.mud-frontmatter summary {
+  font-size: 70%;
+  padding: 1em;
+  cursor: pointer;
+  font-weight: 500;
+  text-transform: uppercase;
+  user-select: none;
+  -webkit-user-select: none;
+  background-color: var(--code-bg);
+}
+
+.mud-frontmatter[open] summary {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.mud-frontmatter pre {
+  margin: 0;
+  border-radius: 0 0 6px 6px;
+}
+
+.mud-frontmatter-table {
+  width: 100%;
+  margin: 0;
+  border-collapse: collapse;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 75%;
+}
+
+.mud-frontmatter table tr {
+  background: none;
+}
+
+.mud-frontmatter-table tr > * {
+  vertical-align: top;
+  border: none;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.mud-frontmatter-table tr:last-child > * {
+  border-bottom: none;
+}
+
+.mud-frontmatter-table th {
+  width: 20%;
+  padding: 6px 1em;
+  text-align: right;
+  font-weight: 600;
+  white-space: nowrap;
+  border-right: 1px solid var(--border-color);
+}
+
+.mud-frontmatter-table td {
+  padding: 7px 1em;
+  color: var(--text-color);
+}
+
+.mud-frontmatter-table pre {
+  margin: 0;
+  padding: 0;
+  font: inherit;
+  background: transparent;
+  color: var(--syntax-string);
+}
+
+
+/* -- Footnote popover ----------------------------------------------------- */
+
+.footnote-popover .up-mode-output {
+  padding: 1.5em;
+}
+
+.footnote-popover .up-mode-output > :last-child {
+  margin-bottom: 0;
+}
+/* -- Comments (read side) ------------------------------------------------- */
+
+/* The read-side comment styles: the inline markers, the quotation highlights,
+   the bottom Comments section, and the projected Comments column (capsules,
+   header, threads). Bundled into every Up document, exports included, so a
+   read-only export still shows highlights and an expandable column. The
+   write-side styles — the compose box and the add / reply / edit / delete
+   controls — live in mud-comments-edit.css and load in the app only. This
+   mirrors the mud-comments.js / mud-comments-edit.js split. */
+
+/* The inline `💬` marker: a small grayish chip carrying the middot-ellipsis,
+   in place of a numbered superscript so comments consume no footnote number. */
+.mud-comment-marker {
+  display: inline-block;
+  font-size: 0.7em;
+  line-height: 1;
+  vertical-align: top;
+  padding: 0.4em;
+  margin: -0.4em 0 0 -0.4em;
+  border-radius: 1em;
+  cursor: pointer;
+  text-decoration: none;
+  user-select: none;
+}
+
+.mud-comment-marker:hover {
+  background-color: var(--code-bg);
+  text-decoration: none;
+}
+
+/* The quoted range, wrapped per text-node slice by mud-comments.js. Transparent
+   until the matching marker is hovered (`.is-active`), so two highlights never
+   show at once. */
+.mud-comment-highlight {
+  background-color: transparent;
+  color: inherit;
+  border-radius: 2px;
+  transition: background-color 0.1s ease;
+}
+
+.mud-comment-highlight.is-active {
+  background-color: var(--comment-highlight, #fde047);
+}
+
+@media (prefers-color-scheme: dark) {
+  .mud-comment-highlight.is-active {
+    background-color: var(--comment-highlight-dark, rgba(253, 224, 71, 0.4));
+  }
+}
+
+/* The bottom Comments section (every export; `is-print-only` in the live app).
+   It renders as a `<footer>` outside the article, as its next sibling, so it
+   carries the Up-mode page box itself rather than inheriting it: the same
+   centering and readable-column width, and the side inset and trailing
+   clearance mud-up.css hands the article through --up-page-inset and
+   --up-page-clearance. Both boxes carry that clearance — the article's marks
+   the end of the document, the footer's clears the floating bars. No
+   background of its own, so the comments sit on the body's --body-bg, half a
+   shade off the article: commentary beside the page rather than more page. Its
+   rule spans that whole box, as a page-level divider should, rather than the
+   article's text width.
+
+   The bare `.comments` rules that follow are shared with the comment-thread
+   popover document, which wraps the same markup in a plain div. */
+footer.comments {
+  box-sizing: border-box;
+  overflow-x: hidden;
+  border-top: 1px solid var(--border-color);
+  margin: 0 auto;
+  padding: 1rem var(--up-page-inset) var(--up-page-clearance);
+}
+
+.is-readable-column footer.comments {
+  max-width: 800px;
+}
+
+footer.comments .mud-comment-attribution {
+  color: var(--heading-color);
+  font-weight: 500;
+  margin: 0.75rem 0 0.25rem;
+}
+
+footer.comments .mud-comment-attribution:before {
+  content: '💬 ';
+  margin-left: -0.2rem;
+  margin-right: 0.2rem;
+}
+
+footer.comments .mud-comment-time {
+  font-weight: normal;
+  opacity: 0.67;
+}
+
+footer.comments .mud-comment-time:before {
+  content: ' @ ';
+  opacity: 0.5;
+}
+
+footer.comments .mud-comment-time:after {
+  content: ': ';
+  opacity: 0.5;
+}
+
+.comments {
+  font-size: 0.9em;
+}
+
+.comments h2 {
+  font-size: 80%;
+  margin: 0 0 1.25rem;
+  border-width: 0;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.comments ol {
+  padding-left: 1.5em;
+}
+
+.comments li {
+  margin-bottom: 1.5em;
+}
+
+.comments li:target {
+  background-color: var(--code-bg);
+}
+
+.mud-comment-quote {
+  margin: 0 0 0.4em;
+  padding-left: 0.8em;
+  border-left: 3px solid var(--border-color);
+  font-style: italic;
+  color: var(--blockquote-color);
+}
+
+/* On screen the column stands in for the bottom section; print shows the
+   section instead (see mud-print.css). */
+.comments.is-print-only { display: none; }
+
+
+/* -- Comments column ------------------------------------------------------ */
+
+/* The quotation highlight color. A theme may override `--comment-highlight`. */
+:root {
+  --comment-highlight: #fde047;
+
+  /* The column's inner content width (the capsule / header / compose width),
+     200–400px. The app's drag handle rewrites it live; everywhere else it holds
+     this default. The gutter adds the fixed 12px margin on each side. */
+  --comment-column-width: 300px;
+  --comment-column-gutter: calc(var(--comment-column-width) + 24px);
+}
+
+/* Column mode: the inline quote markers are an export/print affordance only —
+   on screen the highlight and the column capsule stand in for them. We hide the
+   marker visually rather than with `display: none`, so it stays in the
+   accessibility tree (screen readers still announce the comment) and in the
+   layout (the column reads its position to place a quote-less comment's
+   capsule). Scoped to `@media screen` so print keeps the visible chip. The
+   "Show comment markers" preference (`show-comment-markers`) opts out, letting
+   the marker fall back to its visible base styling.
+
+   The `min-width` guard pairs with the 700px Compact tier in mud-narrow.css:
+   below it the column stands down and the markers are the only thing left
+   pointing at a comment, so they must be visible. Guarding here rather than
+   undoing there keeps this rule the single source of the marker's geometry.
+   (The .02px offset closes the sub-pixel gap a fractional viewport width —
+   browser zoom on an exported document — would otherwise fall into.) */
+@media screen and (min-width: 700.02px) {
+  .comments-column:not(.show-comment-markers) .mud-comment-marker {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+/* The comments column and its gutter are an on-screen layout only. Print hides
+   the column (below) and shows the bottom Comments section instead, so the
+   document must fill the page with no reserved gutter — hence the whole block is
+   scoped to `@media screen`. (Reserving the gutter in print left a blank strip
+   down the right of every page.)
+
+   The `min-width` guard pairs with the 700px Compact tier in mud-narrow.css:
+   below it the column plus its margins would leave the document nothing, so
+   the gutter is never reserved and the bottom Comments section takes over. */
+@media screen and (min-width: 700.02px) {
+  /* With the column toggled on, reserve the right gutter. The body is the
+     scroll and positioning container; capsules are absolutely placed within it,
+     so the column scrolls with the document. */
+  html.comments-column.is-comments-column body {
+    position: relative;
+    padding-right: var(--comment-column-gutter);
+  }
+
+  html.comments-column.is-comments-column .up-mode-output {
+    border-right: 1px solid var(--border-color);
+  }
+
+  #mud-comments-column {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: var(--comment-column-gutter);
+    /* Empty gutter passes clicks through to the document; capsules re-enable. */
+    pointer-events: none;
+    font-size: 0.8rem;
+  }
+
+  /* Readable Column: keep the document centered while there is room for the
+     gutter to its right, nudging it left then (once the window is narrower than
+     the readable width plus the gutter) shrinking it, and ride the column off
+     the document's right edge instead of the window's. */
+  html.comments-column.is-comments-column.is-readable-column body {
+    padding-right: 0;
+  }
+
+  html.comments-column.is-comments-column.is-readable-column .up-mode-output {
+    margin-left: max(0px, min((100% - 800px) / 2, 100% - (800px + var(--comment-column-gutter))));
+    margin-right: var(--comment-column-gutter);
+  }
+
+  html.comments-column.is-comments-column.is-readable-column #mud-comments-column {
+    right: auto;
+    left: min((100% + 800px) / 2, 100% - var(--comment-column-gutter));
+  }
+
+  /* The fixed header rides off the window's right edge by default; in Readable
+     Column it must follow the column instead, so its left edge lines up with the
+     capsules (the column's left, plus the 12px margin). */
+  html.comments-column.is-comments-column.is-readable-column #mud-comments-header {
+    right: auto;
+    left: calc(min((100% + 800px) / 2, 100% - var(--comment-column-gutter)) + 12px);
+  }
+}
+
+/* The column header: a "Comments" title, previous / next navigation arrows,
+   and a count badge over a faint rule, aligned with the document's top content
+   padding. The placement pass reserves its band so no capsule sits under it. */
+#mud-comments-header {
+  position: fixed;
+  top: 0;
+  right: 12px;
+  width: var(--comment-column-width);
+  z-index: 10;
+  pointer-events: auto;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5em;
+  font-size: 120%;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border-color);
+  background-image: linear-gradient(to bottom, var(--bg-color), var(--body-bg) 45px);
+}
+
+.mud-comments-title {
+  font-weight: 500;
+  color: var(--heading-color);
+}
+
+/* Title on the left; arrows and count grouped on the right. */
+.mud-comments-nav {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  color: var(--heading-color);
+}
+
+/* Previous / next arrows: bare chevron glyphs in the heading color, shown
+   whenever there is at least one comment. */
+.mud-comments-prev,
+.mud-comments-next {
+  appearance: none;
+  padding: 0px 8px 3px;
+  border: 0;
+  background: var(--code-bg);
+  font-size: 1rem;
+  color: inherit;
+  line-height: 1;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+.mud-comments-prev:hover,
+.mud-comments-next:hover {
+  background-color: var(--heading-color);
+  color: var(--body-bg);
+}
+.mud-comments-prev {
+  border-top-left-radius: 2em;
+  border-bottom-left-radius: 2em;
+}
+.mud-comments-next {
+  border-top-right-radius: 2em;
+  border-bottom-right-radius: 2em;
+}
+
+.mud-comments-count {
+  font-size: 0.8em;
+  min-width: 1.4em;
+  padding: 1px 8px;
+  font-weight: 500;
+  text-align: center;
+  background: var(--code-bg);
+}
+
+
+/* -- A comment capsule ---------------------------------------------------- */
+
+/* The placement pass in mud-comments.js sets each capsule's `top` inline (in
+   layout pixels); the transition animates moves and resizes.
+
+   Inactive, the capsule is itself one box: the collapsed "💬 Author: …" bar.
+   Active, it drops its own border and background and becomes a plain stack of
+   rows — each message its own box, plus a controls row — set 15px apart. */
+.mud-capsule {
+  position: absolute;
+  right: 12px;
+  width: var(--comment-column-width);
+  box-sizing: border-box;
+  pointer-events: auto;
+  transition: top 0.22s cubic-bezier(0.2, 0.7, 0.2, 1),
+              height 0.18s ease,
+              opacity 0.18s ease,
+              transform 0.18s ease;
+  min-height: 45px;
+  padding: 0 14px;
+  border: 1px solid var(--blockquote-color);
+  border-radius: 23px;
+  background: var(--code-bg);
+  color: var(--text-color);
+  cursor: pointer;
+}
+
+.mud-capsule.is-active {
+  z-index: 5;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: default;
+}
+
+/* Collapsed: a single 45px line — "💬 Author: message…", ellipsized. */
+.mud-capsule-bar {
+  display: flex;
+  align-items: center;
+  height: 43px;
+  gap: 0.25em;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.mud-capsule-bar .mud-bar-author { font-weight: 600; flex: 0 0 auto; }
+.mud-capsule-bar .mud-bar-text {
+  flex: 1 1 auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--blockquote-color);
+}
+
+/* The "N replies" label cuts into the bottom border of a collapsed thread. */
+.mud-capsule-replies {
+  position: absolute;
+  right: 18px;
+  bottom: -1px;
+  transform: translateY(50%);
+  padding: 0 6px;
+  font-size: 90%;
+  font-weight: 500;
+  color: var(--blockquote-color);
+  background: var(--body-bg);
+  border-radius: 6px;
+}
+
+/* Expanded thread (only while active): a column of rows, 15px apart. */
+.mud-capsule-thread { display: none; }
+.mud-capsule.is-active .mud-capsule-bar { display: none; }
+.mud-capsule.is-active .mud-capsule-replies { display: none; }
+.mud-capsule.is-active .mud-capsule-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+/* Each message is its own bordered box. The first (the original comment) is
+   shaded to mark the active thread; replies below it stay white. */
+.mud-capsule-thread .mud-comment-message {
+  padding: 9px 14px;
+  border-radius: 23px;
+  border: 1px solid var(--blockquote-color);
+  background: var(--bg-color);
+}
+.mud-capsule:not(.is-active):hover,
+.mud-capsule-thread .mud-comment-message:first-child {
+  background: var(--bg-color);
+  box-shadow: 0 1px 1px var(--blockquote-border);
+}
+.mud-capsule-thread .mud-comment-attribution {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5em;
+  font-weight: 600;
+  margin-bottom: 0.2em;
+}
+/* The author takes the leftover width and ellipsizes; the time keeps its full
+   width beside it so a long name truncates rather than wrapping. */
+.mud-capsule-thread .mud-comment-author {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mud-capsule-thread .mud-comment-time {
+  flex: 0 0 auto;
+  font-size: 85%;
+  font-weight: 400;
+  opacity: 0.7;
+  white-space: nowrap;
+}
+
+.mud-comment-message p,
+.mud-comment-message blockquote {
+  margin: 0.5em 0;
+}
+
+/* Items just inserted fade/scale in rather than snapping. */
+.mud-capsule.is-entering { opacity: 0; transform: scale(0.96); }
+/*
+ * Math (MathML) styles. Included in a document only when it contains math.
+ *
+ * The bulk of this file is adapted from Temml-Local.css (Temml v0.13.3,
+ * MIT, © Ron Kok — https://temml.org). It supplies the per-engine spacing and
+ * accent corrections MathML Core still needs across WebKit, Firefox, and
+ * Chromium. The `@font-face` for Temml.woff2 (used only for script capitals
+ * and prime glyphs) is dropped so an exported document stays self-contained;
+ * those glyphs fall back to the system math font.
+ *
+ * Mud additions (display-block layout) are at the top.
+ */
+
+/* Display math: a `$$…$$` or ```math block, centered, scrollable when wide. */
+.mud-math-block {
+  margin: 1em 0;
+  text-align: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* Invalid TeX: Temml emits a `<span class="temml-error">` carrying the source
+ * and a parse message, hard-coded to a harsh red with `white-space:pre-line`.
+ * Reframe it as a contained, themed error chip — the `color` override needs
+ * `!important` to beat Temml's inline style. In a display block it centers
+ * with the block; inline it sits in the text run. */
+.temml-error {
+  color: var(--alert-caution-title) !important;
+  display: inline-block;
+  text-align: left;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  padding: 0.4em 0.6em;
+  border: 1px solid var(--alert-caution-border);
+  border-radius: 6px;
+  background-color: var(--code-bg);
+}
+
+/* --- Adapted from Temml-Local.css --- */
+
+math {
+  font-family: "Cambria Math", 'STIXTwoMath-Regular', 'NotoSansMath-Regular', math;
+  font-style: normal;
+  font-weight: normal;
+  line-height: normal;
+  font-size-adjust: none;
+  text-indent: 0;
+  text-transform: none;
+  letter-spacing: normal;
+  word-wrap: normal;
+  direction: ltr;
+  /* Prevent Firefox from omitting the dot on i or j. */
+  font-feature-settings: "dtls" off;
+}
+
+math * {
+  border-color: currentColor;
+}
+
+/* display: block is necessary in Firefox and Safari.
+ * Not in Chromium, which recognizes display: "block math" written inline. */
+ math.tml-display {
+  display: block;
+  width: 100%;
+}
+
+*.mathcal {
+  /* NotoSans */
+  font-feature-settings: 'ss01';
+}
+
+/* Cramped superscripts in WebKit */
+mfrac > :nth-child(2),
+msqrt,
+mover > :first-child {
+  math-shift: compact
+}
+
+.menclose {
+  display: inline-block;
+  position: relative;
+  padding: 0.5ex 0ex;
+}
+.tml-cancelto {
+  display: inline-block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  padding: 0.5ex 0ex;
+  background-color: currentColor;
+  /* Use the SVG as an alpha mask (painted by background-color) */
+  -webkit-mask-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><defs><marker id='a' markerHeight='5' markerUnits='strokeWidth' markerWidth='7' orient='auto' refX='7' refY='2.5'><path fill='black' d='m0 0 7 2.5L0 5z'/></marker></defs><line x2='100%25' y1='100%25' stroke='black' stroke-width='.06em' marker-end='url(%23a)' vector-effect='non-scaling-stroke'/></svg>");
+          mask-image: url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'><defs><marker id='a' markerHeight='5' markerUnits='strokeWidth' markerWidth='7' orient='auto' refX='7' refY='2.5'><path fill='black' d='m0 0 7 2.5L0 5z'/></marker></defs><line x2='100%25' y1='100%25' stroke='black' stroke-width='.06em' marker-end='url(%23a)' vector-effect='non-scaling-stroke'/></svg>");
+  -webkit-mask-repeat: no-repeat;
+          mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+          mask-size: 100% 100%;
+  -webkit-mask-position: 0 0;
+          mask-position: 0 0;
+}
+
+@supports (-moz-appearance: none) {
+  /* \vec w/o italic correction for Firefox */
+  .tml-vec {
+    transform: scale(0.75)
+  }
+  /* Fix \cancelto in Firefox */
+  .ff-narrow {
+    width: 0em;
+  }
+  .ff-nudge-left {
+    margin-left: -0.2em;
+  }
+  /* Squash hidden mrows in \bordermatrix. Messes with centering, but necessary to squash. */
+  .ff-squash mtd {
+    display: block;
+    height: 0;
+  }
+}
+
+@supports (not (-moz-appearance: none)) {
+  /* Chromium and WebKit */
+  /* Italic correction on superscripts */
+  .tml-sml-pad {
+    padding-left: 0.05em;
+  }
+  .tml-med-pad {
+    padding-left: 0.10em;
+  }
+  .tml-lrg-pad {
+    padding-left: 0.15em;
+  }
+}
+
+@supports (-webkit-backdrop-filter: blur(1px)) {
+  /* WebKit vertical & italic correction on accents */
+  .wbk-acc {
+    /* lower by x-height distance */
+    transform: translate(0em, 0.431em);
+  }
+  .wbk-sml {
+    transform: translate(0.07em, 0);
+  }
+  .wbk-sml-acc {
+    transform: translate(0.07em, 0.431em);
+  }
+  .wbk-sml-vec {
+    transform: scale(0.75) translate(0.07em, 0);
+  }
+  .wbk-med {
+    transform: translate(0.14em, 0);
+  }
+  .wbk-med-acc {
+    transform: translate(0.14em, 0.431em);
+  }
+  .wbk-med-vec {
+    transform: scale(0.75) translate(0.14em, 0);
+  }
+  .wbk-lrg {
+    transform: translate(0.21em, 0);
+  }
+  .wbk-lrg-acc {
+    transform: translate(0.21em, 0.431em);
+  }
+  .wbk-lrg-vec {
+    transform: scale(0.75) translate(0.21em, 0);
+  }
+}
+
+/* \cancel & \phase use background images. Get them to print. */
+menclose {
+  -webkit-print-color-adjust: exact;  /* Chrome & Edge */
+          print-color-adjust: exact;
+}
+
+/* Array cell justification in Firefox & WebKit */
+.tml-right {
+  text-align: right;
+}
+.tml-left {
+  text-align: left;
+}
+
+/* For CD labels that grow to the left in Firefox and WebKit */
+.tml-shift-left { margin-left:-200% }
+
+/* Styles for Chromium only */
+@supports (not (-webkit-backdrop-filter: blur(1px))) and (not (-moz-appearance: none)) {
+  /* Italic correction on accents */
+  .chr-sml {
+    transform: translate(0.07em, 0)
+  }
+  .chr-sml-vec {
+    transform: scale(0.75) translate(0.07em, 0)
+  }
+  .chr-med {
+    transform: translate(0.14em, 0)
+  }
+  .chr-med-vec {
+    transform: scale(0.75) translate(0.14em, 0)
+  }
+  .chr-lrg {
+    transform: translate(0.21em, 0)
+  }
+  .chr-lrg-vec {
+    transform: scale(0.75) translate(0.21em, 0)
+  }
+
+  /* For CD labels that grow to the left */
+  .tml-shift-left { margin-left:-100% }
+
+  /* MathML Core & Chromium do not support the MathML 3.0 element <menclose> attributes. */
+  /* So use styles. */
+  menclose {
+    position: relative;
+    padding: 0.5ex 0ex;
+  }
+
+    .tml-overline {
+    padding: 0.1em 0 0 0;
+    border-top: 0.065em solid;
+  }
+
+  .tml-underline {
+    padding: 0 0 0.1em 0;
+    border-bottom: 0.065em solid;
+  }
+
+  .tml-cancel {
+    display: inline-block;
+    position: absolute;
+    left: 0.5px;
+    bottom: 0;
+    width: 100%;
+    height: 100%;
+    background-color: currentColor;
+  }
+  .upstrike {
+    clip-path: polygon(0.05em 100%, 0em calc(100% - 0.05em), calc(100% - 0.05em) 0em, 100% 0.05em);
+  }
+  .downstrike {
+    clip-path: polygon(0em 0.05em, 0.05em 0em, 100% calc(100% - 0.05em), calc(100% - 0.05em) 100%);
+  }
+  .sout {
+    clip-path: polygon(0em calc(55% + 0.0333em), 0em calc(55% - 0.0333em), 100% calc(55% - 0.0333em), 100% calc(55% + 0.0333em));
+  }
+  .tml-xcancel {
+    clip-path: polygon(0.05em 0em, 0em 0.05em, calc(50% - 0.05em) 50%, 0em calc(100% - 0.05em), 0.05em 100%, 50% calc(50% + 0.05em), calc(100% - 0.05em) 100%, 100% calc(100% - 0.05em), calc(50% + 0.05em) 50%, 100% 0.05em, calc(100% - 0.05em) 0%, 50% calc(50% - 0.05em));
+  }
+
+  .longdiv-top {
+    border-top: 0.067em solid;
+    padding: 0.1em 0.2em 0.2em 0.433em;
+  }
+  .longdiv-arc {
+    position: absolute;
+    top: 0;
+    bottom: 0.1em;
+    left: -0.4em;
+    width: 0.7em;
+    border: 0.067em solid;
+    transform: translateY(-0.067em);
+    border-radius: 70%;
+    clip-path: inset(0 0 0 0.4em);
+    box-sizing: border-box;}
+    .menclose {display: inline-block;
+    text-align: left;
+    position: relative;
+  }
+
+  .phasor-bottom {
+    border-bottom: 0.067em solid;
+    padding: 0.2em 0.2em 0.1em 0.6em;
+  }
+  .phasor-angle {
+    display: inline-block;
+    position: absolute;
+    left: 0.5px;
+    bottom: -0.04em;
+    height: 100%;
+    aspect-ratio: 0.5;
+    background-color: currentColor;
+    clip-path: polygon(0.05em 100%, 0em calc(100% - 0.05em), calc(100% - 0.05em) 0em, 100% 0.05em);
+  }
+
+  .tml-fbox {
+    padding: 3pt;
+    border: 1px solid;
+  }
+
+  .circle-pad {
+    padding: 0.267em;
+  }
+  .textcircle {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    left: 0;
+    border: 0.067em solid;
+    border-radius: 50%;
+   }
+
+   .actuarial {
+    padding: 0.03889em 0.03889em 0 0.03889em;
+    border-width: 0.08em 0.08em 0em 0em;
+    border-style: solid;
+    margin-right: 0.03889em;
+   }
+
+   /* Stretch \widetilde */
+  .tml-crooked-2 {
+    transform: scale(2.0, 1.1)
+  }
+  .tml-crooked-3 {
+    transform: scale(3.0, 1.3)
+  }
+  .tml-crooked-4 {
+    transform: scale(4.0, 1.4)
+  }
+  /* set array cell justification */
+  .tml-right {
+    text-align: -webkit-right;
+  }
+  .tml-left {
+    text-align: -webkit-left;
+  }
+}
+
+.special-fraction {
+  font-family: 'STIX TWO', 'Times New Roman', Times, Tinos, serif;
+}
+
+/* flex-wrap for line-breaking in Chromium */
+math {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+}
+math > mrow {
+  padding: 0.5ex 0ex;
+}
+
+/* Default mtd top padding is 0.5ex per MathML-Core and user-agent CSS */
+/* We adjust for jot and small */
+mtable.tml-jot mtd {
+  padding-top: 0.7ex;
+  padding-bottom: 0.7ex;
+}
+mtable.tml-small mtd {
+  padding-top: 0.35ex;
+  padding-bottom: 0.35ex;
+}
+
+/* Firefox */
+@-moz-document url-prefix() {
+  /* Avoid flex-wrap */
+  math { display: inline; }
+  math > mrow { padding: 0 }
+  /* Adjust Firefox spacing between array rows */
+  mtd, mtable.tml-small mtd { padding-top: 0; padding-bottom: 0; }
+  mtable.tml-jot mtd { padding-top: 0.2ex; padding-bottom: 0.ex; }
+}
+
+/* AMS environment auto-numbering via CSS counter. */
+.tml-eqn::before {
+  counter-increment: tmlEqnNo;
+  content: "(" counter(tmlEqnNo) ")";
+}
+
+body {
+  counter-reset: tmlEqnNo;
+}
+/* All width-based overrides for both modes live here, and this stylesheet is
+   included second-to-last — after mud-up.css, mud-down.css, mud-comments.css
+   and the rest, so these rules win over the base layout, and before
+   mud-print.css, so the print overrides still win over these. The same
+   arrangement mud-print.css documents for its own rules.
+
+   Two tiers:
+
+     Compact   <= 700px   a narrow app window; a roomy Quick Look pane
+     Tight     <= 420px   Finder's column-view preview pane
+
+   Both queries below are scoped to `screen`, never left as a bare width test.
+   In paged output a width test is measured against the page box, and the
+   `@page` margin in mud-print.css leaves US Letter at roughly 680 CSS px and
+   A4 at roughly 660 — an unscoped 700px breakpoint would fire on every printed
+   page and quietly shrink the output. Scoping to `screen` makes that
+   impossible, and HTMLTemplateTests keeps it that way.
+
+   The aim is to fit more into a small viewport while the page still reads as
+   Mud. The themes, the background gradient, and the heading rules and colors
+   are untouched; only geometry and the type scale tighten. */
+
+
+/* == Compact: <= 700px ===================================================== */
+
+@media screen and (max-width: 700px) {
+
+  /* -- Up mode ------------------------------------------------------------ */
+
+  /* 2em a side is a quarter of a 250px pane. The bottom still clears the
+     floating Changes / Find bars, which are a fixed ~50px tall. Rewriting the
+     page box (mud-up.css) tightens the article and the bottom Comments footer
+     together — they are siblings, so neither inherits the other's padding. */
+  :root {
+    --up-page-inset: 1.25rem;
+    --up-page-clearance: 4rem;
+  }
+
+  ul, ol {
+    padding-left: 1.5em;
+  }
+
+  pre {
+    padding: 0.75em;
+  }
+
+  blockquote {
+    padding: 0 0.75em;
+  }
+
+  th, td {
+    padding: 6px 8px;
+  }
+
+  .mud-frontmatter summary {
+    padding: 0.7em;
+  }
+
+  /* The frontmatter table sets its own cell padding at a higher specificity
+     than the `th, td` rule above, so it needs its own override. */
+  .mud-frontmatter-table th {
+    padding: 5px 0.7em;
+  }
+
+  .mud-frontmatter-table td {
+    padding: 6px 0.7em;
+  }
+
+
+  /* -- Comments: the column gives way to the bottom section --------------- */
+
+  /* Below this width the 300px column plus its 24px of margins leaves the
+     document nothing, so the column stands down and the bottom Comments
+     section — the one print shows — takes over, with the inline markers
+     restored beside their quotations. Hovering a marker still lights its
+     quotation: those listeners in mud-comments.js are registered
+     unconditionally, and the highlights are anchored either way.
+
+     Neither the reserved gutter nor the marker-hiding rule is undone here.
+     The screen-scoped blocks in mud-comments.css and mud-comments-edit.css
+     carry a matching `min-width` guard so they never apply at this width —
+     undoing them would mean restating `.mud-comment-marker`'s base geometry
+     in this file, which would go stale the moment that rule changed. Keep the
+     three files' breakpoints in step.
+
+     That leaves the column element itself, which mud-comments.js has already
+     built into the DOM, and the bottom section. The column header, the
+     capsules and the compose box all live inside the column, so they go with
+     it.
+
+     The section stands in for the column, so it answers to the same
+     `is-comments-column` toggle: Show Comments reveals it and Hide Comments
+     takes it away, exactly as they do the column at a wider size. Revealing it
+     unconditionally instead would make Hide Comments look broken here — the
+     comments would stay on screen with nothing left to switch off — and would
+     put a Comments section under a document whose reader never asked for one.
+     (Print reveals the section on its own terms, in mud-print.css, so a
+     printed page still carries the comments whatever the toggle says.) */
+  #mud-comments-column {
+    display: none;
+  }
+
+  html.is-comments-column .comments.is-print-only {
+    display: block;
+  }
+
+
+  /* -- Down mode ---------------------------------------------------------- */
+
+  .ln {
+    flex-basis: 2.75em;
+    padding-right: 0.6em;
+  }
+
+  .lc {
+    padding: 0 0.6em;
+  }
+
+  .down-lines > .dl:first-child > *,
+  .down-lines > .dc-scroll:first-child > .dl:first-child > * {
+    padding-top: 1.25rem;
+  }
+
+  .down-lines > .dl:last-child > *,
+  .down-lines > .dc-scroll:last-child > .dl:last-child > * {
+    padding-bottom: 4rem;
+  }
+}
+
+
+/* == Tight: <= 420px ======================================================= */
+
+/* Finder's column-view preview pane. Everything above still applies; this tier
+   adds the type scale, which is what actually buys the line length back —
+   roughly 40 characters a line where 16px type gave 24. */
+
+@media screen and (max-width: 420px) {
+
+  /* Quick Look locks the document zoom below the Compact breakpoint
+     (PreviewProvider.zoom(paneWidth:)), which already buys this tier's line
+     length back: 16px at 80% reads as 12.8px, and a 350pt pane fits roughly
+     50 characters a line — more than the 40 this step was written for. Taking
+     14px on top of that lands at 11.2px, which is too small to read. The
+     `is-zoom-locked` class marks a document whose zoom the host set on the
+     reader's behalf, so only an unscaled one takes the step; everything else
+     in this tier is geometry and applies either way. */
+  html:not(.is-zoom-locked) {
+    font-size: 14px;
+  }
+
+
+  /* -- Up mode ------------------------------------------------------------ */
+
+  /* Only the inset tightens further; the Compact tier's clearance still holds
+     at this width. */
+  :root {
+    --up-page-inset: 0.9rem;
+  }
+
+  /* The rules, the colors and the h1 / h2 underlines stay — they are the Mud
+     silhouette. Only the sizes come down, so a heading wraps once rather than
+     three or four times. h1 is left out of the margin rule: the base gives it
+     `margin-top: 0` and it must keep it. */
+  h2, h3, h4, h5, h6 {
+    margin-top: 1.2em;
+  }
+
+  h1 { font-size: 1.5em; }
+  h2 { font-size: 1.3em; }
+  h3 { font-size: 1.15em; }
+
+  ul, ol {
+    padding-left: 1.25em;
+  }
+
+  .footnotes ol,
+  .comments ol {
+    padding-left: 1.25em;
+  }
+
+  pre {
+    padding: 0.6em;
+  }
+
+  th, td {
+    padding: 4px 6px;
+  }
+
+  /* A fixed 20% key column that can't wrap forces the whole table wide on a
+     long key; let it size to its content and wrap instead. */
+  .mud-frontmatter-table th {
+    width: auto;
+    white-space: normal;
+    padding: 4px 0.6em;
+  }
+
+  .mud-frontmatter-table td {
+    padding: 5px 0.6em;
+  }
+
+
+  /* -- Down mode ---------------------------------------------------------- */
+
+  .ln {
+    flex-basis: 2.25em;
+    padding-right: 0.4em;
+    font-size: 0.8em;
+  }
+
+  .lc {
+    padding: 0 0.4em;
+  }
+}
+/* All `@media print` overrides live here and this stylesheet is included last,
+   so these rules win over the on-screen defaults set in mud-up.css,
+   mud-down.css, and mud-comments.css. */
+
+/* The physical page margin. The browser's default is roughly an inch; shrink
+   it so the document fills more of the sheet. Top-level rather than nested in
+   `@media print` — `@page` only applies to paged output anyway, and some
+   WebKit versions ignore it inside `@media`. */
+@page {
+  margin: 1.8cm;
+}
+
+@media print {
+  :root {
+    font-size: 10pt;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+  }
+
+  /* On screen the content padding reserves room for the floating bars and sits
+     inside the window; on paper there are no bars and the printer adds its own
+     page margin, so trim the box to a thin frame. That includes the trailing
+     clearance (mud-up.css), which on paper would be 6em of blank before the
+     Comments footer, or at the end of the run. */
+  .up-mode-output {
+    padding: 0;
+  }
+
+  /* Every printed text consumer of the faint --blockquote-color: blockquotes,
+     footnote bodies, comment quotations, the code-block language label, and
+     frontmatter. Pull each most of the way to the body text color so it clears
+     a minimum contrast, while keeping a little of the theme's tint. Mixing
+     toward --text-color (rather than clamping lightness) stays correct under
+     dark lighting, where both vars are the light-on-dark palette. (The
+     comments column, copy button, and compose box use the var too, but none of
+     them print.) */
+  blockquote,
+  .footnotes,
+  .mud-comment-quote,
+  .code-language,
+  .mud-frontmatter {
+    color: color-mix(in srgb, var(--blockquote-color), var(--text-color) 60%);
+  }
+
+  /* The same treatment for the faint --syntax-comment color: code comments
+     (Up mode) and the comment-toned markdown tokens of the raw source (Down
+     mode). These are every consumer of the variable. */
+  .hljs-comment,
+  .hljs-quote,
+  .md-code-fence,
+  .md-blockquote,
+  .md-hr {
+    color: color-mix(in srgb, var(--syntax-comment), var(--text-color) 60%);
+  }
+
+  /* Up mode: footnotes. In `.popover` mode the section is hidden on screen
+     (footnotes show in a native popover) but reappears for Print / Save-PDF. */
+  .footnotes.is-print-only { display: block; }
+
+
+  /* Up mode: comments. The bottom Comments section is hidden on screen in
+     favor of the column, but prints in place of the column. Being the
+     article's sibling rather than its child, the footer carries its own page
+     box (mud-comments.css) — so it needs the same trim the article gets above,
+     keeping only the gap under its rule. */
+  .comments.is-print-only { display: block; }
+
+  footer.comments { padding: 1rem 0 0; }
+
+  /* The comments column is an on-screen layout only; print shows the bottom
+     Comments section instead (above). */
+  #mud-comments-column { display: none; }
+
+
+  /* Down mode: don't clip code blocks. */
+  .dc-scroll { overflow-x: visible; }
+
+  /* Up mode: on screen a wide content table is its own horizontal scroll box
+     (display: block, in mud-up.css); paper can't scroll, so restore normal
+     table layout and let cells wrap within the page width. */
+  :is(.up-mode-output, footer.comments) table:not(.mud-frontmatter-table) {
+    display: table;
+    width: 100%;
+  }
 }
 </style>
 </head>
 <body>
     <article class="up-mode-output">
-<h1 id="feature-showcase">Feature showcase</h1>
-<p>Mud renders GitHub-Flavored Markdown with a set of extended features beyond
-the CommonMark baseline. This document demonstrates all of them in one place.</p>
-<hr />
-<h2 id="alerts">Alerts</h2>
-<p>GFM alert syntax (<code>&gt; [!TYPE]</code>) produces colour-coded call-outs with Octicon
-icons.</p>
-<blockquote class="alert alert-note">
-<p class="alert-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.5 7.75A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>Note</p>
-<p>Highlights information that users should take into account, even when
-skimming.</p>
+<details class="mud-frontmatter"><summary>Frontmatter</summary><table class="mud-frontmatter-table"><tr><th class="fm-key">title</th><td>Feature showcase</td></tr><tr><th class="fm-key">description</th><td><pre>&gt;
+  Demonstrates all of Mud's extended Markdown features in one place.
+  Notice that this YAML frontmatter table is itself a feature.</pre></td></tr></table></details><h1 id="feature-showcase">Feature showcase</h1>
+<p>Mud renders GitHub-Flavored Markdown with a set of extended features beyond the
+CommonMark baseline. This document demonstrates all of them in one place.</p>
+<h2 id="inline-formatting">Inline formatting</h2>
+<p>Standard inline markup: <strong>bold</strong>, <em>italic</em>, <em><strong>bold and italic</strong></em>,
+<s>strikethrough</s>, and <code>inline code</code>.</p>
+<p>Emoji shortcodes resolve to Unicode using GitHub’s gemoji database (~1,800
+aliases): 🚀 ✨ 🎉 ✅ ⚠️</p>
+<blockquote>
+<p>“Mud renders Markdown the way GitHub does, right on your Mac.”<a class="mud-comment-marker" id="cmtref-comment-a" data-mud-label="comment-a" href="#cmt-comment-a">💬</a></p>
 </blockquote>
-<blockquote class="alert alert-tip">
-<p class="alert-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 1.5c-2.363 0-4 1.69-4 3.75 0 .984.424 1.625.984 2.304l.214.253c.223.264.47.556.673.848.284.411.537.896.621 1.49a.75.75 0 0 1-1.484.211c-.04-.282-.163-.547-.37-.847a8.456 8.456 0 0 0-.542-.68c-.084-.1-.173-.205-.268-.32C3.201 7.75 2.5 6.766 2.5 5.25 2.5 2.31 4.863 0 8 0s5.5 2.31 5.5 5.25c0 1.516-.701 2.5-1.328 3.259-.095.115-.184.22-.268.319-.207.245-.383.453-.541.681-.208.3-.33.565-.37.847a.751.751 0 0 1-1.485-.212c.084-.593.337-1.078.621-1.489.203-.292.45-.584.673-.848.075-.088.147-.173.213-.253.561-.679.985-1.32.985-2.304 0-2.06-1.637-3.75-4-3.75ZM5.75 12h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5ZM6 15.25a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 0 1.5h-2.5a.75.75 0 0 1-.75-.75Z"/></svg>Tip</p>
-<p>Optional information to help a user be more successful.</p>
-</blockquote>
-<blockquote class="alert alert-important">
-<p class="alert-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v9.5A1.75 1.75 0 0 1 14.25 13H8.06l-2.573 2.573A1.458 1.458 0 0 1 3 14.543V13H1.75A1.75 1.75 0 0 1 0 11.25Zm1.75-.25a.25.25 0 0 0-.25.25v9.5c0 .138.112.25.25.25h2a.75.75 0 0 1 .75.75v2.19l2.72-2.72a.749.749 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-9.5a.25.25 0 0 0-.25-.25Zm7 2.25v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 9a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"/></svg>Important</p>
-<p>Crucial information necessary for users to succeed.</p>
-</blockquote>
-<blockquote class="alert alert-warning">
-<p class="alert-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575Zm1.763.707a.25.25 0 0 0-.44 0L1.698 13.132a.25.25 0 0 0 .22.368h12.164a.25.25 0 0 0 .22-.368Zm.53 3.996v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"/></svg>Warning</p>
-<p>Critical content demanding immediate user attention due to
-potential risks.</p>
-</blockquote>
-<blockquote class="alert alert-caution">
-<p class="alert-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M4.47.22A.749.749 0 0 1 5 0h6c.199 0 .389.079.53.22l4.25 4.25c.141.14.22.331.22.53v6a.749.749 0 0 1-.22.53l-4.25 4.25A.749.749 0 0 1 11 16H5a.749.749 0 0 1-.53-.22L.22 11.53A.749.749 0 0 1 0 11V5c0-.199.079-.389.22-.53Zm.84 1.28L1.5 5.31v5.38l3.81 3.81h5.38l3.81-3.81V5.31L10.69 1.5ZM8 4a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 8 4Zm0 8a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>Caution</p>
-<p>Negative potential consequences of an action.</p>
-</blockquote>
-<p>Alerts can also contain rich content — code blocks, lists, inline formatting,
-and links:</p>
-<blockquote class="alert alert-tip">
-<p class="alert-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 1.5c-2.363 0-4 1.69-4 3.75 0 .984.424 1.625.984 2.304l.214.253c.223.264.47.556.673.848.284.411.537.896.621 1.49a.75.75 0 0 1-1.484.211c-.04-.282-.163-.547-.37-.847a8.456 8.456 0 0 0-.542-.68c-.084-.1-.173-.205-.268-.32C3.201 7.75 2.5 6.766 2.5 5.25 2.5 2.31 4.863 0 8 0s5.5 2.31 5.5 5.25c0 1.516-.701 2.5-1.328 3.259-.095.115-.184.22-.268.319-.207.245-.383.453-.541.681-.208.3-.33.565-.37.847a.751.751 0 0 1-1.485-.212c.084-.593.337-1.078.621-1.489.203-.292.45-.584.673-.848.075-.088.147-.173.213-.253.561-.679.985-1.32.985-2.304 0-2.06-1.637-3.75-4-3.75ZM5.75 12h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5ZM6 15.25a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 0 1.5h-2.5a.75.75 0 0 1-.75-.75Z"/></svg>Tip</p>
-<p>Press <strong>Space</strong> to toggle between Up mode (rendered) and Down mode
-(raw source) without losing your scroll position.</p>
-<p>Or use the toolbar button, or <strong>View → Toggle Mode</strong> in the menu bar.</p>
-</blockquote>
-<h2 id="diagrams">Diagrams</h2>
-<p>Fenced code blocks with <code>mermaid</code> as the language identifier are rendered as
-diagrams using the Mermaid library.</p>
-<h3 id="rendering-pipeline">Rendering pipeline</h3>
-<pre><code class="language-mermaid">graph LR
-    A[Markdown source] --&gt; B[cmark-gfm parser]
-    B --&gt; C[AST]
-    C --&gt; D[UpHTMLVisitor]
-    D --&gt; E{Code block?}
-    E --&gt;|mermaid| F[mermaid.run]
-    E --&gt;|other| G[highlight.js]
-    F --&gt; H[SVG diagram]
-    G --&gt; I[Highlighted HTML]
-</code></pre>
-<h3 id="request-lifecycle">Request lifecycle</h3>
-<pre><code class="language-mermaid">sequenceDiagram
-    participant User
-    participant App
-    participant Core
-    participant WebView
-
-    User-&gt;&gt;App: Open file
-    App-&gt;&gt;Core: renderUpModeDocument()
-    Core--&gt;&gt;App: HTML string
-    App-&gt;&gt;WebView: loadHTMLString()
-    WebView-&gt;&gt;User: Rendered page
-</code></pre>
-<h3 id="mode-states">Mode states</h3>
-<pre><code class="language-mermaid">stateDiagram-v2
-    [*] --&gt; Up
-    Up --&gt; Down: Space bar
-    Down --&gt; Up: Space bar
-    Up --&gt; Up: Cmd+R (reload)
-    Down --&gt; Down: Cmd+R (reload)
-</code></pre>
 <h2 id="syntax-highlighting">Syntax highlighting</h2>
 <p>Code blocks with a language tag are highlighted server-side by highlight.js via
 JavaScriptCore — no network requests, no external dependencies.</p>
-<pre><code class="language-swift"><span class="hljs-keyword">struct</span> <span class="hljs-title class_">Renderer</span> {
+<pre class="mud-code"><div class="code-header"><span class="code-language">swift</span></div><code class="language-swift"><span class="hljs-keyword">struct</span> <span class="hljs-title class_">Renderer</span> {
     <span class="hljs-keyword">func</span> <span class="hljs-title function_">render</span>(<span class="hljs-keyword">_</span> <span class="hljs-params">markdown</span>: <span class="hljs-type">String</span>) -&gt; <span class="hljs-type">String</span> {
         <span class="hljs-keyword">let</span> doc <span class="hljs-operator">=</span> <span class="hljs-type">MarkdownParser</span>.parse(markdown)
         <span class="hljs-keyword">var</span> visitor <span class="hljs-operator">=</span> <span class="hljs-type">UpHTMLVisitor</span>()
@@ -505,16 +1855,63 @@ JavaScriptCore — no network requests, no external dependencies.</p>
     }
 }
 </code></pre>
-<pre><code class="language-python"><span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path
+<pre class="mud-code"><div class="code-header"><span class="code-language">python</span></div><code class="language-python"><span class="hljs-keyword">from</span> pathlib <span class="hljs-keyword">import</span> Path
 
 <span class="hljs-keyword">def</span> <span class="hljs-title function_">render_file</span>(<span class="hljs-params">path: Path</span>) -&gt; <span class="hljs-built_in">str</span>:
     text = path.read_text(encoding=<span class="hljs-string">&quot;utf-8&quot;</span>)
     <span class="hljs-keyword">return</span> markdown.markdown(text, extensions=[<span class="hljs-string">&quot;tables&quot;</span>, <span class="hljs-string">&quot;fenced_code&quot;</span>])
 </code></pre>
-<pre><code class="language-sh">mud -u README.md &gt; output.html
+<pre class="mud-code"><div class="code-header"><span class="code-language">sh</span></div><code class="language-sh">mud -u README.md &gt; output.html
 mud -u -b README.md        <span class="hljs-comment"># open in browser</span>
 mud -f README.md           <span class="hljs-comment"># fragment only, no &lt;html&gt; wrapper</span>
 </code></pre>
+<h2 id="math">Math</h2>
+<p>Three forms are recognized, the same three GitHub accepts. A fenced code block
+tagged <code>math</code>:</p>
+<div class="mud-math-block"><math display="block" class="tml-display" style="display:block math;"><mrow><mi>ζ</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>s</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mrow><munderover><mo movablelimits="false">∑</mo><mrow><mi>n</mi><mo>=</mo><mn>1</mn></mrow><mi>∞</mi></munderover></mrow><mfrac><mn>1</mn><msup><mi>n</mi><mi>s</mi></msup></mfrac></mrow></math></div>
+<p>A paragraph wrapped in <code>$$…$$</code>:</p>
+<div class="mud-math-block"><math display="block" class="tml-display" style="display:block math;"><mrow><msubsup><mo movablelimits="false">∫</mo><mn>0</mn><mi>∞</mi></msubsup><msup><mi>e</mi><mrow class="tml-sml-pad"><mo form="prefix" stretchy="false" lspace="0em" rspace="0em">−</mo><msup><mi>x</mi><mn class="tml-sml-pad">2</mn></msup></mrow></msup><mspace width="0.1667em"></mspace><mi>d</mi><mi>x</mi><mo>=</mo><mfrac><msqrt><mrow><mi>π</mi><mspace width="0pt" height="0.5em"></mspace></mrow></msqrt><mn>2</mn></mfrac></mrow></math></div>
+<p>And inline math, written <code>$`…`$</code>, which sits in a line of prose: the
+Pythagorean theorem <math><mrow><msup><mi>a</mi><mn>2</mn></msup><mo>+</mo><msup><mi>b</mi><mn>2</mn></msup><mo>=</mo><msup><mi>c</mi><mn class="tml-sml-pad">2</mn></msup></mrow></math>, or Euler’s identity
+<math><mrow><msup><mi>e</mi><mrow class="tml-sml-pad"><mi>i</mi><mi>π</mi></mrow></msup><mo>+</mo><mn>1</mn><mo>=</mo><mn>0</mn></mrow></math>.</p>
+<p>The backticks are required — a bare <code>$…$</code> is not math — so a price like $5, or
+a shell variable written <code>$PATH</code>, stays literal.</p>
+<p>Anything Temml can typeset works, matrices and multi-case definitions included.</p>
+<div class="mud-math-block"><math display="block" class="tml-display" style="display:block math;"><mrow><mi>A</mi><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="true">(</mo><mtable><mtr><mtd style="padding-left:0em;padding-right:5.9776pt;"><msub><mi>a</mi><mn>11</mn></msub></mtd><mtd style="padding-left:5.9776pt;padding-right:5.9776pt;"><msub><mi>a</mi><mn>12</mn></msub></mtd><mtd style="padding-left:5.9776pt;padding-right:5.9776pt;"><mo>⋯</mo></mtd><mtd style="padding-left:5.9776pt;padding-right:0em;"><msub><mi>a</mi><mrow><mn>1</mn><mi>n</mi></mrow></msub></mtd></mtr><mtr><mtd style="padding-left:0em;padding-right:5.9776pt;"><msub><mi>a</mi><mn>21</mn></msub></mtd><mtd style="padding-left:5.9776pt;padding-right:5.9776pt;"><msub><mi>a</mi><mn>22</mn></msub></mtd><mtd style="padding-left:5.9776pt;padding-right:5.9776pt;"><mo>⋯</mo></mtd><mtd style="padding-left:5.9776pt;padding-right:0em;"><msub><mi>a</mi><mrow><mn>2</mn><mi>n</mi></mrow></msub></mtd></mtr><mtr><mtd style="padding-left:0em;padding-right:5.9776pt;"><mrow><mi>⋮</mi><mspace width="0pt" height="14.944pt"></mspace></mrow></mtd><mtd style="padding-left:5.9776pt;padding-right:5.9776pt;"><mrow><mi>⋮</mi><mspace width="0pt" height="14.944pt"></mspace></mrow></mtd><mtd style="padding-left:5.9776pt;padding-right:5.9776pt;"><mo>⋱</mo></mtd><mtd style="padding-left:5.9776pt;padding-right:0em;"><mrow><mi>⋮</mi><mspace width="0pt" height="14.944pt"></mspace></mrow></mtd></mtr><mtr><mtd style="padding-left:0em;padding-right:5.9776pt;"><msub><mi>a</mi><mrow><mi>m</mi><mn>1</mn></mrow></msub></mtd><mtd style="padding-left:5.9776pt;padding-right:5.9776pt;"><msub><mi>a</mi><mrow><mi>m</mi><mn>2</mn></mrow></msub></mtd><mtd style="padding-left:5.9776pt;padding-right:5.9776pt;"><mo>⋯</mo></mtd><mtd style="padding-left:5.9776pt;padding-right:0em;"><msub><mi>a</mi><mrow><mi>m</mi><mi>n</mi></mrow></msub></mtd></mtr></mtable><mo fence="true" form="postfix" stretchy="true">)</mo></mrow></mrow></math></div>
+<div class="mud-math-block"><math display="block" class="tml-display" style="display:block math;"><mrow><mi>f</mi><mrow><mo fence="true" form="prefix" stretchy="false">(</mo><mi>n</mi><mo fence="true" form="postfix" stretchy="false">)</mo></mrow><mo>=</mo><mrow><mo fence="true" form="prefix" stretchy="true">{</mo><mtable><mtr><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mi>n</mi><mi>/</mi><mn>2</mn></mrow></mtd><mtd class="tml-left" style="padding-left:1em;padding-right:0em;"><mrow><mtext>if </mtext><mi>n</mi><mtext> is even</mtext></mrow></mtd></mtr><mtr><mtd class="tml-left" style="padding-left:0em;padding-right:0em;"><mrow><mn>3</mn><mi>n</mi><mo>+</mo><mn>1</mn></mrow></mtd><mtd class="tml-left" style="padding-left:1em;padding-right:0em;"><mrow><mtext>if </mtext><mi>n</mi><mtext> is odd</mtext></mrow></mtd></mtr></mtable><mo fence="true" form="postfix" stretchy="true"></mo></mrow></mrow></math></div>
+<h2 id="task-lists">Task lists</h2>
+<ul>
+<li><input type="checkbox" disabled="" checked="" /> CommonMark baseline (headings, lists, links, images)
+</li>
+<li><input type="checkbox" disabled="" checked="" /> GFM tables
+</li>
+<li><input type="checkbox" disabled="" checked="" /> GFM task lists
+</li>
+<li><input type="checkbox" disabled="" checked="" /> GFM strikethrough
+</li>
+<li><input type="checkbox" disabled="" checked="" /> GFM alerts (note, tip, important, warning, caution)
+</li>
+<li><input type="checkbox" disabled="" checked="" /> DocC asides
+</li>
+<li><input type="checkbox" disabled="" checked="" /> Status asides
+</li>
+<li><input type="checkbox" disabled="" checked="" /> Mermaid diagrams
+</li>
+<li><input type="checkbox" disabled="" checked="" /> Math (TeX typeset to MathML)
+</li>
+<li><input type="checkbox" disabled="" checked="" /> Syntax highlighting via highlight.js
+</li>
+<li><input type="checkbox" disabled="" checked="" /> Emoji shortcodes
+</li>
+<li><input type="checkbox" disabled="" checked="" /> YAML frontmatter
+</li>
+<li><input type="checkbox" disabled="" checked="" /> Change tracking
+</li>
+<li><input type="checkbox" disabled="" checked="" /> Footnotes
+</li>
+<li><input type="checkbox" disabled="" checked="" /> Comments
+</li>
+</ul>
 <h2 id="tables">Tables</h2>
 <p>GFM tables support per-column text alignment using <code>:</code> in the separator row.</p>
 <table>
@@ -534,6 +1931,11 @@ mud -f README.md           <span class="hljs-comment"># fragment only, no &lt;ht
 <tr>
 <td>Mermaid diagrams</td>
 <td align="center"><code>```mermaid</code></td>
+<td align="right">✓</td>
+</tr>
+<tr>
+<td>Math</td>
+<td align="center"><code>```math</code></td>
 <td align="right">✓</td>
 </tr>
 <tr>
@@ -566,47 +1968,81 @@ mud -f README.md           <span class="hljs-comment"># fragment only, no &lt;ht
 <td align="center"><code>&gt; Status: …</code></td>
 <td align="right">✓</td>
 </tr>
+<tr>
+<td>Frontmatter</td>
+<td align="center"><code>---</code> … <code>---</code></td>
+<td align="right">✓</td>
+</tr>
+<tr>
+<td>Change tracking</td>
+<td align="center">View → Show Changes</td>
+<td align="right">✓</td>
+</tr>
+<tr>
+<td>Footnotes</td>
+<td align="center"><code>text[^1]</code></td>
+<td align="right">✓</td>
+</tr>
+<tr>
+<td>Comments</td>
+<td align="center"><code>[^comment-1]</code></td>
+<td align="right">✓</td>
+</tr>
 </tbody>
 </table>
-<h2 id="task-lists">Task lists</h2>
-<ul>
-<li><input type="checkbox" disabled="" checked="" /> CommonMark baseline (headings, lists, links, images)
-</li>
-<li><input type="checkbox" disabled="" checked="" /> GFM tables
-</li>
-<li><input type="checkbox" disabled="" checked="" /> GFM task lists
-</li>
-<li><input type="checkbox" disabled="" checked="" /> GFM strikethrough
-</li>
-<li><input type="checkbox" disabled="" checked="" /> GFM alerts (note, tip, important, warning, caution)
-</li>
-<li><input type="checkbox" disabled="" checked="" /> DocC asides
-</li>
-<li><input type="checkbox" disabled="" checked="" /> Status asides
-</li>
-<li><input type="checkbox" disabled="" checked="" /> Mermaid diagrams
-</li>
-<li><input type="checkbox" disabled="" checked="" /> Syntax highlighting via highlight.js
-</li>
-<li><input type="checkbox" disabled="" checked="" /> Emoji shortcodes
-</li>
-<li><input type="checkbox" disabled="" /> Math rendering (not yet planned)
-</li>
-</ul>
-<h2 id="inline-formatting">Inline formatting</h2>
-<p>Standard inline markup: <strong>bold</strong>, <em>italic</em>, <em><strong>bold and italic</strong></em>,
-<del>strikethrough</del>, and <code>inline code</code>.</p>
-<p>Emoji shortcodes resolve to Unicode using GitHub’s gemoji database (~1,800
-aliases): 🚀 ✨ 🎉 ✅ ⚠️</p>
-<blockquote>
-<p>“Mud renders Markdown the way GitHub does, right on your Mac.”</p>
+<h2 id="footnotes">Footnotes</h2>
+<p>A footnote reference like <code>[^label]</code> links to a definition kept at the bottom
+of the document.<sup class="footnote-ref" id="fnref-1"><a href="#fn-1" data-footnote-ref data-fn-label="1" data-fn-num="1">1</a></sup> Click a marker to jump to its definition; in Up mode,
+click on a marker to read the footnote in a popover without leaving your place.</p>
+<p>Footnote labels can be numbers or words — <code>[^1]</code> and <code>[^note]</code> both work — and
+the bodies are full Markdown.<sup class="footnote-ref" id="fnref-2"><a href="#fn-2" data-footnote-ref data-fn-label="rich" data-fn-num="2">2</a></sup> Definitions can appear anywhere in the
+source.</p>
+<h2 id="comments">Comments</h2>
+<p>A comment is Mud’s own convention layered on standard footnotes: a footnote
+whose label starts with <code>comment-</code>.<a class="mud-comment-marker" id="cmtref-comment-b" data-mud-label="comment-b" href="#cmt-comment-b">💬</a> Mud shows comments in a margin
+column beside the text, anchored to the quoted passage they annotate, rather
+than in the footnote list at the bottom.</p>
+<p>Because a comment is just a footnote, it survives untouched in any other
+Markdown tool. On GitHub it renders as an ordinary footnote with a byline. In
+Mud you can add, reply to, edit, and delete comments directly in the margin —
+the changes are written back to the document as footnotes.</p>
+<h2 id="alerts">Alerts</h2>
+<p>GFM alert syntax (<code>&gt; [!TYPE]</code>) produces colour-coded call-outs with Octicon
+icons.</p>
+<blockquote class="alert alert-note">
+<p class="alert-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.5 7.75A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>Note</p>
+<p>Highlights information that users should take into account, even when
+skimming.</p>
 </blockquote>
-<h2 id="docc-asides">DocC asides</h2>
+<blockquote class="alert alert-tip">
+<p class="alert-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 1.5c-2.363 0-4 1.69-4 3.75 0 .984.424 1.625.984 2.304l.214.253c.223.264.47.556.673.848.284.411.537.896.621 1.49a.75.75 0 0 1-1.484.211c-.04-.282-.163-.547-.37-.847a8.456 8.456 0 0 0-.542-.68c-.084-.1-.173-.205-.268-.32C3.201 7.75 2.5 6.766 2.5 5.25 2.5 2.31 4.863 0 8 0s5.5 2.31 5.5 5.25c0 1.516-.701 2.5-1.328 3.259-.095.115-.184.22-.268.319-.207.245-.383.453-.541.681-.208.3-.33.565-.37.847a.751.751 0 0 1-1.485-.212c.084-.593.337-1.078.621-1.489.203-.292.45-.584.673-.848.075-.088.147-.173.213-.253.561-.679.985-1.32.985-2.304 0-2.06-1.637-3.75-4-3.75ZM5.75 12h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5ZM6 15.25a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 0 1.5h-2.5a.75.75 0 0 1-.75-.75Z"/></svg>Tip</p>
+<p>Optional information to help a user be more successful.</p>
+</blockquote>
+<blockquote class="alert alert-important">
+<p class="alert-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M0 1.75C0 .784.784 0 1.75 0h12.5C15.216 0 16 .784 16 1.75v9.5A1.75 1.75 0 0 1 14.25 13H8.06l-2.573 2.573A1.458 1.458 0 0 1 3 14.543V13H1.75A1.75 1.75 0 0 1 0 11.25Zm1.75-.25a.25.25 0 0 0-.25.25v9.5c0 .138.112.25.25.25h2a.75.75 0 0 1 .75.75v2.19l2.72-2.72a.749.749 0 0 1 .53-.22h6.5a.25.25 0 0 0 .25-.25v-9.5a.25.25 0 0 0-.25-.25Zm7 2.25v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 9a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"/></svg>Important</p>
+<p>Crucial information necessary for users to succeed.</p>
+</blockquote>
+<blockquote class="alert alert-warning">
+<p class="alert-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575Zm1.763.707a.25.25 0 0 0-.44 0L1.698 13.132a.25.25 0 0 0 .22.368h12.164a.25.25 0 0 0 .22-.368Zm.53 3.996v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"/></svg>Warning</p>
+<p>Critical content demanding immediate user attention due to potential risks.</p>
+</blockquote>
+<blockquote class="alert alert-caution">
+<p class="alert-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M4.47.22A.749.749 0 0 1 5 0h6c.199 0 .389.079.53.22l4.25 4.25c.141.14.22.331.22.53v6a.749.749 0 0 1-.22.53l-4.25 4.25A.749.749 0 0 1 11 16H5a.749.749 0 0 1-.53-.22L.22 11.53A.749.749 0 0 1 0 11V5c0-.199.079-.389.22-.53Zm.84 1.28L1.5 5.31v5.38l3.81 3.81h5.38l3.81-3.81V5.31L10.69 1.5ZM8 4a.75.75 0 0 1 .75.75v3.5a.75.75 0 0 1-1.5 0v-3.5A.75.75 0 0 1 8 4Zm0 8a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>Caution</p>
+<p>Negative potential consequences of an action.</p>
+</blockquote>
+<p>Alerts can also contain rich content — code blocks, lists, inline formatting,
+and links:</p>
+<blockquote class="alert alert-tip">
+<p class="alert-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 1.5c-2.363 0-4 1.69-4 3.75 0 .984.424 1.625.984 2.304l.214.253c.223.264.47.556.673.848.284.411.537.896.621 1.49a.75.75 0 0 1-1.484.211c-.04-.282-.163-.547-.37-.847a8.456 8.456 0 0 0-.542-.68c-.084-.1-.173-.205-.268-.32C3.201 7.75 2.5 6.766 2.5 5.25 2.5 2.31 4.863 0 8 0s5.5 2.31 5.5 5.25c0 1.516-.701 2.5-1.328 3.259-.095.115-.184.22-.268.319-.207.245-.383.453-.541.681-.208.3-.33.565-.37.847a.751.751 0 0 1-1.485-.212c.084-.593.337-1.078.621-1.489.203-.292.45-.584.673-.848.075-.088.147-.173.213-.253.561-.679.985-1.32.985-2.304 0-2.06-1.637-3.75-4-3.75ZM5.75 12h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5ZM6 15.25a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 0 1.5h-2.5a.75.75 0 0 1-.75-.75Z"/></svg>Tip</p>
+<p>Press <strong>Space</strong> to toggle between Up mode (rendered) and Down mode (raw
+source) without losing your scroll position.</p>
+<p>Or use the toolbar button, or <strong>View → Toggle Mode</strong> in the menu bar.</p>
+</blockquote>
+<h3 id="docc-asides">DocC asides</h3>
 <p>DocC-style asides use a word-and-colon prefix instead of the GFM <code>[!TYPE]</code> tag.
 Both syntaxes produce the same icon and colour scheme.</p>
 <blockquote class="alert alert-note">
-<p class="alert-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.5 7.75A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>Note</p>
-<p>Use DocC style in documentation comments rendered by Xcode.</p>
+<p class="alert-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8Zm8-6.5a6.5 6.5 0 1 0 0 13 6.5 6.5 0 0 0 0-13ZM6.5 7.75A.75.75 0 0 1 7.25 7h1a.75.75 0 0 1 .75.75v2.75h.25a.75.75 0 0 1 0 1.5h-2a.75.75 0 0 1 0-1.5h.25v-2h-.25a.75.75 0 0 1-.75-.75ZM8 6a1 1 0 1 1 0-2 1 1 0 0 1 0 2Z"/></svg>Note: <strong>Use DocC style in documentation comments rendered by Xcode.</strong></p>
 </blockquote>
 <blockquote class="alert alert-tip">
 <p class="alert-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 1.5c-2.363 0-4 1.69-4 3.75 0 .984.424 1.625.984 2.304l.214.253c.223.264.47.556.673.848.284.411.537.896.621 1.49a.75.75 0 0 1-1.484.211c-.04-.282-.163-.547-.37-.847a8.456 8.456 0 0 0-.542-.68c-.084-.1-.173-.205-.268-.32C3.201 7.75 2.5 6.766 2.5 5.25 2.5 2.31 4.863 0 8 0s5.5 2.31 5.5 5.25c0 1.516-.701 2.5-1.328 3.259-.095.115-.184.22-.268.319-.207.245-.383.453-.541.681-.208.3-.33.565-.37.847a.751.751 0 0 1-1.485-.212c.084-.593.337-1.078.621-1.489.203-.292.45-.584.673-.848.075-.088.147-.173.213-.253.561-.679.985-1.32.985-2.304 0-2.06-1.637-3.75-4-3.75ZM5.75 12h4.5a.75.75 0 0 1 0 1.5h-4.5a.75.75 0 0 1 0-1.5ZM6 15.25a.75.75 0 0 1 .75-.75h2.5a.75.75 0 0 1 0 1.5h-2.5a.75.75 0 0 1-.75-.75Z"/></svg>Tip</p>
@@ -618,15 +2054,1511 @@ entry to jump to that section.</p>
 <p>Modifying the file outside Mud while it is open may cause the file
 watcher to miss the final change event on some filesystems.</p>
 </blockquote>
-<h2 id="status-asides">Status asides</h2>
+<h3 id="status-asides">Status asides</h3>
 <p>A blockquote starting with <code>Status:</code> renders as a special call-out — used in
 plan documents to track progress.</p>
 <blockquote class="alert alert-status">
 <p class="alert-title"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M6 2c.306 0 .582.187.696.471L10 10.731l1.304-3.26A.751.751 0 0 1 12 7h3.25a.75.75 0 0 1 0 1.5h-2.742l-1.812 4.528a.751.751 0 0 1-1.392 0L6 4.77 4.696 8.03A.75.75 0 0 1 4 8.5H.75a.75.75 0 0 1 0-1.5h2.742l1.812-4.529A.751.751 0 0 1 6 2Z"/></svg>Status: <strong>Complete</strong></p>
 <p>All features in this document are implemented and shipping.</p>
 </blockquote>
+<h2 id="diagrams">Diagrams</h2>
+<p>Fenced code blocks with <code>mermaid</code> as the language identifier are rendered as
+diagrams using the Mermaid library.</p>
+<h3 id="rendering-pipeline">Rendering pipeline</h3>
+<pre class="mud-code"><div class="code-header"><span class="code-language">mermaid</span></div><code class="language-mermaid">graph LR
+    A[Markdown source] --&gt; B[cmark-gfm parser]
+    B --&gt; C[AST]
+    C --&gt; D[UpHTMLVisitor]
+    D --&gt; E{Code block?}
+    E --&gt;|mermaid| F[mermaid.run]
+    E --&gt;|other| G[highlight.js]
+    F --&gt; H[SVG diagram]
+    G --&gt; I[Highlighted HTML]
+</code></pre>
+<h3 id="request-lifecycle">Request lifecycle</h3>
+<pre class="mud-code"><div class="code-header"><span class="code-language">mermaid</span></div><code class="language-mermaid">sequenceDiagram
+    participant User
+    participant App
+    participant Core
+    participant WebView
 
+    User-&gt;&gt;App: Open file
+    App-&gt;&gt;Core: renderUpModeDocument()
+    Core--&gt;&gt;App: HTML string
+    App-&gt;&gt;WebView: loadHTMLString()
+    WebView-&gt;&gt;User: Rendered page
+</code></pre>
+<h3 id="mode-states">Mode states</h3>
+<pre class="mud-code"><div class="code-header"><span class="code-language">mermaid</span></div><code class="language-mermaid">stateDiagram-v2
+    [*] --&gt; Up
+    Up --&gt; Down: Space bar
+    Down --&gt; Up: Space bar
+    Up --&gt; Up: Cmd+R (reload)
+    Down --&gt; Down: Cmd+R (reload)
+</code></pre>
+<h2 id="change-tracking">Change tracking</h2>
+<p>Mud tracks changes to your document as you edit and reload. Toggle the Changes
+bar from <strong>View → Show Changes</strong> (⌃⌘C) or the toolbar button.</p>
+<ul>
+<li><strong>Up mode</strong> — tinted overlays highlight inserted, deleted, and modified
+content. Numbered expando buttons let you reveal deletions and expand mixed
+groups. Word-level diffs show exactly which words changed.
+</li>
+<li><strong>Down mode</strong> — colored line-number gutters and background tints mark changed
+lines, with word-level markers for fine-grained detail.
+</li>
+<li><strong>Changes sidebar</strong> — a list of all change groups; click to navigate.
+</li>
+<li><strong>Waypoints</strong> — diff against the last accept point, a time-based snapshot, or
+(with git waypoints enabled) a recent commit.
+</li>
+</ul>
+<p>See <code>Doc/Guides/change-tracking.md</code> for the full guide.</p>
+<section class="footnotes" data-footnotes>
+<ol>
+<li id="fn-1">
+<p>This is a footnote. The marker above is a superscript number; this
+definition is collected here at the foot of the document.</p>
+<a class="footnote-backref" href="#fnref-1" aria-label="Back to content">↩</a>
+</li>
+<li id="fn-2">
+<p>Footnote bodies can hold rich Markdown — <code>inline code</code>, <strong>bold</strong>,
+<em>italic</em>, links, and even short lists:</p>
+<ul>
+<li>first point
+</li>
+<li>second point
+</li>
+</ul>
+<a class="footnote-backref" href="#fnref-2" aria-label="Back to content">↩</a>
+</li>
+</ol>
+</section>
     </article>
+<footer class="comments is-print-only" data-comments>
+<h2>Comments</h2>
+<ol>
+<li id="cmt-comment-a" data-mud-label="comment-a" data-mud-quotation="“Mud renders Markdown the way GitHub does, right on your Mac.”">
+<blockquote class="mud-comment-quote">“Mud renders Markdown the way GitHub does, right on your Mac.”</blockquote>
+<div class="mud-comment-message" data-mud-author="Mud" data-mud-body="This is a comment, anchored to the quotation above. It appears in
+the margin column to the right, beside the text it annotates.">
+<div class="mud-comment-attribution">Mud <time class="mud-comment-time" datetime="2026-06-22T09:14:00">2026-06-22 09:14:00</time></div>
+<div class="mud-comment-body"><p>This is a comment, anchored to the quotation above. It appears in
+the margin column to the right, beside the text it annotates.</p>
+</div>
+</div>
+<div class="mud-comment-message" data-mud-author="Mudder" data-mud-body="Replies stack underneath. Each `💬 {author @ time}:` line starts a
+new message in the same thread.">
+<div class="mud-comment-attribution">Mudder <time class="mud-comment-time" datetime="2026-06-22T09:15:30">2026-06-22 09:15:30</time></div>
+<div class="mud-comment-body"><p>Replies stack underneath. Each <code>💬 {author @ time}:</code> line starts a
+new message in the same thread.</p>
+</div>
+</div>
+<a class="footnote-backref" href="#cmtref-comment-a" aria-label="Back to content">↩</a>
+</li>
+<li id="cmt-comment-b" data-mud-label="comment-b" data-mud-quotation="a footnote whose label starts with comment-">
+<blockquote class="mud-comment-quote">a footnote whose label starts with comment-</blockquote>
+<div class="mud-comment-message" data-mud-author="Claude" data-mud-body="For example, this thread is defined by a footnote labelled
+`comment-b`. The label is a unique key — never renumber or reuse
+one.">
+<div class="mud-comment-attribution">Claude <time class="mud-comment-time" datetime="2026-06-22T09:18:42">2026-06-22 09:18:42</time></div>
+<div class="mud-comment-body"><p>For example, this thread is defined by a footnote labelled
+<code>comment-b</code>. The label is a unique key — never renumber or reuse
+one.</p>
+</div>
+</div>
+<a class="footnote-backref" href="#cmtref-comment-b" aria-label="Back to content">↩</a>
+</li>
+</ol>
+</footer>
+    <script>// Mud - Comment anchoring primitives (shared by the read and write sides).
+//
+// The leaf-block and marker-text rules that map a rendered-DOM position to a
+// block of source text. Both comment scripts and CommentAnchor.swift compute
+// the same block text so a comment's marker lands byte-exactly; keeping the JS
+// rules in one place stops the two scripts from drifting apart.
+//
+// HTMLTemplate concatenates this file ahead of mud-comments.js (the read side),
+// so it is present wherever the read side is — the app and every HTML export.
+// The write side (mud-comments-edit.js), injected separately in the app, runs
+// after and sees `Mud.commentAnchor` too.
+//
+// A **logical block** is the DOM-side unit that maps one-to-one to a cmark leaf
+// block (paragraph, heading, table cell). It is either:
+//
+//   - an *innermost leaf element* — `<p>`, `<h1>`–`<h6>`, `<td>`, `<th>`, or a
+//     `<li>` with no nested leaf blocks; the whole element is one block; or
+//   - a *segment* — one maximal run of inline children directly inside a
+//     leaf-block element that *also* contains nested leaf blocks. In Mud's own
+//     output this only happens in a tight `<li>`, where each bare run of inline
+//     content is one cmark paragraph. (A change-annotated tight paragraph is
+//     wrapped in an inline `<span>`, which stays inside its segment.)
+//
+// Swift needs no matching change: a segment's text equals the text of the cmark
+// paragraph it renders, which CommentAnchor already matches, and Swift's
+// occurrence walk already counts every matching paragraph — those inside tight
+// list items included — in document order. This file makes the JS compute the
+// same things: `eachLogicalBlock` enumerates blocks in document order,
+// `segmentAt` maps a selection end to its block, and `occurrenceOf` counts by
+// logical-block identity (element + child range).
+//
+// The skip rules match CommentAnchor.swift: comment markers and footnote
+// references contribute no text (`isMarkerElement`); the bottom `.comments` /
+// `.footnotes` sections, code blocks (`<pre>`), Mermaid diagrams, raw-HTML
+// blocks (`.mud-html-block`), and change-tracking deletion overlays
+// (`.mud-change-del`) are skipped entirely — none has a source byte the anchor
+// could match. `CommentAnchorParityTests.logicalBlocks` is the pinned Swift
+// mirror of `eachLogicalBlock`; keep the two in sync.
+
+(function () {
+  "use strict";
+
+  var LEAF_BLOCK_TAGS = {
+    P: 1, LI: 1, TD: 1, TH: 1, H1: 1, H2: 1, H3: 1, H4: 1, H5: 1, H6: 1,
+    BLOCKQUOTE: 1, PRE: 1, DD: 1, DT: 1, FIGCAPTION: 1, CAPTION: 1, SUMMARY: 1
+  };
+  var LEAF_BLOCK_SELECTOR =
+    "p,li,td,th,h1,h2,h3,h4,h5,h6,blockquote,pre,dd,dt,figcaption,caption,summary";
+
+  function normalizeWS(s) { return s.replace(/\s+/g, " "); }
+
+  // The elements whose text is not part of a block's anchor text: the comment
+  // markers (💬) and authorial footnote references (the superscript number).
+  // Skipping the footnote reference is the one behavior change of extracting
+  // this shared file: the read side used to skip only the comment marker, so
+  // exact marker placement missed in a block that also held a footnote
+  // reference and fell back to a quotation search (Phase 3e).
+  function isMarkerElement(node) {
+    return node.nodeType === Node.ELEMENT_NODE && node.classList &&
+      (node.classList.contains("mud-comment-marker") ||
+       node.classList.contains("footnote-ref"));
+  }
+
+  // A subtree with no source byte to anchor a comment to, skipped wholesale
+  // when enumerating logical blocks and computing their text: code blocks, a
+  // Mermaid diagram's rendered SVG, a raw-HTML block passed through verbatim,
+  // a change-tracking deletion overlay (text that is not in the current
+  // source), and rendered math (a `<math>` element or a `temml-error` span —
+  // the rendered MathML text bears no relation to the TeX source, so a
+  // quotation anchored there could never match). CommentAnchor.swift never
+  // matches any of these.
+  function isSkippedSubtree(node) {
+    if (node.nodeType !== Node.ELEMENT_NODE) return false;
+    // localName for math, not tagName: a MathML element is foreign-namespace,
+    // so its tagName stays lowercase "math" (tagName is uppercased only for
+    // HTML elements) and comparing against "MATH" would never match.
+    if (node.tagName === "PRE" || node.localName === "math") return true;
+    var cl = node.classList;
+    return !!cl && (cl.contains("mermaid") || cl.contains("mud-html-block") ||
+      cl.contains("mud-change-del") || cl.contains("mud-math-block") ||
+      cl.contains("temml-error"));
+  }
+
+  // Whether `node` sits anywhere inside a skipped subtree — the ancestor walk
+  // the write side uses to reject a selection the anchor rules would refuse.
+  // Keeping it here means the skip list lives in exactly one place.
+  function inSkippedSubtree(node, root) {
+    var el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentNode;
+    while (el && el !== root) {
+      if (isSkippedSubtree(el)) return true;
+      el = el.parentNode;
+    }
+    return false;
+  }
+
+  // The bottom sections, never the selection's source.
+  function isBottomSection(node) {
+    return node.nodeType === Node.ELEMENT_NODE && node.classList &&
+      (node.classList.contains("comments") ||
+       node.classList.contains("footnotes"));
+  }
+
+  // The nearest enclosing leaf block of a node, up to (not including) root.
+  function leafBlock(node, root) {
+    var el = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
+    while (el && el !== root) {
+      if (LEAF_BLOCK_TAGS[el.tagName]) return el;
+      el = el.parentNode;
+    }
+    return null;
+  }
+
+  // A leaf block with no leaf-block descendant: the innermost text container.
+  function isInnermostLeaf(el) {
+    return el.nodeType === Node.ELEMENT_NODE && LEAF_BLOCK_TAGS[el.tagName] &&
+      !el.querySelector(LEAF_BLOCK_SELECTOR);
+  }
+
+  // A child of a leaf block that breaks an inline run: a nested leaf block, any
+  // element holding one, or a skipped subtree. Inline children (text nodes,
+  // `<em>`, `<a>`, `<code>`, comment markers, …) don't break the run.
+  function breaksSegment(node) {
+    if (node.nodeType !== Node.ELEMENT_NODE) return false;
+    if (isSkippedSubtree(node)) return true;
+    return !!LEAF_BLOCK_TAGS[node.tagName] ||
+      node.querySelector(LEAF_BLOCK_SELECTOR) != null;
+  }
+
+  // A block's text with the marker glyphs and footnote references removed, so
+  // two blocks that differ only in their markers compare equal.
+  function markerFreeText(el) {
+    var text = "";
+    (function walk(n) {
+      if (n.nodeType === Node.TEXT_NODE) { text += n.nodeValue; return; }
+      if (n.nodeType !== Node.ELEMENT_NODE || isMarkerElement(n) ||
+          isSkippedSubtree(n)) return;
+      for (var c = n.firstChild; c; c = c.nextSibling) walk(c);
+    })(el);
+    return text;
+  }
+
+  // The marker-free text of `element`'s children in the half-open child range
+  // [start, end) — a logical block's own text.
+  function rangeText(element, start, end) {
+    var text = "";
+    var kids = element.childNodes;
+    for (var i = start; i < end; i++) text += markerFreeText(kids[i]);
+    return text;
+  }
+
+  // Enumerate every logical block under `root` in document order, calling
+  // `fn({element, childStart, childEnd, text})` for each. An innermost leaf is
+  // one block spanning all its children; a leaf block that also holds nested
+  // leaf blocks yields one block per non-empty inline segment and descends into
+  // the nested blocks in place, so the document order is preserved.
+  function eachLogicalBlock(root, fn) {
+    // `inLeaf` is true while iterating the children of a leaf-block element:
+    // its inline runs are segments. In a plain container (a list, a table, the
+    // body) an inline run is stray whitespace between tags and is ignored.
+    (function walk(node, inLeaf) {
+      var kids = node.childNodes;
+      var runStart = -1;
+      for (var i = 0; i <= kids.length; i++) {
+        var child = i < kids.length ? kids[i] : null;
+        var isBreak = !child || breaksSegment(child) || isBottomSection(child);
+        if (!isBreak) {
+          if (runStart < 0) runStart = i;
+          continue;
+        }
+        // Close the pending inline run: a segment, if we're in a leaf block.
+        if (inLeaf && runStart >= 0) {
+          var text = rangeText(node, runStart, i);
+          if (normalizeWS(text).trim() !== "") {
+            fn({ element: node, childStart: runStart, childEnd: i, text: text });
+          }
+        }
+        runStart = -1;
+        if (!child) break;
+        // Descend into the block child (unless skipped or a bottom section).
+        if (isSkippedSubtree(child) || isBottomSection(child)) continue;
+        if (LEAF_BLOCK_TAGS[child.tagName]) {
+          if (isInnermostLeaf(child)) {
+            fn({
+              element: child, childStart: 0,
+              childEnd: child.childNodes.length,
+              text: rangeText(child, 0, child.childNodes.length)
+            });
+          } else {
+            walk(child, true);   // leaf block with nested leaf blocks
+          }
+        } else {
+          walk(child, false);    // plain container
+        }
+      }
+    })(root, false);
+  }
+
+  // The logical block a selection end sits in: the nearest-ancestor leaf block,
+  // narrowed to the segment whose child range contains `node` when that block
+  // also holds nested leaf blocks. Returns {element, childStart, childEnd, text}
+  // or null.
+  function segmentAt(node, root) {
+    var block = leafBlock(node, root);
+    if (!block) return null;
+    if (isInnermostLeaf(block)) {
+      var end = block.childNodes.length;
+      return {
+        element: block, childStart: 0, childEnd: end,
+        text: rangeText(block, 0, end)
+      };
+    }
+    // Find the direct child of `block` that is (or contains) `node`.
+    var directChild = node;
+    while (directChild && directChild.parentNode !== block) {
+      directChild = directChild.parentNode;
+    }
+    if (!directChild) return null;
+    var kids = block.childNodes;
+    var idx = Array.prototype.indexOf.call(kids, directChild);
+    if (idx < 0) return null;
+    var start = idx, stop = idx + 1;
+    while (start > 0 && !breaksSegment(kids[start - 1]) &&
+           !isBottomSection(kids[start - 1])) start--;
+    while (stop < kids.length && !breaksSegment(kids[stop]) &&
+           !isBottomSection(kids[stop])) stop++;
+    return {
+      element: block, childStart: start, childEnd: stop,
+      text: rangeText(block, start, stop)
+    };
+  }
+
+  function sameLogicalBlock(a, b) {
+    return a.element === b.element && a.childStart === b.childStart &&
+      a.childEnd === b.childEnd;
+  }
+
+  // How many earlier logical blocks under `root` share `block`'s marker-free
+  // text: the occurrence index that disambiguates identical blocks. Counting by
+  // logical-block identity (element + child range) stops at the target block —
+  // a plain element-identity check couldn't, because a tight `<li>` with a
+  // nested list is never an innermost leaf and its segment shares the element.
+  function occurrenceOf(block, blockText, root) {
+    var target = normalizeWS(blockText).trim();
+    var count = 0, found = false;
+    eachLogicalBlock(root, function (lb) {
+      if (found) return;
+      if (sameLogicalBlock(lb, block)) { found = true; return; }
+      if (normalizeWS(lb.text).trim() === target) count++;
+    });
+    return count;
+  }
+
+  window.Mud = window.Mud || {};
+  window.Mud.commentAnchor = {
+    normalizeWS: normalizeWS,
+    isMarkerElement: isMarkerElement,
+    isInnermostLeaf: isInnermostLeaf,
+    isSkippedSubtree: isSkippedSubtree,
+    inSkippedSubtree: inSkippedSubtree,
+    markerFreeText: markerFreeText,
+    leafBlock: leafBlock,
+    eachLogicalBlock: eachLogicalBlock,
+    segmentAt: segmentAt,
+    occurrenceOf: occurrenceOf
+  };
+})();
+
+// Mud - Comments column (read side, Up mode).
+//
+// Projects a capsule per comment from the hidden bottom `<section
+// class="comments">` (the single source of comment HTML), positions each
+// capsule beside its quotation with the placement pass below, and reveals a
+// quotation's highlight on hover / activate. This file is bundled everywhere,
+// exports
+// included; the write side (selection, compose, submit, edit, delete) lives in
+// mud-comments-edit.js and is bundled in the app only.
+//
+// The column is built only in column mode (`<html class="comments-column">`,
+// set by MudCore) with the toggle on (`is-comments-column`). It clones
+// already-rendered nodes out of the section — it never parses Markdown — and
+// strips their ids so the page holds no duplicates.
+
+(function () {
+  "use strict";
+
+  var container = document.querySelector(".up-mode-output");
+  if (!container) return;
+
+  var GAP = 15;           // minimum vertical gap between rows
+  var INACTIVE_H = 45;    // a collapsed capsule's height
+  var COMPOSE_H = 100;    // compose form's starting height (it auto-grows; the
+                          // write side measures the real height on every relayout)
+
+  var capsules = {};          // label -> capsule element
+  var quotationByLabel = {};  // label -> quotation text (for anchoring)
+  var activeLabel = null;
+  var rafPending = 0;
+  var lastVisible = null;     // last applied visibility (idempotent setVisible)
+
+  // Shared anchoring primitives (mud-comment-anchor.js, concatenated ahead of
+  // this file by HTMLTemplate). eachLogicalBlock enumerates the same
+  // logical blocks the write side anchors to (segments in tight list items
+  // included); isMarkerElement skips footnote references as well as comment
+  // markers, so exact marker placement matches the write side in a block that
+  // also holds a footnote reference (Phase 3e).
+  var anchor = window.Mud.commentAnchor;
+  var normalizeWS = anchor.normalizeWS;
+  var isMarkerElement = anchor.isMarkerElement;
+
+  // The element's top in layout (pre-zoom) pixels, summed up the offsetParent
+  // chain to the body. Robust to the document `zoom`, which scales container and
+  // capsules together, so capsule `top` values stay in the same space.
+  function layoutTop(el) {
+    var y = 0;
+    while (el && el !== document.body) {
+      y += el.offsetTop;
+      el = el.offsetParent;
+    }
+    return y;
+  }
+
+  // The bottom Comments section: a `<footer>` outside the article, as its next
+  // sibling (CommentHTMLRenderer / HTMLTemplate.wrapUp).
+  function section() {
+    return document.querySelector("footer.comments[data-comments]");
+  }
+
+  // Visible when the render is in column mode and the column is toggled on. In
+  // an export the toggle class is force-included, so the test is uniform.
+  function enabled() {
+    var root = document.documentElement;
+    return root.classList.contains("comments-column") &&
+      root.classList.contains("is-comments-column");
+  }
+
+  // The "Show comment markers" preference: the inline 💬 markers are visible
+  // on screen and interactive (hover highlights the quotation; click opens the
+  // column to the comment). Independent of whether the column is showing.
+  function markersShown() {
+    return document.documentElement.classList.contains("show-comment-markers");
+  }
+
+  // -- Highlight anchoring (off the hidden quote markers) -------------------
+
+  // Build a whitespace-collapsed flat text of the body with a parallel char →
+  // (textNode, offset) map, plus each marker's flat-index anchor. The bottom
+  // sections and the marker glyphs are skipped so a quotation never matches
+  // inside them.
+  function buildIndex() {
+    var flat = "";
+    var map = [];
+    var markerAt = {};
+    var prevWasSpace = true;
+
+    function walk(node) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        var v = node.nodeValue;
+        for (var i = 0; i < v.length; i++) {
+          if (/\s/.test(v[i])) {
+            if (prevWasSpace) continue;
+            flat += " ";
+            map.push({ node: node, offset: i });
+            prevWasSpace = true;
+          } else {
+            flat += v[i];
+            map.push({ node: node, offset: i });
+            prevWasSpace = false;
+          }
+        }
+        return;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) return;
+      if (node.classList) {
+        if (node.classList.contains("comments") ||
+            node.classList.contains("footnotes")) return;
+        if (node.classList.contains("mud-comment-marker")) {
+          markerAt[node.getAttribute("data-mud-label")] = flat.length;
+          return;
+        }
+      }
+      for (var c = node.firstChild; c; c = c.nextSibling) walk(c);
+    }
+
+    walk(container);
+    return { flat: flat, map: map, markerAt: markerAt };
+  }
+
+  function clearHighlights() {
+    var marks = container.querySelectorAll("mark.mud-comment-highlight");
+    for (var i = 0; i < marks.length; i++) {
+      var m = marks[i];
+      var parent = m.parentNode;
+      if (!parent) continue;
+      while (m.firstChild) parent.insertBefore(m.firstChild, m);
+      parent.removeChild(m);
+      parent.normalize();
+    }
+  }
+
+  function wrapSlice(node, startOffset, endOffset, label) {
+    try {
+      var range = document.createRange();
+      range.setStart(node, startOffset);
+      range.setEnd(node, endOffset);
+      var mark = document.createElement("mark");
+      mark.className = "mud-comment-highlight";
+      mark.setAttribute("data-mud-label", label);
+      range.surroundContents(mark);
+      return mark;
+    } catch (e) {
+      /* a slice that can't be wrapped goes un-highlighted */
+      return null;
+    }
+  }
+
+  // A truncation marker: an ellipsis (the `…` character or three dots) with
+  // whitespace on both sides. Splitting `flat` on it yields the kept parts.
+  var ELLIPSIS_SPLIT = /\s+(?:…|\.\.\.)\s+/;
+
+  // The flat-text index where `quote` begins, anchored to end just before the
+  // marker at `end` — or -1 if it doesn't anchor. Two phases (see
+  // Doc/Spec/comments.md, "Quotation truncation"):
+  //   1. Verbatim — the whole quotation sits immediately before the marker.
+  //   2. Truncated — only when phase 1 fails and the quotation carries a spaced
+  //      ellipsis. Split into parts; anchor the last part at the marker, then
+  //      walk left, matching each earlier part to its nearest occurrence before
+  //      the part already matched. The returned range (first part's start →
+  //      marker) covers the elided middle too.
+  function matchQuotationStart(flat, end, quote) {
+    var start = end - quote.length;
+    if (start >= 0 && flat.slice(start, end) === quote) return start;
+
+    var parts = quote.split(ELLIPSIS_SPLIT);
+    if (parts.length < 2) return -1;
+    for (var i = 0; i < parts.length; i++) {
+      parts[i] = parts[i].trim();
+      if (!parts[i]) return -1;
+    }
+
+    var last = parts[parts.length - 1];
+    var s = end - last.length;
+    if (s < 0 || flat.slice(s, end) !== last) return -1;
+    for (var k = parts.length - 2; k >= 0; k--) {
+      var at = flat.lastIndexOf(parts[k], s - parts[k].length);
+      if (at < 0) return -1;
+      s = at;
+    }
+    return s;
+  }
+
+  // For each marker, find where its quotation anchors (verbatim, or truncated).
+  // On a match, wrap each intersected text-node slice in its own
+  // <mark data-mud-label>.
+  function anchorAll() {
+    clearHighlights();
+    var idx = buildIndex();
+
+    Object.keys(idx.markerAt).forEach(function (label) {
+      var quote = quotationByLabel[label];
+      if (!quote) return;
+      quote = normalizeWS(quote).trim();
+      if (!quote) return;
+
+      var end = idx.markerAt[label];
+      var start = matchQuotationStart(idx.flat, end, quote);
+      if (start < 0) return;
+
+      var i = start;
+      while (i < end) {
+        var node = idx.map[i].node;
+        var startOffset = idx.map[i].offset;
+        var endOffset = startOffset + 1;
+        var j = i + 1;
+        while (j < end && idx.map[j].node === node) {
+          endOffset = idx.map[j].offset + 1;
+          j++;
+        }
+        wrapSlice(node, startOffset, endOffset, label);
+        i = j;
+      }
+    });
+  }
+
+  function setHighlight(label, on) {
+    if (!label) return;
+    var safe = window.CSS && CSS.escape ? CSS.escape(label) : label;
+    var marks = container.querySelectorAll(
+      'mark.mud-comment-highlight[data-mud-label="' + safe + '"]');
+    for (var i = 0; i < marks.length; i++) {
+      marks[i].classList.toggle("is-active", on);
+    }
+  }
+
+  // -- Selection draft (write side, while composing) ------------------------
+
+  // While a new comment is being written, the native text selection collapses
+  // the moment the compose box takes focus. To keep the quoted span visible we
+  // paint our own provisional highlight + 💬 marker over the live selection,
+  // under a sentinel label. The highlight carries `.mud-comment-draft` so it
+  // stays painted (not hover-toggled like a real one) until the comment is
+  // saved or dismissed; that styling is app-only (mud-comments-edit.css). A
+  // real `setData` on save drops the unknown-label marker and reprojects the
+  // highlights, so it is swept up even without the explicit clear.
+  var DRAFT_LABEL = "mud-draft";
+
+  // True when a text node sits inside a marker glyph or the hidden bottom
+  // sections — never part of a quotable selection, so it isn't highlighted.
+  function inSkippedRegion(node) {
+    var el = node.parentNode;
+    while (el && el !== container) {
+      if (el.classList && (el.classList.contains("mud-comment-marker") ||
+          el.classList.contains("comments") ||
+          el.classList.contains("footnotes"))) return true;
+      el = el.parentNode;
+    }
+    return false;
+  }
+
+  // The text-node slices a range covers, clipped to its end points: one
+  // {node, start, end} per intersected text node (skipped regions excluded).
+  function collectRangeTextSlices(range) {
+    var slices = [];
+    var common = range.commonAncestorContainer;
+    if (common.nodeType === Node.TEXT_NODE) {
+      if (!inSkippedRegion(common) && range.endOffset > range.startOffset) {
+        slices.push({
+          node: common, start: range.startOffset, end: range.endOffset
+        });
+      }
+      return slices;
+    }
+    var walker = document.createTreeWalker(common, NodeFilter.SHOW_TEXT, {
+      acceptNode: function (n) {
+        return range.intersectsNode(n) && !inSkippedRegion(n)
+          ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+      }
+    });
+    var n;
+    while ((n = walker.nextNode())) {
+      var s = n === range.startContainer ? range.startOffset : 0;
+      var e = n === range.endContainer ? range.endOffset : n.nodeValue.length;
+      if (e > s) slices.push({ node: n, start: s, end: e });
+    }
+    return slices;
+  }
+
+  // Paint the provisional highlight + marker over `range`: each text-node slice
+  // wrapped in its own <mark> (surroundContents needs a single-node range), then
+  // the marker just after the last slice — the quotation's end, where the saved
+  // marker will land. CSS reveals the marker only when markers are shown.
+  function showSelectionDraft(range) {
+    clearSelectionDraft();
+    if (!range) return;
+    var slices = collectRangeTextSlices(range);
+    var lastMark = null;
+    for (var i = 0; i < slices.length; i++) {
+      var mark = wrapSlice(
+        slices[i].node, slices[i].start, slices[i].end, DRAFT_LABEL);
+      if (mark) { mark.classList.add("mud-comment-draft"); lastMark = mark; }
+    }
+    if (lastMark && lastMark.parentNode) {
+      var marker = makeMarker(DRAFT_LABEL);
+      lastMark.parentNode.insertBefore(marker, lastMark.nextSibling);
+    }
+  }
+
+  // Remove the provisional highlight + marker (Cancel / Escape, or after a save
+  // — where `setData` would also have swept the sentinel).
+  function clearSelectionDraft() {
+    var safe = cssEsc(DRAFT_LABEL);
+    var marker = container.querySelector(
+      '.mud-comment-marker[data-mud-label="' + safe + '"]');
+    if (marker && marker.parentNode) marker.parentNode.removeChild(marker);
+    var marks = container.querySelectorAll(
+      'mark.mud-comment-highlight[data-mud-label="' + safe + '"]');
+    for (var i = 0; i < marks.length; i++) {
+      var mk = marks[i], parent = mk.parentNode;
+      if (!parent) continue;
+      while (mk.firstChild) parent.insertBefore(mk.firstChild, mk);
+      parent.removeChild(mk);
+      parent.normalize();
+    }
+  }
+
+  // -- Projection: build capsules from the section --------------------------
+
+  function textOf(el) {
+    return el ? normalizeWS(el.textContent || "").trim() : "";
+  }
+
+  function stripIds(el) {
+    if (el.removeAttribute) el.removeAttribute("id");
+    if (!el.querySelectorAll) return;
+    var ided = el.querySelectorAll("[id]");
+    for (var i = 0; i < ided.length; i++) ided[i].removeAttribute("id");
+  }
+
+  function cloneClean(node) {
+    var c = node.cloneNode(true);
+    stripIds(c);
+    return c;
+  }
+
+  // The message's machine-readable time: the <time> in its attribution line.
+  // Scoped to that line, which only the renderer writes — a message body is
+  // Markdown and may itself hold a raw <time>.
+  function timeElementOf(el) {
+    return el.querySelector(".mud-comment-attribution time[datetime]");
+  }
+
+  // Relative within a day ("Just now", "11 hours ago"); a locale-ordered short
+  // date ("Jun 16" / "16 Jun") beyond. `iso` is a <time datetime> value — a
+  // floating local date-time, which JS reads in the reader's own zone, matching
+  // the bare wall clock the source stores. Falls back to the element's visible
+  // text (the absolute stamp) if that won't parse.
+  function formatTime(iso, text) {
+    var t = iso ? Date.parse(iso) : NaN;
+    if (isNaN(t)) return text || "";
+    var diff = Date.now() - t;
+    if (diff < 0) diff = 0;
+    if (diff >= 24 * 3600 * 1000) {
+      return new Date(t).toLocaleDateString(undefined, {
+        month: "short", day: "numeric"
+      });
+    }
+    var s = Math.floor(diff / 1000);
+    if (s < 60) return "Just now";
+    var m = Math.floor(s / 60);
+    if (m < 60) return m === 1 ? "1 minute ago" : m + " minutes ago";
+    var h = Math.floor(m / 60);
+    return h === 1 ? "1 hour ago" : h + " hours ago";
+  }
+
+  function buildMessage(src) {
+    var m = document.createElement("div");
+    m.className = "mud-comment-message";
+    var author = src.getAttribute("data-mud-author") || "";
+    var srcTime = timeElementOf(src);
+    if (author || srcTime) {
+      var attr = document.createElement("div");
+      attr.className = "mud-comment-attribution";
+      var a = document.createElement("span");
+      a.className = "mud-comment-author";
+      a.textContent = author ? "💬 " + author : "";
+      attr.appendChild(a);
+      if (srcTime) {
+        var tm = document.createElement("time");
+        tm.className = "mud-comment-time";
+        // The stamp rides along on the projected element too, so the relative
+        // label can be recomputed on expand.
+        var iso = srcTime.getAttribute("datetime");
+        tm.setAttribute("datetime", iso);
+        tm.textContent = formatTime(iso, srcTime.textContent);
+        attr.appendChild(tm);
+      }
+      m.appendChild(attr);
+    }
+    var body = src.querySelector(".mud-comment-body");
+    if (body) m.appendChild(cloneClean(body));
+    return m;
+  }
+
+  // Recompute each message's relative time from its own datetime — the
+  // projected label is a snapshot, so it goes stale until the thread is
+  // reopened.
+  function refreshTimes(cap) {
+    var times = cap.querySelectorAll(
+      ".mud-comment-attribution time[datetime]");
+    for (var i = 0; i < times.length; i++) {
+      times[i].textContent = formatTime(
+        times[i].getAttribute("datetime"), times[i].textContent);
+    }
+  }
+
+  function projectCapsule(li) {
+    var label = li.getAttribute("data-mud-label");
+    var messages = li.querySelectorAll(".mud-comment-message");
+    var first = messages[0];
+
+    var cap = document.createElement("div");
+    cap.className = "mud-capsule";
+    cap.setAttribute("data-mud-label", label);
+
+    // Collapsed bar: "💬 Author: first message…".
+    var bar = document.createElement("div");
+    bar.className = "mud-capsule-bar";
+    var emoji = document.createElement("span");
+    emoji.className = "mud-bar-emoji";
+    emoji.textContent = "💬";
+    var author = document.createElement("span");
+    author.className = "mud-bar-author";
+    var firstAuthor = first ? (first.getAttribute("data-mud-author") || "") : "";
+    author.textContent = firstAuthor ? firstAuthor + ":" : "";
+    var text = document.createElement("span");
+    text.className = "mud-bar-text";
+    text.textContent = first ? textOf(first.querySelector(".mud-comment-body")) : "";
+    bar.appendChild(emoji);
+    if (firstAuthor) bar.appendChild(author);
+    bar.appendChild(text);
+    cap.appendChild(bar);
+
+    // "N replies" label for a collapsed thread.
+    if (messages.length > 1) {
+      var rep = document.createElement("div");
+      rep.className = "mud-capsule-replies";
+      var n = messages.length - 1;
+      rep.textContent = n === 1 ? "1 reply" : n + " replies";
+      cap.appendChild(rep);
+    }
+
+    // Expanded thread (shown only while active). The quotation is not shown
+    // here — it is highlighted in the document instead.
+    var thread = document.createElement("div");
+    thread.className = "mud-capsule-thread";
+    for (var i = 0; i < messages.length; i++) {
+      thread.appendChild(buildMessage(messages[i]));
+    }
+    cap.appendChild(thread);
+
+    wireCapsule(cap, label);
+    return cap;
+  }
+
+  function ensureColumn() {
+    var col = document.getElementById("mud-comments-column");
+    if (!col) {
+      col = document.createElement("div");
+      col.id = "mud-comments-column";
+      document.body.appendChild(col);
+    }
+    return col;
+  }
+
+  // The "Comments" header pinned at the top of the column: a "Comments" title,
+  // previous / next navigation arrows, and a running count badge. Created once
+  // per column; the arrows and `count` are refreshed on every project. The
+  // arrows show whenever there is at least one comment.
+  function ensureHeader(col, count) {
+    var header = col.querySelector("#mud-comments-header");
+    if (!header) {
+      header = document.createElement("div");
+      header.id = "mud-comments-header";
+      var title = document.createElement("span");
+      title.className = "mud-comments-title";
+      title.textContent = "Comments";
+
+      var nav = document.createElement("div");
+      nav.className = "mud-comments-nav";
+      var prev = makeNavButton("mud-comments-prev", "Previous comment", "‹", -1);
+      var next = makeNavButton("mud-comments-next", "Next comment", "›", 1);
+      var badge = document.createElement("span");
+      badge.className = "mud-comments-count";
+      nav.appendChild(prev);
+      nav.appendChild(badge);
+      nav.appendChild(next);
+
+      header.appendChild(title);
+      header.appendChild(nav);
+      col.appendChild(header);
+    }
+    var badgeEl = header.querySelector(".mud-comments-count");
+    badgeEl.textContent = String(count);
+    badgeEl.style.display = count > 0 ? "" : "none";
+    var showArrows = count > 0 ? "" : "none";
+    header.querySelector(".mud-comments-prev").style.display = showArrows;
+    header.querySelector(".mud-comments-next").style.display = showArrows;
+    return header;
+  }
+
+  // A header arrow button. A `mousedown` that stops propagation keeps the
+  // document-level mousedown from deactivating the open comment before the
+  // click lands, so `navigate` can still step relative to it.
+  function makeNavButton(cls, label, glyph, direction) {
+    var btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = cls;
+    btn.setAttribute("aria-label", label);
+    btn.textContent = glyph;
+    btn.addEventListener("mousedown", function (e) { e.stopPropagation(); });
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      navigate(direction);
+    });
+    return btn;
+  }
+
+  function teardownColumn() {
+    var col = document.getElementById("mud-comments-column");
+    if (col && col.parentNode) col.parentNode.removeChild(col);
+    capsules = {};
+    activeLabel = null;
+  }
+
+  // Populate quotationByLabel from the bottom section and (re)wrap the highlight
+  // marks, independent of the column. With the column closed but the markers
+  // shown, a marker still needs its quotation highlight on hover.
+  function anchorHighlightsOnly() {
+    var sec = section();
+    quotationByLabel = {};
+    if (sec) {
+      var lis = sec.querySelectorAll("li[data-mud-label]");
+      for (var i = 0; i < lis.length; i++) {
+        var q = lis[i].getAttribute("data-mud-quotation");
+        if (q) quotationByLabel[lis[i].getAttribute("data-mud-label")] = q;
+      }
+    }
+    anchorAll();
+  }
+
+  // (Re)build every capsule from the section, then lay out.
+  function project() {
+    if (!enabled()) {
+      teardownColumn();
+      // Keep the marks alive for marker hover when the column is closed but the
+      // markers are shown; otherwise drop them.
+      if (markersShown()) anchorHighlightsOnly();
+      else clearHighlights();
+      return;
+    }
+    var sec = section();
+    var col = ensureColumn();
+    var wasActive = activeLabel;
+
+    // Keep the header and any write-side items (Add button, compose) the hooks
+    // manage; remove the projected capsules so they rebuild from the section.
+    var header = col.querySelector("#mud-comments-header");
+    var keep = api.hooks.ownedNodes ? api.hooks.ownedNodes() : [];
+    var child = col.firstChild;
+    while (child) {
+      var next = child.nextSibling;
+      if (child !== header && keep.indexOf(child) === -1) col.removeChild(child);
+      child = next;
+    }
+
+    capsules = {};
+    quotationByLabel = {};
+    activeLabel = null;
+
+    if (sec) {
+      var lis = sec.querySelectorAll("li[data-mud-label]");
+      for (var i = 0; i < lis.length; i++) {
+        var li = lis[i];
+        var label = li.getAttribute("data-mud-label");
+        var quote = li.getAttribute("data-mud-quotation");
+        if (quote) quotationByLabel[label] = quote;
+        var cap = projectCapsule(li);
+        col.appendChild(cap);
+        capsules[label] = cap;
+      }
+    }
+
+    ensureHeader(col, Object.keys(capsules).length);
+    anchorAll();
+    if (api.hooks.afterProject) api.hooks.afterProject();
+    // Keep a comment expanded across a reproject (e.g. after a reply or edit).
+    if (wasActive && capsules[wasActive]) {
+      activate(wasActive);
+    } else {
+      layout();
+    }
+  }
+
+  // -- Placement pass -------------------------------------------------------
+
+  // A comment's preferred position, in layout pixels: the top of its quotation
+  // highlight, or — for a quote-less comment with no highlight — the position of
+  // its hidden inline marker (kept measurable by the visually-hidden CSS).
+  function preferredPosition(label) {
+    var safe = window.CSS && CSS.escape ? CSS.escape(label) : label;
+    var anchor = container.querySelector(
+        'mark.mud-comment-highlight[data-mud-label="' + safe + '"]') ||
+      container.querySelector(
+        '.mud-comment-marker[data-mud-label="' + safe + '"]');
+    if (!anchor) return 0;
+    return Math.max(0, layoutTop(anchor));
+  }
+
+  // Let the active capsule take its natural height, pin it there (so the height
+  // transition has a pixel target to animate to), and return that height.
+  function sizeActive(cap) {
+    cap.style.height = "auto";
+    var h = cap.offsetHeight;
+    cap.style.height = h + "px";
+    return h;
+  }
+
+  // Lay the items out top to bottom: each sits at its preferred position, or is
+  // pushed down to clear the row above plus the minimum gap. Sort by preferred
+  // position, breaking ties by build order. Idempotent — re-running from the
+  // current heights always recomputes absolute tops, so a row pushed down by a
+  // now-shorter neighbor slides back up on the next pass.
+  function solve(items, startTop) {
+    items.sort(function (a, b) {
+      return a.preferred - b.preferred || a.order - b.order;
+    });
+    var nextFree = startTop || 0;
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      it.top = Math.max(it.preferred, nextFree);
+      nextFree = it.top + it.height + GAP;
+    }
+  }
+
+  function layout() {
+    if (!enabled()) return;
+    var items = [];
+    var order = 0;
+
+    Object.keys(capsules).forEach(function (label) {
+      var cap = capsules[label];
+      var height;
+      if (label === activeLabel) {
+        height = sizeActive(cap);
+      } else {
+        cap.style.height = "";
+        height = INACTIVE_H;
+      }
+      items.push({
+        el: cap, preferred: preferredPosition(label), height: height,
+        order: order++
+      });
+    });
+
+    if (api.hooks.extraItems) {
+      var extra = api.hooks.extraItems();
+      for (var i = 0; i < extra.length; i++) {
+        extra[i].order = order++;
+        items.push(extra[i]);
+      }
+    }
+
+    // Reserve the header's band at the top so no row sits under it.
+    var header = document.getElementById("mud-comments-header");
+    var startTop = header ? layoutTop(header) + header.offsetHeight + GAP : 0;
+
+    solve(items, startTop);
+    for (var k = 0; k < items.length; k++) {
+      items[k].el.style.top = items[k].top + "px";
+    }
+  }
+
+  function scheduleLayout() {
+    if (rafPending) return;
+    rafPending = requestAnimationFrame(function () {
+      rafPending = 0;
+      layout();
+    });
+  }
+
+  // Reproject only when column visibility actually flips. A redundant call (same
+  // value) must not rebuild the column, or it would wipe an open inline compose
+  // box. Called by mud.js on every `is-comments-column` `setClass`, and by the
+  // marker-click reveal below.
+  function syncVisible() {
+    var on = enabled();
+    if (on === lastVisible) return;
+    lastVisible = on;
+    // Closing the column cancels an in-progress new comment: let the write side
+    // tear down the compose box and its provisional draft (highlight + marker)
+    // before `project()` removes the column out from under it.
+    if (!on && api.hooks.onHide) api.hooks.onHide();
+    project();
+  }
+
+  // -- Hover / activate -----------------------------------------------------
+
+  function wireCapsule(cap, label) {
+    cap.addEventListener("mouseenter", function () {
+      if (label !== activeLabel) setHighlight(label, true);
+    });
+    cap.addEventListener("mouseleave", function () {
+      if (label !== activeLabel) setHighlight(label, false);
+    });
+    cap.addEventListener("click", function (e) {
+      if (cap.classList.contains("is-active")) return;
+      e.stopPropagation();
+      activate(label);
+    });
+  }
+
+  function activate(label) {
+    if (activeLabel && activeLabel !== label) deactivate();
+    var cap = capsules[label];
+    if (!cap) return;
+    activeLabel = label;
+    cap.classList.add("is-active");
+    setHighlight(label, true);
+    refreshTimes(cap);
+    if (api.hooks.decorateActive) api.hooks.decorateActive(cap, label);
+    layout();
+  }
+
+  function deactivate() {
+    if (!activeLabel) return;
+    var cap = capsules[activeLabel];
+    if (cap) {
+      cap.classList.remove("is-active");
+      if (api.hooks.undecorateActive) api.hooks.undecorateActive(cap, activeLabel);
+    }
+    setHighlight(activeLabel, false);
+    activeLabel = null;
+    layout();
+  }
+
+  document.addEventListener("mousedown", function (e) {
+    if (!activeLabel) return;
+    var cap = capsules[activeLabel];
+    if (cap && !cap.contains(e.target)) deactivate();
+  });
+
+  // -- Previous / next navigation -------------------------------------------
+
+  // Comment labels in document order — sorted by the same preferred position
+  // the placement pass uses, so navigation follows the order the capsules read
+  // down the column.
+  function orderedLabels() {
+    return Object.keys(capsules).sort(function (a, b) {
+      return preferredPosition(a) - preferredPosition(b);
+    });
+  }
+
+  function scrollToComment(label) {
+    var safe = cssEsc(label);
+    var anchor = container.querySelector(
+        'mark.mud-comment-highlight[data-mud-label="' + safe + '"]') ||
+      container.querySelector(
+        '.mud-comment-marker[data-mud-label="' + safe + '"]');
+    if (anchor) anchor.scrollIntoView({ block: "center", behavior: "smooth" });
+  }
+
+  // Scroll the bottom Comments section into view, or with a label the comment
+  // itself. The app calls this when the window can't be made wide enough for
+  // the column: below the Compact tier mud-narrow.css hides the column and
+  // reveals this section in its place, so "show comments" still lands the
+  // reader on the comments.
+  //
+  // The section is revealed by the same class the column is, so switch it on
+  // here rather than waiting for the app's class sync — otherwise the scroll
+  // measures an element that is still `display: none` and goes nowhere. The
+  // app persists the toggle on its side, as it does for `openToComment`.
+  function scrollToSection(label) {
+    var sec = section();
+    if (!sec) return;
+    document.documentElement.classList.add("is-comments-column");
+    var item = label && sec.querySelector("#cmt-" + cssEsc(label));
+    (item || sec).scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  // Step to the previous (-1) or next (+1) comment, wrapping around the ends.
+  // The step is relative to the open comment; with none open, +1 lands on the
+  // first comment and -1 on the last, like the Find bar.
+  function navigate(direction) {
+    var order = orderedLabels();
+    if (!order.length) return;
+    var current = activeLabel ? order.indexOf(activeLabel) : -1;
+    var n = current + direction;
+    n = ((n % order.length) + order.length) % order.length;
+    var label = order[n];
+    activate(label);
+    scrollToComment(label);
+  }
+
+  // -- Inline marker interactions (when shown) ------------------------------
+
+  // With "Show comment markers" on, the inline 💬 chips are visible and
+  // interactive. Handlers are delegated off the container, so the same ones
+  // cover markers from the initial render and from live edits. Hovering previews
+  // the quotation highlight; clicking opens the column to the comment.
+  function markerLabelFor(target) {
+    if (!target || !target.closest) return null;
+    var m = target.closest(".mud-comment-marker");
+    return m && container.contains(m) ? m.getAttribute("data-mud-label") : null;
+  }
+
+  container.addEventListener("mouseover", function (e) {
+    var label = markerLabelFor(e.target);
+    if (label && label !== activeLabel) setHighlight(label, true);
+  });
+
+  container.addEventListener("mouseout", function (e) {
+    var label = markerLabelFor(e.target);
+    if (label && label !== activeLabel) setHighlight(label, false);
+  });
+
+  container.addEventListener("click", function (e) {
+    var label = markerLabelFor(e.target);
+    if (!label) return;
+    e.preventDefault();   // don't follow the marker's #cmt- anchor jump
+    e.stopPropagation();
+    revealComment(label);
+  });
+
+  // A marker click asks for the column, and the column needs a window wide
+  // enough to hold it — so in the app the decision belongs to Swift, which
+  // widens the window (or asks about the sidebar) and calls back into
+  // `openToComment`, persisting the per-window toggle on the way. A read-only
+  // export has no app to ask and no window to widen, so it decides for itself:
+  // the column if this viewport can show one, the bottom Comments section
+  // otherwise — which is what mud-narrow.css puts in the column's place.
+  function revealComment(label) {
+    var handlers = window.webkit && window.webkit.messageHandlers;
+    if (handlers && handlers.mudRevealColumn) {
+      handlers.mudRevealColumn.postMessage(label);
+      return;
+    }
+    if (columnFits()) openToComment(label);
+    else scrollToSection(label);
+  }
+
+  // Whether this viewport is wide enough to show a column at all — read off the
+  // column's own width rather than restating the breakpoint, since below the
+  // Compact tier of mud-narrow.css it is `display: none`. Only the export path
+  // asks: in the app the window has room by the time `openToComment` is called,
+  // and the page's own view of the new width can lag the resize.
+  function columnFits() {
+    return !!ensureColumn().offsetWidth;
+  }
+
+  // Open the column, then expand and scroll to the comment. With the column
+  // already open, this just activates and scrolls.
+  function openToComment(label) {
+    document.documentElement.classList.add("is-comments-column");
+    syncVisible();        // builds the column on an off→on flip
+    if (capsules[label]) {
+      activate(label);
+      scrollToComment(label);
+    }
+  }
+
+  // Called by mud.js when the `show-comment-markers` class toggles. With the
+  // column open the highlights are already anchored and marker visibility is
+  // pure CSS, so there is nothing to do; with it closed, (re)anchor or clear the
+  // highlights so the now-shown markers can light their quotation on hover.
+  function setMarkersShown() {
+    if (enabled()) return;
+    project();   // routes to anchorHighlightsOnly() / clearHighlights()
+  }
+
+  // -- Reflow ---------------------------------------------------------------
+
+  if (window.ResizeObserver) {
+    var ro = new ResizeObserver(scheduleLayout);
+    ro.observe(container);
+  }
+  window.addEventListener("resize", scheduleLayout);
+
+  // The column's inner content width, clamped to its bounds. The single place
+  // the width is set: the app pushes a persisted value on load and the drag
+  // handle (write side) calls it live; both go through the same clamp. Setting
+  // the CSS variable rewraps capsule text, so reflow follows. Returns the value
+  // actually applied, which the caller persists.
+  var MIN_WIDTH = 200, MAX_WIDTH = 400;
+
+  function setColumnWidth(px) {
+    var w = Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, Math.round(px)));
+    document.documentElement.style.setProperty(
+      "--comment-column-width", w + "px");
+    scheduleLayout();
+    return w;
+  }
+
+  // -- Live updates: rebuild the hidden section, sync body markers ----------
+
+  // The app calls setData on a comment add / reply / edit / delete (no reload).
+  // Each entry carries the rendered `<li>` HTML plus, for a just-added comment,
+  // the locator that places its body marker byte-exactly. Exports never call it.
+
+  function cssEsc(s) { return window.CSS && CSS.escape ? CSS.escape(s) : s; }
+
+  function hasMarker(label) {
+    return !!container.querySelector(
+      '.mud-comment-marker[data-mud-label="' + cssEsc(label) + '"]');
+  }
+
+  function makeMarker(label) {
+    var a = document.createElement("a");
+    a.className = "mud-comment-marker";
+    a.id = "cmtref-" + label;
+    a.setAttribute("data-mud-label", label);
+    a.setAttribute("href", "#cmt-" + label);
+    a.textContent = "💬";
+    return a;
+  }
+
+  // The occurrence-th logical block whose marker-free text matches, in document
+  // order — the shared walk the write side counted against. Returns a logical
+  // block {element, childStart, childEnd, text}, so a tight-list segment
+  // resolves to its own inline run and not the whole `<li>`.
+  function findBlockByOccurrence(blockText, occurrence) {
+    var target = normalizeWS(blockText).trim(), count = 0, result = null;
+    anchor.eachLogicalBlock(container, function (lb) {
+      if (result) return;
+      if (normalizeWS(lb.text).trim() === target) {
+        if (count === occurrence) { result = lb; return; }
+        count++;
+      }
+    });
+    return result;
+  }
+
+  // A logical block's characters with a parallel char → (textNode, offset) map,
+  // over its child range only. Skips the same marker elements as markerFreeText
+  // (comment markers and footnote references) and any skipped subtree, so the
+  // char index the write side computed over its marker-free segment text lands
+  // on the right node here.
+  function blockTextMap(lb) {
+    var text = "", map = [];
+    function w(n) {
+      if (n.nodeType === Node.TEXT_NODE) {
+        var v = n.nodeValue;
+        for (var i = 0; i < v.length; i++) { text += v[i]; map.push({ node: n, offset: i }); }
+        return;
+      }
+      if (n.nodeType !== Node.ELEMENT_NODE || isMarkerElement(n) ||
+          anchor.isSkippedSubtree(n)) return;
+      for (var c = n.firstChild; c; c = c.nextSibling) w(c);
+    }
+    var kids = lb.element.childNodes;
+    for (var i = lb.childStart; i < lb.childEnd; i++) w(kids[i]);
+    return { text: text, map: map };
+  }
+
+  function insertMarkerExact(label, blockText, offset, occurrence) {
+    var lb = findBlockByOccurrence(blockText, occurrence);
+    if (!lb) return false;
+    var bm = blockTextMap(lb);
+    var lead = bm.text.length - bm.text.replace(/^\s+/, "").length;
+    var k = offset + lead;
+    if (k < 0) k = 0;
+    var marker = makeMarker(label);
+    try {
+      if (k >= bm.map.length) {
+        // Past the segment's mapped text: land just after it — before whatever
+        // follows the segment (a nested list, in a tight item), or appended
+        // when the segment runs to the element's end.
+        lb.element.insertBefore(marker, lb.element.childNodes[lb.childEnd] || null);
+      } else {
+        var pos = bm.map[k];
+        var after = pos.offset > 0 ? pos.node.splitText(pos.offset) : pos.node;
+        after.parentNode.insertBefore(marker, after);
+      }
+    } catch (e) { return false; }
+    return true;
+  }
+
+  function insertMarkerBySearch(label, quote) {
+    var idx = buildIndex(), claimed = {};
+    Object.keys(idx.markerAt).forEach(function (l) { claimed[idx.markerAt[l]] = true; });
+    var from = 0, pos, end = -1;
+    while ((pos = idx.flat.indexOf(quote, from)) !== -1) {
+      var e = pos + quote.length;
+      if (!claimed[e]) { end = e; break; }
+      from = pos + 1;
+    }
+    if (end < 0) return false;
+    var ref = idx.map[end - 1];
+    if (!ref) return false;
+    var marker = makeMarker(label);
+    try {
+      var node = ref.node, splitAt = ref.offset + 1;
+      if (splitAt < node.nodeValue.length) {
+        var after = node.splitText(splitAt);
+        after.parentNode.insertBefore(marker, after);
+      } else {
+        node.parentNode.insertBefore(marker, node.nextSibling);
+      }
+    } catch (e2) { return false; }
+    return true;
+  }
+
+  function syncMarkers(list) {
+    var labelSet = {};
+    list.forEach(function (c) { labelSet[c.label] = true; });
+    var markers = container.querySelectorAll(".mud-comment-marker");
+    for (var i = 0; i < markers.length; i++) {
+      var l = markers[i].getAttribute("data-mud-label");
+      if (!labelSet[l] && markers[i].parentNode) {
+        markers[i].parentNode.removeChild(markers[i]);
+      }
+    }
+    container.normalize();
+    list.forEach(function (c) {
+      if (hasMarker(c.label)) return;
+      var quote = normalizeWS(c.quotation || "").trim();
+      if (!quote) return;
+      var placed = false;
+      if (c.blockText != null && c.offset != null) {
+        placed = insertMarkerExact(c.label, c.blockText, c.offset, c.occurrence || 0);
+      }
+      if (!placed) insertMarkerBySearch(c.label, quote);
+    });
+    container.normalize();
+  }
+
+  // Replace the hidden section's items with the freshly rendered `<li>`s (the
+  // single source the capsules project from), creating or removing the section
+  // as the comment count crosses zero. A created one goes where the renderer
+  // puts it: after the article, not inside it.
+  function rebuildSection(list) {
+    var sec = section();
+    if (!list.length) {
+      if (sec && sec.parentNode) sec.parentNode.removeChild(sec);
+      return;
+    }
+    if (!sec) {
+      sec = document.createElement("footer");
+      sec.className = "comments is-print-only";
+      sec.setAttribute("data-comments", "");
+      sec.innerHTML = "<h2>Comments</h2>\n<ol></ol>";
+      container.parentNode.insertBefore(sec, container.nextSibling);
+    }
+    var ol = sec.querySelector("ol");
+    if (ol) ol.innerHTML = list.map(function (c) { return c.html || ""; }).join("");
+  }
+
+  function setData(list) {
+    list = list || [];
+    quotationByLabel = {};
+    list.forEach(function (c) { quotationByLabel[c.label] = c.quotation || ""; });
+    rebuildSection(list);
+    syncMarkers(list);
+    project();
+  }
+
+  // -- Public API -----------------------------------------------------------
+
+  window.Mud = window.Mud || {};
+  var api = {
+    // Rebuild capsules from the section (initial load and live updates).
+    refresh: project,
+    // Geometry-only re-solve (zoom, toggle of an unrelated class, etc.).
+    relayout: scheduleLayout,
+    // Called by mud.js on every `is-comments-column` `setClass`.
+    setVisible: syncVisible,
+    // Called by mud.js on every `show-comment-markers` `setClass`.
+    setMarkersShown: setMarkersShown,
+    activate: activate,
+    deactivate: deactivate,
+    // Step to the previous (-1) or next (+1) comment, wrapping at the ends.
+    navigate: navigate,
+    isEnabled: enabled,
+    // Open the column to one comment. Called by the app after a marker click,
+    // once it has made room for the column (`CommentColumnFit`).
+    openToComment: openToComment,
+    // Fallback for a window too narrow to fit the column at all: the bottom
+    // Comments section, or with a label that comment within it.
+    scrollToSection: scrollToSection,
+    activeLabel: function () { return activeLabel; },
+    capsuleFor: function (label) { return capsules[label]; },
+    section: section,
+    column: ensureColumn,
+    layout: layout,
+    constants: { GAP: GAP, INACTIVE_H: INACTIVE_H, COMPOSE_H: COMPOSE_H },
+    layoutTop: layoutTop,
+    preferredPosition: preferredPosition,
+    // Two-phase quotation matcher (verbatim, then truncated). The write side
+    // reuses it to confirm a candidate truncation re-anchors to the full text.
+    matchQuotationStart: matchQuotationStart,
+    // Live update from the app: rebuild section + markers + reproject.
+    setData: setData,
+    // Provisional highlight + marker over the live selection while a new
+    // comment is composed (the write side drives these).
+    showSelectionDraft: showSelectionDraft,
+    clearSelectionDraft: clearSelectionDraft,
+    // Live width change (app load + the write side's drag handle). Clamps to
+    // 200–400px, sets the CSS variable, reflows, and returns the applied width.
+    setColumnWidth: setColumnWidth,
+    // Seams the write side fills in (all default to no-op / empty).
+    hooks: {
+      afterProject: null,     // build the Add button machinery
+      decorateActive: null,   // add reply/edit/delete to the active capsule
+      undecorateActive: null, // remove them
+      extraItems: null,       // [{el, preferred, height}] for the compose form
+      ownedNodes: null,       // nodes project() must not remove
+      onHide: null            // column closing: cancel an in-progress compose
+    },
+    // Filled in by the write side (mud-comments-edit.js); Swift calls these
+    // through the bridge. Null until that file loads, so this literal lists the
+    // whole Swift-callable surface in one place.
+    resolveCompose: null,     // deliver a submit outcome to the open compose box
+    setHoldBanner: null       // show/hide the "file changed on disk" banner
+  };
+  window.Mud.comments = api;
+
+  lastVisible = enabled();
+  if (lastVisible || markersShown()) project();
+})();
+</script>
     <script src="https://cdn.jsdelivr.net/npm/mermaid@11.12.3/dist/mermaid.min.js"></script>
     <script>// Mermaid diagram renderer for Up mode.
 // Injected as a WKUserScript after mermaid.min.js.
@@ -649,9 +3581,23 @@ plan documents to track progress.</p>
     var pre = code.parentElement;
     if (!pre || pre.tagName !== "PRE") return;
 
+    // Skip deleted mermaid blocks (change tracking).
+    if (pre.classList.contains("mud-change-del")) return;
+
     var container = document.createElement("div");
     container.className = "mermaid";
     container.textContent = code.textContent;
+
+    // Preserve change-tracking attributes through the replacement.
+    if (pre.dataset.changeId) {
+      container.dataset.changeId = pre.dataset.changeId;
+      container.dataset.groupId = pre.dataset.groupId;
+      container.dataset.groupIndex = pre.dataset.groupIndex;
+      pre.classList.forEach(function (cls) {
+        if (cls.startsWith("mud-change-")) container.classList.add(cls);
+      });
+    }
+
     pre.parentNode.replaceChild(container, pre);
     nodes.push(container);
   });
@@ -659,6 +3605,66 @@ plan documents to track progress.</p>
   if (nodes.length > 0) {
     mermaid.run({ nodes: nodes });
   }
+})();
+</script>
+    <script>// Copy Code — injects a Copy button into each code block.
+
+(function() {
+  var COPY = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 0 1 0 1.5h-1.5a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-1.5a.75.75 0 0 1 1.5 0v1.5A1.75 1.75 0 0 1 9.25 16h-7.5A1.75 1.75 0 0 1 0 14.25Z"></path><path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0 1 14.25 11h-7.5A1.75 1.75 0 0 1 5 9.25Zm1.75-.25a.25.25 0 0 0-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 0 0 .25-.25v-7.5a.25.25 0 0 0-.25-.25Z"></path></svg>Copy';
+  var COPIED = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.751.751 0 0 1 .018-1.042.751.751 0 0 1 1.042-.018L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"></path></svg>Copied!';
+
+  function codeText(pre) {
+    var code = pre.querySelector('code');
+    if (!code) return '';
+    // For diffed code blocks, copy only the new code (skip deleted lines).
+    if (pre.classList.contains('mud-code-diff')) {
+      var lines = code.querySelectorAll('.cl:not(.cl-del)');
+      return Array.prototype.map.call(lines, function(el) {
+        return el.textContent;
+      }).join('');
+    }
+    return code.textContent;
+  }
+
+  function copyText(btn, pre) {
+    var text = codeText(pre);
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(done, function() {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      done();
+    });
+    function done() {
+      btn.classList.add('copied');
+      btn.innerHTML = COPIED;
+      setTimeout(function() {
+        btn.classList.remove('copied');
+        btn.innerHTML = COPY;
+      }, 2000);
+    }
+  }
+
+  document.querySelectorAll('pre.mud-code').forEach(function(pre) {
+    if (pre.querySelector('.code-copy-btn')) return;
+    var header = pre.querySelector('.code-header');
+    if (header && !header.offsetParent) header = null;
+    var btn = document.createElement('button');
+    btn.className = 'code-copy-btn';
+    btn.innerHTML = COPY;
+    btn.addEventListener('click', function() { copyText(btn, pre); });
+    if (header) {
+      header.appendChild(btn);
+    } else {
+      btn.classList.add('code-copy-floating');
+      pre.appendChild(btn);
+    }
+  });
 })();
 </script>
 </body>

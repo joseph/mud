@@ -1,6 +1,32 @@
 RELEASES
 ===============================================================================
 
+## v4.0.1
+
+A release about small spaces: Mud now reads well in a narrow window and in
+Finder's column-view preview pane.
+
+- **Narrow layouts** — the layout now adapts to the width of the view. In a
+  narrow window, padding and indents tighten so the text keeps its room; in a
+  very narrow one — like Finder's column-view preview pane — the type scale
+  compresses too. Printed output is untouched.
+- **Quick Look zoom** — a Finder preview used to render at whatever zoom you
+  last set in a document window. Previews now size themselves to the pane: full
+  size in a wide pane, smaller in a narrow one, following the pane as it
+  resizes.
+- **Comments make room** — when the window is too narrow for the Comments
+  column, Add Comment, Show Comments, and clicking a 💬 marker now widen the
+  window for you (Mud asks first before collapsing the sidebar). When there's
+  no room to widen, comments appear in a section at the end of the document
+  instead.
+- **Calmer change tracking** — re-wrapping a paragraph's lines without changing
+  its words no longer marks the whole paragraph as changed, so the edits that
+  matter stand out.
+- File icon thumbnails lay out the document's title better.
+- The Open In menu no longer lists apps that can't usefully edit a Markdown
+  file.
+
+
 ## v4.0.0
 
 This version introduces **math**. Write TeX in your Markdown the same way you
@@ -8,8 +34,8 @@ do on GitHub, and Mud typesets it.
 
 **Math**:
 
-- Three forms are recognized: a fenced code block tagged `math`, a
-  paragraph wrapped in `$$…$$`, and GitHub's inline `` $`…`$ `` form.
+- Three forms are recognized: a fenced code block tagged `math`, a paragraph
+  wrapped in `$$…$$`, and GitHub's inline `` $`…`$ `` form.
 - Math prints, exports, and previews in Quick Look like everything else.
 
 **Tables**:
@@ -37,8 +63,8 @@ do on GitHub, and Mud typesets it.
 - Commenting on a list item that also contains a nested list now works, instead
   of failing with "the text you commented on has changed".
 - A failed comment save now reports what actually went wrong, and a failed
-  delete no longer fails in silence. Passages Mud can't anchor a comment to
-  are now refused as you select them.
+  delete no longer fails in silence. Passages Mud can't anchor a comment to are
+  now refused as you select them.
 - File > Open Recent works while the Open dialog is showing.
 - Find highlight colors follow the current theme and light/dark setting.
 - Clicking a change in the sidebar now scrolls Mark Down mode to that change,

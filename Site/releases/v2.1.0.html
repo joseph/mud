@@ -227,9 +227,18 @@ article {
 }
 /* -- Up Mode -------------------------------------------------------------- */
 
+/* The Up-mode page box. The article and the bottom Comments footer are
+   siblings — the comments sit outside the article — so they can't inherit one
+   box from the other; they read these two instead. mud-narrow.css tightens
+   both at once by rewriting them, rather than restating each box's padding. */
+:root {
+  --up-page-inset: 2em;
+  --up-page-clearance: 6em; /* space for floating bars beneath */
+}
+
 .up-mode-output {
   margin: 0 auto;
-  padding: 2em 2em 6em; /* space for floating bars beneath */
+  padding: var(--up-page-inset) var(--up-page-inset) var(--up-page-clearance);
   box-sizing: border-box;
   background: var(--bg-color);
   overflow-x: hidden;
@@ -535,7 +544,6 @@ blockquote > :last-child {
 
 .footnote-backref {
   text-decoration: none;
-  margin-left: 0.4em;
 }
 
 /* In `.popover` mode the section is hidden on screen (footnotes show in a
@@ -570,8 +578,9 @@ table {
    a scroll container; `width: fit-content` (overriding the `width: 100%` above)
    sizes it to its columns, and `max-width: 100%` caps that at the text width so
    a wide table scrolls instead of overflowing. Excludes the frontmatter table,
-   which has its own layout. */
-.up-mode-output table:not(.mud-frontmatter-table) {
+   which has its own layout. The Comments footer is named alongside the article
+   because a comment body is rendered Markdown and clips the same way. */
+:is(.up-mode-output, footer.comments) table:not(.mud-frontmatter-table) {
   display: block;
   overflow-x: auto;
   width: fit-content;
@@ -756,17 +765,69 @@ img {
   }
 }
 
-/* The bottom Comments section (every export; `is-print-only` in the live app). */
-.comments {
-  margin-top: 2em;
-  padding-top: 1em;
+/* The bottom Comments section (every export; `is-print-only` in the live app).
+   It renders as a `<footer>` outside the article, as its next sibling, so it
+   carries the Up-mode page box itself rather than inheriting it: the same
+   centering and readable-column width, and the side inset and trailing
+   clearance mud-up.css hands the article through --up-page-inset and
+   --up-page-clearance. Both boxes carry that clearance — the article's marks
+   the end of the document, the footer's clears the floating bars. No
+   background of its own, so the comments sit on the body's --body-bg, half a
+   shade off the article: commentary beside the page rather than more page. Its
+   rule spans that whole box, as a page-level divider should, rather than the
+   article's text width.
+
+   The bare `.comments` rules that follow are shared with the comment-thread
+   popover document, which wraps the same markup in a plain div. */
+footer.comments {
+  box-sizing: border-box;
+  overflow-x: hidden;
   border-top: 1px solid var(--border-color);
+  margin: 0 auto;
+  padding: 1rem var(--up-page-inset) var(--up-page-clearance);
+}
+
+.is-readable-column footer.comments {
+  max-width: 800px;
+}
+
+footer.comments .mud-comment-attribution {
+  color: var(--heading-color);
+  font-weight: 500;
+  margin: 0.75rem 0 0.25rem;
+}
+
+footer.comments .mud-comment-attribution:before {
+  content: '💬 ';
+  margin-left: -0.2rem;
+  margin-right: 0.2rem;
+}
+
+footer.comments .mud-comment-time {
+  font-weight: normal;
+  opacity: 0.67;
+}
+
+footer.comments .mud-comment-time:before {
+  content: ' @ ';
+  opacity: 0.5;
+}
+
+footer.comments .mud-comment-time:after {
+  content: ': ';
+  opacity: 0.5;
+}
+
+.comments {
   font-size: 0.9em;
 }
 
 .comments h2 {
-  font-size: 1.1em;
-  margin: 0 0 0.5em;
+  font-size: 80%;
+  margin: 0 0 1.25rem;
+  border-width: 0;
+  font-weight: 500;
+  text-transform: uppercase;
 }
 
 .comments ol {
@@ -774,7 +835,7 @@ img {
 }
 
 .comments li {
-  margin-bottom: 1em;
+  margin-bottom: 1.5em;
 }
 
 .comments li:target {
@@ -787,10 +848,6 @@ img {
   border-left: 3px solid var(--border-color);
   font-style: italic;
   color: var(--blockquote-color);
-}
-
-.mud-comment-message {
-  margin: 0.4em 0;
 }
 
 /* On screen the column stands in for the bottom section; print shows the
@@ -818,8 +875,15 @@ img {
    layout (the column reads its position to place a quote-less comment's
    capsule). Scoped to `@media screen` so print keeps the visible chip. The
    "Show comment markers" preference (`show-comment-markers`) opts out, letting
-   the marker fall back to its visible base styling. */
-@media screen {
+   the marker fall back to its visible base styling.
+
+   The `min-width` guard pairs with the 700px Compact tier in mud-narrow.css:
+   below it the column stands down and the markers are the only thing left
+   pointing at a comment, so they must be visible. Guarding here rather than
+   undoing there keeps this rule the single source of the marker's geometry.
+   (The .02px offset closes the sub-pixel gap a fractional viewport width —
+   browser zoom on an exported document — would otherwise fall into.) */
+@media screen and (min-width: 700.02px) {
   .comments-column:not(.show-comment-markers) .mud-comment-marker {
     position: absolute;
     width: 1px;
@@ -838,18 +902,18 @@ img {
    the column (below) and shows the bottom Comments section instead, so the
    document must fill the page with no reserved gutter — hence the whole block is
    scoped to `@media screen`. (Reserving the gutter in print left a blank strip
-   down the right of every page.) */
-@media screen {
+   down the right of every page.)
+
+   The `min-width` guard pairs with the 700px Compact tier in mud-narrow.css:
+   below it the column plus its margins would leave the document nothing, so
+   the gutter is never reserved and the bottom Comments section takes over. */
+@media screen and (min-width: 700.02px) {
   /* With the column toggled on, reserve the right gutter. The body is the
      scroll and positioning container; capsules are absolutely placed within it,
      so the column scrolls with the document. */
   html.comments-column.is-comments-column body {
     position: relative;
     padding-right: var(--comment-column-gutter);
-  }
-
-  html.comments-column.is-comments-column .up-mode-output {
-    border-right: 1px solid var(--border-color);
   }
 
   #mud-comments-column {
@@ -911,8 +975,10 @@ img {
 }
 
 .mud-comments-title {
-  font-weight: 500;
   color: var(--heading-color);
+  text-transform: uppercase;
+  font-weight: 500;
+  font-size: 80%;
 }
 
 /* Title on the left; arrows and count grouped on the right. */
@@ -1042,7 +1108,6 @@ img {
 /* Each message is its own bordered box. The first (the original comment) is
    shaded to mark the active thread; replies below it stay white. */
 .mud-capsule-thread .mud-comment-message {
-  margin: 0;
   padding: 9px 14px;
   border-radius: 23px;
   border: 1px solid var(--blockquote-color);
@@ -1056,7 +1121,7 @@ img {
 .mud-capsule-thread .mud-comment-attribution {
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
   gap: 0.5em;
   font-weight: 600;
   margin-bottom: 0.2em;
@@ -1078,8 +1143,8 @@ img {
   white-space: nowrap;
 }
 
-.mud-capsule-thread .mud-comment-message p,
-.mud-capsule-thread .mud-comment-message blockquote {
+.mud-comment-message p,
+.mud-comment-message blockquote {
   margin: 0.5em 0;
 }
 
@@ -1101,6 +1166,219 @@ mark.mud-match-active {
   background-color: var(--find-match-active-bg);
   outline: 2px solid var(--find-match-active-outline);
   outline-offset: -1px;
+}
+/* All width-based overrides for both modes live here, and this stylesheet is
+   included second-to-last — after mud-up.css, mud-down.css, mud-comments.css
+   and the rest, so these rules win over the base layout, and before
+   mud-print.css, so the print overrides still win over these. The same
+   arrangement mud-print.css documents for its own rules.
+
+   Two tiers:
+
+     Compact   <= 700px   a narrow app window; a roomy Quick Look pane
+     Tight     <= 420px   Finder's column-view preview pane
+
+   Both queries below are scoped to `screen`, never left as a bare width test.
+   In paged output a width test is measured against the page box, and the
+   `@page` margin in mud-print.css leaves US Letter at roughly 680 CSS px and
+   A4 at roughly 660 — an unscoped 700px breakpoint would fire on every printed
+   page and quietly shrink the output. Scoping to `screen` makes that
+   impossible, and HTMLTemplateTests keeps it that way.
+
+   The aim is to fit more into a small viewport while the page still reads as
+   Mud. The themes, the background gradient, and the heading rules and colors
+   are untouched; only geometry and the type scale tighten. */
+
+
+/* == Compact: <= 700px ===================================================== */
+
+@media screen and (max-width: 700px) {
+
+  /* -- Up mode ------------------------------------------------------------ */
+
+  /* 2em a side is a quarter of a 250px pane. The bottom still clears the
+     floating Changes / Find bars, which are a fixed ~50px tall. Rewriting the
+     page box (mud-up.css) tightens the article and the bottom Comments footer
+     together — they are siblings, so neither inherits the other's padding. */
+  :root {
+    --up-page-inset: 1.25rem;
+    --up-page-clearance: 4rem;
+  }
+
+  ul, ol {
+    padding-left: 1.5em;
+  }
+
+  pre {
+    padding: 0.75em;
+  }
+
+  blockquote {
+    padding: 0 0.75em;
+  }
+
+  th, td {
+    padding: 6px 8px;
+  }
+
+  .mud-frontmatter summary {
+    padding: 0.7em;
+  }
+
+  /* The frontmatter table sets its own cell padding at a higher specificity
+     than the `th, td` rule above, so it needs its own override. */
+  .mud-frontmatter-table th {
+    padding: 5px 0.7em;
+  }
+
+  .mud-frontmatter-table td {
+    padding: 6px 0.7em;
+  }
+
+
+  /* -- Comments: the column gives way to the bottom section --------------- */
+
+  /* Below this width the 300px column plus its 24px of margins leaves the
+     document nothing, so the column stands down and the bottom Comments
+     section — the one print shows — takes over, with the inline markers
+     restored beside their quotations. Hovering a marker still lights its
+     quotation: those listeners in mud-comments.js are registered
+     unconditionally, and the highlights are anchored either way.
+
+     Neither the reserved gutter nor the marker-hiding rule is undone here.
+     The screen-scoped blocks in mud-comments.css and mud-comments-edit.css
+     carry a matching `min-width` guard so they never apply at this width —
+     undoing them would mean restating `.mud-comment-marker`'s base geometry
+     in this file, which would go stale the moment that rule changed. Keep the
+     three files' breakpoints in step.
+
+     That leaves the column element itself, which mud-comments.js has already
+     built into the DOM, and the bottom section. The column header, the
+     capsules and the compose box all live inside the column, so they go with
+     it.
+
+     The section stands in for the column, so it answers to the same
+     `is-comments-column` toggle: Show Comments reveals it and Hide Comments
+     takes it away, exactly as they do the column at a wider size. Revealing it
+     unconditionally instead would make Hide Comments look broken here — the
+     comments would stay on screen with nothing left to switch off — and would
+     put a Comments section under a document whose reader never asked for one.
+     (Print reveals the section on its own terms, in mud-print.css, so a
+     printed page still carries the comments whatever the toggle says.) */
+  #mud-comments-column {
+    display: none;
+  }
+
+  html.is-comments-column .comments.is-print-only {
+    display: block;
+  }
+
+
+  /* -- Down mode ---------------------------------------------------------- */
+
+  .ln {
+    flex-basis: 2.75em;
+    padding-right: 0.6em;
+  }
+
+  .lc {
+    padding: 0 0.6em;
+  }
+
+  .down-lines > .dl:first-child > *,
+  .down-lines > .dc-scroll:first-child > .dl:first-child > * {
+    padding-top: 1.25rem;
+  }
+
+  .down-lines > .dl:last-child > *,
+  .down-lines > .dc-scroll:last-child > .dl:last-child > * {
+    padding-bottom: 4rem;
+  }
+}
+
+
+/* == Tight: <= 420px ======================================================= */
+
+/* Finder's column-view preview pane. Everything above still applies; this tier
+   adds the type scale, which is what actually buys the line length back —
+   roughly 40 characters a line where 16px type gave 24. */
+
+@media screen and (max-width: 420px) {
+
+  /* Quick Look locks the document zoom below the Compact breakpoint
+     (PreviewProvider.zoom(paneWidth:)), which already buys this tier's line
+     length back: 16px at 80% reads as 12.8px, and a 350pt pane fits roughly
+     50 characters a line — more than the 40 this step was written for. Taking
+     14px on top of that lands at 11.2px, which is too small to read. The
+     `is-zoom-locked` class marks a document whose zoom the host set on the
+     reader's behalf, so only an unscaled one takes the step; everything else
+     in this tier is geometry and applies either way. */
+  html:not(.is-zoom-locked) {
+    font-size: 14px;
+  }
+
+
+  /* -- Up mode ------------------------------------------------------------ */
+
+  /* Only the inset tightens further; the Compact tier's clearance still holds
+     at this width. */
+  :root {
+    --up-page-inset: 0.9rem;
+  }
+
+  /* The rules, the colors and the h1 / h2 underlines stay — they are the Mud
+     silhouette. Only the sizes come down, so a heading wraps once rather than
+     three or four times. h1 is left out of the margin rule: the base gives it
+     `margin-top: 0` and it must keep it. */
+  h2, h3, h4, h5, h6 {
+    margin-top: 1.2em;
+  }
+
+  h1 { font-size: 1.5em; }
+  h2 { font-size: 1.3em; }
+  h3 { font-size: 1.15em; }
+
+  ul, ol {
+    padding-left: 1.25em;
+  }
+
+  .footnotes ol,
+  .comments ol {
+    padding-left: 1.25em;
+  }
+
+  pre {
+    padding: 0.6em;
+  }
+
+  th, td {
+    padding: 4px 6px;
+  }
+
+  /* A fixed 20% key column that can't wrap forces the whole table wide on a
+     long key; let it size to its content and wrap instead. */
+  .mud-frontmatter-table th {
+    width: auto;
+    white-space: normal;
+    padding: 4px 0.6em;
+  }
+
+  .mud-frontmatter-table td {
+    padding: 5px 0.6em;
+  }
+
+
+  /* -- Down mode ---------------------------------------------------------- */
+
+  .ln {
+    flex-basis: 2.25em;
+    padding-right: 0.4em;
+    font-size: 0.8em;
+  }
+
+  .lc {
+    padding: 0 0.4em;
+  }
 }
 /* All `@media print` overrides live here and this stylesheet is included last,
    so these rules win over the on-screen defaults set in mud-up.css,
@@ -1126,7 +1404,9 @@ mark.mud-match-active {
 
   /* On screen the content padding reserves room for the floating bars and sits
      inside the window; on paper there are no bars and the printer adds its own
-     page margin, so trim the padding to a thin frame. */
+     page margin, so trim the box to a thin frame. That includes the trailing
+     clearance (mud-up.css), which on paper would be 6em of blank before the
+     Comments footer, or at the end of the run. */
   .up-mode-output {
     padding: 0;
   }
@@ -1164,8 +1444,13 @@ mark.mud-match-active {
 
 
   /* Up mode: comments. The bottom Comments section is hidden on screen in
-     favor of the column, but prints in place of the column. */
+     favor of the column, but prints in place of the column. Being the
+     article's sibling rather than its child, the footer carries its own page
+     box (mud-comments.css) — so it needs the same trim the article gets above,
+     keeping only the gap under its rule. */
   .comments.is-print-only { display: block; }
+
+  footer.comments { padding: 1rem 0 0; }
 
   /* The comments column is an on-screen layout only; print shows the bottom
      Comments section instead (above). */
@@ -1178,7 +1463,7 @@ mark.mud-match-active {
   /* Up mode: on screen a wide content table is its own horizontal scroll box
      (display: block, in mud-up.css); paper can't scroll, so restore normal
      table layout and let cells wrap within the page width. */
-  .up-mode-output table:not(.mud-frontmatter-table) {
+  :is(.up-mode-output, footer.comments) table:not(.mud-frontmatter-table) {
     display: table;
     width: 100%;
   }

@@ -38,21 +38,30 @@ final class OpenInMenuModel: NSObject, ObservableObject, NSMenuDelegate {
         refresh()
     }
 
+    private static let hiddenBundleIDs: Set<String> = [
+        "com.apple.dt.Instruments",
+        //"com.apple.dt.Xcode",
+    ]
+
     func refresh() {
         let mudBundleID = Bundle.main.bundleIdentifier
         let all = NSWorkspace.shared.urlsForApplications(toOpen: UTType.markdown)
             .compactMap { RegisteredMarkdownHandler(appURL: $0) }
             .filter { $0.bundleID != mudBundleID }
+            .filter { !Self.hiddenBundleIDs.contains($0.bundleID) }
             .sorted { $0.displayName.localizedCaseInsensitiveCompare($1.displayName) == .orderedAscending }
 
-        let resolved = MudPreferences.shared.openInDefaultBundleID
+        let installed = MudPreferences.shared.openInDefaultBundleID
             .flatMap { NSWorkspace.shared.urlForApplication(withBundleIdentifier: $0) }
             .flatMap { RegisteredMarkdownHandler(appURL: $0) }
 
         // Clear stale preference if the configured app is no longer installed.
-        if MudPreferences.shared.openInDefaultBundleID != nil && resolved == nil {
+        if MudPreferences.shared.openInDefaultBundleID != nil && installed == nil {
             MudPreferences.shared.openInDefaultBundleID = nil
         }
+
+        let resolved = installed
+            .flatMap { Self.hiddenBundleIDs.contains($0.bundleID) ? nil : $0 }
 
         configured = resolved
         others = all.filter { $0.bundleID != resolved?.bundleID }

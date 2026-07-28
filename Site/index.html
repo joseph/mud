@@ -88,13 +88,6 @@ header {
   margin: 0 auto;
 }
 
-header img {
-  display: block;
-  margin: 0 auto;
-  width: 200px;
-  max-width: 40vw;
-}
-
 /* Syntax highlighting */
 .hljs {
     color: var(--text-color);
@@ -193,7 +186,6 @@ header img {
 
 .mud-screenshot {
   display: block;
-  border-radius: 0.75em;
 }
 
 .screenshot-toggle {
@@ -469,7 +461,12 @@ footer {
 </head>
 <body>
     <header>
-      <img src="mud-header.png" alt="Mud: Mark Up or Down" />
+      <img src="screenshots/mud-mode-demo-01.png" class="mud-screenshot shot" alt="Screenshot: Up mode" />
+      <img src="screenshots/mud-mode-demo-02.png" class="mud-screenshot shot" alt="Screenshot: Down mode" style="display:none" />
+      <div class="screenshot-toggle">
+        <button class="toggle-btn active" onclick="showShot(0, this)">Mark Up</button>
+        <button class="toggle-btn" onclick="showShot(1, this)">Mark Down</button>
+      </div>
     </header>
     <article class="up-mode-output">
       <h1 id="mud-mark-up-or-down">Mud: A Perfect Markdown Viewer</h1>
@@ -485,13 +482,6 @@ footer {
       beautifully, bright or dark. It automatically reloads the document when
       you save it — or when Claude Code writes to it, or Codex,
       or whatever you use.</p>
-
-      <img src="mud-ss-01.png" class="mud-screenshot shot" alt="Mud in Mark Up mode" />
-      <img src="mud-ss-02.png" class="mud-screenshot shot" alt="Mud in Mark Down mode" style="display:none" />
-      <div class="screenshot-toggle">
-        <button class="toggle-btn active" onclick="showShot(0, this)">Mark Up</button>
-        <button class="toggle-btn" onclick="showShot(1, this)">Mark Down</button>
-      </div>
 
       <p>Mud shows you both sides of the document:</p>
       <ul>
@@ -568,17 +558,15 @@ mud -u --theme riot file.md    <span class="hljs-comment"># Pick a theme</span>
 
       <h2 id="screenshots">Screenshots</h2>
 
+      <div><img src="screenshots/mud-ss-01.png" alt="Screenshot: Meet Mud" /></div>
       <div><img src="screenshots/mud-ss-03.png" alt="Screenshot: Syntax highlighting, with Outline in Sidebar" /></div>
-      <div><img src="screenshots/mud-ss-04.png" alt="Screenshot: Keyboard shortcuts in a table" /></div>
-      <div><img src="screenshots/mud-ss-05.png" alt="Screenshot: Rendering — Alerts and asides" /></div>
-      <div><img src="screenshots/mud-ss-06.png" alt="Screenshot: Rendering — Diagrams" /></div>
-      <div><img src="screenshots/mud-ss-07.png" alt="Screenshot: Settings &gt; General" /></div>
-      <div><img src="screenshots/mud-ss-08.png" alt="Screenshot: Settings &gt; Markdown" /></div>
-      <div><img src="screenshots/mud-ss-09.png" alt="Screenshot: Settings &gt; Theme" /></div>
-      <div><img src="screenshots/mud-ss-10.png" alt="Screenshot: Settings &gt; Up Mode" /></div>
-      <div><img src="screenshots/mud-ss-11.png" alt="Screenshot: Rendering — Table" /></div>
-      <div><img src="screenshots/mud-ss-12.png" alt="Screenshot: Rendering — Task list" /></div>
-      <div><img src="screenshots/mud-ss-13.png" alt="Screenshot: Rendering — Status aside" /></div>
+      <div><img src="screenshots/mud-ss-04.png" alt="Screenshot: Mud updates immediately when you (or your coding agents) save the document" /></div>
+      <div><img src="screenshots/mud-ss-05.png" alt="Screenshot: Really simple change tracking" /></div>
+      <div><img src="screenshots/mud-ss-06.png" alt="Screenshot: Use comments to discuss ideas with your coding agent" /></div>
+      <div><img src="screenshots/mud-ss-07.png" alt="Screenshot: Documents in tabs or windows. Dark mode." /></div>
+      <div><img src="screenshots/mud-ss-08.png" alt="Screenshot: 4 different themes" /></div>
+      <div><img src="screenshots/mud-ss-09.png" alt="Screenshot: Quick Look and Thumbnail preview are built-in" /></div>
+      <div><img src="screenshots/mud-ss-10.png" alt="Screenshot: Open the document in your favorite editor" /></div>
 
       <h2 id="license">License</h2>
       <p>

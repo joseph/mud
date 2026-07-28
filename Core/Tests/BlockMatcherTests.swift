@@ -135,4 +135,77 @@ struct BlockMatcherTests {
         #expect(records.count == 1)
         #expect(records.allSatisfy { $0.kind == "unchanged" })
     }
+
+    // MARK: - Re-wrapping is not a change
+
+    // A soft line break renders as a space, so moving one changes nothing
+    // on the page — and a wrapping tool moves them on almost every edit.
+    // Prose fingerprints collapse cosmetic whitespace so a re-wrap reads
+    // as unchanged; what a reader would actually see change still doesn't.
+
+    @Test func rewrappedParagraphClassifiesAsUnchanged() throws {
+        let old = """
+            A message attribution at the start of a paragraph **begins a new
+            message**. The first message needs no such attribution.
+            """
+        let new = """
+            A message attribution at the start of a paragraph **begins a
+            new message**. The first message needs no such attribution.
+            """
+        let records = try cmarkRecords(old: old, new: new)
+        #expect(records.count == 1)
+        #expect(records.allSatisfy { $0.kind == "unchanged" })
+    }
+
+    @Test func rewrappedListItemClassifiesAsUnchanged() throws {
+        let old = "- one workaround is to put empty braces at the\n  start."
+        let new = "- one workaround is to put empty braces\n  at the start."
+        let records = try cmarkRecords(old: old, new: new)
+        #expect(records.count == 1)
+        #expect(records.allSatisfy { $0.kind == "unchanged" })
+    }
+
+    /// A blockquote's `>` prefix repeats on every line, so a re-wrap moves
+    /// the prefixes too. Continuation lines drop theirs before the collapse.
+    @Test func rewrappedBlockQuoteClassifiesAsUnchanged() throws {
+        let old = "> The quick brown fox\n> jumped over the lazy dog."
+        let new = "> The quick brown fox jumped over the\n> lazy dog."
+        let records = try cmarkRecords(old: old, new: new)
+        #expect(records.count == 1)
+        #expect(records.allSatisfy { $0.kind == "unchanged" })
+    }
+
+    @Test func rewrappedParagraphKeepsWordEditVisible() throws {
+        let old = "The quick brown fox\njumped over the lazy dog."
+        let new = "The quick red fox jumped over\nthe lazy dog."
+        let records = try cmarkRecords(old: old, new: new)
+        #expect(records.contains { $0.kind == "deleted" })
+        #expect(records.contains { $0.kind == "inserted" })
+    }
+
+    /// Two or more trailing spaces render as `<br>`, so dropping them is a
+    /// real change even though only whitespace moved.
+    @Test func removedHardLineBreakClassifiesAsChanged() throws {
+        let old = "The quick brown fox  \njumped over the lazy dog."
+        let new = "The quick brown fox\njumped over the lazy dog."
+        let records = try cmarkRecords(old: old, new: new)
+        #expect(records.contains { $0.kind == "deleted" })
+        #expect(records.contains { $0.kind == "inserted" })
+    }
+
+    @Test func deepenedQuoteClassifiesAsChanged() throws {
+        let records = try cmarkRecords(
+            old: "> The quick brown fox.\n",
+            new: ">> The quick brown fox.\n")
+        #expect(records.contains { $0.kind == "deleted" })
+        #expect(records.contains { $0.kind == "inserted" })
+    }
+
+    @Test func codeBlockKeepsItsWhitespace() throws {
+        let records = try cmarkRecords(
+            old: "```\nlet x = 1\n```\n",
+            new: "```\n    let x = 1\n```\n")
+        #expect(records.contains { $0.kind == "deleted" })
+        #expect(records.contains { $0.kind == "inserted" })
+    }
 }

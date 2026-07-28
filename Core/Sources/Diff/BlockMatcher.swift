@@ -99,7 +99,10 @@ enum BlockMatch {
 struct LeafBlock {
     /// The AST node for this block.
     let markup: CMarkNode
-    /// Hash of the source text within this block's range.
+    /// The text this block is matched on: its source, with comment tokens
+    /// stripped and — for prose — cosmetic whitespace collapsed (see
+    /// `normalizedProse`). Two blocks with the same fingerprint are the
+    /// same block as far as change tracking is concerned.
     let fingerprint: String
     /// 1-based line number of the block's start in the source.
     let sourceLine: Int
@@ -240,19 +243,109 @@ private struct LeafBlockCollector: CMarkWalker {
         let sourceText = extractSourceText(for: node)
         blocks.append(LeafBlock(
             markup: node,
-            fingerprint: FootnoteProcessor.stripCommentTokens(sourceText),
+            fingerprint: Self.fingerprint(of: sourceText, kind: node.kind),
             sourceLine: line, sourceText: sourceText
         ))
     }
 
-    private mutating func appendBlock(_ node: CMarkNode, fingerprint: String) {
+    private mutating func appendBlock(
+        _ node: CMarkNode, fingerprint raw: String
+    ) {
         let line = node.range?.lowerBound.line ?? 0
         let sourceText = extractSourceText(for: node)
         blocks.append(LeafBlock(
             markup: node,
-            fingerprint: FootnoteProcessor.stripCommentTokens(fingerprint),
+            fingerprint: Self.fingerprint(of: raw, kind: node.kind),
             sourceLine: line, sourceText: sourceText
         ))
+    }
+
+    /// Builds a block's fingerprint from the source text it is matched on:
+    /// comment tokens stripped (so gaining a comment is not a change) and,
+    /// for prose, cosmetic whitespace collapsed (so re-wrapping is not one
+    /// either).
+    private static func fingerprint(
+        of raw: String, kind: CMarkNodeKind
+    ) -> String {
+        let stripped = FootnoteProcessor.stripCommentTokens(raw)
+        return isProse(kind) ? normalizedProse(stripped) : stripped
+    }
+
+    /// Blocks whose whitespace is cosmetic. Code and HTML blocks are
+    /// excluded — there a re-indent or a moved line break is a real change.
+    /// Table rows are excluded too: they come in pre-normalized by
+    /// ``normalizedTableRow``, which collapses their pipe padding.
+    private static func isProse(_ kind: CMarkNodeKind) -> Bool {
+        switch kind {
+        case .paragraph, .heading, .listItem, .taskListItem: return true
+        default: return false
+        }
+    }
+
+    /// Collapses cosmetic whitespace out of a prose block's fingerprint, so
+    /// that re-wrapping a paragraph is not a change: a soft line break
+    /// renders as a space, and a wrapping tool moves them on almost every
+    /// edit. Runs of whitespace become one space, and continuation lines
+    /// lose the blockquote prefix cmark strips before parsing the block's
+    /// text.
+    ///
+    /// Two things survive on purpose, because each of them changes what
+    /// renders:
+    ///
+    /// - The first line's own indent and prefix — the block's nesting depth
+    ///   and quote depth.
+    /// - A hard line break: two or more trailing spaces, which render as
+    ///   `<br>`. It is marked with ``hardBreakMark`` so the collapse below
+    ///   cannot erase it. The other hard-break form, a trailing backslash,
+    ///   needs no mark — it is not whitespace, so it survives the collapse
+    ///   as itself.
+    private static func normalizedProse(_ raw: String) -> String {
+        var lines = raw.split(
+            separator: "\n", omittingEmptySubsequences: false)
+        guard let first = lines.first else { return raw }
+        let indent = first.prefix { $0 == " " || $0 == "\t" }
+        for i in lines.indices.dropFirst() {
+            lines[i] = lines[i].drop {
+                $0 == " " || $0 == "\t" || $0 == ">"
+            }
+        }
+        let marked = replacingMatches(
+            of: hardBreakRegex, in: lines.joined(separator: "\n"),
+            with: "\(hardBreakMark)\n")
+        // Every run is one space by now, so the edges need no more than
+        // one character trimmed off each.
+        let flat = replacingMatches(
+            of: whitespaceRunRegex, in: marked, with: " ")
+        var collapsed = flat[...]
+        if collapsed.hasPrefix(" ") { collapsed = collapsed.dropFirst() }
+        if collapsed.hasSuffix(" ") { collapsed = collapsed.dropLast() }
+        return String(indent) + collapsed
+    }
+
+    /// Stands in for a hard line break while the whitespace around it
+    /// collapses. A control character, so no readable source carries one.
+    private static let hardBreakMark = "\u{1}"
+
+    /// The whitespace Markdown itself treats as cosmetic — ASCII only.
+    /// Deliberately narrower than `\s`, which also covers a non-breaking
+    /// space; that renders as itself, so it is content and stays in the
+    /// fingerprint.
+    private static let cosmeticWhitespace = " \t\n\u{0B}\u{0C}\r"
+
+    /// Precompiled once — `normalizedProse` runs over every prose block of
+    /// both documents on every diff.
+    private static let hardBreakRegex = try? NSRegularExpression(
+        pattern: " {2,}\n")
+    private static let whitespaceRunRegex = try? NSRegularExpression(
+        pattern: "[\(cosmeticWhitespace)]+")
+
+    private static func replacingMatches(
+        of regex: NSRegularExpression?, in s: String, with template: String
+    ) -> String {
+        guard let regex else { return s }
+        return regex.stringByReplacingMatches(
+            in: s, range: NSRange(s.startIndex..., in: s),
+            withTemplate: template)
     }
 
     /// Extracts the source text for a node using its source range.

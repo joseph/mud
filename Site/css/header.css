@@ -15,11 +15,10 @@
 }
 
 header {
-  --header-chrome: url('../img/header-chrome-light.png');
-
   /* Screenshot at the bottom, over the dark rail, over the brown gradient.
      Its last row is semi-transparent, so it hangs 1px past the bottom edge
-     and gets clipped — otherwise the rail shows through as a hairline. */
+     and gets clipped — otherwise the rail shows through as a hairline.
+     theme.css picks which of the two screenshots --header-chrome holds. */
   background-image:
     var(--header-chrome),
     linear-gradient(to top, #261802 10px, transparent 10px),
@@ -30,13 +29,7 @@ header {
 
   padding: 4vh 0 var(--chrome-height);
 
-  position: relative;   /* .mode-toggle is placed against this box */
-}
-
-@media (prefers-color-scheme: dark) {
-  header {
-    --header-chrome: url('../img/header-chrome-dark.png');
-  }
+  position: relative;   /* .chrome-button is placed against this box */
 }
 
 header .pillar {
@@ -61,21 +54,26 @@ header h2 {
 }
 
 
-/* -- Mode toggle ---------------------------------------------------------- */
+/* -- Buttons in the screenshot -------------------------------------------- */
 
-/* An invisible button sitting exactly on the Up/Down toggle in the screenshot's
-   toolbar — the rightmost one. Clicking it flips the document below, so the
-   button in the picture does the job the real one does.
+/* Invisible buttons sitting exactly on top of toolbar buttons in the header
+   screenshot, so the buttons in the picture do the job the real ones do.
 
-   The screenshot draws that toggle as a 72px circle spanning x 1798–1870 and
-   y 93–165. Those raw pixel numbers are divided by the image's 2000x688 here,
-   so the target tracks the image at any size. Horizontally we start from the
-   image's left edge, which is (50% - half the image) once it's centered.
-   Vertically we measure up from the image's bottom edge, which sits 1px below
-   the header's own bottom edge — hence the -1px. */
-.mode-toggle {
+   The screenshot draws each of them as a 72px circle, and they all sit on one
+   row — y 93 to 165 in the image — so only `left` differs between them. Those
+   raw pixel numbers are divided by the image's own 2000x688 below, which is
+   what keeps each target on its button at any size. Vertically we measure up
+   from the image's bottom edge, which sits 1px below the header's own bottom
+   edge; hence the -1px. */
+
+:root {
+  /* Where the screenshot's left edge falls: it's centered, so half the header
+     minus half the image. Only meaningful on a `left` inside the header. */
+  --chrome-origin: calc(50% - var(--chrome-width) / 2);
+}
+
+.chrome-button {
   position: absolute;
-  left: calc(50% - var(--chrome-width) / 2 + var(--chrome-width) * 1798 / 2000);
   width: calc(var(--chrome-width) * 72 / 2000);
   bottom: calc(var(--chrome-height) * 523 / 688 - 1px);   /* 688 - 165 */
   height: calc(var(--chrome-height) * 72 / 688);
@@ -88,8 +86,18 @@ header h2 {
 }
 
 /* Invisible to the eye, but not to the keyboard: without this, tabbing onto
-   it would move focus nowhere visible. */
-.mode-toggle:focus-visible {
+   one would move focus nowhere visible. */
+.chrome-button:focus-visible {
   outline: 2px solid var(--chrome-brown);
   outline-offset: 3px;
+}
+
+/* The sun/moon button, sixth from the right. */
+.lighting-toggle {
+  left: calc(var(--chrome-origin) + var(--chrome-width) * 1307 / 2000);
+}
+
+/* The Up/Down toggle, the rightmost button in the toolbar. */
+.mode-toggle {
+  left: calc(var(--chrome-origin) + var(--chrome-width) * 1798 / 2000);
 }

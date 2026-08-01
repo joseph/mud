@@ -24,8 +24,10 @@
         <h1>Meet Mud.</h1>
         <h2>A macOS app for viewing Markdown documents — <em>marked up.</em></h2>
       </div>
-      <!-- Sits on the Up/Down toggle in the screenshot's toolbar. -->
-      <button class="mode-toggle" type="button"
+      <!-- These sit on their counterparts in the screenshot's toolbar. -->
+      <button class="chrome-button lighting-toggle" type="button"
+              aria-label="Switch between bright and dark"></button>
+      <button class="chrome-button mode-toggle" type="button"
               aria-label="Switch between Mark Up and Mark Down"></button>
     </header>
 
@@ -168,6 +170,12 @@ mud -u --theme riot file.md    <span class="hljs-comment"># Pick a theme</span>
 
       // The invisible button over the toolbar toggle in the header screenshot.
       document.querySelector('.mode-toggle').onclick = toggleMode;
+
+      // -- Lighting ----------------------------------------------------------
+      // The sun/moon button asks for the opposite of whatever the browser is
+      // set to. Pressing it again hands control back. theme.css does the rest.
+      document.querySelector('.lighting-toggle').onclick = () =>
+        document.documentElement.classList.toggle('is-lighting-flipped');
 
       addEventListener('keydown', (event) => {
         if (event.key !== ' ' || event.repeat) return;

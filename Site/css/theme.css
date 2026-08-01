@@ -65,28 +65,29 @@
 
 /* -- Lighting ------------------------------------------------------------- */
 
-/* By default the page follows the browser. The Lighting button in the header
-   screenshot puts .is-lighting-flipped on <html>, which asks for the opposite
-   of whatever the browser wants — so it reads as bright/dark rather than as a
-   third state, and pressing it again hands control back to the browser.
+/* With no class on <html> the page follows the browser. The Lighting button in
+   the header screenshot adds .is-bright or .is-dark — whichever is the
+   opposite of what the browser is asking for — and pressing it again takes the
+   class off and hands control back. Two states, as in the app, whose Lighting
+   menu names them the same way.
+
+   Naming the scheme rather than saying "flipped" is what lets index.html store
+   the choice: a Mac that switches appearance at sunset would otherwise invert
+   what the reader asked for between one visit and the next.
 
    Every color above resolves through color-scheme, so setting that one
    property is the whole switch. */
 
-@media (prefers-color-scheme: light) {
-  :root.is-lighting-flipped { color-scheme: dark; }
-}
-
-@media (prefers-color-scheme: dark) {
-  :root.is-lighting-flipped { color-scheme: light; }
-}
+:root.is-bright { color-scheme: light; }
+:root.is-dark   { color-scheme: dark; }
 
 
 /* -- Header screenshot ---------------------------------------------------- */
 
 /* The screenshot comes in a bright and a dark variant. An image can't go
-   through light-dark(), so this is the one place the two conditions above
-   have to be spelled out. header.css just draws whatever this settles on. */
+   through light-dark(), so this is the one place the choice has to be spelled
+   out. header.css just draws whatever this settles on. The class rules win on
+   specificity, so they override the browser's preference either way. */
 
 :root {
   --chrome-shot-bright: url('../img/header-chrome-light.png');
@@ -97,9 +98,7 @@
 
 @media (prefers-color-scheme: dark) {
   :root { --header-chrome: var(--chrome-shot-dark); }
-  :root.is-lighting-flipped { --header-chrome: var(--chrome-shot-bright); }
 }
 
-@media (prefers-color-scheme: light) {
-  :root.is-lighting-flipped { --header-chrome: var(--chrome-shot-dark); }
-}
+:root.is-bright { --header-chrome: var(--chrome-shot-bright); }
+:root.is-dark   { --header-chrome: var(--chrome-shot-dark); }

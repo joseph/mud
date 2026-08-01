@@ -9,6 +9,17 @@
   <link rel="icon" type="image/png" href="img/favicon-16.png" sizes="16x16" />
   <link rel="apple-touch-icon" href="img/apple-touch-icon.png" />
   <meta name="theme-color" content="#C1A884" />
+  <script>
+    // Restore a saved lighting choice before the page paints, so it doesn't
+    // flash the browser's scheme first. localStorage throws in some privacy
+    // modes and over file://, and a lighting button that forgets is better
+    // than a page that doesn't load.
+    try {
+      const saved = localStorage.getItem('mud-lighting');
+      if (saved === 'is-bright' || saved === 'is-dark')
+        document.documentElement.classList.add(saved);
+    } catch {}
+  </script>
   <link rel="stylesheet" href="css/theme.css" />
   <link rel="stylesheet" href="css/page.css" />
   <link rel="stylesheet" href="css/syntax.css" />
@@ -173,9 +184,31 @@ mud -u --theme riot file.md    <span class="hljs-comment"># Pick a theme</span>
 
       // -- Lighting ----------------------------------------------------------
       // The sun/moon button asks for the opposite of whatever the browser is
-      // set to. Pressing it again hands control back. theme.css does the rest.
-      document.querySelector('.lighting-toggle').onclick = () =>
-        document.documentElement.classList.toggle('is-lighting-flipped');
+      // set to. Pressing it again hands control back. theme.css does the rest,
+      // and the head restores the choice on the next visit.
+      const root = document.documentElement;
+
+      function rememberLighting(scheme) {
+        try {
+          if (scheme) localStorage.setItem('mud-lighting', scheme);
+          else localStorage.removeItem('mud-lighting');
+        } catch {}
+      }
+
+      document.querySelector('.lighting-toggle').onclick = () => {
+        const wasSet = root.classList.contains('is-bright')
+                    || root.classList.contains('is-dark');
+        root.classList.remove('is-bright', 'is-dark');
+
+        if (wasSet) {
+          rememberLighting(null);           // back to following the browser
+          return;
+        }
+        const opposite =
+          matchMedia('(prefers-color-scheme: dark)').matches ? 'is-bright' : 'is-dark';
+        root.classList.add(opposite);
+        rememberLighting(opposite);
+      };
 
       addEventListener('keydown', (event) => {
         if (event.key !== ' ' || event.repeat) return;

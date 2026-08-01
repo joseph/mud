@@ -164,18 +164,23 @@ mud -u --theme riot file.md    <span class="hljs-comment"># Pick a theme</span>
     </main>
 
     <script>
+      const root = document.documentElement;
+
       // -- Mode toggle -------------------------------------------------------
       const articles = document.querySelectorAll('.up-mode-output, .down-mode-output');
 
       // How far down the page we are, 0 to 1. The two articles are different
       // heights, so a fraction carries over where a pixel offset wouldn't —
       // this is what Mud itself does when you switch modes.
-      const scrollable = () => document.documentElement.scrollHeight - innerHeight;
+      const scrollable = () => root.scrollHeight - innerHeight;
       const scrollFraction = () => (scrollable() > 0 ? scrollY / scrollable() : 0);
 
       function toggleMode() {
         const fraction = scrollFraction();
         articles.forEach((article) => (article.hidden = !article.hidden));
+        // theme.css reads .is-down to light up the Up/Down button in the
+        // header screenshot, the same one the app lights up in Down mode.
+        root.classList.toggle('is-down');
         scrollTo(0, fraction * scrollable());
       }
 
@@ -186,7 +191,6 @@ mud -u --theme riot file.md    <span class="hljs-comment"># Pick a theme</span>
       // The sun/moon button asks for the opposite of whatever the browser is
       // set to. Pressing it again hands control back. theme.css does the rest,
       // and the head restores the choice on the next visit.
-      const root = document.documentElement;
 
       function rememberLighting(scheme) {
         try {

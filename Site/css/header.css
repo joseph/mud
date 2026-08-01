@@ -18,13 +18,32 @@ header {
   /* Screenshot at the bottom, over the dark rail, over the brown gradient.
      Its last row is semi-transparent, so it hangs 1px past the bottom edge
      and gets clipped — otherwise the rail shows through as a hairline.
-     theme.css picks which of the two screenshots --header-chrome holds. */
+
+     Two more layers travel with the screenshot, and theme.css picks the
+     bright or dark variant of all three. Beneath it, --header-chrome-shape
+     is the window's silhouette, inlined as a data URI so there is something
+     to look at while the screenshot downloads. Above it, --header-chrome-down
+     is the toolbar's Up/Down button drawn pressed, and is `none` unless
+     <html> carries .is-down. All three are the same 2000x688 picture, so all
+     three take the screenshot's position and size. */
   background-image:
+    var(--header-chrome-down),
     var(--header-chrome),
+    var(--header-chrome-shape),
     linear-gradient(to top, #261802 10px, transparent 10px),
     linear-gradient(to bottom, var(--chrome-brown), #A4825A);
-  background-position: center bottom -1px, center, center;
-  background-size: var(--chrome-width) auto, auto, auto;
+  background-position:
+    center bottom -1px,
+    center bottom -1px,
+    center bottom -1px,
+    center,
+    center;
+  background-size:
+    var(--chrome-width) auto,
+    var(--chrome-width) auto,
+    var(--chrome-width) auto,
+    auto,
+    auto;
   background-repeat: no-repeat;
 
   padding: 4vh 0 var(--chrome-height);
@@ -75,7 +94,7 @@ header h2 {
 .chrome-button {
   position: absolute;
   width: calc(var(--chrome-width) * 72 / 2000);
-  bottom: calc(var(--chrome-height) * 523 / 688 - 1px);   /* 688 - 165 */
+  bottom: calc(var(--chrome-height) * 520 / 688 - 1px);   /* 688 - 168 */
   height: calc(var(--chrome-height) * 72 / 688);
 
   padding: 0;
@@ -94,10 +113,10 @@ header h2 {
 
 /* The sun/moon button, sixth from the right. */
 .lighting-toggle {
-  left: calc(var(--chrome-origin) + var(--chrome-width) * 1307 / 2000);
+  left: calc(var(--chrome-origin) + var(--chrome-width) * 1297 / 2000);
 }
 
 /* The Up/Down toggle, the rightmost button in the toolbar. */
 .mode-toggle {
-  left: calc(var(--chrome-origin) + var(--chrome-width) * 1798 / 2000);
+  left: calc(var(--chrome-origin) + var(--chrome-width) * 1795 / 2000);
 }

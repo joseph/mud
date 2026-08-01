@@ -1,0 +1,13 @@
+# GitHub Linguist overrides — keep the language bar about the app itself.
+# Note: `*` does not cross a `/`, so these need `**`.
+# https://github.com/github-linguist/linguist/blob/main/docs/overrides.md
+
+# The website: mostly Mud's own export output, plus a hand-written index.
+Site/**                 linguist-documentation
+
+# Golden render fixtures. Vendored, not generated — `generated` would
+# collapse them in diffs, and those diffs are the point of a golden test.
+Core/Tests/Golden/**    linguist-vendored
+
+# No effect on stats (these are `data` types), but collapses the diffs.
+Mud.xcodeproj/**        linguist-generated

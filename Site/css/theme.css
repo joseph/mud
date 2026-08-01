@@ -1,0 +1,89 @@
+/* -- Theme ---------------------------------------------------------------- */
+/* Colors for the whole site, in both color schemes. */
+
+/* The document colors track Core/Sources/Resources/theme-earthy.css and the
+   alert colors track the variable blocks in mud.css, so the landing page
+   renders in the same palette as the app's default theme. One deliberate
+   divergence: --body-bg is #FFF here, not #FCFCFA, so the page below the
+   header is plain white.
+
+   --chrome-brown is the site's own. It is the same in both schemes — only the
+   header screenshot swaps — and it also appears literally in index.html's
+   <meta name="theme-color"> tag, which can't read a custom property.
+
+   The alert border and title colors are kept as separate variables, matching
+   the app, even though every pair currently holds the same value. */
+
+:root {
+  --chrome-brown: #C1A884;
+
+  --text-color: #333;
+  --bg-color: #FFF;
+  --body-bg: #FFF;
+  --link-color: #8E4740;
+  --border-color: #E0DBD4;
+  --code-bg: #F5F3EE;
+  --code-fg: #5D662E;
+  --heading-color: #7A4A2A;
+  --blockquote-color: #8A7B68;
+  --blockquote-border: #DCD6CE;
+
+  --syntax-comment: #9A7A4A;
+  --syntax-number: #705D73;
+  --syntax-function: #9A5435;
+  --syntax-type: #7A4A2A;
+  --syntax-constant: #705D73;
+  --syntax-keyword: var(--heading-color);
+  --syntax-string: var(--code-fg);
+  --syntax-variable: var(--text-color);
+  --syntax-operator: var(--text-color);
+  --syntax-punctuation: var(--text-color);
+
+  --alert-note-border: #0969da;
+  --alert-note-title: #0969da;
+  --alert-tip-border: #1a7f37;
+  --alert-tip-title: #1a7f37;
+  --alert-important-border: #8250df;
+  --alert-important-title: #8250df;
+  --alert-warning-border: #9a6700;
+  --alert-warning-title: #9a6700;
+  --alert-caution-border: #d1242f;
+  --alert-caution-title: #d1242f;
+  --alert-status-border: #ff7700;
+  --alert-status-title: #ff7700;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text-color: #CFC9C0;
+    --bg-color: #100E0D;
+    --body-bg: #0E0C0B;
+    --link-color: #C67467;
+    --border-color: #38332D;
+    --code-bg: #1A1816;
+    --code-fg: #A8B36B;
+    --heading-color: #D9B87C;
+    --blockquote-color: #9A8C7C;
+    --blockquote-border: #3D3731;
+
+    --syntax-comment: #B8A06A;
+    --syntax-number: #947E96;
+    --syntax-function: #C98A60;
+    --syntax-type: #D4A06A;
+    --syntax-constant: #947E96;
+    --syntax-keyword: #D4A06A;
+
+    --alert-note-border: #4493f8;
+    --alert-note-title: #4493f8;
+    --alert-tip-border: #3fb950;
+    --alert-tip-title: #3fb950;
+    --alert-important-border: #ab7df8;
+    --alert-important-title: #ab7df8;
+    --alert-warning-border: #d29922;
+    --alert-warning-title: #d29922;
+    --alert-caution-border: #f85149;
+    --alert-caution-title: #f85149;
+    --alert-status-border: #ff6600;
+    --alert-status-title: #ff6600;
+  }
+}

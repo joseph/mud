@@ -1,0 +1,59 @@
+/* -- Header --------------------------------------------------------------- */
+/* The hero: two lines of text above a screenshot of the app window. */
+
+/* The screenshot is 2000x688, with the app window's left edge at x=114, its
+   top at y=76, and the boundary between toolbar and blank document body at
+   y=182. Every measurement below is written as a fraction of the image's
+   rendered width, so the header keeps its proportions at any viewport size.
+   page.css reads --chrome-toolbar and --chrome-height to pull the article up
+   into the window's blank body. */
+:root {
+  --chrome-width: min(1080px, 100vw);
+  --chrome-height: calc(var(--chrome-width) * 0.344);   /* 688 / 2000 */
+  --chrome-inset: calc(var(--chrome-width) * 0.075);    /* 150 / 2000 */
+  --chrome-toolbar: calc(var(--chrome-width) * 0.091);  /* 182 / 2000 */
+}
+
+header {
+  --header-chrome: url('../img/header-chrome-light.png');
+
+  /* Screenshot at the bottom, over the dark rail, over the brown gradient.
+     Its last row is semi-transparent, so it hangs 1px past the bottom edge
+     and gets clipped — otherwise the rail shows through as a hairline. */
+  background-image:
+    var(--header-chrome),
+    linear-gradient(to top, #261802 10px, transparent 10px),
+    linear-gradient(to bottom, var(--chrome-brown), #A4825A);
+  background-position: center bottom -1px, center, center;
+  background-size: var(--chrome-width) auto, auto, auto;
+  background-repeat: no-repeat;
+
+  padding: 4vh 0 var(--chrome-height);
+}
+
+@media (prefers-color-scheme: dark) {
+  header {
+    --header-chrome: url('../img/header-chrome-dark.png');
+  }
+}
+
+header .pillar {
+  max-width: var(--chrome-width);
+  margin: 0 auto;
+}
+
+header :is(h1, h2) {
+  margin: 0 var(--chrome-inset);   /* aligns with the window's left edge */
+  font-size: 1em;
+  line-height: 1.5;
+  color: #472B18;
+  text-shadow: 1px 1px 1px #FFF4;
+}
+
+header h1 {
+  font-weight: 600;
+}
+
+header h2 {
+  font-weight: 400;
+}

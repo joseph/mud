@@ -1,0 +1,223 @@
+/* -- Document ------------------------------------------------------------- */
+/* What a Markdown document looks like when Mud renders it. */
+
+/* Tracks Core/Sources/Resources/mud-up.css. The page is a demo of the app's
+   rendering, so rule bodies here are kept identical to the app's. Deliberate
+   divergences:
+
+   - Every selector is scoped to .up-mode-output. The app renders nothing but
+     the document, so its rules are bare element selectors; this page also has
+     a header and a footer, which those rules would otherwise style.
+   - Link colors are not here. The footer link needs them too, so `a` lives in
+     page.css as a page-wide rule.
+   - No page box. The app gives .up-mode-output its own padding, max-width and
+     background; here page.css owns the article's size and placement.
+   - img caps at 100%, not min(800px, 100%). The screenshots in the carousel
+     are .up-mode-output img, and an 800px cap would shrink them out of their
+     flex track. */
+
+
+/* -- Typography ----------------------------------------------------------- */
+
+.up-mode-output :is(h1, h2, h3, h4, h5, h6) {
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  font-weight: 600;
+  line-height: 1.25;
+  color: var(--heading-color);
+}
+
+.up-mode-output h1 { font-size: 2em; margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
+.up-mode-output h2 { font-size: 1.5em; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
+.up-mode-output h3 { font-size: 1.25em; }
+.up-mode-output h4 { font-size: 1em; }
+.up-mode-output h5 { font-size: 0.875em; }
+.up-mode-output h6 { font-size: 0.85em; }
+
+.up-mode-output p {
+  margin-top: 0;
+  margin-bottom: 1em;
+}
+
+
+/* -- Lists ---------------------------------------------------------------- */
+
+.up-mode-output :is(ul, ol) {
+  margin-top: 0;
+  margin-bottom: 1em;
+  padding-left: 2em;
+}
+
+.up-mode-output li {
+  margin-bottom: 0.25em;
+}
+
+.up-mode-output li > :is(ul, ol) {
+  margin-bottom: 0;
+}
+
+
+/* Task lists -------------------------------------------------------------- */
+/* Selectors match cmark-gfm's classless output. Simplify to e.g.
+   .task-list-item if the app switches to its own tokenizer. */
+
+.up-mode-output li:has(> input[type="checkbox"]) {
+  list-style: none;
+  margin-left: -1.5em;
+}
+
+.up-mode-output li:has(> input[type="checkbox"]) > input[type="checkbox"] {
+  display: none;
+}
+
+.up-mode-output li:has(> input[type="checkbox"])::before {
+  content: "";
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  border: 1.5px solid var(--border-color);
+  border-radius: 3px;
+  margin: 0.15em 0.5em 0 0;
+  float: left;
+  clear: left;
+}
+
+.up-mode-output li:has(> input[type="checkbox"]:checked)::before {
+  background-color: var(--link-color);
+  border-color: var(--link-color);
+  content: "✓";
+  color: var(--bg-color);
+  font-weight: 700;
+  text-align: center;
+  line-height: 1em;
+}
+
+
+/* -- Code ----------------------------------------------------------------- */
+
+.up-mode-output code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.875em;
+  padding: 0.2em 0.4em;
+  color: var(--code-fg);
+  background-color: var(--code-bg);
+  border-radius: 4px;
+}
+
+.up-mode-output pre {
+  margin-top: 0;
+  margin-bottom: 1em;
+  padding: 1em;
+  overflow-x: auto;
+  font-size: 0.875em;
+  line-height: 1.45;
+  background-color: var(--code-bg);
+  border-radius: 6px;
+}
+
+.up-mode-output pre code {
+  padding: 0;
+  background-color: transparent;
+  border-radius: 0;
+  font-size: inherit;
+}
+
+
+/* -- Blockquotes ---------------------------------------------------------- */
+
+.up-mode-output blockquote {
+  margin: 0 0 1em 0;
+  padding: 0 1em;
+  color: var(--blockquote-color);
+  border-left: 4px solid var(--blockquote-border);
+}
+
+.up-mode-output blockquote > :first-child {
+  margin-top: 0;
+}
+
+.up-mode-output blockquote > :last-child {
+  margin-bottom: 0;
+}
+
+
+/* -- Alerts --------------------------------------------------------------- */
+
+.up-mode-output .alert {
+  color: var(--text-color);
+}
+
+.up-mode-output .alert-title {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+  font-weight: 600;
+}
+
+.up-mode-output .alert-title svg {
+  flex-shrink: 0;
+}
+
+.up-mode-output .alert-note  { border-left-color: var(--alert-note-border); }
+.up-mode-output .alert-tip   { border-left-color: var(--alert-tip-border); }
+.up-mode-output .alert-important { border-left-color: var(--alert-important-border); }
+.up-mode-output .alert-warning   { border-left-color: var(--alert-warning-border); }
+.up-mode-output .alert-caution   { border-left-color: var(--alert-caution-border); }
+.up-mode-output .alert-status  { border-left-color: var(--alert-status-border); }
+
+.up-mode-output .alert-note  .alert-title { color: var(--alert-note-title); }
+.up-mode-output .alert-tip   .alert-title { color: var(--alert-tip-title); }
+.up-mode-output .alert-important .alert-title { color: var(--alert-important-title); }
+.up-mode-output .alert-warning   .alert-title { color: var(--alert-warning-title); }
+.up-mode-output .alert-caution   .alert-title { color: var(--alert-caution-title); }
+.up-mode-output .alert-status  .alert-title { color: var(--alert-status-title); }
+
+.up-mode-output .alert-title strong {
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+
+/* -- Horizontal rules ----------------------------------------------------- */
+
+.up-mode-output hr {
+  height: 2px;
+  margin: 1.5em 0;
+  padding: 0;
+  background-color: var(--border-color);
+  border: 0;
+}
+
+
+/* -- Tables --------------------------------------------------------------- */
+
+.up-mode-output table {
+  width: 100%;
+  margin-bottom: 1em;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+.up-mode-output :is(th, td) {
+  padding: 8px 12px;
+  border: 1px solid var(--border-color);
+  text-align: left;
+  vertical-align: top;
+}
+
+.up-mode-output th {
+  font-weight: 600;
+  background-color: var(--code-bg);
+}
+
+.up-mode-output tr:nth-child(even) {
+  background-color: var(--code-bg);
+}
+
+
+/* -- Images --------------------------------------------------------------- */
+
+.up-mode-output img {
+  max-width: 100%;
+  height: auto;
+}

@@ -1,0 +1,72 @@
+/* -- Screenshot carousel -------------------------------------------------- */
+
+/* The gallery is a horizontal scroll container: one screenshot per page,
+   snapping to center. Swipe, trackpad scroll and the dots below all move the
+   same scroll position, so no JS is needed to show a slide — only to draw the
+   dots and mark which one is showing. */
+
+.gallery {
+  display: flex;
+  gap: 1em;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  overscroll-behavior-x: contain;
+  scrollbar-width: none;              /* the dots are the affordance */
+  margin-bottom: 0.75em;
+}
+
+.gallery::-webkit-scrollbar {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .gallery { scroll-behavior: smooth; }
+}
+
+.gallery img {
+  flex: 0 0 100%;
+  aspect-ratio: 16 / 10;             /* every screenshot is 2880x1800 */
+  scroll-snap-align: center;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5em;
+}
+
+
+/* -- Dots ----------------------------------------------------------------- */
+/* Built by the script at the end of index.html; absent when JS is off. */
+
+.gallery-dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.25em;
+  margin-bottom: 1.5em;
+}
+
+.gallery-dots button {
+  display: grid;
+  place-items: center;
+  width: 1.4em;
+  height: 1.4em;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.gallery-dots button::before {
+  content: "";
+  width: 0.5em;
+  height: 0.5em;
+  border-radius: 50%;
+  background: var(--border-color);
+  transition: background 0.2s, scale 0.2s;
+}
+
+.gallery-dots button:hover::before {
+  background: var(--blockquote-color);
+}
+
+.gallery-dots button[aria-current="true"]::before {
+  background: var(--heading-color);
+  scale: 1.4;
+}

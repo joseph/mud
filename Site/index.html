@@ -1,510 +1,48 @@
 <!DOCTYPE html>
-<html class="is-readable-column">
+<html>
 <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Mud: Mark Up or Down</title>
-    <style id="mud-theme">
-
-:root {
-    --text-color: #333;
-    --bg-color: #FFF;
-    --body-bg: #FCFCFA;
-    --link-color: #8E4740;
-    --border-color: #E0DBD4;
-    --code-bg: #F5F3EE;
-    --code-fg: #5D662E;
-    --heading-color: #7A4A2A;
-    --blockquote-color: #8A7B68;
-    --blockquote-border: #DCD6CE;
-
-    --syntax-comment: #9A7A4A;
-    --syntax-number: #705D73;
-    --syntax-function: #9A5435;
-    --syntax-type: #7A4A2A;
-    --syntax-constant: #705D73;
-    --syntax-keyword: var(--heading-color);
-    --syntax-string: var(--code-fg);
-    --syntax-variable: var(--text-color);
-    --syntax-operator: var(--text-color);
-    --syntax-punctuation: var(--text-color);
-}
-
-@media (prefers-color-scheme: dark) {
-:root {
-    --text-color: #CFC9C0;
-    --bg-color: #100E0D;
-    --body-bg: #0E0C0B;
-    --link-color: #C67467;
-    --border-color: #38332D;
-    --code-bg: #1A1816;
-    --code-fg: #A8B36B;
-    --heading-color: #D9B87C;
-    --blockquote-color: #9A8C7C;
-    --blockquote-border: #3D3731;
-
-    --syntax-comment: #B8A06A;
-    --syntax-number: #947E96;
-    --syntax-function: #C98A60;
-    --syntax-type: #D4A06A;
-    --syntax-constant: #947E96;
-    --syntax-keyword: #D4A06A;
-}
-}
-</style>
-    <style>/* Mud - structural styles (theme-agnostic) */
-
-* {
-    box-sizing: border-box;
-}
-
-html {
-    font-size: 20px;
-    -webkit-text-size-adjust: 100%;
-    overscroll-behavior-x: none;
-}
-
-body {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
-        Helvetica, Arial, sans-serif;
-    font-size: 1rem;
-    line-height: 1.6;
-    color: var(--text-color);
-    background-color: var(--body-bg);
-}
-
-article {
-    min-height: 100%;
-}
-
-header {
-  border-bottom: 1px solid #EEE;
-  max-width: calc(800px + 4em);
-  margin: 0 auto;
-}
-
-/* Syntax highlighting */
-.hljs {
-    color: var(--text-color);
-    background: var(--code-bg);
-}
-
-.hljs-comment,
-.hljs-quote {
-    color: var(--syntax-comment);
-    font-style: italic;
-}
-
-.hljs-keyword,
-.hljs-selector-tag {
-    color: var(--syntax-keyword);
-}
-
-.hljs-string,
-.hljs-doctag,
-.hljs-regexp {
-    color: var(--syntax-string);
-}
-
-.hljs-number,
-.hljs-literal,
-.hljs-boolean {
-    color: var(--syntax-number);
-}
-
-.hljs-function,
-.hljs-title,
-.hljs-section {
-    color: var(--syntax-function);
-}
-
-.hljs-variable,
-.hljs-template-variable,
-.hljs-attr {
-    color: var(--syntax-variable);
-}
-
-.hljs-type,
-.hljs-class .hljs-title,
-.hljs-built_in {
-    color: var(--syntax-type);
-}
-
-.hljs-symbol,
-.hljs-bullet,
-.hljs-link {
-    color: var(--syntax-constant);
-}
-
-.hljs-code {
-    color: var(--syntax-string);
-    background-color: var(--code-bg);
-    border-radius: 3px;
-    padding: 0.1em 0.3em;
-}
-
-.hljs-meta,
-.hljs-selector-id,
-.hljs-selector-class {
-    color: var(--syntax-function);
-}
-
-.hljs-emphasis {
-    font-style: italic;
-}
-
-.hljs-strong {
-    font-weight: bold;
-}
-
-.hljs-addition {
-    color: var(--syntax-string);
-    background-color: rgba(0, 165, 0, 0.1);
-}
-
-.hljs-deletion {
-    color: #f85149;
-    background-color: rgba(248, 81, 73, 0.1);
-}
-/* Mud - Up Mode styles */
-
-.up-mode-output {
-    margin: 0 auto;
-    padding: 2em;
-    box-sizing: content-box;
-    background: var(--bg-color);
-}
-
-.is-readable-column .up-mode-output {
-    max-width: 800px;
-}
-
-.mud-screenshot {
-  display: block;
-}
-
-.screenshot-toggle {
-  display: flex;
-  justify-content: center;
-  margin: 0.5em 0 1em;
-}
-
-.toggle-btn {
-  background: none;
-  border: 1px solid var(--border-color);
-  color: var(--blockquote-color);
-  padding: 0.2em 0.85em;
-  font-size: 0.8em;
-  font-family: inherit;
-  cursor: pointer;
-  transition: background 0.12s, color 0.12s;
-}
-
-.toggle-btn:first-child {
-  border-radius: 0.3em 0 0 0.3em;
-  border-right: none;
-}
-
-.toggle-btn:last-child {
-  border-radius: 0 0.3em 0.3em 0;
-}
-
-.toggle-btn.active {
-  background: var(--heading-color);
-  border-color: var(--heading-color);
-  color: var(--bg-color);
-}
-
-/* Download cards */
-.download-options {
-  display: flex;
-  gap: 1em;
-  margin: 1.25em 0 2em;
-  flex-wrap: wrap;
-}
-
-.download-card {
-  flex: 1 1 calc(50% - 0.5em);
-  min-width: 240px;
-  padding: 1.1em 1.3em 1.2em;
-  border: 1px solid var(--border-color);
-  border-radius: 0.5em;
-  background: var(--bg-color);
-  color: var(--text-color);
-  text-decoration: none;
-  transition: border-color 0.15s, transform 0.15s, box-shadow 0.15s;
-}
-
-.download-card:hover {
-  border-color: var(--heading-color);
-  text-decoration: none;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
-}
-
-.download-card-primary {
-  border-color: var(--heading-color);
-  box-shadow: inset 0 0 0 1px var(--heading-color);
-}
-
-.download-card-primary:hover {
-  box-shadow: inset 0 0 0 1px var(--heading-color),
-              0 4px 12px rgba(0, 0, 0, 0.08);
-}
-
-.download-card h3 {
-  margin: 0 0 0.1em;
-  color: var(--heading-color);
-  border-bottom: none;
-  padding-bottom: 0;
-  font-size: 1.15em;
-}
-
-.download-card .download-tag {
-  margin: 0 0 0.65em;
-  font-size: 0.7em;
-  color: var(--blockquote-color);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.download-card p:last-child {
-  margin-bottom: 0;
-  font-size: 0.9em;
-  line-height: 1.45;
-}
-
-/* Typography */
-h1, h2, h3, h4, h5, h6 {
-    margin-top: 1.5em;
-    margin-bottom: 0.5em;
-    font-weight: 600;
-    line-height: 1.25;
-    color: var(--heading-color);
-}
-
-h1 { font-size: 2em; margin-top: 0; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
-h2 { font-size: 1.5em; border-bottom: 1px solid var(--border-color); padding-bottom: 0.3em; }
-h3 { font-size: 1.25em; }
-h4 { font-size: 1em; }
-h5 { font-size: 0.875em; }
-h6 { font-size: 0.85em; }
-
-p {
-    margin-top: 0;
-    margin-bottom: 1em;
-}
-
-/* Links */
-a {
-    color: var(--link-color);
-    text-decoration: none;
-}
-
-a:hover {
-    text-decoration: underline;
-}
-
-/* Lists */
-ul, ol {
-    margin-top: 0;
-    margin-bottom: 1em;
-    padding-left: 2em;
-}
-
-li {
-    margin-bottom: 0.25em;
-}
-
-li > ul, li > ol {
-    margin-bottom: 0;
-}
-
-/* Task lists — selectors match cmark-gfm's classless output.
-   Simplify to e.g. .task-list-item if we switch to our own tokenizer. */
-li:has(> input[type="checkbox"]) {
-    list-style: none;
-    margin-left: -1.5em;
-}
-
-li:has(> input[type="checkbox"]) > input[type="checkbox"] {
-    display: none;
-}
-
-li:has(> input[type="checkbox"])::before {
-    content: "";
-    display: inline-block;
-    width: 1em;
-    height: 1em;
-    border: 1.5px solid var(--border-color);
-    border-radius: 3px;
-    margin: 0.15em 0.5em 0 0;
-    float: left;
-    clear: left;
-}
-
-li:has(> input[type="checkbox"]:checked)::before {
-    background-color: var(--link-color);
-    border-color: var(--link-color);
-    content: "✓";
-    color: var(--bg-color);
-    font-weight: 700;
-    text-align: center;
-    line-height: 1em;
-}
-
-/* Code */
-code {
-    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
-    font-size: 0.875em;
-    padding: 0.2em 0.4em;
-    color: var(--code-fg);
-    background-color: var(--code-bg);
-    border-radius: 4px;
-}
-
-pre {
-    margin-top: 0;
-    margin-bottom: 1em;
-    padding: 1em;
-    overflow-x: auto;
-    font-size: 0.875em;
-    line-height: 1.45;
-    background-color: var(--code-bg);
-    border-radius: 6px;
-}
-
-pre code {
-    padding: 0;
-    background-color: transparent;
-    border-radius: 0;
-    font-size: inherit;
-}
-
-/* Blockquotes */
-blockquote {
-    margin: 0 0 1em 0;
-    padding: 0 1em;
-    color: var(--blockquote-color);
-    border-left: 4px solid var(--blockquote-border);
-}
-
-blockquote > :first-child {
-    margin-top: 0;
-}
-
-blockquote > :last-child {
-    margin-bottom: 0;
-}
-
-/* Horizontal rules */
-hr {
-    height: 2px;
-    margin: 1.5em 0;
-    padding: 0;
-    background-color: var(--border-color);
-    border: 0;
-}
-
-/* Tables */
-table {
-    width: 100%;
-    margin-bottom: 1em;
-    border-collapse: collapse;
-    border-spacing: 0;
-}
-
-th, td {
-    padding: 8px 12px;
-    border: 1px solid var(--border-color);
-    text-align: left;
-}
-
-th {
-    font-weight: 600;
-    background-color: var(--code-bg);
-}
-
-tr:nth-child(even) {
-    background-color: var(--code-bg);
-}
-
-/* Images */
-img {
-    max-width: 100%;
-    height: auto;
-}
-
-/* Footer */
-footer {
-    padding: 3rem 0;
-    text-align: center;
-    font-size: 0.75em;
-    color: var(--blockquote-color);
-}
-
-/* Mobile */
-@media (max-width: 600px) {
-    html {
-        font-size: 17px;
-    }
-    .up-mode-output {
-        padding: 1.25em;
-    }
-}
-</style>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mud: Mark Up or Down</title>
+  <link rel="icon" href="img/favicon.ico" sizes="16x16 32x32 48x48" />
+  <link rel="icon" type="image/png" href="img/favicon-32.png" sizes="32x32" />
+  <link rel="icon" type="image/png" href="img/favicon-16.png" sizes="16x16" />
+  <link rel="apple-touch-icon" href="img/apple-touch-icon.png" />
+  <meta name="theme-color" content="#C1A884" />
+  <link rel="stylesheet" href="css/theme.css" />
+  <link rel="stylesheet" href="css/page.css" />
+  <link rel="stylesheet" href="css/syntax.css" />
+  <link rel="stylesheet" href="css/document.css" />
+  <link rel="stylesheet" href="css/header.css" />
+  <link rel="stylesheet" href="css/download.css" />
+  <link rel="stylesheet" href="css/gallery.css" />
 </head>
-<body>
+  <body>
     <header>
-      <img src="screenshots/mud-mode-demo-01.png" class="mud-screenshot shot" alt="Screenshot: Up mode" />
-      <img src="screenshots/mud-mode-demo-02.png" class="mud-screenshot shot" alt="Screenshot: Down mode" style="display:none" />
-      <div class="screenshot-toggle">
-        <button class="toggle-btn active" onclick="showShot(0, this)">Mark Up</button>
-        <button class="toggle-btn" onclick="showShot(1, this)">Mark Down</button>
+      <div class="pillar">
+        <h1>Meet Mud.</h1>
+        <h2>A macOS app for viewing Markdown documents — <em>marked up.</em></h2>
       </div>
     </header>
+
+    <main>
     <article class="up-mode-output">
-      <h1 id="mud-mark-up-or-down">Mud: A Perfect Markdown Viewer</h1>
+      <!--h1 id="mud-mark-up-or-down">Mud: A Perfect Markdown Viewer</h1 -->
 
-      <p>Markdown is suddenly everywhere.</p>
-      <p>It’s how we speak to machines now. It’s how they speak to us.</p>
-      <p><em>We should make it nice!</em></p>
+      <blockquote class="alert alert-status">
+      <p class="alert-title">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M6 2c.306 0 .582.187.696.471L10 10.731l1.304-3.26A.751.751 0 0 1 12 7h3.25a.75.75 0 0 1 0 1.5h-2.742l-1.812 4.528a.751.751 0 0 1-1.392 0L6 4.77 4.696 8.03A.75.75 0 0 1 4 8.5H.75a.75.75 0 0 1 0-1.5h2.742l1.812-4.529A.751.751 0 0 1 6 2Z"/></svg>
+        Status: <strong>Active development</strong></p>
+      </blockquote>
 
-      <p>But you already have a favorite text editor. You don’t need a special
-      tool for writing Markdown. You just need a way to preview the Markdown
-      you’re writing, marked up.</p>
-      <p>That’s what <strong>Mud</strong> is for. It renders Markdown
-      beautifully, bright or dark. It automatically reloads the document when
-      you save it — or when Claude Code writes to it, or Codex,
-      or whatever you use.</p>
+      <h2 id="quick-start">Quick start</h2>
 
-      <p>Mud shows you both sides of the document:</p>
-      <ul>
-      <li><strong>Mark Up</strong> renders your Markdown as styled HTML — GitHub-flavored, with
-      syntax-highlighted code.
-      </li>
-      <li><strong>Mark Down</strong> shows the raw source with line numbers.
-      </li>
-      </ul>
-      <p>Hit Space to flip between them. Your scroll position carries over.</p>
-      <p>Mud is a Mac-assed Mac app with excellent command-line tooling.
-      It’s free and it’s open source.</p>
-      <p>It does one thing — it marks up Markdown! — and it does it really well.</p>
-
-      <h2 id="gimme">Gimme</h2>
-      <p>
-        Mud comes in two flavors.
-      </p>
+      <p>Mud requires macOS Sonoma (14.0) or higher, and comes in two flavors:</p>
       <div class="download-options">
         <a class="download-card download-card-primary"
            href="https://github.com/joseph/mud/releases">
           <h3>Direct from GitHub</h3>
-          <p class="download-tag">Recommended · free</p>
+          <p class="download-tag">Recommended · free and open source</p>
           <p>Git change waypoints, CLI, Open In
             Browser, and in-app auto-updates.</p>
         </a>
@@ -516,29 +54,55 @@ footer {
             Sandboxed for complete safety.</p>
         </a>
       </div>
-      <h2 id="highlights">Highlights</h2>
 
+      <h2 id="why-mud">Why Mud?</h2>
+
+      <p>Markdown is suddenly everywhere.</p>
+
+      <p>It’s how we speak to machines now. It’s how they speak to us.</p>
+
+      <p><em>We should make it nice!</em></p>
+
+      <p>But you already have a favorite text editor. You don’t need a special
+      tool for writing Markdown. You just need a way to preview the Markdown
+      you’re writing, marked up.</p>
+
+      <p>That’s what <strong>Mud</strong> is for. It renders Markdown
+      beautifully, bright or dark. It automatically reloads the document when
+      you save it — or when Claude Code writes to it, or Codex,
+      or whatever you use.</p>
+
+      <p>Mud shows you both sides of the document:</p>
       <ul>
-      <li><input type="checkbox" disabled="" checked="" /> GitHub-flavored Markdown with syntax-highlighted code blocks
-      </li>
-      <li><input type="checkbox" disabled="" checked="" /> Raw source view with its own syntax highlighting and line numbers
-      </li>
-      <li><input type="checkbox" disabled="" checked="" /> Space bar flips between views; scroll position preserved
-      </li>
-      <li><input type="checkbox" disabled="" checked="" /> Four color themes — Austere, Blues, <strong>Earthy</strong> (default), Riot
-      </li>
-      <li><input type="checkbox" disabled="" checked="" /> Auto / Bright / Dark lighting
-      </li>
-      <li><input type="checkbox" disabled="" checked="" /> Table of contents sidebar
-      </li>
-      <li><input type="checkbox" disabled="" checked="" /> Auto-reload on file change
-      </li>
-      <li><input type="checkbox" disabled="" checked="" /> Find (Cmd+F)
-      </li>
-      <li><input type="checkbox" disabled="" checked="" /> Print and Open In Browser
-      </li>
-      <li><input type="checkbox" disabled="" checked="" /> Zoom, readable column, word wrap, and line number toggles
-      </li>
+        <li><strong>Mark Up</strong> renders your Markdown as styled HTML — GitHub-flavored, with syntax-highlighted code.</li>
+        <li><strong>Mark Down</strong> shows the raw source with line numbers.</li>
+      </ul>
+
+      <p>Hit Space to flip between them. Your scroll position carries over.</p>
+
+      <p>Mud is a Mac-assed Mac app with excellent command-line tooling.
+      It’s free and it’s open source.</p>
+
+      <h2 id="highlights">Highlights</h2>
+      <ul>
+        <li><input type="checkbox" disabled="" checked="" /> <strong>GitHub-flavored Markdown</strong> with syntax-highlighted code blocks </li>
+        <li><input type="checkbox" disabled="" checked="" /> Full support for macOS <strong>Quick Look</strong> and thumbnail previews in Finder </li>
+        <li><input type="checkbox" disabled="" checked="" /> <strong>Comments!</strong> Take notes for yourself and your collaborators, or chat with your agent </li>
+        <li><input type="checkbox" disabled="" checked="" /> <strong>Change tracking!</strong> See what your coding agent is doing to the document </li>
+        <li><input type="checkbox" disabled="" checked="" /> <strong>Reload</strong> automatically every time the file is saved to disk </li>
+        <li><input type="checkbox" disabled="" checked="" /> Table of contents — <strong>document outliner</strong> in sidebar </li>
+        <li><input type="checkbox" disabled="" checked="" /> Four color <strong>themes</strong> — Austere, Blues, Earthy, Riot </li>
+        <li><input type="checkbox" disabled="" checked="" /> <strong>Dark mode</strong>, Bright mode, or let your system decide </li>
+        <li><input type="checkbox" disabled="" checked="" /> Find (<strong>Cmd+F</strong>) </li>
+        <li><input type="checkbox" disabled="" checked="" /> <strong>Print</strong> and <strong>Open In Browser</strong> </li>
+        <li><input type="checkbox" disabled="" checked="" /> <strong>Zoom</strong>, readable column, word wrap, and line number toggles </li>
+        <li><input type="checkbox" disabled="" checked="" /> Mermaid <strong>diagrams</strong> </li>
+        <li><input type="checkbox" disabled="" checked="" /> High-quality presentation of <strong>math equations</strong> </li>
+        <li><input type="checkbox" disabled="" checked="" /> Native popovers for <strong>footnotes</strong> </li>
+        <li><input type="checkbox" disabled="" checked="" /> Collapsible <strong>YAML</strong> frontmatter </li>
+        <li><input type="checkbox" disabled="" checked="" /> <strong>GFM Alerts</strong> and Status blockquote styles </li>
+        <li><input type="checkbox" disabled="" checked="" /> Excellent <strong>command-line</strong> tools (Direct release, mostly) </li>
+        <li><input type="checkbox" disabled="" checked="" /> Configure Mud to open the document in <strong>your editor</strong> with a click or a keystroke </li>
       </ul>
 
       <p>
@@ -557,16 +121,18 @@ mud -u --theme riot file.md    <span class="hljs-comment"># Pick a theme</span>
 
 
       <h2 id="screenshots">Screenshots</h2>
-
-      <div><img src="screenshots/mud-ss-01.png" alt="Screenshot: Meet Mud" /></div>
-      <div><img src="screenshots/mud-ss-03.png" alt="Screenshot: Syntax highlighting, with Outline in Sidebar" /></div>
-      <div><img src="screenshots/mud-ss-04.png" alt="Screenshot: Mud updates immediately when you (or your coding agents) save the document" /></div>
-      <div><img src="screenshots/mud-ss-05.png" alt="Screenshot: Really simple change tracking" /></div>
-      <div><img src="screenshots/mud-ss-06.png" alt="Screenshot: Use comments to discuss ideas with your coding agent" /></div>
-      <div><img src="screenshots/mud-ss-07.png" alt="Screenshot: Documents in tabs or windows. Dark mode." /></div>
-      <div><img src="screenshots/mud-ss-08.png" alt="Screenshot: 4 different themes" /></div>
-      <div><img src="screenshots/mud-ss-09.png" alt="Screenshot: Quick Look and Thumbnail preview are built-in" /></div>
-      <div><img src="screenshots/mud-ss-10.png" alt="Screenshot: Open the document in your favorite editor" /></div>
+      <section class="gallery">
+        <img src="screenshots/mud-ss-01.png" alt="Screenshot: Meet Mud. A macOS app for viewing Markdown documents — marked up." />
+        <img src="screenshots/mud-ss-02.png" alt="Screenshot: See your document marked up… and (hits Space bar) marked down." />
+        <img src="screenshots/mud-ss-03.png" alt="Screenshot: Simple document navigation with the sidebar outliner. All the presentation details you expect, like language-aware code blocks." />
+        <img src="screenshots/mud-ss-04.png" alt="Screenshot: Mud updates immediately when you (or your coding agents) save the document." />
+        <img src="screenshots/mud-ss-05.png" alt="Screenshot: Documents in tabs or windows. Dark mode. Powerful extensions to Markdown, like Alerts and Statuses." />
+        <img src="screenshots/mud-ss-06.png" alt="Screenshot: Really simple change tracking. See important updates happen live, without the visual noise." />
+        <img src="screenshots/mud-ss-07.png" alt="Screenshot: Use standard Markdown footnotes to discuss ideas with your coding agent." />
+        <img src="screenshots/mud-ss-08.png" alt="Screenshot: Mud is highly configurable, including 4 different themes." />
+        <img src="screenshots/mud-ss-09.png" alt="Screenshot: Quick Look and thumbnail previews: built-in. No need for a separate app!" />
+        <img src="screenshots/mud-ss-10.png" alt="Screenshot: Ready to edit?  Open the document in your favorite Markdown text editor." />
+      </section>
 
       <h2 id="license">License</h2>
       <p>
@@ -574,15 +140,33 @@ mud -u --theme riot file.md    <span class="hljs-comment"># Pick a theme</span>
         See <a href="https://github.com/joseph/mud/blob/main/Doc/LICENSE.md">Doc/LICENSE.md</a>.
       </p>
     </article>
+
     <footer>© 2026 <a href="https://josephpearson.org">Joseph Pearson</a></footer>
+    </main>
+
     <script>
-      function showShot(idx, btn) {
-        document.querySelectorAll('.shot').forEach((img, i) => {
-          img.style.display = i === idx ? 'block' : 'none';
-        });
-        document.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-      }
+      // Screenshot carousel: one dot per slide, marking the slide on screen.
+      const track = document.querySelector('.gallery');
+      const slides = [...track.children];
+      const dots = document.createElement('nav');
+      dots.className = 'gallery-dots';
+      dots.setAttribute('aria-label', 'Screenshots');
+      slides.forEach((slide, i) => {
+        const dot = dots.appendChild(document.createElement('button'));
+        dot.type = 'button';
+        dot.setAttribute('aria-label', `Screenshot ${i + 1}`);
+        dot.onclick = () =>
+          slide.scrollIntoView({ block: 'nearest', inline: 'center' });
+      });
+      track.after(dots);
+
+      const showing = new IntersectionObserver(
+        (entries) => entries.forEach((entry) =>
+          dots.children[slides.indexOf(entry.target)]
+            .setAttribute('aria-current', entry.isIntersecting)),
+        { root: track, threshold: 0.6 }
+      );
+      slides.forEach((slide) => showing.observe(slide));
     </script>
-</body>
+  </body>
 </html>

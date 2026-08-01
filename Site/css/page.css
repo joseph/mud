@@ -1,0 +1,77 @@
+/* -- Page ----------------------------------------------------------------- */
+/* The page shell: the boxes the header, document and footer sit in. */
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 20px;
+  -webkit-text-size-adjust: 100%;
+  overscroll-behavior-x: none;
+}
+
+body {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans",
+    Helvetica, Arial, sans-serif;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--text-color);
+
+  /* The header covers the top of this and <main> covers the rest, so the
+     brown only shows when the page is overscrolled — where it reads better
+     than white. */
+  background-color: var(--chrome-brown);
+}
+
+/* Page-wide, not document-only: the footer's byline is a link too. */
+a {
+  color: var(--link-color);
+  text-decoration: none;
+}
+
+a:hover {
+  text-decoration: underline;
+}
+
+main {
+  background-color: var(--body-bg);
+}
+
+/* The article is pulled up over the bottom of the header, so the document
+   starts inside the app window in the header screenshot — just below its
+   toolbar. header.css defines the --chrome-* measurements. */
+article {
+  box-sizing: content-box;
+  max-width: 840px;
+  min-height: 100%;
+  margin: 0 auto;
+  padding: 0 min(80px, calc(var(--chrome-inset) + 1em));
+  transform: translateY(calc(var(--chrome-toolbar) + 2em - var(--chrome-height)));
+}
+
+.up-mode-output {
+  font-size: 85%;
+}
+
+footer {
+  padding: 3rem 0;
+  text-align: center;
+  font-size: 0.75em;
+  color: var(--blockquote-color);
+}
+
+
+/* -- Type scale ----------------------------------------------------------- */
+/* Everything is sized in em/rem, so stepping the root font size scales the
+   whole page. */
+
+@media (max-width: 900px) { html { font-size: 17px; } }
+@media (max-width: 800px) { html { font-size: 16px; } }
+@media (max-width: 700px) { html { font-size: 15px; } }
+@media (max-width: 600px) { html { font-size: 14px; } }

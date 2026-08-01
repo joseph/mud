@@ -1,0 +1,89 @@
+/* -- Syntax highlighting -------------------------------------------------- */
+/* Colors for highlight.js output in code blocks. */
+
+/* Copied from the syntax section of Core/Sources/Resources/mud.css, with no
+   divergences. The one hard-coded color, .hljs-deletion's #f85149, is
+   hard-coded in the app too. */
+
+.hljs {
+  color: var(--text-color);
+  background: var(--code-bg);
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: var(--syntax-comment);
+  font-style: italic;
+}
+
+.hljs-keyword,
+.hljs-selector-tag {
+  color: var(--syntax-keyword);
+}
+
+.hljs-string,
+.hljs-doctag,
+.hljs-regexp {
+  color: var(--syntax-string);
+}
+
+.hljs-number,
+.hljs-literal,
+.hljs-boolean {
+  color: var(--syntax-number);
+}
+
+.hljs-function,
+.hljs-title,
+.hljs-section {
+  color: var(--syntax-function);
+}
+
+.hljs-variable,
+.hljs-template-variable,
+.hljs-attr {
+  color: var(--syntax-variable);
+}
+
+.hljs-type,
+.hljs-class .hljs-title,
+.hljs-built_in {
+  color: var(--syntax-type);
+}
+
+.hljs-symbol,
+.hljs-bullet,
+.hljs-link {
+  color: var(--syntax-constant);
+}
+
+.hljs-code {
+  color: var(--syntax-string);
+  background-color: var(--code-bg);
+  border-radius: 3px;
+  padding: 0.1em 0.3em;
+}
+
+.hljs-meta,
+.hljs-selector-id,
+.hljs-selector-class {
+  color: var(--syntax-function);
+}
+
+.hljs-emphasis {
+  font-style: italic;
+}
+
+.hljs-strong {
+  font-weight: bold;
+}
+
+.hljs-addition {
+  color: var(--syntax-string);
+  background-color: rgba(0, 165, 0, 0.1);
+}
+
+.hljs-deletion {
+  color: #f85149;
+  background-color: rgba(248, 81, 73, 0.1);
+}

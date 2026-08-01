@@ -29,6 +29,8 @@ header {
   background-repeat: no-repeat;
 
   padding: 4vh 0 var(--chrome-height);
+
+  position: relative;   /* .mode-toggle is placed against this box */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -56,4 +58,38 @@ header h1 {
 
 header h2 {
   font-weight: 400;
+}
+
+
+/* -- Mode toggle ---------------------------------------------------------- */
+
+/* An invisible button sitting exactly on the Up/Down toggle in the screenshot's
+   toolbar — the rightmost one. Clicking it flips the document below, so the
+   button in the picture does the job the real one does.
+
+   The screenshot draws that toggle as a 72px circle spanning x 1798–1870 and
+   y 93–165. Those raw pixel numbers are divided by the image's 2000x688 here,
+   so the target tracks the image at any size. Horizontally we start from the
+   image's left edge, which is (50% - half the image) once it's centered.
+   Vertically we measure up from the image's bottom edge, which sits 1px below
+   the header's own bottom edge — hence the -1px. */
+.mode-toggle {
+  position: absolute;
+  left: calc(50% - var(--chrome-width) / 2 + var(--chrome-width) * 1798 / 2000);
+  width: calc(var(--chrome-width) * 72 / 2000);
+  bottom: calc(var(--chrome-height) * 523 / 688 - 1px);   /* 688 - 165 */
+  height: calc(var(--chrome-height) * 72 / 688);
+
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+}
+
+/* Invisible to the eye, but not to the keyboard: without this, tabbing onto
+   it would move focus nowhere visible. */
+.mode-toggle:focus-visible {
+  outline: 2px solid var(--chrome-brown);
+  outline-offset: 3px;
 }

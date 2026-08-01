@@ -55,7 +55,8 @@ article {
   transform: translateY(calc(var(--chrome-toolbar) + 2em - var(--chrome-height)));
 }
 
-.up-mode-output {
+/* Both modes scale together, so hitting Space doesn't resize the document. */
+:is(.up-mode-output, .down-mode-output) {
   font-size: 85%;
 }
 

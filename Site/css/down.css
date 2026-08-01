@@ -1,0 +1,137 @@
+/* -- Down mode ------------------------------------------------------------ */
+/* What a Markdown document looks like in Mud's raw-source view. */
+
+/* Tracks Core/Sources/Resources/mud-down.css. Deliberate divergences:
+
+   - No page box. page.css sizes and places both articles, so the app's
+     margin / min-height / background / max-width rules are left out and the
+     two modes share one box — that's what makes the Space-bar flip land in
+     the same place.
+   - The app's view toggles are baked in at their defaults: line numbers on,
+     word wrap on. The site has no toggle UI, so the rules the app writes as
+     `html:not(.has-line-numbers) .ln`, `.has-word-wrap .dc-scroll` and so on
+     are reduced to their enabled form and the class names are dropped.
+   - No first-line padding-top. The app uses it for its own page box; here it
+     would push the source down 2rem relative to Mark Up and spoil the flip.
+     The last line's padding-bottom is kept but cut from 6rem to 2rem — that
+     6rem clears the app's floating bars, and this page has none.
+   - No .fm-fence / .fm-code frontmatter rules: this page has no frontmatter.
+
+   .md-table and .md-task carry no rules here because they carry none in the
+   app either — DownHTMLVisitor emits them as structural hooks only. */
+
+.down-mode-output {
+  max-width: 950px;
+  padding: 0 min(60px, calc(var(--chrome-inset)));
+  overflow-x: auto;
+  overscroll-behavior-x: none;
+}
+
+
+/* -- Line container ------------------------------------------------------- */
+
+.down-lines {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.875em;
+  line-height: 1.6;
+}
+
+/* Each line is a flex row. Default stretch alignment makes the .ln background
+   cover the full row height when .lc wraps. */
+.dl {
+  display: flex;
+}
+
+.down-lines > .dl:last-child > *,
+.down-lines > .dc-scroll:last-child > .dl:last-child > * {
+  padding-bottom: 2rem;
+}
+
+
+/* -- Line numbers --------------------------------------------------------- */
+
+.ln {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  flex: 0 0 4em;
+  padding-right: 1em;
+  text-align: right;
+  font-size: 0.85em;
+  font-weight: 300;
+  user-select: none;
+  -webkit-user-select: none;
+  white-space: nowrap;
+  background: color-mix(in srgb, var(--code-bg), var(--bg-color));
+  color: color-mix(in srgb, var(--blockquote-color), var(--bg-color));
+  line-height: 1.7;
+}
+
+
+/* -- Line content --------------------------------------------------------- */
+
+.lc {
+  flex: 1 1 auto;
+  white-space: pre;
+  padding: 0 1em;
+  min-width: 0;
+}
+
+.dl:not(.dc-code) .lc {
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+
+
+/* -- Code blocks ---------------------------------------------------------- */
+
+.dc-fence .lc,
+.dc-code .lc {
+  background: var(--code-bg);
+}
+
+/* Fence lines: content dimmed, line number untouched. */
+.dc-fence .lc {
+  opacity: 0.5;
+}
+
+/* Code blocks scroll on their own, so a long line doesn't widen the page. */
+.dc-scroll {
+  display: grid;
+  overflow-x: auto;
+  overscroll-behavior-x: none;
+}
+
+.dc-code {
+  min-width: max-content;
+}
+
+
+/* -- Source highlighting -------------------------------------------------- */
+
+.md-heading   { color: var(--heading-color); }
+.md-code-block  { color: var(--code-fg); }
+.md-code-fence  { color: var(--syntax-comment); }
+.md-code-info   { color: var(--syntax-constant); }
+.md-code    { color: var(--code-fg); }
+.md-emphasis  { font-style: italic; }
+.md-strong    { font-weight: bold; }
+.md-link    { color: var(--link-color); }
+.md-footnote-ref,
+.md-footnote-def  { color: var(--link-color); }
+.md-image     { color: var(--syntax-constant); }
+.md-blockquote  { color: var(--syntax-comment); font-style: italic; }
+.md-strikethrough {
+  text-decoration: line-through;
+  text-decoration-color: color-mix(in srgb, currentColor 30%, transparent);
+}
+
+.md-alert-note .md-alert-tag    { color: var(--alert-note-border);    font-style: normal; font-weight: bold; }
+.md-alert-tip .md-alert-tag     { color: var(--alert-tip-border);     font-style: normal; font-weight: bold; }
+.md-alert-important .md-alert-tag { color: var(--alert-important-border); font-style: normal; font-weight: bold; }
+.md-alert-status .md-alert-tag  { color: var(--alert-status-border);  font-style: normal; font-weight: bold; }
+.md-alert-warning .md-alert-tag   { color: var(--alert-warning-border);   font-style: normal; font-weight: bold; }
+.md-alert-caution .md-alert-tag   { color: var(--alert-caution-border);   font-style: normal; font-weight: bold; }
+
+.md-hr      { color: var(--syntax-comment); }
+.md-html    { color: var(--syntax-keyword); }

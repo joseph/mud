@@ -1,17 +1,10 @@
-/* -- Screenshot carousel -------------------------------------------------- */
-
-/* The gallery is a horizontal scroll container: one screenshot per page,
-   snapping to center. Swipe, trackpad scroll and the dots below all move the
-   same scroll position, so no JS is needed to show a slide — only to draw the
-   dots and mark which one is showing. */
-
 .gallery {
   display: flex;
   gap: 1em;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
   overscroll-behavior-x: contain;
-  scrollbar-width: none;              /* the dots are the affordance */
+  scrollbar-width: none;
   margin-bottom: 0.75em;
 }
 
@@ -25,15 +18,12 @@
 
 .gallery img {
   flex: 0 0 100%;
-  aspect-ratio: 16 / 10;             /* every screenshot is 2880x1800 */
+  aspect-ratio: 16 / 10;
   scroll-snap-align: center;
   border: 1px solid var(--border-color);
   border-radius: 0.5em;
 }
 
-
-/* -- Dots ----------------------------------------------------------------- */
-/* Built by the script at the end of index.html; absent when JS is off. */
 
 .gallery-dots {
   display: flex;

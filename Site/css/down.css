@@ -1,25 +1,3 @@
-/* -- Down mode ------------------------------------------------------------ */
-/* What a Markdown document looks like in Mud's raw-source view. */
-
-/* Tracks Core/Sources/Resources/mud-down.css. Deliberate divergences:
-
-   - No page box. page.css sizes and places both articles, so the app's
-     margin / min-height / background / max-width rules are left out and the
-     two modes share one box — that's what makes the Space-bar flip land in
-     the same place.
-   - The app's view toggles are baked in at their defaults: line numbers on,
-     word wrap on. The site has no toggle UI, so the rules the app writes as
-     `html:not(.has-line-numbers) .ln`, `.has-word-wrap .dc-scroll` and so on
-     are reduced to their enabled form and the class names are dropped.
-   - No first-line padding-top. The app uses it for its own page box; here it
-     would push the source down 2rem relative to Mark Up and spoil the flip.
-     The last line's padding-bottom is kept but cut from 6rem to 2rem — that
-     6rem clears the app's floating bars, and this page has none.
-   - No .fm-fence / .fm-code frontmatter rules: this page has no frontmatter.
-
-   .md-table and .md-task carry no rules here because they carry none in the
-   app either — DownHTMLVisitor emits them as structural hooks only. */
-
 .down-mode-output {
   max-width: 950px;
   padding: 0 min(60px, calc(var(--chrome-inset)));
@@ -28,16 +6,12 @@
 }
 
 
-/* -- Line container ------------------------------------------------------- */
-
 .down-lines {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   font-size: 0.875em;
   line-height: 1.6;
 }
 
-/* Each line is a flex row. Default stretch alignment makes the .ln background
-   cover the full row height when .lc wraps. */
 .dl {
   display: flex;
 }
@@ -47,8 +21,6 @@
   padding-bottom: 2rem;
 }
 
-
-/* -- Line numbers --------------------------------------------------------- */
 
 .ln {
   position: sticky;
@@ -68,8 +40,6 @@
 }
 
 
-/* -- Line content --------------------------------------------------------- */
-
 .lc {
   flex: 1 1 auto;
   white-space: pre;
@@ -83,19 +53,15 @@
 }
 
 
-/* -- Code blocks ---------------------------------------------------------- */
-
 .dc-fence .lc,
 .dc-code .lc {
   background: var(--code-bg);
 }
 
-/* Fence lines: content dimmed, line number untouched. */
 .dc-fence .lc {
   opacity: 0.5;
 }
 
-/* Code blocks scroll on their own, so a long line doesn't widen the page. */
 .dc-scroll {
   display: grid;
   overflow-x: auto;
@@ -106,8 +72,6 @@
   min-width: max-content;
 }
 
-
-/* -- Source highlighting -------------------------------------------------- */
 
 .md-heading   { color: var(--heading-color); }
 .md-code-block  { color: var(--code-fg); }

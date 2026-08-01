@@ -1,24 +1,3 @@
-/* -- Document ------------------------------------------------------------- */
-/* What a Markdown document looks like when Mud renders it. */
-
-/* Tracks Core/Sources/Resources/mud-up.css. The page is a demo of the app's
-   rendering, so rule bodies here are kept identical to the app's. Deliberate
-   divergences:
-
-   - Every selector is scoped to .up-mode-output. The app renders nothing but
-     the document, so its rules are bare element selectors; this page also has
-     a header and a footer, which those rules would otherwise style.
-   - Link colors are not here. The footer link needs them too, so `a` lives in
-     page.css as a page-wide rule.
-   - No page box. The app gives .up-mode-output its own padding, max-width and
-     background; here page.css owns the article's size and placement.
-   - img caps at 100%, not min(800px, 100%). The screenshots in the carousel
-     are .up-mode-output img, and an 800px cap would shrink them out of their
-     flex track. */
-
-
-/* -- Typography ----------------------------------------------------------- */
-
 .up-mode-output :is(h1, h2, h3, h4, h5, h6) {
   margin-top: 1.5em;
   margin-bottom: 0.5em;
@@ -40,8 +19,6 @@
 }
 
 
-/* -- Lists ---------------------------------------------------------------- */
-
 .up-mode-output :is(ul, ol) {
   margin-top: 0;
   margin-bottom: 1em;
@@ -55,11 +32,6 @@
 .up-mode-output li > :is(ul, ol) {
   margin-bottom: 0;
 }
-
-
-/* Task lists -------------------------------------------------------------- */
-/* Selectors match cmark-gfm's classless output. Simplify to e.g.
-   .task-list-item if the app switches to its own tokenizer. */
 
 .up-mode-output li:has(> input[type="checkbox"]) {
   list-style: none;
@@ -93,8 +65,6 @@
 }
 
 
-/* -- Code ----------------------------------------------------------------- */
-
 .up-mode-output code {
   font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
   font-size: 0.875em;
@@ -123,8 +93,6 @@
 }
 
 
-/* -- Blockquotes ---------------------------------------------------------- */
-
 .up-mode-output blockquote {
   margin: 0 0 1em 0;
   padding: 0 1em;
@@ -140,8 +108,6 @@
   margin-bottom: 0;
 }
 
-
-/* -- Alerts --------------------------------------------------------------- */
 
 .up-mode-output .alert {
   color: var(--text-color);
@@ -178,8 +144,6 @@
 }
 
 
-/* -- Horizontal rules ----------------------------------------------------- */
-
 .up-mode-output hr {
   height: 2px;
   margin: 1.5em 0;
@@ -188,8 +152,6 @@
   border: 0;
 }
 
-
-/* -- Tables --------------------------------------------------------------- */
 
 .up-mode-output table {
   width: 100%;
@@ -214,8 +176,6 @@
   background-color: var(--code-bg);
 }
 
-
-/* -- Images --------------------------------------------------------------- */
 
 .up-mode-output img {
   max-width: 100%;

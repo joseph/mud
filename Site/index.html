@@ -10,10 +10,6 @@
   <link rel="apple-touch-icon" href="img/apple-touch-icon.png" />
   <meta name="theme-color" content="#C1A884" />
   <script>
-    // Restore a saved lighting choice before the page paints, so it doesn't
-    // flash the browser's scheme first. localStorage throws in some privacy
-    // modes and over file://, and a lighting button that forgets is better
-    // than a page that doesn't load.
     try {
       const saved = localStorage.getItem('mud-lighting');
       if (saved === 'is-bright' || saved === 'is-dark')
@@ -35,7 +31,6 @@
         <h1>Meet Mud.</h1>
         <h2>A macOS app for viewing Markdown documents — <em>marked up.</em></h2>
       </div>
-      <!-- These sit on their counterparts in the screenshot's toolbar. -->
       <button class="chrome-button lighting-toggle" type="button"
               aria-label="Switch between bright and dark"></button>
       <button class="chrome-button mode-toggle" type="button"
@@ -44,8 +39,6 @@
 
     <main>
     <article class="up-mode-output">
-      <!--h1 id="mud-mark-up-or-down">Mud: A Perfect Markdown Viewer</h1 -->
-
       <blockquote class="alert alert-status">
       <p class="alert-title">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M6 2c.306 0 .582.187.696.471L10 10.731l1.304-3.26A.751.751 0 0 1 12 7h3.25a.75.75 0 0 1 0 1.5h-2.742l-1.812 4.528a.751.751 0 0 1-1.392 0L6 4.77 4.696 8.03A.75.75 0 0 1 4 8.5H.75a.75.75 0 0 1 0-1.5h2.742l1.812-4.529A.751.751 0 0 1 6 2Z"/></svg>
@@ -166,31 +159,19 @@ mud -u --theme riot file.md    <span class="hljs-comment"># Pick a theme</span>
     <script>
       const root = document.documentElement;
 
-      // -- Mode toggle -------------------------------------------------------
       const articles = document.querySelectorAll('.up-mode-output, .down-mode-output');
 
-      // How far down the page we are, 0 to 1. The two articles are different
-      // heights, so a fraction carries over where a pixel offset wouldn't —
-      // this is what Mud itself does when you switch modes.
       const scrollable = () => root.scrollHeight - innerHeight;
       const scrollFraction = () => (scrollable() > 0 ? scrollY / scrollable() : 0);
 
       function toggleMode() {
         const fraction = scrollFraction();
         articles.forEach((article) => (article.hidden = !article.hidden));
-        // theme.css reads .is-down to light up the Up/Down button in the
-        // header screenshot, the same one the app lights up in Down mode.
         root.classList.toggle('is-down');
         scrollTo(0, fraction * scrollable());
       }
 
-      // The invisible button over the toolbar toggle in the header screenshot.
       document.querySelector('.mode-toggle').onclick = toggleMode;
-
-      // -- Lighting ----------------------------------------------------------
-      // The sun/moon button asks for the opposite of whatever the browser is
-      // set to. Pressing it again hands control back. theme.css does the rest,
-      // and the head restores the choice on the next visit.
 
       function rememberLighting(scheme) {
         try {
@@ -205,7 +186,7 @@ mud -u --theme riot file.md    <span class="hljs-comment"># Pick a theme</span>
         root.classList.remove('is-bright', 'is-dark');
 
         if (wasSet) {
-          rememberLighting(null);           // back to following the browser
+          rememberLighting(null);
           return;
         }
         const opposite =
@@ -217,17 +198,12 @@ mud -u --theme riot file.md    <span class="hljs-comment"># Pick a theme</span>
       addEventListener('keydown', (event) => {
         if (event.key !== ' ' || event.repeat) return;
         if (event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return;
-        // Space belongs to whatever has focus first: it presses a focused
-        // button, and both the carousel dots and the toggle are buttons. (When
-        // the toggle is the focused one, that press flips the mode anyway.)
         if (document.activeElement?.closest('a, button, input, select, textarea, [contenteditable]')) return;
 
         event.preventDefault();
         toggleMode();
       });
 
-      // -- Screenshot carousel ---------------------------------------------
-      // One dot per slide, marking the slide on screen.
       const track = document.querySelector('.gallery');
       const slides = [...track.children];
       const dots = document.createElement('nav');

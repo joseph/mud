@@ -1,10 +1,3 @@
-/* -- Syntax highlighting -------------------------------------------------- */
-/* Colors for highlight.js output in code blocks. */
-
-/* Copied from the syntax section of Core/Sources/Resources/mud.css, with no
-   divergences. The one hard-coded color, .hljs-deletion's #f85149, is
-   hard-coded in the app too. */
-
 .hljs {
   color: var(--text-color);
   background: var(--code-bg);

@@ -1,26 +1,3 @@
-/* -- Theme ---------------------------------------------------------------- */
-/* The bright and dark palettes, and the switch between them. */
-
-/* The document colors track Core/Sources/Resources/theme-earthy.css and the
-   alert colors track the variable blocks in mud.css, so the landing page
-   renders in the same palette as the app's default theme. One deliberate
-   divergence: --body-bg is #FFF in bright, not #FCFCFA, so the page below the
-   header is plain white.
-
-   Each pair is written once, as light-dark(bright, dark). Those resolve
-   against `color-scheme`, so the Lighting button below only has to override
-   that one property to repaint the whole page — there is no second copy of
-   the palette to keep in step. The cost is a browser floor of Chrome 123 /
-   Safari 17.5 / Firefox 120, all from 2024: an older browser gets no colors
-   at all rather than a bright-only fallback.
-
-   --chrome-brown is the site's own. It is the same in both schemes — only the
-   header screenshot swaps — and it also appears literally in index.html's
-   <meta name="theme-color"> tag, which can't read a custom property.
-
-   The alert border and title colors are kept as separate variables, matching
-   the app, even though every pair currently holds the same value. */
-
 :root {
   color-scheme: light dark;
 
@@ -42,7 +19,7 @@
   --syntax-function: light-dark(#9A5435, #C98A60);
   --syntax-type: light-dark(#7A4A2A, #D4A06A);
   --syntax-constant: light-dark(#705D73, #947E96);
-  --syntax-keyword: light-dark(#7A4A2A, #D4A06A);  /* bright is --heading-color */
+  --syntax-keyword: light-dark(#7A4A2A, #D4A06A);
   --syntax-string: var(--code-fg);
   --syntax-variable: var(--text-color);
   --syntax-operator: var(--text-color);
@@ -63,50 +40,9 @@
 }
 
 
-/* -- Lighting ------------------------------------------------------------- */
-
-/* With no class on <html> the page follows the browser. The Lighting button in
-   the header screenshot adds .is-bright or .is-dark — whichever is the
-   opposite of what the browser is asking for — and pressing it again takes the
-   class off and hands control back. Two states, as in the app, whose Lighting
-   menu names them the same way.
-
-   Naming the scheme rather than saying "flipped" is what lets index.html store
-   the choice: a Mac that switches appearance at sunset would otherwise invert
-   what the reader asked for between one visit and the next.
-
-   Every color above resolves through color-scheme, so setting that one
-   property is the whole switch. */
-
 :root.is-bright { color-scheme: light; }
 :root.is-dark   { color-scheme: dark; }
 
-
-/* -- Header screenshot ---------------------------------------------------- */
-
-/* The screenshot comes in a bright and a dark variant. An image can't go
-   through light-dark(), so this is the one place the choice has to be spelled
-   out. header.css just draws whatever this settles on. The class rules win on
-   specificity, so they override the browser's preference either way.
-
-   Three images per lighting, which header.css stacks back to front:
-
-   - the shape: the app window's silhouette, one flat rounded rectangle on the
-     same 2000x688 viewBox as the screenshot, so the two line up. It's inlined
-     as a data URI rather than linked, so it paints as soon as this stylesheet
-     parses. On a slow connection that gives the reader the window's outline
-     for the second or two the 100KB screenshot is still downloading, and the
-     screenshot covers it once it arrives. Inlining is only affordable because
-     it's an SVG: the same placeholder as a PNG cost 4.5KB apiece here.
-
-     The two copies of it — img/header-chrome-{light,dark}-shape.svg and the
-     data URI below — have to be edited together. The site has no build step
-     to derive one from the other. The files are the drawing as exported, and
-     are what a re-export should overwrite.
-   - the screenshot itself.
-   - the Down button: the toolbar's Up/Down toggle drawn in its pressed state,
-     and nothing else. It's `none` until index.html puts .is-down on <html>, so
-     the button in the picture lights up with the mode the reader chose. */
 
 :root {
   --chrome-shot-bright: url('../img/header-chrome-light.png');
@@ -115,7 +51,6 @@
   --chrome-shape-bright: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2000' height='688' viewBox='0 0 2000 688'%3E%3Cpath d='M115.5 162.8c0-20.4.1-27.3.7-34.8.8-9.1 2.3-15.4 5-20.8 5.1-9.9 13.1-17.9 23-23 5.4-2.7 11.7-4.2 20.8-5 7.5-.6 14.4-.7 34.8-.7h1600.4c20.4 0 27.3.1 34.8.7 9.1.8 15.4 2.3 20.8 5 9.9 5.1 17.9 13.1 23 23 2.7 5.4 4.2 11.7 5 20.8.6 7.5.7 14.4.7 34.8v537.2h-1769z' fill='%23FFF' stroke='%236D7278'/%3E%3C/svg%3E");
   --chrome-shape-dark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='2000' height='688' viewBox='0 0 2000 688'%3E%3Cpath d='M115.5 162.8c0-20.4.1-27.3.7-34.8.8-9.1 2.3-15.4 5-20.8 5.1-9.9 13.1-17.9 23-23 5.4-2.7 11.7-4.2 20.8-5 7.5-.6 14.4-.7 34.8-.7h1600.4c20.4 0 27.3.1 34.8.7 9.1.8 15.4 2.3 20.8 5 9.9 5.1 17.9 13.1 23 23 2.7 5.4 4.2 11.7 5 20.8.6 7.5.7 14.4.7 34.8v537.2h-1769z' fill='%23100E0D' stroke='%23444'/%3E%3C/svg%3E");
 
-  /* Up mode: there is no pressed button to draw. */
   --chrome-down-bright: none;
   --chrome-down-dark: none;
 
@@ -124,9 +59,6 @@
   --header-chrome-down: var(--chrome-down-bright);
 }
 
-/* Mode picks whether the pressed button is drawn at all; the lighting rules
-   below pick which of the two it is. Keeping the two apart is what stops this
-   from being a rule per lighting-and-mode pair. */
 :root.is-down {
   --chrome-down-bright: url('../img/header-chrome-light-down.png');
   --chrome-down-dark: url('../img/header-chrome-dark-down.png');

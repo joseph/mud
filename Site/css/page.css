@@ -1,6 +1,3 @@
-/* -- Page ----------------------------------------------------------------- */
-/* The page shell: the boxes the header, document and footer sit in. */
-
 * {
   box-sizing: border-box;
 }
@@ -23,13 +20,9 @@ body {
   line-height: 1.6;
   color: var(--text-color);
 
-  /* The header covers the top of this and <main> covers the rest, so the
-     brown only shows when the page is overscrolled — where it reads better
-     than white. */
   background-color: var(--chrome-brown);
 }
 
-/* Page-wide, not document-only: the footer's byline is a link too. */
 a {
   color: var(--link-color);
   text-decoration: none;
@@ -43,9 +36,6 @@ main {
   background-color: var(--body-bg);
 }
 
-/* The article is pulled up over the bottom of the header, so the document
-   starts inside the app window in the header screenshot — just below its
-   toolbar. header.css defines the --chrome-* measurements. */
 article {
   box-sizing: content-box;
   max-width: 840px;
@@ -55,7 +45,6 @@ article {
   transform: translateY(calc(var(--chrome-toolbar) + 2em - var(--chrome-height)));
 }
 
-/* Both modes scale together, so hitting Space doesn't resize the document. */
 :is(.up-mode-output, .down-mode-output) {
   font-size: 85%;
 }
@@ -67,10 +56,6 @@ footer {
   color: var(--blockquote-color);
 }
 
-
-/* -- Type scale ----------------------------------------------------------- */
-/* Everything is sized in em/rem, so stepping the root font size scales the
-   whole page. */
 
 @media (max-width: 900px) { html { font-size: 17px; } }
 @media (max-width: 800px) { html { font-size: 16px; } }

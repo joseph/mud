@@ -91,4 +91,32 @@ struct CommentResourcesTests {
     #expect(HTMLTemplate.loadResource("mud-comment-anchor", type: "js")?
       .contains(marker) == true)
   }
+
+  @Test func stubHeightAgreesAcrossJSAndCSS() {
+    // A folded section's comments collapse into one sliver capsule.
+    // mud-comments.js places it (STUB_H, halved, so the sliver straddles the
+    // heading's bottom edge) and mud-comments.css draws it. Only the CSS can
+    // state a height and only the JS can do the arithmetic, so the number is
+    // written twice; if the two drift the stub sits off its line. Read the JS
+    // value and require the rule to use it.
+    let js = HTMLTemplate.mudCommentsJS
+    let css = HTMLTemplate.loadResource("mud-comments", type: "css") ?? ""
+
+    guard let height = Self.number(in: js, after: "var STUB_H = ") else {
+      Issue.record("mud-comments.js no longer declares `var STUB_H = <n>`")
+      return
+    }
+    guard let rule = css.range(of: ".mud-capsule.is-stub {") else {
+      Issue.record("mud-comments.css no longer has a `.mud-capsule.is-stub` rule")
+      return
+    }
+    let body = css[rule.upperBound...].prefix { $0 != "}" }
+    #expect(body.contains("height: \(height)px;"))
+  }
+
+  /// The run of digits following `marker`, or nil when `marker` isn't there.
+  private static func number(in source: String, after marker: String) -> Int? {
+    guard let start = source.range(of: marker)?.upperBound else { return nil }
+    return Int(source[start...].prefix(while: \.isNumber))
+  }
 }

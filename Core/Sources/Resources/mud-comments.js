@@ -23,6 +23,8 @@
   var INACTIVE_H = 45;    // a collapsed capsule's height
   var COMPOSE_H = 100;    // compose form's starting height (it auto-grows; the
                           // write side measures the real height on every relayout)
+  var STUB_H = 5;         // a folded section's stub; the height in the CSS,
+                          // pinned to it by CommentResourcesTests
 
   var capsules = {};          // label -> capsule element
   var quotationByLabel = {};  // label -> quotation text (for anchoring)
@@ -606,11 +608,58 @@
         '.mud-comment-marker[data-mud-label="' + safe + '"]');
   }
 
-  // A comment's preferred position, in layout pixels: the top of its anchor.
+  // -- Folded quotations ----------------------------------------------------
+
+  // Foldable headings (mud-up.js) are an app feature: an export gets this file
+  // but not that one, so `Mud.folds` may not be there. Read it per call rather
+  // than capturing it, since the two files' load order isn't this one's to
+  // assume.
+  function folds() {
+    return window.Mud && window.Mud.folds;
+  }
+
+  // The folded heading standing in for a comment's own anchor, when a fold has
+  // taken the quotation off screen. Null whenever the anchor is on screen.
+  function foldHost(anchor) {
+    if (!anchor || anchor.offsetParent !== null) return null;
+    var f = folds();
+    return f && f.hostOf ? f.hostOf(anchor) : null;
+  }
+
+  // Open the folded section holding a comment's quotation. True when something
+  // was unfolded, so the caller knows the document moved under it.
+  function unfold(label) {
+    var f = folds();
+    if (!f || !f.reveal) return false;
+    var anchor = anchorFor(label);
+    if (!foldHost(anchor)) return false;
+    f.reveal(anchor);
+    return true;
+  }
+
+  // Where a folded section's stub sits: level with the bottom of its heading.
+  function stubTop(host) {
+    return Math.max(
+      0, layoutTop(host) + host.offsetHeight - STUB_H / 2);
+  }
+
+  // A comment's preferred position, in layout pixels: the top of its anchor —
+  // or, with the anchor folded away, the bottom of the heading that folded it.
   function preferredPosition(label) {
     var anchor = anchorFor(label);
     if (!anchor) return 0;
-    return Math.max(0, layoutTop(anchor));
+    var host = foldHost(anchor);
+    return host ? stubTop(host) : Math.max(0, layoutTop(anchor));
+  }
+
+  // What a stub says on hover: how many comments it stands for, or — standing
+  // for just one — the "Author: first message" its collapsed bar would show if
+  // it were tall enough to show anything.
+  function stubTitle(cap, count) {
+    if (count > 1) return count + " comments";
+    var who = textOf(cap.querySelector(".mud-bar-author"));
+    var what = textOf(cap.querySelector(".mud-bar-text"));
+    return who ? who + " " + what : what;
   }
 
   // Let the active capsule take its natural height, pin it there (so the height
@@ -644,21 +693,52 @@
     var items = [];
     var order = 0;
 
-    Object.keys(capsules).forEach(function (label) {
+    // Folding the open comment's section away would leave an expanded thread
+    // beside a folded heading. (Rare: the arrow click lands outside the
+    // capsule, so the document mousedown has usually closed it already.)
+    if (activeLabel && foldHost(anchorFor(activeLabel))) clearActive();
+
+    // A comment whose quotation has been folded away (foldable headings) has no
+    // anchor on screen to sit beside. Its section shows one stub instead — a
+    // sliver level with the bottom of the heading, saying that there is
+    // something folded away here and opening it on a click. So group the folded
+    // comments by the heading hiding them: the first one carries the stub for
+    // the section, and the others leave the column until it opens.
+    var labels = Object.keys(capsules);
+    var hiddenBy = Object.create(null); // label -> hiding heading's id
+    var carrier = Object.create(null);  // heading id -> label carrying the stub
+    var covered = Object.create(null);  // heading id -> comments it stands for
+    labels.forEach(function (label) {
+      var host = foldHost(anchorFor(label));
+      if (!host) return;
+      hiddenBy[label] = host.id;
+      if (carrier[host.id] === undefined) carrier[host.id] = label;
+      covered[host.id] = (covered[host.id] || 0) + 1;
+    });
+
+    labels.forEach(function (label) {
       var cap = capsules[label];
       var height;
-      // A comment whose quotation has been folded away (foldable headings) has
-      // no anchor on screen to sit beside: its offsetParent is null, so
-      // layoutTop would report 0 and pile the capsule at the top of the column.
-      // Take it out of the column until the section opens again — the
-      // ResizeObserver below runs this pass when it does.
+      var id = hiddenBy[label];
+      var stub = id !== undefined && carrier[id] === label;
       var anchor = anchorFor(label);
-      if (anchor && anchor.offsetParent === null) {
+      // Off screen and not carrying a stub: either another comment's stub
+      // already stands for this one, or its anchor is hidden for some reason of
+      // its own — and layoutTop would report 0 and pile the capsule at the top
+      // of the column. Either way it leaves until it is back on screen; the
+      // ResizeObserver below runs this pass when that happens.
+      if (!stub && anchor && anchor.offsetParent === null) {
         cap.style.display = "none";
         return;
       }
       cap.style.display = "";
-      if (label === activeLabel) {
+      cap.classList.toggle("is-stub", stub);
+      // Nothing of the capsule reads at 5px, so its tooltip does the talking.
+      cap.title = stub ? stubTitle(cap, covered[id]) : "";
+      if (stub) {
+        cap.style.height = "";
+        height = STUB_H;
+      } else if (label === activeLabel) {
         height = sizeActive(cap);
       } else {
         cap.style.height = "";
@@ -723,7 +803,12 @@
     cap.addEventListener("click", function (e) {
       if (cap.classList.contains("is-active")) return;
       e.stopPropagation();
+      // A stub stands for a comment inside a folded section: open the section
+      // first, then scroll, since its quotation may be well below the heading
+      // the stub sits beside.
+      var opened = unfold(label);
       activate(label);
+      if (opened) scrollToComment(label);
     });
   }
 
@@ -739,7 +824,9 @@
     layout();
   }
 
-  function deactivate() {
+  // Close the open comment, leaving the column's geometry to the caller. The
+  // placement pass calls this one directly, since it lays out afterwards.
+  function clearActive() {
     if (!activeLabel) return;
     var cap = capsules[activeLabel];
     if (cap) {
@@ -748,6 +835,11 @@
     }
     setHighlight(activeLabel, false);
     activeLabel = null;
+  }
+
+  function deactivate() {
+    if (!activeLabel) return;
+    clearActive();
     layout();
   }
 
@@ -759,12 +851,18 @@
 
   // -- Previous / next navigation -------------------------------------------
 
-  // Comment labels in document order — sorted by the same preferred position
-  // the placement pass uses, so navigation follows the order the capsules read
-  // down the column.
+  // Comment labels in document order, which on screen is the order the capsules
+  // read down the column. Compared by where their anchors sit in the DOM rather
+  // than by measured position, because a folded section's comments all measure
+  // at the heading that folded them and would otherwise tie.
   function orderedLabels() {
     return Object.keys(capsules).sort(function (a, b) {
-      return preferredPosition(a) - preferredPosition(b);
+      var ea = anchorFor(a), eb = anchorFor(b);
+      if (!ea || !eb) return preferredPosition(a) - preferredPosition(b);
+      var rel = ea.compareDocumentPosition(eb);
+      if (rel & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
+      if (rel & Node.DOCUMENT_POSITION_PRECEDING) return 1;
+      return 0;
     });
   }
 
@@ -805,6 +903,10 @@
     var n = current + direction;
     n = ((n % order.length) + order.length) % order.length;
     var label = order[n];
+    // Stepping onto a comment inside a folded section opens that section: the
+    // reader asked for this comment, and neither its highlight nor its capsule
+    // can be shown while the section it lives in is folded away.
+    unfold(label);
     activate(label);
     scrollToComment(label);
   }
@@ -871,6 +973,7 @@
     document.documentElement.classList.add("is-comments-column");
     syncVisible();        // builds the column on an off→on flip
     if (capsules[label]) {
+      unfold(label);      // a folded section can't show the comment it holds
       activate(label);
       scrollToComment(label);
     }

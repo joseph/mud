@@ -236,6 +236,26 @@
     reveal(document.getElementById(slug));
   }
 
+  // The folded heading hiding `el`: the outermost folded section it sits in,
+  // which is the one whose own heading is still on screen. Null when `el` is
+  // on screen. The Comments column asks, so a comment whose quotation has been
+  // folded away can sit beside the heading that took it off screen.
+  function hostOf(el) {
+    if (!enabled()) return null;
+    var block = blockOf(el);
+    if (!block || !block.classList.contains("is-fold-hidden")) return null;
+    var rank = 7;
+    var host = null;
+    for (var node = block; node; node = node.previousElementSibling) {
+      var level = headingLevel(node);
+      if (!level || level >= rank) continue;
+      rank = level;
+      if (folded[node.id]) host = node;
+      if (level === 1) break;
+    }
+    return host;
+  }
+
   // -- Clicks ---------------------------------------------------------------
 
   // A click on the arrow folds or unfolds its section.
@@ -293,7 +313,8 @@
     setEnabled: setEnabled,
     apply: apply,
     reveal: reveal,
-    revealHeading: revealHeading
+    revealHeading: revealHeading,
+    hostOf: hostOf
   };
 
   if (enabled()) addArrows();

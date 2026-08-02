@@ -433,3 +433,27 @@ footer.comments .mud-comment-time:after {
 
 /* Items just inserted fade/scale in rather than snapping. */
 .mud-capsule.is-entering { opacity: 0; transform: scale(0.96); }
+
+
+/* -- A folded section's stub ---------------------------------------------- */
+
+/* Foldable headings (an app feature, mud-up.js) can take a quotation off
+   screen while its comment stays in the column. Rather than dropping the
+   capsule, mud-comments.js squashes it to a 5px sliver level with the bottom of
+   the heading — one per folded section, however many comments it holds, carried
+   by the first of them. It keeps the capsule's own border, background and
+   radius, so it reads as a comment pressed shut; clicking it opens the section
+   and the comment together. STUB_H in that file is this height, and
+   CommentResourcesTests keeps the two in step. */
+.mud-capsule.is-stub {
+  height: 5px;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* At 5px the bar would show as a clipped sliver of its first line, so nothing
+   inside is drawn at all; the capsule's `title` carries the text instead. */
+.mud-capsule.is-stub > * {
+  display: none;
+}

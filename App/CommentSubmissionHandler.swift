@@ -1,4 +1,3 @@
-import AppKit
 import Combine
 
 /// Routes a column edit posted from the page (`CommentSubmission`, over the
@@ -6,13 +5,17 @@ import Combine
 /// outcome back to the page (`resolveCompose`). On success the write echoes
 /// through the `FileWatcher`, refreshing the comment data so the column
 /// reprojects in place (no reload). On failure the box stays open with its
-/// text and an alert explains why (the most likely cause is the quoted text
-/// changing on disk while the box was held open).
+/// text and an error notice in the info bar explains why (the most likely
+/// cause is the quoted text changing on disk while the box was held open).
 struct CommentSubmissionHandler {
     let model: DocumentModel
     let state: DocumentState
 
     func handle(_ submission: CommentSubmission) {
+        // A fresh attempt supersedes the last failure, so the bar never shows
+        // a stale reason next to a box the reader has since retyped.
+        state.clear(.commentWriteFailed)
+
         let controller = CommentController(fileURL: model.fileURL) {
             model.registerSelfWrite($0)
         }
@@ -59,7 +62,7 @@ struct CommentSubmissionHandler {
             guard let label = submission.label else { return }
             // No compose box to resolve. A vanished label means the comment is
             // already gone — the watcher reload catches the column up, so only
-            // a failed disk write is worth an alert.
+            // a failed disk write is worth a notice.
             if case .failure(.writeFailed) =
                 controller.deleteLastMessage(label: label) {
                 presentCommentFailure(message: deleteFailureMessage, note: "")
@@ -88,7 +91,7 @@ struct CommentSubmissionHandler {
 
     private var replyFailureMessage: String {
         "The comment has changed or been removed, "
-            + "so your text couldn't be saved. It is still in the compose box."
+            + "so your text couldn’t be saved."
     }
 
     /// The file is read-only or locked: Mud leaves it untouched and says so,
@@ -104,24 +107,21 @@ struct CommentSubmissionHandler {
     /// asserting the file changed (issue #5: nothing had changed, and the old
     /// copy sent both reporter and maintainer chasing file permissions).
     private var anchorFailureMessage: String {
-        "Mud couldn't match the highlighted text to the file on disk. The file "
-            + "may have changed since it was loaded, or this text may be in a "
-            + "spot Mud can't anchor a comment to yet. Your note is still in the "
-            + "compose box."
+        "Mud couldn’t match the highlighted text to the file on disk. "
+            + "The file may have changed since it was loaded."
     }
 
     /// The file itself couldn't be written (permission, lock, or another IO
     /// problem) — distinct from the text moving.
     private var writeFailureMessage: String {
-        "Mud couldn't write to this file, so the comment couldn't be saved. "
-            + "Check that the file is writable and not locked. "
-            + "Your note is still in the compose box."
+        "Mud couldn’t write to this file. "
+            + "Check that the file is writable and not locked."
     }
 
     /// A delete that failed at the disk: there is no compose box to keep the
     /// text in, so this is the only signal the user gets.
     private var deleteFailureMessage: String {
-        "Mud couldn't write to this file, so the comment couldn't be deleted. "
+        "Mud couldn’t write to this file, so the comment couldn’t be deleted. "
             + "Check that the file is writable and not locked."
     }
 
@@ -133,22 +133,16 @@ struct CommentSubmissionHandler {
     }
 
     /// Explains a comment write that couldn't be completed, keeping the user's
-    /// text recoverable: the box stays open (the page re-enables it on the false
-    /// resolve) and "Copy Note" puts the body on the clipboard. Deferred past the
-    /// current run loop so the `resolveCompose` JS reaches the page — and
-    /// re-enables the box — before this modal blocks the main thread.
+    /// text recoverable: the box stays open (the page re-enables it on the
+    /// false resolve) and the bar's "Copy Comment" puts the body on the
+    /// clipboard.
+    ///
+    /// An error-level info-bar notice rather than the modal alert this used to
+    /// be. An alert should ask you to decide something; this only tells you,
+    /// and blocking the main thread to say it also froze the compose box the
+    /// message is about. The notice is the one a reader can dismiss, because
+    /// nothing else knows when they have read it.
     private func presentCommentFailure(message: String, note: String) {
-        DispatchQueue.main.async {
-            let alert = NSAlert()
-            alert.messageText = "Couldn't save your comment"
-            alert.informativeText = message
-            alert.addButton(withTitle: "OK")
-            if !note.isEmpty { alert.addButton(withTitle: "Copy Note") }
-            let response = alert.runModal()
-            if !note.isEmpty, response == .alertSecondButtonReturn {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(note, forType: .string)
-            }
-        }
+        state.raise(.commentWriteFailed(message: message, note: note))
     }
 }

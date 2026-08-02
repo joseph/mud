@@ -54,18 +54,21 @@
   }
 
   // Post a submission and remember its resolver. The native side writes the
-  // file and calls `resolveCompose` with the outcome: a submission stays
-  // "in flight" (its box disabled) until then, so a failed write keeps the box
-  // and its text rather than closing on an optimistic assumption of success.
+  // file and calls `resolveCompose` with the outcome: a compose submission
+  // stays "in flight" (its box disabled) until then, so a failed write keeps
+  // the box and its text rather than closing on an optimistic assumption of
+  // success. A delete has no box to hold — it undoes its puff instead.
   function submit(payload, onResolve) {
     pendingResolve = onResolve || null;
     handlers.mudCommentSubmit.postMessage(payload);
   }
 
-  // Called from Swift (via WebView) with the submit outcome. True closes the
-  // box; false leaves it open for another try, marked as failed. Only the
-  // outcome crosses: why a save failed is the info bar's to say, so the page
-  // needs nothing but the fact that this attempt didn't land.
+  // Called from Swift (via WebView) with the outcome of whichever submission is
+  // in flight. For a compose box, true closes it and false leaves it open for
+  // another try, marked as failed; for a delete, false restores the message the
+  // puff has already taken away. Only the outcome crosses: why a save failed is
+  // the info bar's to say, so the page needs nothing but the fact that this
+  // attempt didn't land.
   col.resolveCompose = function (success) {
     var resolve = pendingResolve;
     pendingResolve = null;
@@ -533,7 +536,14 @@
     function go() {
       if (fired) return;
       fired = true;
-      submit({ action: "delete", label: label });
+      // The puff plays first, so the comment is off screen before the file has
+      // agreed to lose it. A refused delete has to put it back: the bottom
+      // section still holds it, and refresh() rebuilds the capsules from there.
+      // A successful one needs nothing — the write echoes through the watcher
+      // and reprojects.
+      submit({ action: "delete", label: label }, function (success) {
+        if (!success) col.refresh();
+      });
       if (!multi) col.deactivate();
     }
     target.addEventListener("animationend", go);

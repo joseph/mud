@@ -21,9 +21,12 @@ enum WebCommand {
     /// Open a compose box on the current selection (the toolbar "Comment"
     /// button and menu equivalents). The JS reveals the column itself.
     case addCommentFromSelection
-    /// Acknowledge a comment submission to the page: close the compose box on
-    /// success, or re-enable it (text intact) and mark it failed on failure.
-    /// Only the outcome crosses — why a save failed is the info bar's to say.
+    /// Acknowledge a comment submission to the page. For an add / reply / edit
+    /// that closes the compose box on success, or re-enables it (text intact)
+    /// and marks it failed on failure. A delete has no box: the page puffs the
+    /// message away before the file has agreed to lose it, so a false is what
+    /// puts it back. Only the outcome crosses — why a save failed is the info
+    /// bar's to say.
     case resolveCompose(success: Bool)
     /// Scroll to a heading (sidebar click). Mode-dependent: Down mode
     /// scrolls to the heading's source line, Up mode to its slug ID.

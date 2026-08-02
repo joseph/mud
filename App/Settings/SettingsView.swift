@@ -59,6 +59,14 @@ enum SettingsPane: String, CaseIterable, Identifiable {
 }
 
 struct SettingsView: View {
+    /// The window's size: a fixed width, and a height the user can drag
+    /// between the two bounds. `SettingsWindowController` reads these for the
+    /// window's own limits, and asks the hosting controller to turn the frame
+    /// below into the constraints the window resizes against.
+    static let width: CGFloat = 700
+    static let minHeight: CGFloat = 408
+    static let maxHeight: CGFloat = 900
+
     @ObservedObject private var appState = AppState.shared
     @State private var selectedPane: SettingsPane = .general
 
@@ -75,7 +83,9 @@ struct SettingsView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .navigationTitle(selectedPane.title)
         }
-        .frame(width: 700, height: 408)
+        .frame(
+            minWidth: Self.width, maxWidth: Self.width,
+            minHeight: Self.minHeight, maxHeight: Self.maxHeight)
         .preferredColorScheme(appState.lighting.isDark() ? .dark : .light)
     }
 

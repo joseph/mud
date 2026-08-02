@@ -18,6 +18,7 @@ struct DocumentContentView: View {
 
     @FocusState private var contentFocused: Bool
     @Environment(\.colorScheme) private var environmentColorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var fileURL: URL { model.fileURL }
 
@@ -69,6 +70,22 @@ struct DocumentContentView: View {
                 findState.matchInfo = info
             }
         )
+        .safeAreaInset(edge: .top, spacing: 0) {
+            // The info bar, between the tab bar and the page. As a safe-area
+            // inset it takes space from the WebView rather than covering it,
+            // and SwiftUI measures it — a message that wraps to two lines just
+            // makes the bar taller.
+            ZStack {
+                if let notice = state.notice {
+                    DocumentNoticeBar(
+                        notice: notice,
+                        onDismiss: { state.dismissNotice() })
+                        .transition(.move(edge: .top).combined(with: .opacity))
+                }
+            }
+            .animation(
+                reduceMotion ? nil : .easeOut(duration: 0.2), value: state.notice)
+        }
         .focusable()
         .focusEffectDisabled()
         .focused($contentFocused)

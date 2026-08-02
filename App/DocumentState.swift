@@ -98,6 +98,12 @@ class DocumentState: ObservableObject {
     @Published var isColumnComposing: Bool = false
     @Published var outlineHeadings: [OutlineHeading] = []
     @Published var contentTitle: String?
+    /// The non-blocking message about this document currently on screen in the
+    /// info bar (`DocumentNoticeBar`), or nil for no bar. One at a time:
+    /// raising replaces whatever is showing. Two conditions rarely hold at
+    /// once, and ranking the kinds against each other would be more machinery
+    /// than that is worth.
+    @Published private(set) var notice: DocumentNotice?
     weak var windowController: DocumentWindowController?
     let find = FindState()
     let changeTracker = ChangeTracker()
@@ -123,6 +129,25 @@ class DocumentState: ObservableObject {
     /// `DocumentContentView`'s focus trap exempts this so the textarea can be
     /// typed into.
     var isComposingComment: Bool { isColumnComposing }
+
+    func raise(_ notice: DocumentNotice) {
+        self.notice = notice
+    }
+
+    /// Take down `kind`'s notice, but only if it is the one showing. Clearing
+    /// is by kind, not a blanket reset, so a condition ending can never take
+    /// down a notice some other condition raised.
+    func clear(_ kind: DocumentNotice.Kind) {
+        guard notice?.kind == kind else { return }
+        notice = nil
+    }
+
+    /// Take down whatever is showing, because the reader asked. Unlike
+    /// `clear(_:)` this names no kind: the × belongs to the bar in front of
+    /// them, not to the condition behind it.
+    func dismissNotice() {
+        notice = nil
+    }
 
     func toggleMode() {
         mode = mode.toggled()

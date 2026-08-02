@@ -51,7 +51,9 @@
 		7C8FC0422F932DFD003B14D4 /* Quartz.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7C8FC0412F932DFC003B14D4 /* Quartz.framework */; };
 		7C8FC04E2F932DFD003B14D4 /* MudQuickLook.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 7C8FC0402F932DFC003B14D4 /* MudQuickLook.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		7CAA0000000000000000BADE /* TabReloadBadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CAA0000000000000000BADF /* TabReloadBadgeView.swift */; };
+		7CAA0000000000000000C0DE /* DocumentNotice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CAA0000000000000000C0DF /* DocumentNotice.swift */; };
 		7CAA0000000000000000C2DE /* OpenPanelFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CAA0000000000000000C2DF /* OpenPanelFilter.swift */; };
+		7CAA0000000000000000C0EE /* DocumentNoticeBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CAA0000000000000000C0EF /* DocumentNoticeBar.swift */; };
 		7CADD1000000000000005EF2 /* Pref.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CADD1000000000000005EF1 /* Pref.swift */; };
 		7CB9BB902F38E28B008AB0BC /* Mud.icon in Resources */ = {isa = PBXBuildFile; fileRef = 7CB9BB8F2F38E28B008AB0BC /* Mud.icon */; };
 		7CC48AFC2F79D3BE00DA8118 /* ReselectMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CC48AFB2F79D3BE00DA8118 /* ReselectMonitor.swift */; };
@@ -189,7 +191,9 @@
 		7C8FC0402F932DFC003B14D4 /* MudQuickLook.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MudQuickLook.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		7C8FC0412F932DFC003B14D4 /* Quartz.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Quartz.framework; path = System/Library/Frameworks/Quartz.framework; sourceTree = SDKROOT; };
 		7CAA0000000000000000BADF /* TabReloadBadgeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TabReloadBadgeView.swift; sourceTree = "<group>"; };
+		7CAA0000000000000000C0DF /* DocumentNotice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentNotice.swift; sourceTree = "<group>"; };
 		7CAA0000000000000000C2DF /* OpenPanelFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenPanelFilter.swift; sourceTree = "<group>"; };
+		7CAA0000000000000000C0EF /* DocumentNoticeBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentNoticeBar.swift; sourceTree = "<group>"; };
 		7CADD1000000000000005EF1 /* Pref.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pref.swift; sourceTree = "<group>"; };
 		7CB9BB8F2F38E28B008AB0BC /* Mud.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = Mud.icon; sourceTree = "<group>"; };
 		7CC48AFB2F79D3BE00DA8118 /* ReselectMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReselectMonitor.swift; sourceTree = "<group>"; };
@@ -415,6 +419,8 @@
 				7C442A672F34BB7E0046E0CD /* DocumentWindowController.swift */,
 				7C442A662F34BB7E0046E0CD /* DocumentContentView.swift */,
 				7CAA0000000000000000BADF /* TabReloadBadgeView.swift */,
+				7CAA0000000000000000C0DF /* DocumentNotice.swift */,
+				7CAA0000000000000000C0EF /* DocumentNoticeBar.swift */,
 				7C1FD9802F44FAC200BB4076 /* LocalFileSchemeHandler.swift */,
 				7CE6B5AF2F83E899006A9BCA /* GitProvider.swift */,
 				7CDA110A2FA30D010000000B /* WaypointProvider.swift */,
@@ -795,7 +801,9 @@
 				7CD0930C2F58F9B7003E4037 /* LightingPreviewCard.swift in Sources */,
 				7C6B316E2F3A228000F6A4E8 /* DeferMutation.swift in Sources */,
 				7CAA0000000000000000BADE /* TabReloadBadgeView.swift in Sources */,
+				7CAA0000000000000000C0DE /* DocumentNotice.swift in Sources */,
 				7CAA0000000000000000C2DE /* OpenPanelFilter.swift in Sources */,
+				7CAA0000000000000000C0EE /* DocumentNoticeBar.swift in Sources */,
 				7C134FC42F813A020020BF91 /* View+Modify.swift in Sources */,
 				7CF99A783015E7C700EB7C63 /* CommentColumnFit.swift in Sources */,
 				7CC6E6E52F6595F900FE7D66 /* CheckForUpdatesView.swift in Sources */,

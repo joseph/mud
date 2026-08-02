@@ -43,10 +43,15 @@ article {
   margin: 0 auto;
   padding: 0 min(80px, calc(var(--chrome-inset) + 1em));
   transform: translateY(calc(var(--chrome-toolbar) + 2em - var(--chrome-height)));
+  overflow: hidden;
 }
 
 :is(.up-mode-output, .down-mode-output) {
   font-size: 85%;
+}
+
+#why-mud {
+  margin-top: 0;
 }
 
 footer {

@@ -20,6 +20,30 @@ enum CommandLineInstaller {
         return abbreviate(path)
     }
 
+    /// When the `mud` symlink was last installed.
+    ///
+    /// The symlink's own timestamp is the truth: installing removes and
+    /// recreates the link, so its creation date is the install date, and a
+    /// link made by hand at the shell counts too. `attributesOfItem` reads the
+    /// link rather than the file it points at, so even a dangling link
+    /// answers. When it can't be read at all — no link recorded, the file
+    /// gone, or a sandbox refusing the directory — fall back to the date
+    /// `recordInstall` wrote, which is the only reason we write it.
+    static var installedDate: Date? {
+        if let path = MudPreferences.shared.cliSymlinkPath,
+           let attributes = try? FileManager.default.attributesOfItem(
+               atPath: (path as NSString).expandingTildeInPath
+           ) {
+            if let created = attributes[.creationDate] as? Date {
+                return created
+            }
+            if let modified = attributes[.modificationDate] as? Date {
+                return modified
+            }
+        }
+        return MudPreferences.shared.cliInstalledAt
+    }
+
     // MARK: - Directory picker
 
     /// Opens an NSOpenPanel for choosing a custom directory.
@@ -127,6 +151,7 @@ enum CommandLineInstaller {
     private static func recordInstall(_ symlinkPath: String) {
         MudPreferences.shared.cliInstalled = true
         MudPreferences.shared.cliSymlinkPath = symlinkPath
+        MudPreferences.shared.cliInstalledAt = Date()
     }
 
     // MARK: - Elevated permissions

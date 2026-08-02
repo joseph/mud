@@ -98,6 +98,17 @@ struct MudPreferencesTests {
         #expect(tc.config.cliSymlinkPath == nil)
     }
 
+    @Test func cliInstalledAtRoundTrip() {
+        let tc = TestPreferences()
+        defer { tc.tearDown() }
+        #expect(tc.config.cliInstalledAt == nil)
+        let stamp = Date(timeIntervalSince1970: 1_700_000_000)
+        tc.config.cliInstalledAt = stamp
+        #expect(tc.config.cliInstalledAt == stamp)
+        tc.config.cliInstalledAt = nil
+        #expect(tc.config.cliInstalledAt == nil)
+    }
+
     @Test func openInDefaultBundleIDRoundTrip() {
         let tc = TestPreferences()
         defer { tc.tearDown() }
@@ -357,7 +368,7 @@ struct MudPreferencesTests {
     // MARK: - Key-catalog invariants
 
     @Test func keyCatalogCount() {
-        #expect(MudPreferences.Keys.allCases.count == 31)
+        #expect(MudPreferences.Keys.allCases.count == 32)
     }
 
     @Test func keyRawValuesAreDistinct() {

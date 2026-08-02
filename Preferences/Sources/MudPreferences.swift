@@ -125,6 +125,7 @@ extension MudPreferences {
         case hasLaunched                = "internal-has-launched"
         case cliInstalled               = "internal-cli-installed"
         case cliSymlinkPath             = "internal-cli-symlink-path"
+        case cliInstalledAt             = "internal-cli-installed-at"
 
         // open-in-* — external-editor handoff
         case openInDefaultBundleID         = "open-in-default-bundle-id"
@@ -271,6 +272,14 @@ extension MudPreferences {
     public var cliSymlinkPath: String? {
         get { defaults.string(forKey: Keys.cliSymlinkPath.rawValue) }
         nonmutating set { write(newValue, forKey: .cliSymlinkPath) }
+    }
+
+    /// When the app last created the `mud` symlink. A fallback only: the
+    /// symlink's own timestamp is the truth, and `CommandLineInstaller`
+    /// reads this instead when that file can't be read.
+    public var cliInstalledAt: Date? {
+        get { defaults.object(forKey: Keys.cliInstalledAt.rawValue) as? Date }
+        nonmutating set { write(newValue, forKey: .cliInstalledAt) }
     }
 
     public var openInDefaultBundleID: String? {

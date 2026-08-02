@@ -62,6 +62,25 @@ struct CommandLineSettingsView: View {
     @State private var customDirectory: String?
     @State private var statusMessage: String?
     @State private var isError = false
+    @State private var installedAt: Date?
+
+    /// The install date as it stood when the pane opened, so that a reinstall
+    /// the user is watching can be told apart from one they did last month.
+    @State private var installedAtOnOpen: Date?
+
+    /// True once the install date has moved since the pane opened — ie the
+    /// user pressed Install and is looking at the result.
+    private var installedJustNow: Bool {
+        installedAt != nil && installedAt != installedAtOnOpen
+    }
+
+    /// System green reads pale against a light Form row, so darken it for the
+    /// light appearance and keep the system color for the dark one.
+    private static let freshGreen = Color(NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            ? .systemGreen
+            : NSColor(srgbRed: 0.06, green: 0.46, blue: 0.16, alpha: 1)
+    })
 
     private let locations = CommandLineInstaller.defaultLocations
 
@@ -108,11 +127,21 @@ struct CommandLineSettingsView: View {
 
             if let message = statusMessage {
                 Section {
-                    Label(
-                        message,
-                        systemImage: isError ? "xmark.circle" : "checkmark.circle"
-                    )
-                    .foregroundStyle(isError ? .red : .secondary)
+                    HStack(alignment: .firstTextBaseline) {
+                        Label(
+                            message,
+                            systemImage: isError ? "xmark.circle" : "checkmark.circle"
+                        )
+                        .foregroundStyle(isError ? .red : .secondary)
+
+                        if !isError, let installedAt {
+                            Spacer(minLength: 12)
+                            Text(installedAt.shortDateAndTime)
+                                .foregroundStyle(
+                                    installedJustNow ? Self.freshGreen : Color.primary
+                                )
+                        }
+                    }
                 }
             }
 
@@ -139,6 +168,7 @@ struct CommandLineSettingsView: View {
             let path = try CommandLineInstaller.install(to: directory)
             statusMessage = "Installed at \(path)"
             isError = false
+            installedAt = CommandLineInstaller.installedDate
         } catch {
             statusMessage = error.localizedDescription
             isError = true
@@ -149,6 +179,8 @@ struct CommandLineSettingsView: View {
         if let path = CommandLineInstaller.installedPath {
             statusMessage = "Installed at \(path)"
             isError = false
+            installedAt = CommandLineInstaller.installedDate
+            installedAtOnOpen = installedAt
 
             // Pre-select the matching location
             let dir = ((path as NSString).expandingTildeInPath as NSString)

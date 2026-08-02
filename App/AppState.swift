@@ -74,7 +74,7 @@ class AppState: ObservableObject {
         // Zoom and the sidebar-pane selection are per-window (DocumentState),
         // not mirrored here; `internal.*` keys have no AppState representative.
         case .upModeZoomLevel, .downModeZoomLevel, .sidebarPane,
-             .hasLaunched, .cliInstalled, .cliSymlinkPath:
+             .hasLaunched, .cliInstalled, .cliSymlinkPath, .cliInstalledAt:
             break
         // Every `@Pref` preference: one blanket invalidation; views re-read.
         default:

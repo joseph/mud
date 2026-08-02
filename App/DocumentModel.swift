@@ -311,7 +311,7 @@ final class DocumentModel: ObservableObject {
                 if self.state.isComposingComment {
                     self.pendingExternalReload = true
                 } else if case .failure(let html) = read {
-                    self.setContent(.error(html))
+                    self.setLoadFailure(html)
                 }
                 return
             }
@@ -377,14 +377,25 @@ final class DocumentModel: ObservableObject {
         case .text(let text):
             applyLoaded(text)
         case .failure(let html):
-            setContent(.error(html))
+            setLoadFailure(html)
         }
+    }
+
+    /// Shows the error page and raises the info-bar notice over it. The page
+    /// carries the diagnosis and what to do about it; the bar is the headline,
+    /// so the window says what went wrong without the reader having to read a
+    /// rendered document to find out.
+    private func setLoadFailure(_ html: String) {
+        setContent(.error(html))
+        state.raise(.openFailed(fileName: fileURL.lastPathComponent))
     }
 
     /// Parses `text` and refreshes per-document state (the render, headings,
     /// comments, title, change tracking). The single place a successful disk
     /// read becomes the displayed document.
     private func applyLoaded(_ text: String) {
+        // The file read this time, so whatever stopped it last time is over.
+        state.clear(.openFailed)
         let parsed = ParsedMarkdown(text)
         setContent(.parsed(parsed))
         state.outlineHeadings = parsed.headings

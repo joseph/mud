@@ -69,7 +69,7 @@ enum CommentHTMLRenderer {
         options: RenderOptions,
         resolveImageSource: ((_ source: String, _ baseURL: URL) -> String?)?
     ) -> String {
-        var docOptions = options.withoutCommentsColumn()
+        var docOptions = options.forPopover()
         docOptions.waypoint = nil
         docOptions.title = ""
         // Reuse the footnote popover's trimmed padding.
@@ -162,19 +162,23 @@ enum CommentHTMLRenderer {
 }
 
 extension RenderOptions {
-    /// Strips the host document's comments-column state for a self-contained
+    /// Strips the host document's whole-window state for a self-contained
     /// popover document. A footnote or comment-thread popover is its own tiny
-    /// page in a separate WebView: it must not reserve the 324px column gutter
-    /// or carry the write-side editing styles, whatever the host document was
-    /// showing. The read-side comment styles and the bottom section are left
-    /// alone, so a comment-thread popover still renders its quotation and
-    /// messages.
-    func withoutCommentsColumn() -> RenderOptions {
+    /// page in a separate WebView: it must not reserve the 324px column gutter,
+    /// carry the write-side editing styles, or keep a column clear for fold
+    /// arrows it will never draw, whatever the host document was showing. The
+    /// read-side comment styles and the bottom section are left alone, so a
+    /// comment-thread popover still renders its quotation and messages.
+    func forPopover() -> RenderOptions {
         var o = self
         o.commentMode = .section
         o.commentsEditable = false
         o.htmlClasses.remove("is-comments-column")
         o.htmlClasses.remove("comment-return-saves")
+        // mud-up.js bails on a `footnote-popover` root, so a popover gets no
+        // arrows — but the heading rule that reserves their column doesn't know
+        // that, and would indent every heading here for nothing.
+        o.htmlClasses.remove("is-foldable-headings")
         return o
     }
 }

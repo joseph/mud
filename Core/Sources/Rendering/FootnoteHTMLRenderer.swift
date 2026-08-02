@@ -38,7 +38,7 @@ enum FootnoteHTMLRenderer {
         options: RenderOptions,
         resolveImageSource: ((_ source: String, _ baseURL: URL) -> String?)?
     ) -> String {
-        var popoverOptions = options.withoutCommentsColumn()
+        var popoverOptions = options.forPopover()
         popoverOptions.waypoint = nil
         popoverOptions.title = ""
         // Trims the page's generous padding (esp. the 6em bottom reserved for

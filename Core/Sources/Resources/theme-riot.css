@@ -3,7 +3,7 @@
 :root {
   --text-color: #2B2B2B;
   --bg-color: #FFF;
-  --body-bg: #FDFCFB;
+  --body-bg: #FBF8F6;
   --link-color: #D6336C;
   --border-color: #DDD8E0;
   --code-fg: #C65D07;
@@ -28,7 +28,7 @@
   :root {
     --text-color: #E8E4E0;
     --bg-color: #1E1C22;
-    --body-bg: #14131A;
+    --body-bg: #1B1920;
     --link-color: #F06595;
     --border-color: #38343E;
     --code-fg: #FFA94D;

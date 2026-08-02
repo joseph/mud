@@ -493,14 +493,18 @@ struct WebView: NSViewRepresentable {
             } else {
                 lastSearchID = nil
             }
-            restoreScrollPosition()
-            applyComments()
-            applyCommentColumnWidth(commentColumnWidth)
             // A fresh page starts unfolded; put back the folds this window had.
-            // No-ops in Down mode, where `Mud.folds` doesn't exist.
+            // No-ops in Down mode, where `Mud.folds` doesn't exist. This has to
+            // come before the scroll restore: the saved fraction was measured
+            // against the folded document's height, and `setScrollFraction`
+            // multiplies it by the height it finds. Restore first and the page
+            // shrinks under the reader.
             if !foldedHeadings.isEmpty {
                 bridge.call("folds.apply", foldedHeadings)
             }
+            restoreScrollPosition()
+            applyComments()
+            applyCommentColumnWidth(commentColumnWidth)
             for ext in activeExtensions {
                 injectExtension(ext)
             }

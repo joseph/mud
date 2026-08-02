@@ -22,12 +22,14 @@ MVP plan.
   (```` ```math ````, `$$…$$`, inline `` $`…`$ ``); no client-side JS
 - Two modes: Mark Up (rendered) and Mark Down (raw, syntax-highlighted)
 - Space bar toggles modes; scroll position preserved
-- Auto-reload on file change (DispatchSource)
-- Manual reload (Cmd+R)
+- Auto-reload on file change (DispatchSource); manual reload (Cmd+R)
 - Four themes: Austere, Blues, Earthy (default), Riot
 - Lighting: Auto/Bright/Dark cycle
 - Zoom In/Out/Actual Size (per-mode, persisted)
 - Readable Column, Line Numbers, Word Wrap toggles
+- Foldable Headings (off by default): an arrow on every h2-or-deeper heading
+  folds its section for as long as the window is open. The View menu adds Fold
+  / Unfold Headings (Ctrl+Cmd+H, Shift+Cmd+H) for the whole document
 - Table of contents sidebar
 - Comments: select text and attach threaded comments, stored in-file as GFM
   footnotes (`^comment-[\w-]+$`); hover-revealed highlights and a Comments
@@ -37,6 +39,11 @@ MVP plan.
 - Open In Browser (Cmd+Shift+B) with image data-URI embedding
 - Local images via custom `mud-asset:` URL scheme; remote images allowed
 - Link handling: anchors, local .md, external URLs
+- Opening a folder does one of two things, per the `folder-open-behavior`
+  setting: builds an index of every Markdown file in the tree below it, as one
+  document of links (the default), or opens the files directly inside it, one
+  tab each. A folder with nothing to list gets a blank page and an info-bar
+  warning
 - Quit on last window close
 - CLI tool: `mud -u` / `-d` for HTML output, `-f` for fragment output, stdin
   support, theme and view-option flags, `--primer` for the agent authoring
@@ -47,25 +54,23 @@ MVP plan.
 
 - **Mud** (App/) -- macOS app, SwiftUI + AppKit hybrid
 - **Mud CLI** (App/CLI/) -- standalone Swift CLI tool (`mud`), bundled in
-  Mud.app. Its Swift module is named `MudCLI` (`PRODUCT_MODULE_NAME`) so its
-  products-dir swiftmodule can't collide case-insensitively with the app's
-  `Mud.swiftmodule` — the binary is still `mud`.
+  Mud.app. Its Swift module is `MudCLI` (`PRODUCT_MODULE_NAME`) so its
+  swiftmodule can't collide case-insensitively with the app's; the binary is
+  still `mud`.
 - **MudCore** (Core/) -- Swift Package, platform-independent rendering and
   syntax highlighting
 - **MudPreferences** (Preferences/) -- Swift Package for preference
   persistence, shared between the app and the Quick Look extension. Depends on
-  MudCore for the render-configuration types its snapshot maps into
-  `RenderOptions` (`Theme`, `DocCAlertMode`, …).
-- **QuickLook** (QuickLook/) -- `.appex` Quick Look preview extension, bundled
-  in `Mud.app/Contents/PlugIns/`. Renders `.md` previews via MudCore and reads
-  preferences from the app-group mirror via MudPreferences.
-- **Thumbnail** (Thumbnail/) -- `.appex` Quick Look thumbnail extension,
-  bundled in `Mud.app/Contents/PlugIns/`. Renders a portrait thumbnail from the
-  file's first heading. Sandboxed; no app-group entitlement.
-- **Mud Tests** (App/Tests/) -- unit-test bundle for the App target, hosted in
-  Mud.app (`@testable import Mud`). Swift Testing, like the Core and
-  Preferences suites; Cmd+U on either scheme runs it. The folder is a
-  file-system-synchronized group, so new test files need no project edit.
+  MudCore for the types its snapshot maps into `RenderOptions`.
+- **QuickLook** (QuickLook/) -- `.appex` preview extension, bundled in
+  `Mud.app/Contents/PlugIns/`. Renders via MudCore, reads preferences from the
+  app-group mirror.
+- **Thumbnail** (Thumbnail/) -- `.appex` thumbnail extension, also in
+  `PlugIns/`. Sandboxed; no app-group entitlement.
+- **Mud Tests** (App/Tests/) -- unit-test bundle hosted in Mud.app
+  (`@testable import Mud`). Swift Testing, like the Core and Preferences
+  suites. The folder is file-system-synchronized, so new test files need no
+  project edit.
 
 
 ## File quick reference
@@ -77,42 +82,69 @@ MVP plan.
   `MudPreferences.shared`
 - `Pref.swift` — `@Pref` property wrapper: live read/write of a
   `MudPreferences` value on an `ObservableObject`, firing `objectWillChange` on
-  set (the one declaration each `AppState` preference collapses to)
+  set
 - `ActiveDocument.swift` — `ActiveDocumentSnapshot` (the key document window's
-  menu-relevant facts) and `ActiveDocumentObserver`, the key-window watcher
-  that publishes it
+  menu-relevant facts) and `ActiveDocumentObserver`, which publishes it
 - `AppDelegate.swift` — Lifecycle and document handling
-- `DocumentController.swift` — NSDocumentController subclass
-- `DocumentWindowController.swift` — Per-window state, toolbar, zoom, lighting
+- `DocumentController.swift` — NSDocumentController subclass. Owns the modeless
+  open panel (`canChooseDirectories`, plus the "Enable:" popup). A folder URL
+  takes the route `folderOpenBehavior` names. Under `.index` it gets one window
+  on the folder itself, which `DocumentModel` makes a document of; under
+  `.tabs` it takes `openFolderAsTabs`, which opens one window per
+  `MarkdownFolder.markdownFiles` entry and tabs them with `addTabbedWindow` —
+  explicitly, because `NSWindow.tabbingMode` answers to the reader's "Prefer
+  tabs" setting and would group every Mud window or none. An already-open
+  document is surfaced where it is. A folder with no Markdown gets one window
+  on the folder itself
+- `MarkdownFolder.swift` — What a folder open yields under `.tabs`: the
+  Markdown files directly inside, top level only, name-ordered — nil when the
+  URL isn't a folder (packages included, read as one document), empty when it
+  holds none. `displayName(for:)` names windows and tabs (a folder's gets a
+  trailing "/"). Its `isFolder` / `isMarkdown` rules are shared with the walk
+- `FolderIndex.swift` — What a folder open yields under `.index`: a walk of the
+  whole tree (hidden entries and symlinks skipped, empty branches dropped,
+  `fileLimit` files at most) and the document written from it — one nested list
+  of links, relative to the folder. The walk and the writing are separate calls
+  so the source can be checked against a tree built by hand
+- `OpenPanelFilter.swift` — The open panel's "Enable:" cases: Markdown and
+  Text, or All Files (empty `allowedContentTypes`). Not persisted; each panel
+  is built fresh on the Markdown case
+- `DocumentWindowController.swift` — Per-window state, toolbar, zoom, lighting.
+  Cmd+R re-reads the file — except on the `.tabs` empty-folder window, which
+  re-runs the folder open and closes itself if the folder gained a document,
+  since a folder gets no watcher. Under `.index` the plain re-read walks the
+  tree again, so Cmd+R needs nothing special
 - `DocumentState.swift` — Per-window observable state, the `WebCommand` enum,
   and the `webCommands` channel
-- `DocumentModel.swift` — Per-window document data: the loaded content, disk
-  reads, the file watcher with its hold/echo policy, the render configuration
-  (`renderOptions`, shared with exports), and the cached render (`display()`)
+- `DocumentModel.swift` — Per-window document data: loaded content, disk reads,
+  the file watcher and its hold/echo policy, `renderOptions` (shared with
+  exports), and the cached render (`display()`). A folder URL is read through
+  `FolderIndex` instead of the file system; `baseURL` is what makes that
+  document's relative links resolve — a folder's ends in a slash, so the page's
+  `<base href>` names it as a folder
 - `DocumentContentView.swift` — Main SwiftUI view for a document: layout, key
   handling, and the plumbing between the model/state objects and `WebView`
-- `DocumentExporter.swift` — App side of the export path: writes
-  `MudCore.exportDocument` output to a temp file and hands it to a browser or
-  editor via `NSWorkspace` (created on demand by `DocumentWindowController`)
+- `DocumentExporter.swift` — Writes `MudCore.exportDocument` output to a temp
+  file and hands it to a browser or editor via `NSWorkspace`
 - `WebView.swift` — WKWebView wrapper: declarative state diffing, the
-  `WebCommand` sink, navigation delegate
+  `WebCommand` sink, navigation delegate. Its coordinator holds what a reload
+  would lose — scroll fraction and folded-heading slugs; per window, never
+  persisted
 - `MudJSBridge.swift` — The one Swift ↔ page JS bridge: outbound `Mud.*` calls
   (JSON-encoded arguments, namespace guards, error logging), typed inbound
   messages (`MudJSMessage`, with the full message table), the shared
   `WKWebViewConfiguration` factory and link `navigationPolicy`
 - `FootnotePopover.swift` — Transient `NSPopover` hosting a `WKWebView` that
   renders a footnote body; shares `MudJSBridge` with the main view
-- `CommentController.swift` — `CommentDraft` model plus `CommentController`:
-  the comment write path (re-read from disk, byte-surgical edit via
-  `CommentEditor`, atomic security-scoped write). Add / reply / edit-last /
-  delete
+- `CommentController.swift` — `CommentDraft` plus the comment write path
+  (re-read from disk, byte-surgical edit via `CommentEditor`, atomic
+  security-scoped write). Add / reply / edit-last / delete
 - `CommentSubmissionHandler.swift` — Routes a page `CommentSubmission` to
-  `CommentController`, resolves the compose box (`resolveCompose`), and
-  presents the failure alert
-- `CommentColumnFit.swift` — Whether the Comments column fits in a window at
-  its current width, and `makeRoom` to make it fit: widen the window silently,
-  ask before collapsing the sidebar, or report back that neither is possible.
-  `remedy` is pure geometry, so the branches are testable
+  `CommentController`, answers the page, and raises `commentWriteFailed`
+- `CommentColumnFit.swift` — Whether the Comments column fits at the window's
+  current width, and `makeRoom`: widen silently, ask before collapsing the
+  sidebar, or report that neither is possible. `remedy` is pure geometry, so
+  the branches are testable
 - `OutlineSidebarView.swift` — Table of contents sidebar
 - `OutlineNode.swift` — Sidebar data model
 - `FindFeature.swift` — Search state and UI
@@ -120,27 +152,39 @@ MVP plan.
 - `GitProvider.swift` — Git history queries for external waypoints, conforming
   as `GitWaypointProvider` (`#if GIT_PROVIDER`)
 - `WaypointProvider.swift` — `WaypointProvider` protocol, its no-op default,
-  and the build's provider factory (`WaypointProviders`) — the one
-  `#if GIT_PROVIDER` outside the whole-file-guarded git files
+  and the build's provider factory — the one `#if GIT_PROVIDER` outside the
+  whole-file-guarded git files
 - `FileWatcher.swift` — DispatchSource file monitoring
 - `CommandLineInstaller.swift` — CLI symlink creation with elevation support
 - `LocalFileSchemeHandler.swift` — `mud-asset:` URL scheme for local images
 - `DeferMutation.swift` — Run-loop deferred state mutation helper
 - `Lighting+AppKit.swift` — AppKit/SwiftUI behavior on the bare `Lighting` enum
   (which lives in MudPreferences)
-- `ErrorPage.swift` — Error-page HTML generator
+- `ErrorPage.swift` — Error-page HTML generator; `empty()` is the blank page
+  the empty-folder window shows, where the notice says everything
 - `ChangesSidebarView.swift` — Changes pane listing tracked changes
 - `SidebarView.swift` — Sidebar tab container (outline / changes)
 - `ReselectMonitor.swift` — Detects clicks on already-selected List rows
 - `TabReloadBadgeView.swift` — Brown-dot badge on a tab whose document reloaded
   while the window was not key
+- `DocumentNotice.swift` — A short, non-blocking message about the document
+  (kind, level, optional action, dismissibility), plus the notices themselves —
+  `openFailed`, `externalChangeHeld`, `commentWriteFailed`,
+  `folderHasNoMarkdown`, `folderIndexTruncated`. An action's effect is a value,
+  not a closure, so the notice keeps a synthesized `Equatable`;
+  `DocumentNoticeBar` performs it. One at a time in `DocumentState.notice`;
+  `clear(_:)` matches on kind
+- `DocumentNoticeBar.swift` — The info bar, attached with
+  `.safeAreaInset(edge: .top)` so it takes space from the WebView instead of
+  covering it. Deliberately not an `NSTitlebarAccessoryViewController` — AppKit
+  puts the tab bar below app-supplied accessories
 - `View+Modify.swift` — SwiftUI `modify(_:)` view modifier helper
 - `Date+Formatting.swift` — `shortTimestamp` formatting extension
 - `CheckForUpdatesView.swift` — Sparkle updater owner, KVO observer, and menu
   button (`#if SPARKLE`)
-- `OpenInEditor.swift` — Backs the "Open In…" submenu and the Open In toolbar
-  button (`NSMenuToolbarItem`): registered-handler model, `NSMenu` builder
-  (`NSMenuDelegate`), `NSOpenPanel` chooser, launch via
+- `OpenInEditor.swift` — Backs the "Open In…" submenu and toolbar button
+  (`NSMenuToolbarItem`): registered-handler model, `NSMenu` builder,
+  `NSOpenPanel` chooser, launch via
   `DocumentWindowController.openInEditor(with:format:)`
 
 **App/CLI/ key files:**
@@ -159,19 +203,21 @@ MVP plan.
 - `ThemeSettingsView.swift` — Theme selection pane with preview cards
 - `ThemePreviewCard.swift` — Theme color constants and preview card view
 - `MarkdownSettingsView.swift` — Markdown settings pane (DocC alert mode)
-- `UpModeSettingsView.swift` — Up Mode settings pane (remote content, Mermaid)
+- `UpModeSettingsView.swift` — Up Mode settings pane (remote content, foldable
+  headings, Mermaid)
 - `DownModeSettingsView.swift` — Down Mode settings pane
 - `ChangesSettingsView.swift` — Changes settings pane (inline deletions, git
   waypoints)
 - `CommentsSettingsView.swift` — Comments settings pane (`comment-author`,
-  `comment-return-saves`, `comments-show-markers`, and
-  `comments-include-in-export` preferences)
+  `comment-return-saves`, `comments-show-markers`,
+  `comments-include-in-export`)
 - `CommandLineSettingsView.swift` — Command Line settings pane
 - `UpdateSettingsView.swift` — Updates pane (`#if SPARKLE`)
 - `SettingsWindowController.swift` — Settings window lifecycle (singleton)
 - `CSSColors.swift` — CSS hex color parsing extension on `Color`
 - `LightingPreviewCard.swift` — Lighting selection preview card
-- `DebuggingSettingsView.swift` — Debugging pane (debug builds only)
+- `DebuggingSettingsView.swift` — Debugging pane (debug builds only); includes
+  the Notice Bar testers
 
 **Preferences/ key files:**
 
@@ -186,77 +232,69 @@ MVP plan.
 - `Lighting.swift` — auto/bright/dark enum (bare; AppKit behavior in
   `App/Lighting+AppKit.swift`)
 - `ViewToggle.swift` — readableColumn/lineNumbers/wordWrap/codeHeader/
-  autoExpandChanges toggles
+  autoExpandChanges/foldableHeadings toggles
 - `SidebarPane.swift` — outline/changes enum
 - `FloatingControlsPosition.swift` — Floating-bar placement enum
+- `FolderOpenBehavior.swift` — index/tabs enum: what Mud makes of a folder it
+  is handed
 - `EditorFormat.swift` — markdown/html enum for the "Open In" handoff
 
 **Core/ key files:**
 
 - `ParsedMarkdown.swift` — Parse-once handle: owns the one footnote-aware
   `CMarkDocument` parse and exposes headings, title, and the frontmatter split.
-  Every consumer — the visitors, the diff layer, heading extraction — reads
-  this one tree.
-- `FrontMatterExtractor.swift` — Detects and extracts YAML frontmatter (`---` …
-  `---` / `...` at the top of the file) and parses its top-level keys for the
-  frontmatter table.
+  Every consumer reads this one tree.
+- `FrontMatterExtractor.swift` — Detects and extracts YAML frontmatter and
+  parses its top-level keys for the frontmatter table.
 - `RenderExtension.swift` — Client-side rendering extension type and registry
 - `RenderOptions.swift` — Rendering configuration value type
 - `Theme.swift` — austere/blues/earthy/riot enum (plus internal `.system`)
 - `Mode.swift` — up/down enum (Mark Up / Mark Down)
 - `MudCore.swift` — Public API facade: the Up- and Down-mode entry points
-  (dispatch only — HTML emission lives in `Rendering/`), the shared
-  `renderUpPipeline`, `exportDocument` (the one self-contained export recipe),
-  `computeChanges`, and the extractHeadings / parseComments / removeComments
-  convenience calls
+  (dispatch only — HTML emission lives in `Rendering/`), `renderUpPipeline`,
+  `exportDocument` (the one self-contained export recipe), `computeChanges`,
+  and the extractHeadings / parseComments / removeComments calls
 - `CMark/CMarkDocument.swift` — Owning wrapper over the one footnote-aware
-  cmark-gfm parse every render runs on: hard-coded parse options, range APIs in
-  swift-markdown's byte conventions (exclusive upper bound, UTF-8 byte columns,
-  backtick widening), and the `verifiedRange(of:)` delimiter defense. Also
-  corrects inline positions inside footnote and comment definitions
-  (`correctInline`): cmark reports an inline's column against the prefix it
-  stripped from the enclosing block's _first_ line, which is wrong on that
-  block's later lines. Measures every definition once at parse, sorted by start
-  line — the tree walk yields definitions in first-reference order, not source
-  order. Also trims a link's leading whitespace, since the GFM autolink match
-  starts at the boundary character before a bare URL. Frees the tree in
-  `deinit`; every `CMarkNode` retains it
+  cmark-gfm parse: hard-coded parse options, range APIs in swift-markdown's
+  byte conventions (exclusive upper bound, UTF-8 byte columns, backtick
+  widening), and the `verifiedRange(of:)` delimiter defense. `correctInline`
+  fixes inline positions inside footnote and comment definitions, where cmark
+  reports a column against the prefix stripped from the block's _first_ line.
+  Also trims a link's leading whitespace (GFM autolink matches from the
+  boundary character). Frees the tree in `deinit`; every `CMarkNode` retains it
 - `CMark/CMarkNode.swift` — Document-retaining node handle: `CMarkNodeKind`
   (extension nodes identified by type string), content and structure accessors.
   Accessors stay read-only — the `@unchecked Sendable` conformance depends on
   the tree being immutable after parsing
-- `CMark/CMarkWalker.swift` — Depth-first walker over a `CMarkDocument` tree:
-  one visit method per node kind, descending into children by default
+- `CMark/CMarkWalker.swift` — Depth-first walker: one visit method per node
+  kind, descending into children by default
 - `CMark/SourceGeometry.swift` — Byte/line geometry over a UTF-8 source (line
   starts, byte offsets, blank-line and `[^…]`-delimiter checks). Shared by
-  `CMarkDocument`, `FootnoteProcessor`, and `CommentAnchor`; it lives in
-  `CMark/` because it is about source bytes, not rendering
+  `CMarkDocument`, `FootnoteProcessor`, and `CommentAnchor`
 - `Rendering/UpHTMLVisitor.swift` — AST → rendered Up-mode HTML. `renderBody`
-  (the visitor plus the frontmatter prefix) is the core every Up-mode render
-  goes through; it emits footnote and comment markers straight from the AST and
-  skips definitions structurally. With a waypoint set, it wires change
-  annotations and inline deletions through `DiffContext`
+  (visitor plus frontmatter prefix) is the core every Up-mode render goes
+  through; it emits footnote and comment markers from the AST and skips
+  definitions structurally. With a waypoint set, it wires change annotations
+  and inline deletions through `DiffContext`
 - `Rendering/DownHTMLVisitor.swift` — AST → syntax-highlighted raw-source HTML
-  table (Down mode). `highlightWithChanges` projects a `ChangePlan` onto the
-  source lines when a waypoint is set
+  table. `highlightWithChanges` projects a `ChangePlan` onto the source lines
+  when a waypoint is set
 - `Rendering/WordSpanEmitter.swift` — Word-level `<ins>` / `<del>` cursor
   machine; advances through a block's `[WordSpan]` in step with the visitor's
   character stream (aligned with `WordDiff.inlineText`)
 - `Rendering/DeletionPlacer.swift` — Places pre-rendered deletions into the
   Up-mode stream: exactly-once bookkeeping, `<tr>` wrapping, deferral around
   `</table>`
-- `Rendering/DeletionRenderer.swift` — Renders deleted blocks to HTML for the
-  Up-mode overlay; injected into `DiffContext` so `Diff/` never calls rendering
-  code. Seeds deletion visitors with the old document's footnote numbering
-  (deleted blocks walk the raw old tree, where markers aren't pre-baked) and
-  hosts the `DiffContext(old:new:)` convenience initializer
+- `Rendering/DeletionRenderer.swift` — Renders deleted blocks for the Up-mode
+  overlay; injected into `DiffContext` so `Diff/` never calls rendering code.
+  Seeds deletion visitors with the old document's footnote numbering, and runs
+  them with `isDeletionRender` set so a deleted copy never emits a comment
+  marker. Hosts the `DiffContext(old:new:)` convenience initializer
 - `Rendering/FootnoteProcessor.swift` — Scans a source's footnotes and comments
-  through one memoized `FootnoteScan` (a cmark footnote parse). Builds the
-  footnote and comment models for the bottom sections, classifies
-  `^comment-[\w-]+$` labels as comments (rendered as `[⋯]` markers that consume
-  no footnote number), and supplies the comment byte geometry
-  (`CommentLocation`), `removeComments`, and `stripCommentTokens`. It rewrites
-  no source — the visitor emits every marker from the AST
+  through one memoized `FootnoteScan`. Builds the models for the bottom
+  sections, classifies `^comment-[\w-]+$` labels as comments, and supplies the
+  comment byte geometry (`CommentLocation`), `removeComments`, and
+  `stripCommentTokens`. It rewrites no source
 - `Rendering/FootnoteHTMLRenderer.swift` — Bottom footnotes section and the
   per-footnote popover documents
 - `Rendering/CommentHTMLRenderer.swift` — Bottom comments section, single
@@ -283,8 +321,7 @@ MVP plan.
 - `OutlineHeading.swift` — Heading model shared between Core and App
 - `Layout.swift` — `Layout.compactBreakpoint`, the Compact tier width from
   `mud-narrow.css`. A media query can only live in CSS, so the number is stated
-  in both places and `HTMLTemplateTests` checks they agree. The app measures
-  its content pane against it before opening a comment compose box.
+  in both places and `HTMLTemplateTests` checks they agree
 - `Comments/Comment.swift` — `Comment` / `CommentMessage` models and the
   `CommentMode` enum
 - `Comments/CommentSerialization.swift` — Read/write codec for a comment body
@@ -294,15 +331,15 @@ MVP plan.
   source UTF-8 byte (via the cmark footnote AST) so the marker lands where the
   quotation ends
 - `Diff/BlockMatcher.swift` — Block-level diff over two `CMarkDocument` trees:
-  leaf collection, fingerprint matching, and gap ordering. Footnote and comment
-  definitions are handled by `DefinitionDiffPolicy` (Up skips every definition;
-  Down descends plain footnote definitions so their edits stay diffable;
-  comment definitions are always skipped). Feeds `ChangePlan`
+  leaf collection, fingerprint matching, gap ordering. `DefinitionDiffPolicy`
+  handles definitions (Up skips every one; Down descends plain footnote
+  definitions so their edits stay diffable; comment definitions always
+  skipped). Feeds `ChangePlan`
 - `Diff/ChangePlan.swift` — The single diff pass every consumer projects from:
-  change-ID minting, gap pairing, code-block pairs, word spans, and grouping.
-  Memoized per (source text, policy) pair; every join keys on a source position
+  change-ID minting, gap pairing, code-block pairs, word spans, grouping.
+  Memoized per (source text, policy); every join keys on a source position
   (`SourceKey`), never node identity, so the cache can return nodes from a
-  different but textually identical tree
+  textually identical tree
 - `Diff/DiffContext.swift` — Up-mode change tracking: projects `ChangePlan`
   into annotation lookups and rendered deletions
 - `Diff/LineDiffMap.swift` — Down-mode change tracking: projects `ChangePlan`
@@ -322,29 +359,24 @@ MVP plan.
 - `PreviewProvider.swift` — `MudPreviewProvider`, a view-based
   `QLPreviewingController` (not data-based — required for Finder's column-view
   pane to live-render) hosting a `WKWebView`. Renders self-contained HTML via
-  `MudCore.exportDocument` (images inlined as data URIs). It is the one export
-  path that passes `commentsColumn: false`: a preview pane is not the reader's
-  to widen or toggle, so comments always render as the bottom Comments section
-  with visible `💬` markers, never the column, at any pane size. For the same
-  reason it overrides the `zoomLevel` the shared snapshot mapping supplies
-  rather than inheriting the app's Up-mode zoom: a preview renders at 100%
-  above `Layout.compactBreakpoint` and 80% at or below it, measured on the
-  pane's width in points and re-applied on resize (`lockZoom`). It also sets
-  `is-zoom-locked`, which stands the Tight tier's 14px root font-size down in
-  `mud-narrow.css` so the two shrinks don't compound.
-- `Info.plist` — Quick Look preview extension point; principal class
-  `MudPreviewProvider`; supports `net.daringfireball.markdown`.
+  `MudCore.exportDocument`. It is the one export path passing
+  `commentsColumn: false`: a preview pane is not the reader's to widen, so
+  comments always render as the bottom section. For the same reason it
+  overrides the snapshot's `zoomLevel` (`lockZoom`: 100% above
+  `Layout.compactBreakpoint`, 80% at or below) and sets `is-zoom-locked` so the
+  Tight tier's 14px type rule doesn't compound with it
+- `Info.plist` — Preview extension point; principal class `MudPreviewProvider`;
+  supports `net.daringfireball.markdown`.
 - `QuickLook.entitlements` / `QuickLookDirect.entitlements` — Sandboxed; MAS
   variant carries app-group, Direct variant adds a temporary read exception for
-  inlining sibling images. Selected per build config via
-  `CODE_SIGN_ENTITLEMENTS`.
+  inlining sibling images. Selected via `CODE_SIGN_ENTITLEMENTS`.
 
 **Thumbnail/ key files:**
 
 - `ThumbnailProvider.swift` — `MudThumbnailProvider`, a `QLThumbnailProvider`.
   Draws the file's first heading (via `MudCore.extractHeadings`) on the card
   grey, then composites the bundled drip overlay on top.
-- `Info.plist` — Quick Look thumbnail extension point; principal class
+- `Info.plist` — Thumbnail extension point; principal class
   `MudThumbnailProvider`; `QLThumbnailMinimumDimension = 64`.
 - `Thumbnail.entitlements` / `ThumbnailDirect.entitlements` — Sandbox only; no
   network, app-group, or temporary exceptions.
@@ -360,12 +392,21 @@ MVP plan.
 - `FindStateTests.swift` — The find state machine: origin classification,
   navigation, reset behavior
 - `DocumentModelTests.swift` — The self-write dedup policy, the watcher
-  hold/echo policy against real temp files, and the waypoint-provider seam
+  hold/echo policy against real temp files, the folder window in both behaviors
+  (the `.tabs` blank page with its notice and no watcher, the `.index` document
+  and its re-walk), and the waypoint-provider seam
 - `CommentControllerTests.swift` — Comment mutations on disk and the
   `anchorFailed` / `writeFailed` matrix
 - `OpenInFormatTests.swift` — The Open In `.auto` format truth table
-- `CommentColumnFitTests.swift` — `CommentColumnFit.remedy` truth table: how a
-  too-narrow window makes room (widen / hide sidebar / neither)
+- `OpenPanelFilterTests.swift` — The open panel's Enable filter: type lists and
+  the raw-value-to-menu-index contract
+- `DocumentNoticeTests.swift` — Raising and clearing the info bar's notice
+- `MarkdownFolderTests.swift` — Which files a folder open yields (top level
+  only, hidden files and packages excluded) and the nil / empty distinction
+- `FolderIndexTests.swift` — The tree walk (depth, pruning, order, symlinks,
+  the file limit) and the document written from it (nesting, relative paths,
+  escaping)
+- `CommentColumnFitTests.swift` — `CommentColumnFit.remedy` truth table
 - `AddCommentRuleTests.swift` — `ActiveDocumentSnapshot.canAddComment` truth
   table: the one rule every Add Comment affordance applies
 - `WebViewParsingTests.swift` — `parseMatchInfo` and `commentSignature`
@@ -377,89 +418,74 @@ MVP plan.
 **Resources:**
 
 - `mud.css` — Shared styles and lighting variables
-- `mud-up.css` — Up mode styles
+- `mud-up.css` — Up mode styles. Its foldable-headings block sits inside
+  `@media screen` — paper always gets the whole document, so `mud-print.css`
+  only hides the arrows
 - `mud-down.css` — Down mode styles
 - `mud-comments.css` — Comments column styles (read side, bundled everywhere):
   markers, quotation highlights, the bottom Comments section, and the projected
-  column (capsules, header, threads). Inlined into every Up document via
-  `wrapUp`, exports included. The bottom section is a `<footer>` beside the
-  article rather than inside it, so its rules give it the Up-mode page box
-  (`--up-page-inset` / `--up-page-clearance`, from `mud-up.css`) itself. Both
-  boxes carry the trailing clearance: the article's ends the document, the
-  footer's clears the floating bars. The footer sets no background, so it sits
-  on the body's `--body-bg` rather than the article's `--bg-color`.
+  column. The bottom section is a `<footer>` beside the article, not inside it,
+  so these rules give it a matching Up-mode page box (`--up-page-inset` /
+  `--up-page-clearance`, published by `mud-up.css`). It sets no background, so
+  it sits on `--body-bg`. The `is-stub` capsule is a folded section's stand-in:
+  5px tall and empty, its `title` carrying the text
 - `mud-comments-edit.css` — Comments column styles (write side, app only): the
-  compose box and the add / reply / edit / delete controls, plus the delete
-  puff. Embedded only when `RenderOptions.commentsEditable` is set, so exports
-  omit it. Mirrors the `mud-comments.js` / `mud-comments-edit.js` split.
-- `mud-narrow.css` — Narrow-viewport styles: every width-based rule for both
-  modes, gathered out of the mode and comments stylesheets. Two tiers, Compact
-  (≤ 700px, a narrow app window or a roomy Quick Look pane) and Tight (≤ 420px,
-  Finder's column-view preview pane), each scoped to
-  `@media screen and (max-width: …)` so a printed page — whose page box is
-  narrower than 700 CSS px — never trips them. Included second-to-last in both
-  Up and Down documents, after the base stylesheets it tightens and before
-  `mud-print.css`. Below the Compact tier the Comments column stands down in
-  favor of the bottom Comments section: the `@media screen` blocks in
-  `mud-comments.css` and `mud-comments-edit.css` carry a matching
-  `min-width: 700.02px` guard, so the gutter, the visually hidden markers and
-  the resize handle stop applying rather than being undone here. Standing in
-  for the column, the section answers to the same `is-comments-column` toggle,
-  so Show / Hide Comments still governs what's on screen at this width. Every
-  command that needs the column — Add Comment, Show Comments, and a marker
-  click (`mudRevealColumn`) — routes through `CommentColumnFit` first: when the
-  content pane falls short of `Layout.compactBreakpoint` the window widens
-  itself to fit the column. If it can't (already screen-wide), the one prompt
-  offers to collapse the sidebar; if that isn't possible either, the toggle
-  goes on anyway and the page scrolls to the bottom Comments section instead
-  (`WebCommand.scrollToComments`, which takes the clicked comment's label when
-  there is one; `comments.scrollToSection` sets the class itself so the scroll
-  never measures a hidden section). The Tight tier's one type-scale rule
-  (`html:not(.is-zoom-locked)`, 14px) is the only rule in the file that a
-  document can opt out of: a Quick Look preview is already rendered at 80%
-  below the Compact breakpoint, so shrinking the root as well would land at
-  11.2px. Its geometry rules still apply there.
-- `mud-print.css` — Print styles: every `@media print` rule, gathered out of
-  the mode and comments stylesheets. Included last in both Up and Down
-  documents so its rules win over the on-screen defaults.
-- `mud-find.css` — Find highlight styles (search match colors), themed via the
-  lighting variables in `mud.css`. Appended to both Up and Down documents only
-  when `!options.standalone`, so exports (which have no Find bar) never carry
-  it.
-- `mud-math.css` — Math (MathML) styles: display-block layout plus the
-  per-engine spacing/accent rules adapted from Temml-Local.css. Appended to an
-  Up document only when its body contains math (a `<math>` element, a
-  `mud-math-block` div — present even for the renderer-unavailable escaped-TeX
-  fallback — or a `temml-error` span), so a math-free document never carries
-  it. No matching JS — MathML renders natively.
-- `mud.js` — Shared JS: find, scroll, lighting, zoom
+  compose box, the add / reply / edit / delete controls, and the delete puff.
+  Embedded only when `RenderOptions.commentsEditable` is set, so exports omit
+  it. Mirrors the `mud-comments.js` / `mud-comments-edit.js` split
+- `mud-narrow.css` — Every width-based rule for both modes, in two tiers:
+  Compact (≤ 700px) and Tight (≤ 420px, Finder's column-view pane). Both scoped
+  to `@media screen`, since a printed page is narrower than 700 CSS px.
+  Included second-to-last, before `mud-print.css`. Below Compact the Comments
+  column stands down in favor of the bottom section — the column's own blocks
+  carry a matching `min-width: 700.02px` guard, so they stop applying rather
+  than being undone here. The Tight tier's 14px type rule is the one a document
+  can opt out of, via `html:not(.is-zoom-locked)`
+- `mud-print.css` — Every `@media print` rule, gathered out of the mode and
+  comments stylesheets. Included last in both modes so it wins
+- `mud-find.css` — Find highlight styles, themed via the lighting variables in
+  `mud.css`. Appended only when `!options.standalone`, so exports never carry
+  it
+- `mud-math.css` — MathML styles: display-block layout plus per-engine spacing
+  and accent rules adapted from Temml-Local.css. Appended to an Up document
+  only when its body contains math, so a math-free document never carries it.
+  No matching JS — MathML renders natively
+- `mud.js` — Shared JS: find, scroll, lighting, zoom. Find and outline
+  navigation unfold their target first (`Mud.folds`); `setClass` routes
+  `is-foldable-headings` to `folds.setEnabled`
 - `mud-changes.js` — Change tracking JS: overlays, expand/collapse, navigation
 - `mud-comment-anchor.js` — Shared comment-anchoring primitives
-  (`Mud.commentAnchor`): the leaf-block and marker-free-text rules that both
-  comment scripts use to map a rendered-DOM position to a block of source text.
-  `HTMLTemplate.mudCommentsJS` concatenates it ahead of `mud-comments.js`, so
-  it ships wherever the read side does (app and exports); the write side,
-  injected separately, sees it too. The one skip rule (comment markers and
-  footnote references) matches `CommentAnchor.swift`; its `isSkippedSubtree`
-  also drops math (a `<math>` element, `.mud-math-block`, `.temml-error`),
-  mirrored in `CommentAnchorParityTests`.
+  (`Mud.commentAnchor`): the leaf-block and marker-free-text rules that map a
+  rendered-DOM position to a block of source text. `HTMLTemplate.mudCommentsJS`
+  concatenates it ahead of `mud-comments.js`, so it ships wherever the read
+  side does. Its skip rules (comment markers, footnote references, and math)
+  match `CommentAnchor.swift`, mirrored in `CommentAnchorParityTests`
 - `mud-comments.js` — Comments column (read side, bundled everywhere): projects
   a capsule per comment from the hidden bottom section, anchors quotation
   highlights off the hidden markers, runs the slot solver, and on `setData`
-  rebuilds the section + syncs body markers + reprojects in place (no reload).
-  Uses `Mud.commentAnchor` for the leaf-block rules. A marker click doesn't
-  open the column itself: it posts `mudRevealColumn` and waits for the app to
-  make room (`CommentColumnFit`) and call back into `openToComment`. An export
-  has no app to ask, so it picks between the column and the bottom section on
-  the column's own width
+  rebuilds and reprojects in place (no reload). A marker click doesn't open the
+  column itself: it posts `mudRevealColumn` and waits for the app to make room
+  and call `openToComment`. An export has no app to ask, so it picks on the
+  column's own width. `foldOver` asks `Mud.folds.hiding` — null wherever
+  folding doesn't exist, so an export takes no fold branch; comments hidden by
+  one fold collapse to a single stub
 - `mud-comments-edit.js` — Comments column (write side, app only): the Add
   Comment button on a commentable selection, the compose box, and the
-  submit/reply/edit/delete bridge (`mudCommentSubmit`). Uses
-  `Mud.commentAnchor` for the selection-to-source-byte locator
-- `mud-up.js` — Up-mode JS
+  submit/reply/edit/delete bridge (`mudCommentSubmit`)
+- `mud-up.js` — Up-mode JS: link routing, footnote-marker clicks, and
+  `Mud.folds`. Folds keeps the folded headings' slugs and recomputes every
+  block's visibility from that set in one walk — which is what keeps a
+  sub-section folded when its parent opens — stamping each hidden block with
+  `data-fold-host`. The app replays the set through `folds.apply` after a
+  reload; the page reports it back over `mudFolds`. Every navigation that
+  scrolls calls `folds.reveal` first, since WebKit can't scroll to a hidden
+  target. `folds.hiding(el)` reads the stamp back as `{ key, top }`, all
+  `mud-comments.js` needs to place a stub
 - `mud-down.js` — Down-mode JS
 - `emoji.json` — GitHub gemoji shortcode database
 - `alert-*.svg` — Octicon alert icons
+- `fold-arrow.svg` — The foldable-headings arrow, drawn pointing down (folded
+  rotates it -90°). `HTMLTemplate.mudUpJS` substitutes it into `mud-up.js`
 - `theme-*.css` — Four user-selectable theme files (austere, blues, earthy,
   riot)
 - `theme-system.css` — System theme (internal; used for error pages)
@@ -486,11 +512,9 @@ MVP plan.
 - `Site/releases/` — Pre-rendered release notes HTML (generated by
   `build-release-notes`)
 - `Doc/Local/site-maintenance-guide.md` — How `Site/` works: the magic numbers
-  in the header CSS, which stylesheets track which app stylesheet and how they
-  deliberately diverge, and what the inline JS in `index.html` does. `Site/`
-  ships with no build step, so its CSS and JS carry **no comments** — every
-  byte is served to every visitor. Explanations go in this guide instead of in
-  the source
+  in the header CSS, which stylesheets track which app stylesheet, and what the
+  inline JS in `index.html` does. `Site/` ships with no build step and its CSS
+  and JS carry **no comments**, so explanations go in this guide
 
 **Important** — Keep this section in sync when you add or remove key files.
 
@@ -531,57 +555,47 @@ configuration (theme, baseURL, docCAlertMode, commentMode, waypoint, …); addin
 an option means adding a field on the struct.
 
 Footnotes and comments are **not** rewritten into the source.
-`FootnoteProcessor` scans the source once (a memoized `FootnoteScan`) to build
-the footnote and comment models for the bottom sections, and the Up visitor
-emits every marker straight from the AST — a numbered footnote marker for a
-reference, a `[⋯]` marker for a comment. The bottom
-`<section class="footnotes">` is always emitted; in `.popover` mode it is
-hidden on screen (`is-print-only`, shown under `@media print`) and
+`FootnoteProcessor` scans the source once to build the models for the bottom
+sections, and the Up visitor emits every marker straight from the AST. The
+bottom `<section class="footnotes">` is always emitted; in `.popover` mode it
+is hidden on screen (`is-print-only`, shown under `@media print`) and
 `renderUpModeDocumentWithFootnotes` also returns each footnote body as a
 self-contained document for the in-app `NSPopover`.
 
+
+### Comments
+
 A footnote whose label matches `^comment-[\w-]+$` is a comment. Its reference
-renders as the `[⋯]` marker (consuming no footnote number) and its definition
+renders as a `[⋯]` marker (consuming no footnote number) and its definition
 parses into a quotation plus threaded messages. `RenderOptions.commentMode`
 selects the output: `.section` emits a visible bottom Comments section with
 visible `💬` markers, while `.interactive` keeps that section `is-print-only`
 and instead draws hover-revealed highlights and feeds the Comments Column. The
-live app is always `.interactive`; an export is too — `exportDocument` upgrades
-a commented source through `showingReadOnlyComments` — except Quick Look, which
-passes `commentsColumn: false` and stays on `.section`. That is the strong form
-of "no column here": without `.interactive` the document carries neither the
-`comments-column` class nor the column script, so there is nothing to project
-and nothing for a media query to hide. It is emitted as a
-`<footer class="comments">` **outside** the `<article>`, as its next sibling —
-commentary on the document rather than part of it — and always follows any
-footnotes section. Being a sibling, it can't inherit the article's page box;
-`mud-up.css` publishes that box as `--up-page-inset` / `--up-page-clearance`
-and `mud-comments.css` gives `footer.comments` a matching one, so the two stay
-in step (including through `mud-narrow.css`, which tightens the box by
-rewriting those two properties).
+live app and exports are always `.interactive` (`exportDocument` upgrades a
+commented source through `showingReadOnlyComments`) — except Quick Look, which
+passes `commentsColumn: false` and stays on `.section`. Without `.interactive`
+the document carries neither the `comments-column` class nor the column script,
+so there is nothing to project and nothing for a media query to hide.
 
-**Math** is rendered in the Up visitor by `MathRenderer` (Temml in a
-`JSContext`, server-side, no client JS). Three GFM forms are recognized: a
-```` ```math ```` fenced block (`visitCodeBlock`), a paragraph that is exactly
-`$$…$$` (`visitParagraph`), and inline `` $`…`$ `` (`visitInlineCode`). For the
-`$$…$$` form the visitor reads the paragraph's **raw source bytes** rather than
-its children, because cmark has already inline-parsed the interior (turning `_`
-into emphasis); a bare `$…$` is deliberately not math. Math-bearing blocks take
-whole-block change annotations and never word-level spans (like code blocks),
-so `WordSpanEmitter` can't desync; inline math renders only when the emitter is
-inactive. Comment anchoring skips math on both sides (see
-`mud-comment-anchor.js` / `CommentAnchor.swift`). `mud-math.css` ships only
-when the body contains math.
+The section is emitted as a `<footer class="comments">` **outside** the
+`<article>`, as its next sibling, always after any footnotes section. Being a
+sibling, it can't inherit the article's page box, so `mud-up.css` publishes
+that box as `--up-page-inset` / `--up-page-clearance` and `mud-comments.css`
+gives the footer a matching one.
 
 Comments are **invisible to change tracking**, through two mechanisms in the
 leaf-block collector (`BlockMatcher`):
 
 - Comment **definitions** never become leaf blocks. `visitFootnoteDefinition`
-  drops any definition whose label is a comment label, on either policy — and
-  the Up policy (`.skipAll`) skips every definition anyway.
+  drops any definition whose label is a comment label, on either policy.
 - Inline comment **references** are stripped from each block's fingerprint
   (`FootnoteProcessor.stripCommentTokens`), so a paragraph that only gains or
-  loses a `[^comment-x]` marker fingerprints the same and produces no change.
+  loses a `[^comment-x]` marker produces no change.
+
+Rendering keeps the same promise: a deletion render emits no comment marker
+(`UpHTMLVisitor.isDeletionRender`), so the surviving block's marker stays the
+label's only `data-mud-label` anchor in the DOM — otherwise the Comments column
+would anchor the capsule to a hidden deleted copy and drop it.
 
 So a comment-only edit yields zero changes and no new waypoint across all three
 diff consumers (sidebar, Up overlay, Down highlighting). The sidebar picks its
@@ -591,9 +605,22 @@ change IDs are a running counter — a definition edit that one mode draws and
 the other doesn't must not renumber the visible list. Correspondingly, the
 Up-mode `contentID` is **comment-invariant**
 (`DocumentContentView.displayContentID` hashes `MudCore.removeComments(...)`),
-so a comment add/remove updates the live Up view in place (`mud-comments.js`
-marker sync) with no reload; Down mode keeps the full markdown so its raw
-source stays current.
+so a comment add/remove updates the live Up view in place with no reload; Down
+mode keeps the full markdown so its raw source stays current.
+
+
+### Math
+
+Math is rendered in the Up visitor by `MathRenderer` (Temml in a `JSContext`,
+server-side, no client JS). Three GFM forms are recognized: a ```` ```math ````
+fenced block (`visitCodeBlock`), a paragraph that is exactly `$$…$$`
+(`visitParagraph`), and inline `` $`…`$ `` (`visitInlineCode`). For the `$$…$$`
+form the visitor reads the paragraph's **raw source bytes** rather than its
+children, because cmark has already inline-parsed the interior (turning `_`
+into emphasis); a bare `$…$` is deliberately not math. Math-bearing blocks take
+whole-block change annotations and never word-level spans (like code blocks),
+so `WordSpanEmitter` can't desync; inline math renders only when the emitter is
+inactive. Comment anchoring skips math on both sides.
 
 
 ## State management
@@ -610,7 +637,7 @@ Five ObservableObject classes, no nesting:
   sidebar-pane selection (each seeded from `MudPreferences` at window creation,
   re-persisted on change so the next window opens at the last-used value), the
   `webCommands` channel, `outlineHeadings`, `contentTitle`, comments-column
-  state, owns `FindState`
+  state, the info bar's `notice`, owns `FindState`
 - **DocumentModel** (per-window) -- the loaded content, disk reads, the file
   watcher with its hold/echo policy, and the cached render; renders run only
   when the content or the content-affecting options change, never per view
@@ -674,6 +701,17 @@ footnote popover uses the same bridge type for its `mudOpen` link routing.
 - **Extension principal classes.** Quick Look and Thumbnail providers use
   `@objc(ClassName)` so `NSExtensionPrincipalClass` resolves without Swift
   module-name mangling.
+
+
+### The Comments column and narrow widths
+
+Every command that needs the column — Add Comment, Show Comments, and a marker
+click (`mudRevealColumn`) — routes through `CommentColumnFit` first, which
+widens the window, else offers to collapse the sidebar, else turns the toggle
+on anyway and scrolls to the bottom section (`WebCommand.scrollToComments`,
+taking the clicked comment's label when there is one). Below
+`Layout.compactBreakpoint` the column stands down in favor of that section; see
+`mud-narrow.css`.
 
 
 ### Sandbox-aware features

@@ -9,7 +9,7 @@ import MudPreferences
 /// `DocumentState.webCommands` and executed by `WebView.Coordinator` (which
 /// holds the `WKWebView`). Fire-and-forget: nothing is queued for a page
 /// that doesn't exist yet, and nothing re-fires after a reload. Sustained
-/// facts (theme, zoom, body classes, the hold banner) are declarative
+/// facts (theme, zoom, body classes, the comment data) are declarative
 /// `WebView` parameters instead, diffed in `updateNSView`.
 enum WebCommand {
     /// Run the print panel for the current page (Cmd+P).

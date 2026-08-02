@@ -72,23 +72,6 @@
     if (resolve) resolve(!!success, reason || "");
   };
 
-  // The "file changed on disk" banner. While a compose box is open, an external
-  // save is held (not reloaded) so the box survives; this bar tells you the view
-  // is a version behind and will refresh when you finish. Driven from Swift.
-  var holdBanner = null;
-  col.setHoldBanner = function (on) {
-    if (on && !holdBanner) {
-      holdBanner = document.createElement("div");
-      holdBanner.className = "mud-hold-banner";
-      holdBanner.textContent =
-        "The file has changed. Your view refreshes when you finish this comment.";
-      container.appendChild(holdBanner);
-    } else if (!on && holdBanner) {
-      holdBanner.parentNode.removeChild(holdBanner);
-      holdBanner = null;
-    }
-  };
-
   // -- Locator (selection end → source byte) --------------------------------
 
   // The leaf-block / segment / marker-text primitives are shared with the read

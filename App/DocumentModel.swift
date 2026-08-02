@@ -42,10 +42,19 @@ final class DocumentModel: ObservableObject {
 
     @Published private(set) var content: Content = .parsed(ParsedMarkdown(""))
     /// True while a held change is specifically an *external* edit (not our
-    /// own comment echo). Drives the "file changed on disk" banner in the
-    /// page, so you know the view is showing a stale version until you finish
-    /// the comment. Cleared when composing ends.
-    @Published var externalChangeHeld: Bool = false
+    /// own comment echo). Raises the window's info-bar notice, so you know the
+    /// view is showing a stale version until you finish the comment. Cleared
+    /// when composing ends.
+    @Published var externalChangeHeld: Bool = false {
+        didSet {
+            guard externalChangeHeld != oldValue else { return }
+            if externalChangeHeld {
+                state.raise(.externalChangeHeld)
+            } else {
+                state.clear(.externalChangeHeld)
+            }
+        }
+    }
     /// The document reloaded while its window was not key; drives the tab's
     /// brown-dot badge. Cleared by the window controller when the window
     /// becomes key.
@@ -104,8 +113,9 @@ final class DocumentModel: ObservableObject {
 
         // When the compose box closes, apply any external change held while
         // it was open (re-reading disk so a successful comment write is
-        // included). The hold banner goes with the box. `$isColumnComposing`
-        // publishes in willSet, so act on the emitted value.
+        // included). The info-bar notice goes with the box.
+        // `$isColumnComposing` publishes in willSet, so act on the emitted
+        // value.
         state.$isColumnComposing
             .dropFirst()
             .sink { [weak self] composing in
@@ -317,7 +327,7 @@ final class DocumentModel: ObservableObject {
             // the prose, reload the page, and strand the box.
             if self.state.isComposingComment {
                 self.pendingExternalReload = true
-                // Only a genuine external edit raises the banner; our own comment
+                // Only a genuine external edit raises the notice; our own comment
                 // echo is held too but isn't "the file changed under you".
                 if !isSelfWrite { self.externalChangeHeld = true }
                 return
@@ -331,7 +341,7 @@ final class DocumentModel: ObservableObject {
     }
 
     private func composeDidEnd() {
-        externalChangeHeld = false  // banner goes with the box
+        externalChangeHeld = false  // the notice goes with the box
         if pendingExternalReload {
             pendingExternalReload = false
             loadFromDisk()

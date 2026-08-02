@@ -153,7 +153,6 @@ struct WebView: NSViewRepresentable {
     /// The coordinator subscribes in `makeNSView` and runs each command as it
     /// arrives, so `updateNSView` diffs only the declarative state below.
     let commands: PassthroughSubject<WebCommand, Never>
-    var externalChangeHeld: Bool = false
     var extensions: Set<String> = []
     var footnoteHTML: [String: String] = [:]
     var comments: [Comment] = []
@@ -245,15 +244,6 @@ struct WebView: NSViewRepresentable {
             context.coordinator.bridge.call("findClear")
         }
 
-        // Toggle the "file changed on disk" banner (a held external change during
-        // compose). A sustained state, not a one-shot: it turns on when the change
-        // is held and off when the box closes. Pushed without a reload.
-        if context.coordinator.lastExternalChangeHeld != externalChangeHeld {
-            context.coordinator.lastExternalChangeHeld = externalChangeHeld
-            context.coordinator.bridge.call(
-                "comments.setHoldBanner", externalChangeHeld)
-        }
-
         // Reload content if the contentID or mode changed. (A forced reload —
         // Cmd+R with unchanged text — arrives as a new contentID: the model
         // appends its load token to it.)
@@ -314,7 +304,6 @@ struct WebView: NSViewRepresentable {
         /// can re-apply it to a freshly loaded page (a reload discards the
         /// DOM highlights).
         var currentSearchQuery: SearchQuery?
-        var lastExternalChangeHeld: Bool?
         var activeExtensions: [RenderExtension] = []
         var onSearchResult: ((MatchInfo?) -> Void)?
         var footnoteHTML: [String: String] = [:]

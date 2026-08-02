@@ -41,7 +41,6 @@ struct DocumentContentView: View {
             commentColumnWidth: appState.commentColumnWidth,
             searchQuery: findState.currentQuery,
             commands: state.webCommands,
-            externalChangeHeld: model.externalChangeHeld,
             extensions: appState.enabledExtensions,
             footnoteHTML: display.footnoteHTML,
             comments: display.comments,

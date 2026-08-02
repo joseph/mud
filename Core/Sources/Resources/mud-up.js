@@ -149,8 +149,8 @@
   // -- The visibility pass --------------------------------------------------
 
   // Recompute what is on screen from the folded set: one walk down the
-  // article's children carrying the ranks of the folded headings whose sections
-  // are still open. A block is hidden when that list isn't empty.
+  // article's children carrying the folded headings whose sections are still
+  // open, outermost first. A block is hidden when that list isn't empty.
   function refresh() {
     var open = [];
     var children = article.children;
@@ -162,21 +162,31 @@
       if (el.classList.contains("mud-overlay")) continue;
       var level = headingLevel(el);
       if (!level) {
-        setHidden(el, open.length > 0);
+        setHidden(el, open);
         continue;
       }
       // This heading ends every open section of its own rank or deeper.
-      while (open.length && open[open.length - 1] >= level) open.pop();
-      setHidden(el, open.length > 0);
+      while (open.length && open[open.length - 1].level >= level) open.pop();
+      setHidden(el, open);
       var isFolded = level > 1 && folded[el.id] === true;
       el.classList.toggle("is-folded", isFolded);
       labelArrow(el, isFolded);
-      if (isFolded) open.push(level);
+      if (isFolded) open.push({ level: level, id: el.id });
     }
   }
 
-  function setHidden(el, hidden) {
-    el.classList.toggle("is-fold-hidden", hidden);
+  // Hide or show one block, and while it is hidden record which heading is
+  // doing the hiding — `open[0]`, the outermost, which is the only one of them
+  // still on screen. `hiding` reads the stamp back instead of walking the
+  // article again, so the answer comes from the pass that made the decision.
+  function setHidden(el, open) {
+    if (open.length) {
+      el.classList.add("is-fold-hidden");
+      el.setAttribute("data-fold-host", open[0].id);
+    } else {
+      el.classList.remove("is-fold-hidden");
+      el.removeAttribute("data-fold-host");
+    }
   }
 
   // Tell the app the whole set rather than the one heading that changed, so its
@@ -216,10 +226,13 @@
   // With the setting off nothing is hidden, so there is nothing to reveal —
   // and dropping slugs from the set would break `setEnabled`'s promise that
   // turning the setting back on restores the same folds.
+  //
+  // Returns true when something was opened, so a caller knows the document
+  // moved under it and may need to scroll again.
   function reveal(el) {
-    if (!enabled()) return;
+    if (!enabled()) return false;
     var block = blockOf(el);
-    if (!block) return;
+    if (!block) return false;
     var rank = 7;
     var opened = false;
     for (var node = block; node; node = node.previousElementSibling) {
@@ -232,33 +245,37 @@
       }
       if (level === 1) break;   // nothing encloses an h1
     }
-    if (!opened) return;
+    if (!opened) return false;
     refresh();
     report();
+    return true;
   }
 
   function revealHeading(slug) {
-    reveal(document.getElementById(slug));
+    return reveal(document.getElementById(slug));
   }
 
-  // The folded heading hiding `el`: the outermost folded section it sits in,
-  // which is the one whose own heading is still on screen. Null when `el` is
-  // on screen. The Comments column asks, so a comment whose quotation has been
-  // folded away can sit beside the heading that took it off screen.
-  function hostOf(el) {
+  // The fold hiding `el`, or null when `el` is on screen (which includes every
+  // element while the setting is off, since nothing is hidden then). Two
+  // fields:
+  //
+  //   key  an opaque grouping string; every element one fold hid shares it.
+  //        (It is the hiding heading's slug, but no caller needs to know.)
+  //   top  the bottom of that heading, as a position from the document top in
+  //        layout (pre-zoom) pixels. A line in the document to sit on, not a
+  //        position for any particular thing.
+  //
+  // The Comments column asks: a comment whose quotation has been folded away
+  // still needs somewhere to put a stand-in for itself.
+  function hiding(el) {
     if (!enabled()) return null;
     var block = blockOf(el);
-    if (!block || !block.classList.contains("is-fold-hidden")) return null;
-    var rank = 7;
-    var host = null;
-    for (var node = block; node; node = node.previousElementSibling) {
-      var level = headingLevel(node);
-      if (!level || level >= rank) continue;
-      rank = level;
-      if (folded[node.id]) host = node;
-      if (level === 1) break;
-    }
-    return host;
+    var key = block && block.getAttribute("data-fold-host");
+    var heading = key ? document.getElementById(key) : null;
+    if (!heading) return null;
+    // mud.js converts the rect; `offsetHeight` is already in layout pixels.
+    var top = Mud.geometry.layoutTopFromRect(heading.getBoundingClientRect());
+    return { key: key, top: top + heading.offsetHeight };
   }
 
   // -- Clicks ---------------------------------------------------------------
@@ -319,7 +336,7 @@
     apply: apply,
     reveal: reveal,
     revealHeading: revealHeading,
-    hostOf: hostOf
+    hiding: hiding
   };
 
   if (enabled()) addArrows();

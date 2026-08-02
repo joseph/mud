@@ -108,7 +108,17 @@ extension DocumentNotice {
     /// reader wrote, offered to the pasteboard when there is one: on every
     /// failure but a delete the compose box stays open holding this text, so
     /// the button is a second copy rather than the only one.
-    static func commentWriteFailed(message: String, note: String) -> Self {
+    ///
+    /// `composeIsOpen` decides whether the bar gets an ×. When a box survived
+    /// the failure, closing it clears this notice
+    /// (`DocumentState.isColumnComposing`), and that is the better way out —
+    /// it settles the comment and the message about it together. An × beside
+    /// it would be a second control that takes down only half of that, leaving
+    /// a box the reader was told nothing about. A delete has no box, so the ×
+    /// is the only thing that knows when they have read it.
+    static func commentWriteFailed(
+        message: String, note: String, composeIsOpen: Bool
+    ) -> Self {
         return Self(
             kind: .commentWriteFailed,
             level: .error,
@@ -118,7 +128,7 @@ extension DocumentNotice {
                 : Action(
                     title: "Copy Comment",
                     effect: .copyToPasteboard(note)),
-            isDismissible: true
+            isDismissible: !composeIsOpen
         )
     }
 }
@@ -128,9 +138,14 @@ extension DocumentNotice {
     /// A stand-in notice per level, for the Debugging pane and the
     /// `DocumentNoticeBar` preview. Each one mirrors the real notice at that
     /// level — same message length, same trailing controls — so what the pane
-    /// shows is what the app shows. `.error` therefore carries both a trailing
-    /// action and an ×, as `commentWriteFailed` does; the other two carry
-    /// neither, as `openFailed` and `externalChangeHeld` don't.
+    /// shows is what the app shows. `.info` and `.warning` carry neither
+    /// control, as `externalChangeHeld` and `openFailed` don't.
+    ///
+    /// `.error` carries both, which is one more than any single real notice
+    /// has: `commentWriteFailed` takes the × only when no compose box is open
+    /// to clear it, and that variant (a failed delete) has no text to copy. The
+    /// sample shows both anyway, because the widest row is the one whose
+    /// spacing is worth looking at.
     ///
     /// The sample's button works, and copies the stand-in note below. With the
     /// effect a value rather than a closure there is nothing to stub out — a

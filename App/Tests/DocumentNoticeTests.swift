@@ -37,7 +37,8 @@ import Testing
     /// write failure the reader hasn't seen yet.
     @Test func clearingADifferentKindLeavesTheNoticeAlone() {
         let state = DocumentState()
-        state.raise(.commentWriteFailed(message: "Couldn't write.", note: ""))
+        state.raise(.commentWriteFailed(
+            message: "Couldn't write.", note: "", composeIsOpen: false))
 
         state.clear(.openFailed)
         #expect(state.notice?.kind == .commentWriteFailed)
@@ -55,12 +56,13 @@ import Testing
         #expect(state.notice == nil)
     }
 
-    /// "Copy Comment" is offered only when there is a body to copy. A delete
-    /// that fails has no compose box and no body, so the bar would otherwise
-    /// show a button that put an empty string on the pasteboard.
+    /// "Copy Comment" is offered only when there is a body to copy. A failed
+    /// delete has no compose box and no body, so the bar would otherwise show a
+    /// button that put an empty string on the pasteboard. With no box to close,
+    /// the × is the only way out — so this is the variant that has one.
     @Test func copyCommentIsNotOfferedWithoutANote() {
         let notice = DocumentNotice.commentWriteFailed(
-            message: "Couldn't write.", note: "")
+            message: "Couldn't write.", note: "", composeIsOpen: false)
 
         #expect(notice.action == nil)
         #expect(notice.level == .error)
@@ -72,10 +74,55 @@ import Testing
     /// the test could only see that *some* button existed.
     @Test func copyCommentCarriesTheNote() {
         let notice = DocumentNotice.commentWriteFailed(
-            message: "Couldn't write.", note: "Some note")
+            message: "Couldn't write.", note: "Some note", composeIsOpen: true)
 
         #expect(notice.action?.title == "Copy Comment")
         #expect(notice.action?.effect == .copyToPasteboard("Some note"))
+    }
+
+    /// With a compose box still open, closing it is what takes this notice
+    /// down, so the bar offers no × of its own — two controls for one thing,
+    /// where only one of them also settles the comment.
+    @Test func aFailureWithAnOpenComposeBoxCarriesNoDismissButton() {
+        let notice = DocumentNotice.commentWriteFailed(
+            message: "Couldn't write.", note: "Some note", composeIsOpen: true)
+
+        #expect(!notice.isDismissible)
+    }
+
+    /// Cancel, Escape, and hiding the column all end composing, and the reader
+    /// abandoning the text answers the message about it.
+    @Test func endingComposeClearsTheWriteFailure() {
+        let state = DocumentState()
+        state.isColumnComposing = true
+        state.raise(.commentWriteFailed(
+            message: "Couldn't write.", note: "Some note", composeIsOpen: true))
+
+        state.isColumnComposing = false
+        #expect(state.notice == nil)
+    }
+
+    /// A failed delete is raised with no box open. Composing ending later —
+    /// somewhere else in the window — must not take it down, since the reader
+    /// has only the × to answer it with.
+    @Test func endingComposeSparesANoticeRaisedWithoutABox() {
+        let state = DocumentState()
+        state.raise(.commentWriteFailed(
+            message: "Couldn't delete.", note: "", composeIsOpen: false))
+
+        state.isColumnComposing = false
+        #expect(state.notice?.kind == .commentWriteFailed)
+    }
+
+    /// Ending compose clears by kind, so a notice some other condition raised
+    /// while the box was open is left where it is.
+    @Test func endingComposeLeavesAnotherKindAlone() {
+        let state = DocumentState()
+        state.isColumnComposing = true
+        state.raise(.externalChangeHeld)
+
+        state.isColumnComposing = false
+        #expect(state.notice == DocumentNotice.externalChangeHeld)
     }
 
     @Test func openFailureNamesTheFile() {

@@ -93,7 +93,18 @@ class DocumentState: ObservableObject {
     /// True while an in-column compose box (new comment, reply, or edit) owns the
     /// keyboard. Set from the page over the `mudComposing` bridge; folded into
     /// `isComposingComment` so the focus trap leaves the textarea alone.
-    @Published var isColumnComposing: Bool = false
+    @Published var isColumnComposing: Bool = false {
+        didSet {
+            // Closing the box answers a write failure raised about it: the
+            // reader gave up on that text, so the explanation goes with it.
+            // Every way out of a compose box — Cancel, Escape, hiding the
+            // column — arrives here as the same false. Only the transition
+            // counts: a delete failure is raised with no box open, and must
+            // not be swept away by a later false that changes nothing.
+            guard oldValue, !isColumnComposing else { return }
+            clear(.commentWriteFailed)
+        }
+    }
     @Published var outlineHeadings: [OutlineHeading] = []
     @Published var contentTitle: String?
     /// The non-blocking message about this document currently on screen in the

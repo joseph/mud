@@ -140,9 +140,16 @@ struct CommentSubmissionHandler {
     /// An error-level info-bar notice rather than the modal alert this used to
     /// be. An alert should ask you to decide something; this only tells you,
     /// and blocking the main thread to say it also froze the compose box the
-    /// message is about. The notice is the one a reader can dismiss, because
-    /// nothing else knows when they have read it.
+    /// message is about.
+    ///
+    /// Whether a box is open is read here rather than passed in by each caller:
+    /// a failure leaves the box exactly as it was, so `isColumnComposing` is
+    /// already the answer, and asking it once beats restating it at six call
+    /// sites. It decides whether the bar carries an × — see
+    /// `DocumentNotice.commentWriteFailed`.
     private func presentCommentFailure(message: String, note: String) {
-        state.raise(.commentWriteFailed(message: message, note: note))
+        state.raise(.commentWriteFailed(
+            message: message, note: note,
+            composeIsOpen: state.isColumnComposing))
     }
 }

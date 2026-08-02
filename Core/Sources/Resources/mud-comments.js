@@ -1110,7 +1110,7 @@
     // Filled in by the write side (mud-comments-edit.js); Swift calls this
     // through the bridge. Null until that file loads, so this literal lists the
     // whole Swift-callable surface in one place.
-    resolveCompose: null      // deliver a submit outcome to the open compose box
+    resolveSubmission: null   // the outcome of the submission in flight
   };
   window.Mud.comments = api;
 

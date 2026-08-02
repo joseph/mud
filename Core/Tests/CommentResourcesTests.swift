@@ -57,13 +57,13 @@ struct CommentResourcesTests {
   }
 
   @Test func readSideListsWriteSideSwiftCallableSlots() {
-    // The read-side API literal declares resolveCompose as a null slot so it
+    // The read-side API literal declares resolveSubmission as a null slot so it
     // lists the whole Swift-callable surface, even though the write side
     // (mud-comments-edit.js) supplies the real function.
     let read = HTMLTemplate.mudCommentsJS
-    #expect(read.contains("resolveCompose"))
+    #expect(read.contains("resolveSubmission"))
     let write = HTMLTemplate.mudCommentsEditJS
-    #expect(write.contains("resolveCompose"))
+    #expect(write.contains("resolveSubmission"))
   }
 
   @Test func composeFailedClassAgreesAcrossJSAndCSS() {

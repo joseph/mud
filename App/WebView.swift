@@ -389,8 +389,8 @@ struct WebView: NSViewRepresentable {
                 // The JS reveals the column itself (native has persisted the
                 // toggle), so this works even when the column was hidden.
                 bridge.call("comments.addFromSelection")
-            case .resolveCompose(let success):
-                bridge.call("comments.resolveCompose", success)
+            case .resolveSubmission(let success):
+                bridge.call("comments.resolveSubmission", success)
             case .scrollToHeading(let heading):
                 // Keyed off the loaded page's mode (`lastMode`), which is what
                 // the scroll JS must match.

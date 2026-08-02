@@ -54,7 +54,7 @@
   }
 
   // Post a submission and remember its resolver. The native side writes the
-  // file and calls `resolveCompose` with the outcome: a compose submission
+  // file and calls `resolveSubmission` with the outcome: a compose submission
   // stays "in flight" (its box disabled) until then, so a failed write keeps
   // the box and its text rather than closing on an optimistic assumption of
   // success. A delete has no box to hold — it undoes its puff instead.
@@ -69,7 +69,7 @@
   // puff has already taken away. Only the outcome crosses: why a save failed is
   // the info bar's to say, so the page needs nothing but the fact that this
   // attempt didn't land.
-  col.resolveCompose = function (success) {
+  col.resolveSubmission = function (success) {
     var resolve = pendingResolve;
     pendingResolve = null;
     if (resolve) resolve(!!success);

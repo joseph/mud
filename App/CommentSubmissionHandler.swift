@@ -1,14 +1,13 @@
 import Combine
 
 /// Routes a column edit posted from the page (`CommentSubmission`, over the
-/// `mudCommentSubmit` bridge) to `CommentController`, then acknowledges the
-/// outcome back to the page (`resolveCompose`). On success the write echoes
-/// through the `FileWatcher`, refreshing the comment data so the column
-/// reprojects in place (no reload). On failure the page puts back whatever it
-/// showed too early — a compose box stays open with its text, a puffed-away
-/// message returns — and an error notice in the info bar explains why (the
-/// most likely cause is the quoted text changing on disk while the box was
-/// held open).
+/// `mudCommentSubmit` bridge) to `CommentController`, then answers the page
+/// with the outcome (`resolveSubmission`). On success the write echoes through
+/// the `FileWatcher`, refreshing the comment data so the column reprojects in
+/// place (no reload). On failure the page puts back whatever it showed too
+/// early — a compose box stays open with its text, a puffed-away message
+/// returns — and an error notice in the info bar explains why (the most likely
+/// cause is the quoted text changing on disk while the box was held open).
 struct CommentSubmissionHandler {
     let model: DocumentModel
     let state: DocumentState
@@ -28,47 +27,47 @@ struct CommentSubmissionHandler {
         // protected (an atomic write can replace a read-only file whose directory
         // is writable, so without this guard Mud would silently edit it).
         guard controller.isFileWritable else {
-            resolveCompose(false)
+            resolveSubmission(false)
             presentCommentFailure(message: readOnlyFailureMessage, note: body)
             return
         }
         switch submission.action {
         case .add:
-            guard let draft = submission.draft else { resolveCompose(false); return }
+            guard let draft = submission.draft else { resolveSubmission(false); return }
             switch controller.addComment(draft, author: author, body: body) {
             case .success(let label):
                 model.pendingCommentLocators[label] = CommentLocator(
                     blockText: draft.blockText, offset: draft.offsetInBlock,
                     occurrence: draft.occurrence)
-                resolveCompose(true)
+                resolveSubmission(true)
             case .failure(.anchorFailed):
-                resolveCompose(false)
+                resolveSubmission(false)
                 presentCommentFailure(message: anchorFailureMessage, note: body)
             case .failure(.writeFailed):
-                resolveCompose(false)
+                resolveSubmission(false)
                 presentCommentFailure(message: writeFailureMessage, note: body)
             }
         case .reply:
-            guard let label = submission.label else { resolveCompose(false); return }
+            guard let label = submission.label else { resolveSubmission(false); return }
             resolveThreadEdit(
                 controller.reply(toLabel: label, author: author, body: body),
                 note: body)
         case .edit:
-            guard let label = submission.label else { resolveCompose(false); return }
+            guard let label = submission.label else { resolveSubmission(false); return }
             resolveThreadEdit(
                 controller.editLastMessage(label: label, body: body),
                 note: body)
         case .delete:
-            guard let label = submission.label else { resolveCompose(false); return }
+            guard let label = submission.label else { resolveSubmission(false); return }
             // A delete is resolved like any other submission even though there
             // is no compose box: the page has already puffed the message away,
             // and a false is what puts it back. A vanished label isn't a
             // refusal — the comment is gone either way, so the puff stands.
             switch controller.deleteLastMessage(label: label) {
             case .success, .failure(.anchorFailed):
-                resolveCompose(true)
+                resolveSubmission(true)
             case .failure(.writeFailed):
-                resolveCompose(false)
+                resolveSubmission(false)
                 presentCommentFailure(message: deleteFailureMessage, note: "")
             }
         }
@@ -83,12 +82,12 @@ struct CommentSubmissionHandler {
     ) {
         switch result {
         case .success:
-            resolveCompose(true)
+            resolveSubmission(true)
         case .failure(.anchorFailed):
-            resolveCompose(false)
+            resolveSubmission(false)
             presentCommentFailure(message: replyFailureMessage, note: note)
         case .failure(.writeFailed):
-            resolveCompose(false)
+            resolveSubmission(false)
             presentCommentFailure(message: writeFailureMessage, note: note)
         }
     }
@@ -137,8 +136,8 @@ struct CommentSubmissionHandler {
     /// ones with no box — an unanswered submission leaves the column showing
     /// something the file doesn't say. The outcome is all the page needs:
     /// `presentCommentFailure` says why, in the bar.
-    private func resolveCompose(_ success: Bool) {
-        state.webCommands.send(.resolveCompose(success: success))
+    private func resolveSubmission(_ success: Bool) {
+        state.webCommands.send(.resolveSubmission(success: success))
     }
 
     /// Explains a comment write that couldn't be completed, keeping the user's

@@ -5,7 +5,7 @@ import Testing
 @testable import Mud
 
 /// The page-facing half of a comment submission: what the handler tells the
-/// column over `resolveCompose`.
+/// column over `resolveSubmission`.
 ///
 /// Every action is answered, including the ones with no compose box. The page
 /// acts before the file has agreed — a delete puffs the message away as soon as
@@ -55,7 +55,7 @@ import Testing
     ) -> [Bool] {
         var outcomes: [Bool] = []
         let token = state.webCommands.sink { command in
-            if case .resolveCompose(let success) = command {
+            if case .resolveSubmission(let success) = command {
                 outcomes.append(success)
             }
         }

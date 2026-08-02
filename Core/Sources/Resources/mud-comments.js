@@ -728,6 +728,10 @@
       // of the column. Either way it leaves until it is back on screen; the
       // ResizeObserver below runs this pass when that happens.
       if (!stub && anchor && anchor.offsetParent === null) {
+        // Clear the stub state before leaving: this capsule may have carried
+        // one on the last pass, and the return skips the reset below.
+        cap.classList.remove("is-stub");
+        cap.title = "";
         cap.style.display = "none";
         return;
       }
@@ -858,7 +862,11 @@
   function orderedLabels() {
     return Object.keys(capsules).sort(function (a, b) {
       var ea = anchorFor(a), eb = anchorFor(b);
-      if (!ea || !eb) return preferredPosition(a) - preferredPosition(b);
+      // A comment with no anchor has no place in document order, so put those
+      // at the end. Ranking them by measured position instead would put two
+      // different orderings in one comparator, which leaves the whole sort
+      // undefined rather than just those few.
+      if (!ea || !eb) return (ea ? 0 : 1) - (eb ? 0 : 1);
       var rel = ea.compareDocumentPosition(eb);
       if (rel & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
       if (rel & Node.DOCUMENT_POSITION_PRECEDING) return 1;

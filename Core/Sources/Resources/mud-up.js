@@ -212,7 +212,12 @@
   // folded heading — so a navigation can land on it. Walking back from its
   // block, each heading that outranks the closest one seen so far is a section
   // `el` sits in; the ones in between are sections that have already ended.
+  //
+  // With the setting off nothing is hidden, so there is nothing to reveal —
+  // and dropping slugs from the set would break `setEnabled`'s promise that
+  // turning the setting back on restores the same folds.
   function reveal(el) {
+    if (!enabled()) return;
     var block = blockOf(el);
     if (!block) return;
     var rank = 7;

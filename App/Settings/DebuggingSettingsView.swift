@@ -32,6 +32,25 @@ struct DebuggingSettingsView: View {
                 }
             }
 
+            // The notice samples this raises are themselves debug-only, and
+            // this file compiles into release builds even though `SettingsView`
+            // only ever shows the pane in a debug one.
+            #if DEBUG
+            Section("Notice Bar") {
+                Text("Raise a test notice in the frontmost document window, to see the bar at each level against real window chrome.")
+                    .foregroundStyle(.secondary)
+
+                HStack {
+                    Button("Clear") { clearTestNotice() }
+                    Spacer()
+                    Button("Info") { raiseTestNotice(.info) }
+                    Button("Warning") { raiseTestNotice(.warning) }
+                    Button("Error") { raiseTestNotice(.error) }
+                }
+                .disabled(frontmostDocumentState == nil)
+            }
+            #endif
+
             Section("Open In") {
                 Text("Forget the default editor chosen for “Open In…”, so the toolbar button reverts to offering the full list.")
                     .foregroundStyle(.secondary)
@@ -73,6 +92,29 @@ struct DebuggingSettingsView: View {
             Text("This will clear all saved settings and quit the app. Your documents will not be affected.")
         }
     }
+
+    #if DEBUG
+    /// The frontmost document window's state, or nil when none is open. Walks
+    /// the ordered window list rather than asking for the key window, because
+    /// the Settings window is the key one while this pane is up.
+    private var frontmostDocumentState: DocumentState? {
+        return NSApp.orderedWindows
+            .lazy
+            .compactMap { $0.windowController as? DocumentWindowController }
+            .first?
+            .state
+    }
+
+    private func raiseTestNotice(_ level: DocumentNotice.Level) {
+        frontmostDocumentState?.raise(.sample(level))
+    }
+
+    /// Clears the test notice only. `DocumentState.clear` matches on kind, so a
+    /// real notice showing instead of this one is left where it is.
+    private func clearTestNotice() {
+        frontmostDocumentState?.clear(.debug)
+    }
+    #endif
 
     /// Clears the remembered "Open In…" default so the toolbar button drops back
     /// to the grid icon and the full chooser. `refresh()` republishes

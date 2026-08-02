@@ -219,18 +219,29 @@
     box.appendChild(actions);
 
     function trimmed() { return ta.value.trim(); }
-    function sync() { done.disabled = busy || trimmed().length === 0; }
-    function finish() { onDone(trimmed()); }
+
+    // Done on an empty box closes it like Cancel instead of submitting: there
+    // is no comment to make, and an empty body would only ask the file to store
+    // a message with no text in it. Done is never disabled for being empty —
+    // pressing it always does something, it just has nothing to save. For an
+    // edit that means the original message is restored, not emptied; deleting a
+    // message is its own control.
+    function finish() {
+      var body = trimmed();
+      if (!body) { onCancel(); return; }
+      onDone(body);
+    }
 
     // While a submission is in flight, lock the box (its text stays put); a
     // failure unlocks it for another try. Exposed on the element so the submit
-    // callbacks below can drive it.
+    // callbacks below can drive it. Being in flight is now the only thing that
+    // disables Done, so the whole lock lives here.
     var busy = false;
     box.setBusy = function (on) {
       busy = !!on;
       ta.disabled = busy;
       cancel.disabled = busy;
-      sync();
+      done.disabled = busy;
     };
     // Mark a submission that didn't land. The box says only that much — the
     // info bar carries the reason — so this sets the one class the danger
@@ -251,7 +262,6 @@
     }
 
     ta.addEventListener("input", function () {
-      sync();
       autoGrow();
       col.relayout();
     });
@@ -273,7 +283,6 @@
       e.stopPropagation();
       if (!done.disabled) finish();
     });
-    sync();
     setComposing(true);
     // Focus and size after insertion settles (scrollHeight needs the element in
     // the DOM with styles applied; pre-filled edit text sizes the box to fit).

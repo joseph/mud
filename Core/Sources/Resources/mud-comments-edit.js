@@ -63,13 +63,13 @@
   }
 
   // Called from Swift (via WebView) with the submit outcome. True closes the
-  // box; false leaves it open for another try, with `reason` the short note to
-  // show inside it (why the save failed — the text moved vs the file couldn't
-  // be written). Null/absent on success.
-  col.resolveCompose = function (success, reason) {
+  // box; false leaves it open for another try, marked as failed. Only the
+  // outcome crosses: why a save failed is the info bar's to say, so the page
+  // needs nothing but the fact that this attempt didn't land.
+  col.resolveCompose = function (success) {
     var resolve = pendingResolve;
     pendingResolve = null;
-    if (resolve) resolve(!!success, reason || "");
+    if (resolve) resolve(!!success);
   };
 
   // -- Locator (selection end → source byte) --------------------------------
@@ -213,13 +213,9 @@
     done.type = "button";
     done.className = "mud-done";
     done.textContent = "Done";
-    var error = document.createElement("div");
-    error.className = "mud-compose-error";
-    error.style.display = "none";
     actions.appendChild(cancel);
     actions.appendChild(done);
     box.appendChild(ta);
-    box.appendChild(error);
     box.appendChild(actions);
 
     function trimmed() { return ta.value.trim(); }
@@ -236,13 +232,12 @@
       cancel.disabled = busy;
       sync();
     };
-    box.showError = function (msg) {
-      error.textContent = msg || "";
-      error.style.display = msg ? "" : "none";
-      // With an error showing, dismissing the box discards nothing new — it just
-      // drops the held change, refreshing to the version on disk. Say so.
-      cancel.textContent = msg ? "Reload" : "Cancel";
-      col.relayout();
+    // Mark a submission that didn't land. The box says only that much — the
+    // info bar carries the reason — so this sets the one class the danger
+    // colors key on (see mud-comments-edit.css) and nothing else. No text or
+    // geometry changes, so the capsules below need no relayout.
+    box.setFailed = function (on) {
+      box.classList.toggle("is-failed", !!on);
     };
     box.focusTextarea = function () { ta.focus(); };
 
@@ -297,15 +292,15 @@
     composePosition = draft.position;
     var pending = draft;
     composeNew = buildCompose("", function (body) {
-      composeNew.showError("");
+      composeNew.setFailed(false);
       composeNew.setBusy(true);
       submit({ action: "add", body: body, locator: pending.locator,
-               quotation: pending.quotation }, function (success, reason) {
+               quotation: pending.quotation }, function (success) {
         if (success) { closeNewCompose(); return; }
-        // The save failed (native explains why, and an alert says more). Keep
-        // the box and its text; unlock for another try, or Cancel to refresh.
+        // The save failed (the info bar explains why). Keep the box and its
+        // text; unlock for another try, or Cancel to abandon it.
         composeNew.setBusy(false);
-        composeNew.showError(reason || "Cannot save: the highlighted text couldn't be matched.");
+        composeNew.setFailed(true);
         composeNew.focusTextarea();
       });
     }, function () {
@@ -478,13 +473,13 @@
     }
 
     var box = buildCompose(initial, function (body) {
-      box.showError("");
+      box.setFailed(false);
       box.setBusy(true);
-      submit({ action: action, label: label, body: body }, function (success, reason) {
+      submit({ action: action, label: label, body: body }, function (success) {
         // Native reprojects on the write echo; just restore controls meanwhile.
         if (success) { teardownInline(); return; }
         box.setBusy(false);
-        box.showError(reason || "Cannot save: the thread has been changed.");
+        box.setFailed(true);
         box.focusTextarea();
       });
     }, function () {

@@ -66,6 +66,20 @@ struct CommentResourcesTests {
     #expect(write.contains("resolveCompose"))
   }
 
+  @Test func composeFailedClassAgreesAcrossJSAndCSS() {
+    // A submission that didn't land is marked by this class alone:
+    // mud-comments-edit.js sets it, and mud-comments-edit.css turns the whole
+    // form — textarea, Cancel, Done — the danger color off it. Nothing else
+    // records the state, so a rename has to reach both files.
+    var editable = RenderOptions()
+    editable.commentsEditable = true
+    let html = MudCore.renderUpModeDocument(
+      "x[^comment-a].\n\n[^comment-a]: Note.\n", options: editable)
+    #expect(html.contains(".mud-compose.is-failed"))
+    #expect(html.contains("--mud-danger"))
+    #expect(HTMLTemplate.mudCommentsEditJS.contains("\"is-failed\""))
+  }
+
   @Test func markerClassAgreesWithTheJSLayer() {
     // The Swift emitter, the read-side projection (mud-comments.js), and the
     // shared anchor part (mud-comment-anchor.js) that the write-side locator

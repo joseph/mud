@@ -14,6 +14,22 @@
   :root { --mud-accent: AccentColor; }
 }
 
+/* Danger color for a compose box whose submission didn't land, and the text that
+   sits on top of it. The same pair mud.css uses for `--alert-caution-*`, so a
+   refused box is the red the rest of the document already means trouble with.
+   The contrast color flips because the dark tone is much lighter: white on it
+   measures 3.4:1, black 6.3:1, the other way around from the light tone. */
+:root {
+  --mud-danger: #d1242f;
+  --mud-danger-fg: #fff;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --mud-danger: #f85149;
+    --mud-danger-fg: #000;
+  }
+}
+
 /* The provisional highlight over the text being commented on, shown while a new
    comment is composed. Unlike a saved quotation highlight (transparent until its
    marker is hovered), this stays painted yellow the whole time the compose box
@@ -130,28 +146,29 @@
   outline: none !important;
 }
 
-/* Shown only when a submission fails (the text changed on disk): a short note
-   above the buttons, while the box stays open with the user's text. */
-.mud-compose-error {
-  margin-top: 10px;
-  padding: 0 4px;
-  line-height: 1.3;
-  text-align: center;
-  color: red;
-}
-
 .mud-compose .mud-compose-actions {
   gap: 10px;
   margin-top: 15px;
 }
 
-.mud-compose-error:not(:empty) ~ .mud-compose-actions .mud-done {
-  background-color: red;
+/* A submission that didn't land. Why is the info bar's to say, so the box shows
+   only the state — but it shows it across the whole form rather than on one
+   control, so the box reads as refused instead of as a button that looks odd.
+   The textarea's caret follows its `color`, so it turns red too. Set by
+   `setFailed` in mud-comments-edit.js; nothing else marks the state. */
+.mud-compose.is-failed textarea {
+  border-color: var(--mud-danger);
+  color: var(--mud-danger);
 }
 
-.mud-compose-error:not(:empty) ~ .mud-compose-actions .mud-cancel {
-  color: red;
+.mud-compose.is-failed .mud-cancel {
+  color: var(--mud-danger);
   border-color: currentcolor;
+}
+
+.mud-compose.is-failed .mud-done {
+  background-color: var(--mud-danger);
+  color: var(--mud-danger-fg);
 }
 
 /* Inline compose (reply / edit) is a full-width row in the active thread, so the

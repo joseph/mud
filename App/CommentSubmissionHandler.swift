@@ -27,7 +27,7 @@ struct CommentSubmissionHandler {
         // is writable, so without this guard Mud would silently edit it).
         guard controller.isFileWritable else {
             if submission.action != .delete {
-                resolveCompose(false, reason: "Cannot save: this file is read-only.")
+                resolveCompose(false)
             }
             presentCommentFailure(message: readOnlyFailureMessage, note: body)
             return
@@ -42,10 +42,10 @@ struct CommentSubmissionHandler {
                     occurrence: draft.occurrence)
                 resolveCompose(true)
             case .failure(.anchorFailed):
-                resolveCompose(false, reason: "Cannot save: the highlighted text couldn't be matched.")
+                resolveCompose(false)
                 presentCommentFailure(message: anchorFailureMessage, note: body)
             case .failure(.writeFailed):
-                resolveCompose(false, reason: "Cannot save: Mud couldn't write to the file.")
+                resolveCompose(false)
                 presentCommentFailure(message: writeFailureMessage, note: body)
             }
         case .reply:
@@ -81,10 +81,10 @@ struct CommentSubmissionHandler {
         case .success:
             resolveCompose(true)
         case .failure(.anchorFailed):
-            resolveCompose(false, reason: "Cannot save: the comment has changed.")
+            resolveCompose(false)
             presentCommentFailure(message: replyFailureMessage, note: note)
         case .failure(.writeFailed):
-            resolveCompose(false, reason: "Cannot save: Mud couldn't write to the file.")
+            resolveCompose(false)
             presentCommentFailure(message: writeFailureMessage, note: note)
         }
     }
@@ -126,10 +126,10 @@ struct CommentSubmissionHandler {
     }
 
     /// Pushes the submit outcome to the page, so the compose box closes
-    /// (success) or re-enables (failure). On failure, `reason` is the short
-    /// note shown inside the box.
-    private func resolveCompose(_ success: Bool, reason: String? = nil) {
-        state.webCommands.send(.resolveCompose(success: success, reason: reason))
+    /// (success) or re-enables and marks itself failed (failure). The outcome
+    /// is all the page needs: `presentCommentFailure` says why, in the bar.
+    private func resolveCompose(_ success: Bool) {
+        state.webCommands.send(.resolveCompose(success: success))
     }
 
     /// Explains a comment write that couldn't be completed, keeping the user's

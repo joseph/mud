@@ -21,12 +21,10 @@ enum WebCommand {
     /// Open a compose box on the current selection (the toolbar "Comment"
     /// button and menu equivalents). The JS reveals the column itself.
     case addCommentFromSelection
-    /// Acknowledge a comment submission to the page: close the compose box
-    /// on success, or re-enable it (text intact) on failure. On failure,
-    /// `reason` is the short note shown inside the box (its inline red line)
-    /// — carrying *why* the save failed, so the box says the same thing the
-    /// alert does instead of always guessing "text changed".
-    case resolveCompose(success: Bool, reason: String?)
+    /// Acknowledge a comment submission to the page: close the compose box on
+    /// success, or re-enable it (text intact) and mark it failed on failure.
+    /// Only the outcome crosses — why a save failed is the info bar's to say.
+    case resolveCompose(success: Bool)
     /// Scroll to a heading (sidebar click). Mode-dependent: Down mode
     /// scrolls to the heading's source line, Up mode to its slug ID.
     case scrollToHeading(OutlineHeading)

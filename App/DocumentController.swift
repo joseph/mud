@@ -81,8 +81,10 @@ class DocumentController: NSDocumentController {
         }
 
         let panel = NSOpenPanel()
-        panel.allowedContentTypes = [.markdown, .plainText]
+        panel.allowedContentTypes = OpenPanelFilter.default.contentTypes
         panel.allowsMultipleSelection = true
+        panel.accessoryView = makeFilterAccessoryView()
+        panel.isAccessoryViewDisclosed = true
         openPanel = panel
 
         panel.begin { [weak self] response in
@@ -94,6 +96,44 @@ class DocumentController: NSDocumentController {
             }
             onFinish?()
         }
+    }
+
+    /// The panel's "Enable:" row — a label and a popup of the
+    /// `OpenPanelFilter` cases, centered in a container the panel sizes.
+    ///
+    /// Built fresh per panel, and never seeded from anything but
+    /// `OpenPanelFilter.default`: the choice is deliberately not persisted, so
+    /// a panel opened weeks later doesn't silently come up unfiltered.
+    private func makeFilterAccessoryView() -> NSView {
+        let label = NSTextField(labelWithString: "Enable:")
+
+        let popUp = NSPopUpButton(frame: .zero, pullsDown: false)
+        popUp.addItems(withTitles: OpenPanelFilter.allCases.map(\.title))
+        popUp.selectItem(at: OpenPanelFilter.default.rawValue)
+        popUp.target = self
+        popUp.action = #selector(openPanelFilterChanged(_:))
+
+        let row = NSStackView(views: [label, popUp])
+        row.orientation = .horizontal
+        row.alignment = .firstBaseline
+        row.spacing = 8
+        row.translatesAutoresizingMaskIntoConstraints = false
+
+        let container = NSView(frame: NSRect(x: 0, y: 0, width: 420, height: 35))
+        container.addSubview(row)
+        NSLayoutConstraint.activate([
+            row.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            row.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+        ])
+        return container
+    }
+
+    /// Applies the popup's selection to the panel that's already on screen.
+    /// The panel re-evaluates its browser on the change, so files un-grey
+    /// without the user reopening it.
+    @objc private func openPanelFilterChanged(_ sender: NSPopUpButton) {
+        guard let filter = OpenPanelFilter(rawValue: sender.indexOfSelectedItem) else { return }
+        openPanel?.allowedContentTypes = filter.contentTypes
     }
 
     /// Bridges the Cmd+O menu command, which has no controller in hand.

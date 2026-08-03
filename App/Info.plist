@@ -2,61 +2,90 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
-	<key>SUFeedURL</key>
-	<string>https://apps.josephpearson.org/mud/appcast.xml</string>
-	<key>SUPublicEDKey</key>
-	<string>SLb8PPG1VxkLUhB+eofc/mUpZlXptWwMdBqXUTKjpjc=</string>
-	<key>SUEnableAutomaticChecks</key>
-	<true/>
-	<key>MDItemKeywords</key>
-	<string>Markdown, GFM</string>
-	<key>LSApplicationCategoryType</key>
-	<string>public.app-category.developer-tools</string>
-	<key>CFBundleDocumentTypes</key>
-	<array>
-		<dict>
-			<key>CFBundleTypeName</key>
-			<string>Markdown Document</string>
-			<key>CFBundleTypeRole</key>
-			<string>Viewer</string>
-			<key>LSHandlerRank</key>
-			<string>Alternate</string>
-			<key>LSItemContentTypes</key>
-			<array>
-				<string>net.daringfireball.markdown</string>
-				<string>public.markdown</string>
-			</array>
-			<key>CFBundleTypeExtensions</key>
-			<array>
-				<string>md</string>
-				<string>markdown</string>
-			</array>
-			<key>CFBundleTypeIconFile</key>
-			<string>MarkdownDocument</string>
-		</dict>
-	</array>
-	<key>UTImportedTypeDeclarations</key>
-	<array>
-		<dict>
-			<key>UTTypeIdentifier</key>
-			<string>net.daringfireball.markdown</string>
-			<key>UTTypeDescription</key>
-			<string>Markdown Document</string>
-			<key>UTTypeConformsTo</key>
-			<array>
-				<string>public.plain-text</string>
-			</array>
-			<key>UTTypeTagSpecification</key>
-			<dict>
-				<key>public.filename-extension</key>
-				<array>
-					<string>md</string>
-					<string>markdown</string>
-				</array>
-			</dict>
-		</dict>
-	</array>
+  <key>ITSAppUsesNonExemptEncryption</key>
+  <false/>
+  <key>SUFeedURL</key>
+  <string>https://apps.josephpearson.org/mud/appcast.xml</string>
+  <key>SUPublicEDKey</key>
+  <string>SLb8PPG1VxkLUhB+eofc/mUpZlXptWwMdBqXUTKjpjc=</string>
+  <key>SUEnableAutomaticChecks</key>
+  <true/>
+  <key>MDItemKeywords</key>
+  <string>Markdown, GFM</string>
+  <key>LSApplicationCategoryType</key>
+  <string>public.app-category.developer-tools</string>
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>Markdown Document</string>
+      <key>CFBundleTypeRole</key>
+      <string>Viewer</string>
+      <key>LSHandlerRank</key>
+      <string>Alternate</string>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>net.daringfireball.markdown</string>
+        <string>public.markdown</string>
+      </array>
+      <key>CFBundleTypeExtensions</key>
+      <array>
+        <string>md</string>
+        <string>markdown</string>
+        <string>mkd</string> <!-- generic; listed in Markdown.pl's own README -->
+      </array>
+      <key>CFBundleTypeIconFile</key>
+      <string>MarkdownDocument</string>
+    </dict>
+    <!-- Dialects: supersets of Markdown with owners of their own. Listed by
+      extension only, with no LSItemContentTypes, so Mud registers as a
+      handler without declaring a type for someone else's format. It buys
+      Open With and double-click; it does not reach the Open panel's type
+      filter or Quick Look, both of which need a real UTI. -->
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>Markdown Dialect</string>
+      <key>CFBundleTypeRole</key>
+      <string>Viewer</string>
+      <key>LSHandlerRank</key>
+      <string>Alternate</string>
+      <key>CFBundleTypeExtensions</key>
+      <array>
+        <string>qmd</string> <!-- Quarto -->
+        <string>Rmd</string> <!-- R Markdown; RStudio lists both cases, so we do too -->
+        <string>rmd</string>
+        <string>mdx</string> <!-- MDX: Markdown with JSX -->
+        <string>mdc</string> <!-- Cursor rule files -->
+      </array>
+      <key>CFBundleTypeIconFile</key>
+      <string>MarkdownDocument</string>
+    </dict>
+  </array>
+  <key>UTImportedTypeDeclarations</key>
+  <array>
+    <dict>
+      <key>UTTypeIdentifier</key>
+      <string>net.daringfireball.markdown</string>
+      <key>UTTypeDescription</key>
+      <string>Markdown Document</string>
+      <key>UTTypeConformsTo</key>
+      <array>
+        <string>public.plain-text</string>
+      </array>
+      <!-- This list is what earns a file a Mud Quick Look preview and
+        thumbnail: it gives the extension a UTI, and that UTI is the one
+        both extension plists list. An app that *exports* a type for the
+        same extension outranks this import and takes the file back. -->
+      <key>UTTypeTagSpecification</key>
+      <dict>
+        <key>public.filename-extension</key>
+        <array>
+          <string>md</string>
+          <string>markdown</string>
+          <string>mkd</string>
+        </array>
+      </dict>
+    </dict>
+  </array>
 </dict>
 </plist>

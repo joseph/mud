@@ -366,6 +366,8 @@ MVP plan.
 - `OpenInFormatTests.swift` — The Open In `.auto` format truth table
 - `CommentColumnFitTests.swift` — `CommentColumnFit.remedy` truth table: how a
   too-narrow window makes room (widen / hide sidebar / neither)
+- `AddCommentRuleTests.swift` — `ActiveDocumentSnapshot.canAddComment` truth
+  table: the one rule every Add Comment affordance applies
 - `WebViewParsingTests.swift` — `parseMatchInfo` and `commentSignature`
 - `MudJSBridgeTests.swift` — Outbound script building (escaping) and inbound
   message decoding

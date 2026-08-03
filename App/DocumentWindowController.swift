@@ -261,17 +261,25 @@ class DocumentWindowController: NSWindowController {
         readableColumnButton?.toolTip = on ? "Show document full-width" : "Show document in a readable-width column"
     }
 
-    /// The "Comment" button adds a comment to the selection, so it is live only
-    /// for a commentable selection in a writable Up-mode document. (The "Add
-    /// Comment" menu item applies the same condition via
-    /// `ActiveDocumentSnapshot.canAddComment`.)
+    /// Whether "Add Comment" applies to this window right now. Read by the
+    /// toolbar button below and by the WebView context menu, which — unlike the
+    /// Edit menu item — can't go through `ActiveDocumentObserver`: a
+    /// control-click opens the menu without making the window key, so the
+    /// active-document snapshot can belong to another window.
     ///
     /// `mode` defaults to this window's current one; the `$mode` sink passes
     /// the value it emitted, which `state.mode` doesn't hold yet (willSet).
+    func canAddComment(for mode: Mode? = nil) -> Bool {
+        ActiveDocumentSnapshot.canAddComment(
+            mode: mode ?? state.mode,
+            commentable: state.commentableSelection.value,
+            editable: !fileURL.isBundleResource)
+    }
+
+    /// The "Comment" button adds a comment to the selection, so it is live only
+    /// for a commentable selection in a writable Up-mode document.
     private func updateCommentButton(for mode: Mode? = nil) {
-        commentButton?.isEnabled = (mode ?? state.mode) == .up
-            && state.commentableSelection.value
-            && !fileURL.isBundleResource
+        commentButton?.isEnabled = canAddComment(for: mode)
     }
 
     private func updateChangesButton(_ enabled: Bool) {

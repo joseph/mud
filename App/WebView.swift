@@ -25,39 +25,47 @@ class MudWebView: WKWebView {
                          action: #selector(postReloadDocument),
                          keyEquivalent: "")
             for item in menu.items where item.action != nil { item.target = self }
-        } else if canAddComment(in: menu) {
-            // Selection menu (Copy etc.): offer "Add Comment…" at the top.
-            let item = NSMenuItem(title: "Add Comment\u{2026}",
-                                  action: #selector(postAddComment),
-                                  keyEquivalent: "")
-            item.target = self
-            item.image = NSImage(systemSymbolName: "plus.message",
-                                 accessibilityDescription: nil)
-            menu.insertItem(item, at: 0)
+        } else if isSelectionMenu(menu) {
+            menu.insertItem(addCommentItem(), at: 0)
             menu.insertItem(.separator(), at: 1)
         }
         super.willOpenMenu(menu, with: event)
     }
 
-    /// The opened document's URL, via the AppKit window controller.
-    private var documentURL: URL? {
-        (window?.windowController as? DocumentWindowController)?.fileURL
-    }
-
-    /// "Add Comment…" applies only to a text selection in the rendered (Up-mode)
-    /// view of a writable document. A WKWebView selection menu carries a Copy
-    /// item (`WKMenuItemIdentifierCopy`); its presence is our selection signal.
-    /// Reads this window's own mode: a control-click opens the menu without
-    /// making the window key, so global active-tab state can belong to another
-    /// window.
-    private func canAddComment(in menu: NSMenu) -> Bool {
-        guard let controller = window?.windowController
-                  as? DocumentWindowController,
-              controller.state.mode == .up,
-              let url = documentURL, !url.isBundleResource else { return false }
-        return menu.items.contains {
+    /// Whether this is the menu for a text selection. A WKWebView selection
+    /// menu carries a Copy item (`WKMenuItemIdentifierCopy`); its presence is
+    /// what tells us the menu belongs to selected text rather than to some
+    /// other page element.
+    private func isSelectionMenu(_ menu: NSMenu) -> Bool {
+        menu.items.contains {
             $0.identifier?.rawValue == "WKMenuItemIdentifierCopy"
         }
+    }
+
+    /// "Add Comment…" for the top of a selection menu. Like the toolbar button
+    /// and the Edit menu item, it is always shown and live only when the
+    /// selection can actually take a comment — Up mode, a writable document,
+    /// and text that maps back to a source byte (so not inside a code block, a
+    /// Mermaid diagram, math, or a deletion overlay).
+    /// `DocumentWindowController.canAddComment(for:)` holds that rule; this
+    /// window's own controller answers it, because a control-click opens the
+    /// menu without making the window key.
+    ///
+    /// A disabled item gets no action: an item with a nil action greys out
+    /// under menu auto-enabling, and `isEnabled` covers the menu that has
+    /// auto-enabling off. Either way it stays visible, so the reader sees that
+    /// commenting exists here and just doesn't apply to this selection.
+    private func addCommentItem() -> NSMenuItem {
+        let enabled = (window?.windowController as? DocumentWindowController)?
+            .canAddComment() ?? false
+        let item = NSMenuItem(title: "Add Comment\u{2026}",
+                              action: enabled ? #selector(postAddComment) : nil,
+                              keyEquivalent: "")
+        item.target = self
+        item.isEnabled = enabled
+        item.image = NSImage(systemSymbolName: "plus.message",
+                             accessibilityDescription: nil)
+        return item
     }
 
     /// Reveals the Comments column and opens a compose for the selection, via the

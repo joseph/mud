@@ -14,6 +14,22 @@ struct ActiveDocumentSnapshot: Equatable {
     /// commentable selection. Matches the toolbar Comment button's condition.
     let canAddComment: Bool
     let commentsColumnVisible: Bool
+
+    /// The one rule behind every Add Comment affordance — the Edit menu item
+    /// (through this snapshot), the toolbar button, and the WebView context
+    /// menu (both through `DocumentWindowController.canAddComment(for:)`).
+    /// Each reads the three facts from a different place, so the rule itself
+    /// lives here rather than being spelled out three times.
+    ///
+    /// - Parameters:
+    ///   - mode: The window's current mode. Comments are an Up-mode feature.
+    ///   - commentable: Whether the page reports a commentable selection —
+    ///     non-empty, and not in a code block, Mermaid diagram, math, raw HTML,
+    ///     or a deletion overlay (see `mud-comments-edit.js`).
+    ///   - editable: False for the bundled read-only documents.
+    static func canAddComment(mode: Mode, commentable: Bool, editable: Bool) -> Bool {
+        mode == .up && commentable && editable
+    }
 }
 
 /// Watches the key window and publishes an `ActiveDocumentSnapshot` for the
@@ -69,7 +85,8 @@ final class ActiveDocumentObserver: ObservableObject {
                 let snapshot = ActiveDocumentSnapshot(
                     mode: mode,
                     editable: editable,
-                    canAddComment: mode == .up && commentable && editable,
+                    canAddComment: ActiveDocumentSnapshot.canAddComment(
+                        mode: mode, commentable: commentable, editable: editable),
                     commentsColumnVisible: columnVisible)
                 // These publishers fire on `willSet`, sometimes mid view
                 // update (the Mark Up/Down menu toggles mutate `mode` from a

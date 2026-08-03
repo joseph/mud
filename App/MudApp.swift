@@ -163,6 +163,30 @@ struct MudApp: App {
                 ))
                 .keyboardShortcut("r", modifiers: [.command, .control])
 
+                // Only while the setting is on: with it off there are no
+                // arrows and nothing to fold, so the pair would be two dead
+                // items pointing at a preference the reader can't see from
+                // here. Ctrl-Cmd-H rather than Cmd-H, which is Hide Mud.
+                if appState.viewToggles.contains(.foldableHeadings) {
+                    Button("Fold Headings") {
+                        NSApp.sendAction(
+                            #selector(DocumentWindowController.foldHeadings(_:)),
+                            to: nil, from: nil
+                        )
+                    }
+                    .keyboardShortcut("h", modifiers: [.command, .control])
+                    .disabled(activeDocument.snapshot?.mode != .up)
+
+                    Button("Unfold Headings") {
+                        NSApp.sendAction(
+                            #selector(DocumentWindowController.unfoldHeadings(_:)),
+                            to: nil, from: nil
+                        )
+                    }
+                    .keyboardShortcut("h", modifiers: [.command, .shift])
+                    .disabled(activeDocument.snapshot?.mode != .up)
+                }
+
                 Divider()
 
                 Button("Actual Size") {

@@ -340,6 +340,17 @@ class DocumentWindowController: NSWindowController {
         AppState.shared.toggle(.readableColumn)
     }
 
+    /// Folds every foldable heading in the page, or unfolds them all. The
+    /// page holds the folded set and reports the new one back over `mudFolds`,
+    /// so these send and forget like any other page command.
+    @objc func foldHeadings(_ sender: Any?) {
+        state.webCommands.send(.foldAllHeadings)
+    }
+
+    @objc func unfoldHeadings(_ sender: Any?) {
+        state.webCommands.send(.unfoldAllHeadings)
+    }
+
     /// Reveals the Comments column (per-window state, so a later class-sync
     /// keeps it shown) and opens a compose box on the current selection.
     ///

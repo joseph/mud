@@ -410,6 +410,10 @@ struct WebView: NSViewRepresentable {
                 }
             case .scrollToChanges(let ids):
                 bridge.call("scrollToChange", ids)
+            case .foldAllHeadings:
+                bridge.call("folds.foldAll")
+            case .unfoldAllHeadings:
+                bridge.call("folds.unfoldAll")
             case .revealComment(let label):
                 bridge.call("comments.openToComment", label)
             case .scrollToComments(let label):

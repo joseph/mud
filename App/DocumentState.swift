@@ -28,6 +28,12 @@ enum WebCommand {
     /// false is what puts it back. Only the outcome crosses — why a save
     /// failed is the info bar's to say.
     case resolveSubmission(success: Bool)
+    /// Fold every foldable heading in the page (h2 down to h6), or unfold
+    /// them all — the View menu's Fold Headings and Unfold Headings. Those
+    /// items only appear while the "Foldable headings" setting is on and only
+    /// enable in Up mode; `Mud.folds` checks the setting again on its side.
+    case foldAllHeadings
+    case unfoldAllHeadings
     /// Scroll to a heading (sidebar click). Mode-dependent: Down mode
     /// scrolls to the heading's source line, Up mode to its slug ID.
     case scrollToHeading(OutlineHeading)

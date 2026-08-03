@@ -207,6 +207,31 @@
     report();
   }
 
+  // Fold or unfold the whole document — the View menu's Fold Headings and
+  // Unfold Headings. Fold takes every rank, h2 down to h6, so unfolding one
+  // section reveals its sub-sections still folded.
+  //
+  // Both replace the set rather than adding to it, which drops any slug that
+  // is no longer a heading in this document. That is the point of a document-
+  // wide command: what it leaves behind is what is on the page.
+  function foldAll() {
+    if (!enabled()) return;
+    var headings = article.querySelectorAll(FOLDABLE);
+    folded = Object.create(null);
+    for (var i = 0; i < headings.length; i++) {
+      if (headings[i].id) folded[headings[i].id] = true;
+    }
+    refresh();
+    report();
+  }
+
+  function unfoldAll() {
+    if (!enabled()) return;
+    folded = Object.create(null);
+    refresh();
+    report();
+  }
+
   // -- Revealing ------------------------------------------------------------
 
   // The article child holding `el` (`el` itself when it is one), or null when
@@ -334,6 +359,8 @@
   window.Mud.folds = {
     setEnabled: setEnabled,
     apply: apply,
+    foldAll: foldAll,
+    unfoldAll: unfoldAll,
     reveal: reveal,
     revealHeading: revealHeading,
     hiding: hiding

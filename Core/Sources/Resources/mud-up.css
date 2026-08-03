@@ -112,8 +112,12 @@ p {
     stroke: currentColor;
   }
 
+  /* A folded arrow stays dark whether or not the pointer is on it: it is the
+     only sign that a section is missing, so it has to read from across the
+     page rather than only once you go looking for it. */
   .up-mode-output > :is(h2, h3, h4, h5, h6):hover > .mud-fold-arrow,
-  .mud-fold-arrow:focus-visible {
+  .mud-fold-arrow:focus-visible,
+  .is-folded > .mud-fold-arrow {
     color: var(--heading-color);
   }
 

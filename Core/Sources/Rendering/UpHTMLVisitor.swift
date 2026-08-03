@@ -71,6 +71,16 @@ struct UpHTMLVisitor: CMarkWalker {
     /// (see ``footnoteNumbering(for:)``). Nil for full-document walks.
     var footnoteNumbers: FootnoteNumbering?
 
+    /// Set for deletion-rendering walks (`DeletionRenderer` and the static
+    /// deletion helpers below). A deleted copy of a block emits no comment
+    /// marker: the surviving block already carries the label's live marker,
+    /// and a duplicate hidden inside the collapsed red block would be the
+    /// first `data-mud-label` match in the DOM — `anchorFor` in
+    /// mud-comments.js would anchor the comment's capsule to the hidden copy
+    /// and take the capsule off the column. Footnote markers are wanted in
+    /// the red block, so only comment references go unrendered.
+    var isDeletionRender = false
+
     // MARK: - Block containers
 
     mutating func visitBlockQuote(_ blockQuote: CMarkNode) {
@@ -350,6 +360,11 @@ struct UpHTMLVisitor: CMarkWalker {
         // for the reference's raw bytes, which a broken sourcepos can no
         // longer locate.)
         guard let label = node.parentFootnoteDefinition?.literal else { return }
+        // A deletion render emits no comment tokens — neither the marker nor
+        // the raw-text fallback below (see `isDeletionRender`). A reference
+        // consumes nothing from an active span emitter, so the early return
+        // shears no word markers.
+        if isDeletionRender, FootnoteProcessor.isCommentLabel(label) { return }
         guard let literal = node.literal, Int(literal) != nil,
               let range = node.verifiedRange else {
             // Emitted directly, bypassing any active span emitter:
@@ -1036,6 +1051,7 @@ struct UpHTMLVisitor: CMarkWalker {
         if let (category, title) = detector.detectGFMAlert(blockQuote) {
             var visitor = UpHTMLVisitor()
             visitor.footnoteNumbers = footnoteNumbers
+            visitor.isDeletionRender = true
             visitor.emitAlertTitle(category, title)
             visitor.emitGFMAlertContent(blockQuote, category: category)
             return (visitor.result, category)
@@ -1044,6 +1060,7 @@ struct UpHTMLVisitor: CMarkWalker {
         if let alert = detector.detectDocCAlert(blockQuote) {
             var visitor = UpHTMLVisitor()
             visitor.footnoteNumbers = footnoteNumbers
+            visitor.isDeletionRender = true
             // Math-bearing asides skip word spans, the same rule
             // `activateWordSpans` applies on the insertion side.
             if let spans = wordSpans, !spans.isEmpty,
@@ -1076,6 +1093,7 @@ struct UpHTMLVisitor: CMarkWalker {
     ) -> String {
         var visitor = UpHTMLVisitor()
         visitor.footnoteNumbers = footnoteNumbers
+        visitor.isDeletionRender = role == .deletion
         visitor.spanEmitter = WordSpanEmitter(
             spans: spans, role: role, showInlineDeletions: false)
         for child in node.children { visitor.visit(child) }

@@ -109,7 +109,10 @@
         if (node.classList.contains("comments") ||
             node.classList.contains("footnotes")) return;
         if (node.classList.contains("mud-comment-marker")) {
-          markerAt[node.getAttribute("data-mud-label")] = flat.length;
+          var label = node.getAttribute("data-mud-label");
+          // A repeated label anchors its quotation at the first reference —
+          // the marker anchorFor picks in every case that arises in practice.
+          if (!(label in markerAt)) markerAt[label] = flat.length;
           return;
         }
       }
@@ -599,13 +602,20 @@
 
   // What a capsule sits beside in the document: its quotation highlight, or —
   // for a quote-less comment with no highlight — its hidden inline marker (kept
-  // measurable by the visually-hidden CSS).
+  // measurable by the visually-hidden CSS). A label should have one marker; if
+  // the document ever holds more, the first with a layout box wins, so a hidden
+  // duplicate can't capture the anchor. With none laid out the first still
+  // stands: a fold hides the only marker legitimately, and foldOver reads it.
   function anchorFor(label) {
-    var safe = window.CSS && CSS.escape ? CSS.escape(label) : label;
-    return container.querySelector(
-        'mark.mud-comment-highlight[data-mud-label="' + safe + '"]') ||
-      container.querySelector(
-        '.mud-comment-marker[data-mud-label="' + safe + '"]');
+    var mark = container.querySelector(
+      'mark.mud-comment-highlight[data-mud-label="' + cssEsc(label) + '"]');
+    if (mark) return mark;
+    var markers = container.querySelectorAll(
+      '.mud-comment-marker[data-mud-label="' + cssEsc(label) + '"]');
+    for (var i = 0; i < markers.length; i++) {
+      if (markers[i].offsetParent !== null) return markers[i];
+    }
+    return markers[0] || null;
   }
 
   // -- Folded quotations ----------------------------------------------------
@@ -868,11 +878,7 @@
   }
 
   function scrollToComment(label) {
-    var safe = cssEsc(label);
-    var anchor = container.querySelector(
-        'mark.mud-comment-highlight[data-mud-label="' + safe + '"]') ||
-      container.querySelector(
-        '.mud-comment-marker[data-mud-label="' + safe + '"]');
+    var anchor = anchorFor(label);
     if (anchor) anchor.scrollIntoView({ block: "center", behavior: "smooth" });
   }
 

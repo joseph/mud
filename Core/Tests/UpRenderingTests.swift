@@ -386,6 +386,35 @@ struct UpRenderingTests {
         #expect(body.contains("<ins>"))
     }
 
+    /// A deleted block emits no comment marker, paired or not. The surviving
+    /// block carries the label's live marker; a duplicate inside the hidden
+    /// red block would be the first `data-mud-label` match in the DOM, and
+    /// the column (`anchorFor` in mud-comments.js) would anchor the capsule
+    /// to the hidden copy and drop the comment from the column.
+    @Test func deletedBlockEmitsNoCommentMarker() {
+        let def = "\n\n[^comment-a]: > quote\n\n"
+            + "    💬 {Tester @ 2026-07-08 12:00:00}:\n\n"
+            + "    A note.\n"
+        let old = "The quick fox[^comment-a].\(def)"
+        let marker = FootnoteProcessor.commentMarkerHTML(label: "comment-a")
+
+        // Paired edit: word spans active in both blocks, yet only the
+        // insertion block renders the marker.
+        let paired = cmarkDiffedBody(
+            new: "The slow fox[^comment-a].\(def)", old: old, options: .init())
+        #expect(paired.contains("<ins>"))
+        #expect(paired.contains("mud-change-del"))
+        #expect(paired.components(separatedBy: marker).count - 1 == 1)
+
+        // Low-similarity replacement: the old block renders whole as a
+        // deletion, again without its marker.
+        let replaced = cmarkDiffedBody(
+            new: "Entirely different words now[^comment-a].\(def)",
+            old: old, options: .init())
+        #expect(replaced.contains("mud-change-del"))
+        #expect(replaced.components(separatedBy: marker).count - 1 == 1)
+    }
+
     /// A paired **edit** of a roman-path DocC aside (first line over the
     /// 60-character bold-inline threshold). The visitor renders the first
     /// paragraph inline, never routing it through a separate paragraph visit,

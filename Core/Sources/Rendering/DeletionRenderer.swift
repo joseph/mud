@@ -94,6 +94,7 @@ enum DeletionRenderer {
             default:
                 var visitor = UpHTMLVisitor()
                 visitor.footnoteNumbers = footnoteNumbers
+                visitor.isDeletionRender = true
                 for child in markup.children { visitor.visit(child) }
                 html = visitor.result
             }

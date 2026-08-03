@@ -1,13 +1,14 @@
 Plan: Foldable Headings
 ===============================================================================
 
-> Status: Underway
+> Status: Complete
 
 A new Up Mode setting, "Foldable headings". With it on, every h2-and-deeper
 heading in Mark Up mode gets a faint arrow button at its right edge, and
 clicking it folds that heading's section away — the content under it,
-sub-sections included. Folds last as long as the window is open, and navigating
-into a folded section opens it back up.
+sub-sections included. The View menu adds Fold Headings and Unfold Headings for
+doing the whole document at once. Folds last as long as the window is open, and
+navigating into a folded section opens it back up.
 
 
 ## What it does
@@ -20,13 +21,16 @@ into a folded section opens it back up.
   right edge of the heading, vertically aligned with the heading's last line.
   `h1` is left out — it is the document title, not a section.
 - The arrow points down while the section is open and rotates -90° to point
-  right while it is folded. Its color is `--border-color`, the same faint tone
-  as the h1/h2 underlines.
+  right while it is folded. Open and unhovered it is `--border-color`, the same
+  faint tone as the h1/h2 underlines; hovered, focused, or folded it darkens to
+  `--heading-color`.
 - Clicking the arrow toggles the fold. The arrow is the only click target: the
   heading around it stays ordinary text — selectable, commentable, and with its
   links still following — and the pointer cursor appears over the arrow alone.
 - A folded section hides everything from the heading down to the next heading
   of the same or higher rank. The heading itself stays on screen.
+- Fold Headings (Ctrl+Cmd+H) and Unfold Headings (Shift+Cmd+H) in the View menu
+  do the whole document. They appear only while the setting is on.
 - Folds are remembered per window for as long as the window is open: across
   reloads (an external edit, Cmd+R), and across a switch to Mark Down and back.
   Closing the window forgets them. Nothing is written to preferences.
@@ -37,17 +41,18 @@ into a folded section opens it back up.
 
 ## Where each piece lives
 
-| Piece                           | Home                                      |
-| ------------------------------- | ----------------------------------------- |
-| The setting and its persistence | `ViewToggle.foldableHeadings`             |
-| The root CSS class              | `is-foldable-headings`                    |
-| Arrow shape                     | `Resources/fold-arrow.svg`                |
-| Arrows, click handling, folding | `mud-up.js` (`Mud.folds`)                 |
-| Arrow and hidden-block styles   | `mud-up.css`, one rule in `mud-print.css` |
-| Unfold-on-navigation call sites | `mud.js`, `mud-changes.js`, `mud-up.js`   |
-| A folded section's comments     | `mud-comments.js`, `mud-comments.css`     |
-| Memory across a reload          | `WebView.Coordinator`                     |
-| Page → app reporting            | `mudFolds` bridge message                 |
+| Piece                           | Home                                       |
+| ------------------------------- | ------------------------------------------ |
+| The setting and its persistence | `ViewToggle.foldableHeadings`              |
+| The root CSS class              | `is-foldable-headings`                     |
+| Arrow shape                     | `Resources/fold-arrow.svg`                 |
+| Arrows, click handling, folding | `mud-up.js` (`Mud.folds`)                  |
+| Arrow and hidden-block styles   | `mud-up.css`, one rule in `mud-print.css`  |
+| Unfold-on-navigation call sites | `mud.js`, `mud-changes.js`, `mud-up.js`    |
+| A folded section's comments     | `mud-comments.js`, `mud-comments.css`      |
+| The View menu pair              | `MudApp.swift`, `DocumentWindowController` |
+| Memory across a reload          | `WebView.Coordinator`                      |
+| Page → app reporting            | `mudFolds` bridge message                  |
 
 Folding is a view state of one page, not a property of the document, so no part
 of it reaches `RenderOptions`, the visitor, or the diff layer. The rendered
@@ -94,6 +99,12 @@ Orientation is one rotation, not two: the arrow is drawn pointing down, so the
 open state needs no transform and the folded state is `rotate(-90deg)`, which
 points it right. The transform origin is the arrow's center.
 
+A folded arrow stays at the darker `--heading-color` whether or not the pointer
+is on it, sharing the rule with `:hover` and `:focus-visible`. It is the only
+sign that a section is missing, so it has to read from across the page rather
+than only once you go looking for it. The button already carried
+`transition: color 0.15s ease`, so it darkens as the section closes.
+
 
 ## The arrow's box
 
@@ -136,31 +147,17 @@ in a single top-to-bottom walk. Recomputing beats toggling elements in place:
 with nested folds, "unfold this section" is not "show these elements" — a
 sub-section folded inside it must stay folded.
 
-The walk keeps a stack of the folded headings whose sections are still open,
-outermost first:
+`refresh()` walks the article's children carrying a stack of the folded
+headings whose sections are still open, outermost first. Each heading first
+pops every entry of its own rank or deeper, since those sections have ended; a
+block is hidden whenever the stack isn't empty. The class it adds and removes
+is `is-fold-hidden`, whose one rule is `display: none`. A heading inside a
+folded parent is hidden along with the rest, and keeps its own folded state for
+when the parent opens again.
 
-```
-  for (var el of article.children) {
-    var level = headingLevel(el);            // 0 when not a heading
-    if (level) {
-      while (open.length && open.top.level >= level) open.pop();
-      setHidden(el, open);                   // hidden by an outer fold
-      el.classList.toggle("is-folded", folded.has(el.id));
-      if (folded.has(el.id)) open.push({ level: level, id: el.id });
-    } else {
-      setHidden(el, open);
-    }
-  }
-```
-
-`setHidden` adds or removes `is-fold-hidden`, whose one rule is
-`display: none`. A heading inside a folded parent is hidden along with the
-rest, and keeps its own folded state for when the parent opens again.
-
-While a block is hidden `setHidden` also stamps it with `data-fold-host`, the
-`id` of `open[0]` — the outermost folded heading over it, and the only one of
-them still on screen. That is what `hiding` reads back; see "Making `hiding`
-cheap".
+While a block is hidden the same pass stamps it with `data-fold-host`, the `id`
+of the stack's outermost entry — the only folded heading over it still on
+screen. That is what `hiding` reads back; see "Making `hiding` cheap".
 
 The API `mud-up.js` publishes:
 
@@ -168,12 +165,46 @@ The API `mud-up.js` publishes:
 | ------------------------- | ----------------------------------------------- |
 | `folds.setEnabled(on)`    | `mud.js` `setClass`, when the setting flips     |
 | `folds.apply(slugs)`      | The app after a page load, to restore the folds |
+| `folds.foldAll()`         | The View menu's Fold Headings                   |
+| `folds.unfoldAll()`       | The View menu's Unfold Headings                 |
 | `folds.reveal(el)`        | Any navigation landing on an element            |
 | `folds.revealHeading(id)` | Outline sidebar navigation                      |
 | `folds.hiding(el)`        | The Comments column, to place a folded comment  |
 
 Turning the setting off removes the arrows and shows everything, but keeps the
 remembered set, so turning it back on restores the same folds.
+
+
+## Folding the whole document
+
+Two View-menu items sit below Readable Column: **Fold Headings** (Ctrl+Cmd+H)
+and **Unfold Headings** (Shift+Cmd+H). Fold Headings folds every rank, h2 down
+to h6, so unfolding one h2 by its arrow reveals its h3s still folded. Unfold
+Headings opens everything.
+
+The path is the ordinary one for a page action: the menu item sends
+`DocumentWindowController.foldHeadings(_:)` / `unfoldHeadings(_:)` down the
+responder chain, which puts `WebCommand.foldAllHeadings` / `.unfoldAllHeadings`
+on `state.webCommands`, and the WebView coordinator calls `folds.foldAll` /
+`folds.unfoldAll`.
+
+- **Not Cmd-H.** That is Hide Mud, and AppKit searches the app menu before
+  View, so an item with that shortcut would display it and never fire.
+  Ctrl+Cmd+H also matches the rest of the View menu, where every toggle is
+  Ctrl+Cmd and a letter — Sidebar Ctrl+Cmd+S, Changes Ctrl+Cmd+C, Comments
+  Ctrl+Cmd+K, Readable Column Ctrl+Cmd+R.
+- **Hidden, not disabled, while the setting is off.** With it off there are no
+  arrows and nothing to fold, so the pair would be two dead items pointing at a
+  preference the reader can't reach from the menu. Both are also disabled
+  outside Up mode, like Show Comments.
+- **Both replace the folded set** rather than adding to it, which drops slugs
+  that are no longer headings in this document. That is what a document-wide
+  command should do: what it leaves behind is what is on the page. Both report
+  the new set over `mudFolds` like any other change, so the app's copy — the
+  one that survives the next reload — stays in step.
+- **The Comments column needs no wiring.** Its `ResizeObserver` on the article
+  catches the height change the same way it does for a single arrow click, so
+  every folded-away comment becomes a stub.
 
 
 ## Remembering folds across a reload
@@ -218,7 +249,8 @@ unfolded after that reload. The old slug is not dropped, though: it stays in
 the set for as long as the window is open, and if that heading ever comes back
 — an undo, say — it comes back folded. We keep that. The set is bounded by the
 headings the reader has folded in this one window, and a fold surviving an undo
-is the better of the two behaviors.
+is the better of the two behaviors. Fold Headings and Unfold Headings are the
+exception, since each rebuilds the set from scratch.
 
 
 ## Unfolding on navigation
@@ -249,19 +281,19 @@ non-requirement.
 
 ## What the rest of the page does with hidden blocks
 
-- **Change overlays** mostly cope. `positionOverlay` filters to elements with a
-  layout box (`offsetParent !== null`) and hides an overlay whose blocks have
-  all gone, and a `ResizeObserver` on `.up-mode-output` repositions everything
-  when the article's height changes — which a fold does. A collapsed
-  deletion-only group is the open question; see the last item under "Testing".
-- **The Comments column** needs work of its own.[^comment-a] A capsule's
-  position comes from `preferredPosition`, which returns `layoutTop(anchor)`; a
-  hidden anchor has no offset parent, so it reports 0 and every folded comment
-  piles at the top of the column. "Comments in a folded section" covers what it
-  does instead.
-- **Find** counts matches inside folded sections. Activating one unfolds
-  it[^comment-b], so stepping through matches with Cmd+G still walks the whole
-  document. Leaving the count as the document's total is the honest number.
+- **Change overlays** cope. `positionOverlay` filters to elements with a layout
+  box (`offsetParent !== null`) and hides an overlay whose blocks have all
+  gone, and a `ResizeObserver` on `.up-mode-output` repositions everything when
+  the article's height changes — which a fold does. For the deletion-only case,
+  see "Open questions".
+- **The Comments column** needs work of its own. A capsule's position comes
+  from `preferredPosition`, which returns `layoutTop(anchor)`; a hidden anchor
+  has no offset parent, so it reports 0 and every folded comment would pile at
+  the top of the column. "Comments in a folded section" covers what it does
+  instead.
+- **Find** counts matches inside folded sections. Activating one unfolds it, so
+  stepping through matches with Cmd+G still walks the whole document. Leaving
+  the count as the document's total is the honest number.
 - **Print** shows everything, because the hiding rule is `@media screen`.
 
 
@@ -299,11 +331,18 @@ many of them there are.
 An anchor with no layout box for some other reason still leaves the column, as
 before. The header's count stays the document's total either way.
 
+One later fix landed on the same code. A comment-tracking bug (a deleted copy
+of a block re-rendering the comment's marker) turned `anchorFor` into a search
+for the first marker **with a layout box**, so a hidden duplicate can't capture
+the anchor. Folding is the case where none of them is laid out — the fold hides
+the only marker legitimately — so the function still falls back to the first
+marker, which is what `foldOver` then reads.
+
 
 ## Corrections after review
 
-Six things the review pass turned up, all now on the branch. The first two were
-defects a reader would hit; the rest were loose ends.
+Six things the review pass turned up. The first two were defects a reader would
+hit; the rest were loose ends.
 
 
 ### The key-catalog count test
@@ -427,7 +466,7 @@ pin in `HTMLTemplateTests`.
 
 `mud-comments.js` is the most complicated file in the project, and folding
 added about 110 lines to it. Most of that has left. This section is the
-refactor, which changes no behavior.
+refactor, which changed no behavior.
 
 
 ### What the column knew about folding
@@ -463,22 +502,12 @@ hiding heading's slug, but nothing outside `mud-up.js` needs to know that.
 `top` is the bottom of the hiding heading, in layout pixels — a line to sit on,
 not a position for any particular thing. The column centers its stub on it.
 
-`mud-comments.js` names the feature in exactly one function:
-
-```
-  // The document can hide a comment's anchor: foldable headings (mud-up.js)
-  // are an app feature, and an export doesn't load that file. Null whenever
-  // the anchor is on screen, and everywhere folding doesn't exist.
-  function foldOver(anchor) {
-    var f = window.Mud && window.Mud.folds;
-    return f && anchor && anchor.offsetParent === null
-      ? f.hiding(anchor) : null;
-  }
-```
-
-Everything downstream reads `fold.key` and `fold.top`. In an export `foldOver`
-returns null on its first clause and every branch below it falls away — the
-same guarantee the three separate guards gave, in one place instead of three.
+`mud-comments.js` names the feature in exactly one function, `foldOver`, which
+returns `Mud.folds.hiding(anchor)` when the anchor has no layout box and null
+otherwise. Everything downstream reads `fold.key` and `fold.top`. In an export
+`foldOver` returns null on its first clause — `window.Mud.folds` doesn't exist
+there — and every branch below it falls away, which is the same guarantee the
+three separate guards gave, in one place instead of three.
 
 
 ### One lookup per comment
@@ -488,20 +517,12 @@ grouping maps, once in the loop body, once inside `preferredPosition` — and
 each `hostOf` walked backwards through the article's children. That was
 comments × blocks of DOM walking on every animation frame.
 
-The map is now built once at the top of the pass and the answer passed down:
-
-```
-  var folds = Object.create(null);      // label -> { key, top } | null
-  labels.forEach(function (label) {
-    folds[label] = foldOver(anchorFor(label));
-  });
-```
-
-`preferredPosition(label, fold)` takes what it needs instead of recomputing it
-(with the argument omitted it still looks the fold up itself, for the odd
-caller outside a placement pass), and the grouping loops read `folds[label]`.
-The `clearActive` check that closes a comment whose section just folded moved
-below the map and reads it too, so nothing in the pass asks twice.
+The pass now builds one label-to-fold map at the top and passes the answer
+down. `preferredPosition(label, fold)` takes what it needs instead of
+recomputing it (with the argument omitted it still looks the fold up itself,
+for the odd caller outside a placement pass), and the grouping loops read the
+map. The `clearActive` check that closes a comment whose section just folded
+moved below the map and reads it too, so nothing in the pass asks twice.
 
 
 ### Making `hiding` cheap
@@ -543,17 +564,10 @@ comment. `foldOver` is the only name in the file that says "fold".
 The three unfold call sites all did the same two things in the same order.
 "Opening a comment reveals it" is one rule, so `activate` opens the fold
 itself. `navigate` and `openToComment` lost a line each, and the stub's click
-handler reads whether it needs to scroll off the capsule it already has:
-
-```
-  var wasStub = cap.classList.contains("is-stub");
-  activate(label);
-  if (wasStub) scrollToComment(label);
-```
-
-`wasStub` says the same thing the old `unfold(label)` return said: the only
-capsule that can be clicked while its fold is shut is the one carrying the
-stub, since the rest are `display: none`.
+handler now reads whether the capsule was a stub _before_ activating it, which
+tells it whether to scroll. That flag says the same thing the old `unfold`
+return said: the only capsule that can be clicked while its fold is shut is the
+one carrying the stub, since the rest are `display: none`.
 
 One path now reveals that didn't before: `project()` re-activates the open
 comment after a reproject, so a live edit arriving while a comment is expanded
@@ -609,10 +623,15 @@ the seam:
 **App/**
 
 - `Settings/UpModeSettingsView.swift` — the toggle
+- `MudApp.swift` — the View menu's Fold Headings / Unfold Headings pair, shown
+  only while the setting is on
+- `DocumentWindowController.swift` — `foldHeadings(_:)` / `unfoldHeadings(_:)`
+- `DocumentState.swift` — the `foldAllHeadings` / `unfoldAllHeadings` web
+  commands
 - `MudJSBridge.swift` — the `mudFolds` handler, message case, decode, and table
   row
-- `WebView.swift` — `Coordinator.foldedHeadings`, the message case, the
-  `didFinish` replay (before the scroll restore)
+- `WebView.swift` — `Coordinator.foldedHeadings`, the message case, the two
+  fold-all commands, the `didFinish` replay (before the scroll restore)
 
 **Core/Sources/**
 
@@ -620,7 +639,8 @@ the seam:
 - `Rendering/CommentHTMLRenderer.swift`, `Rendering/FootnoteHTMLRenderer.swift`
   — `forPopover()` drops `is-foldable-headings` along with the column's classes
 - `Resources/mud-up.js` — `Mud.folds`: arrows, click handling, the visibility
-  pass and its `data-fold-host` stamp, `hiding`, the `#`-link handler
+  pass and its `data-fold-host` stamp, `hiding`, `foldAll` / `unfoldAll`, the
+  `#`-link handler
 - `Resources/mud.js` — the `setClass` hook, unfold in `activateMatch` and
   `scrollToHeading`
 - `Resources/mud-changes.js` — unfold in `scrollToChange`
@@ -638,7 +658,6 @@ the seam:
 
 - `AGENTS.md` — the feature list, the `ViewToggle` entry, the `mud-up.js` /
   `mud.js` / `mud-comments.js` / `mud-up.css` entries, the bridge message table
-- `RELEASES.md` — a line in the next version's notes
 
 
 ## Testing
@@ -647,70 +666,39 @@ Most of this is CSS and JS, which the test suites don't reach. The Swift-side
 tests are small:
 
 - `MudJSBridgeTests` — decoding a `mudFolds` payload into `MudJSMessage.folds`,
-  and dropping a malformed one. (Done.)
-- `HTMLTemplateTests` — the fold arrow reaches `mudUpJS`. (Done.)
-- `MudPreferencesTests` — the key-catalog count. (Done.)
-- `CommentResourcesTests` — `STUB_H` against the CSS. (Done.)
+  and dropping a malformed one.
+- `HTMLTemplateTests` — the fold arrow reaches `mudUpJS`.
+- `MudPreferencesTests` — the key-catalog count.
+- `CommentResourcesTests` — `STUB_H` against the CSS.
 
-The rest is a manual pass, on a document with nested headings, comments, and a
-waypoint selected:
-
-1. Setting off: no arrows at all.
-2. Setting on: arrows on h2–h6, none on h1, aligned right and on the last line
-   of a wrapped heading. Heading text still selects and takes a comment, and a
-   link in a heading still follows. Do this on a long h5 and h6, where the
-   button overhung the text before the fix.
-3. Click an arrow on an h2 that holds h3s: everything down to the next h2
-   disappears; the arrow points right.
-4. Fold an inner h3, fold its h2, unfold the h2: the h3 is still folded.
-5. Edit the file in another editor: after the reload the same sections are
-   folded, **and the scroll position is where it was**. Same for Cmd+R, and for
-   Space to Mark Down and back.
-6. Click an outline row for a folded heading, and one inside a folded section:
-   both unfold and scroll.
-7. Cmd+F for text inside a folded section, then Cmd+G onto it: it unfolds and
-   scrolls.
-8. With the Changes bar showing, navigate to a change inside a folded section.
-9. With the Comments column open, fold a section that holds two comments: one
-   thin sliver appears level with the heading's bottom, and hovering it reads
-   "2 comments". Click it — the section opens, the first comment expands, and
-   the page scrolls to its quotation. Fold it again and step onto either
-   comment with the header's ‹ › arrows: the same. Unfold by hand and both
-   capsules come back in place.
-10. Cmd+P with a section folded: the printed document is complete.
-11. Close the window, reopen the file: nothing is folded.
-12. Open question — fold a section that _contains_ a deletion-only change.
-    `refresh()` leaves `.mud-overlay` children alone by design, and
-    `positionCollapsedOverlay` walks back to the nearest visible sibling, which
-    for a folded section is the heading itself. The expando button should end
-    up parked under the folded heading, still clickable, expanding deletions
-    from a section that isn't on screen. Look at it on a real page and decide
-    whether the overlay should hide with its section.
+The rest was a manual pass, on a document with nested headings, comments, and a
+waypoint selected: the arrows appear on h2–h6 and not h1; heading text still
+selects, takes a comment, and follows a link; nested folds survive their
+parent's opening; a reload keeps both the folds and the scroll position;
+outline clicks, `#` links, Find matches, and change navigation all unfold what
+they land in; a folded section's comments collapse to one stub that opens on a
+click or on the header's ‹ › arrows; print shows everything; and a new window
+starts unfolded.
 
 
-## Deferred
+## Open questions
 
-Not in this plan; worth doing once the basics are in use.
+- **A deletion-only change inside a folded section** — looked at on a real
+  page, and left alone. `refresh()` skips `.mud-overlay` children by design,
+  and `positionCollapsedOverlay` walks back to the nearest visible sibling,
+  which for a folded section is the heading itself. So the expando button parks
+  under the folded heading and still expands its deletions. That is a
+  defensible reading — the deleted text isn't in the folded section, it's an
+  overlay on it — and hiding the overlay with its section would mean teaching
+  `mud-changes.js` about folding, which is exactly the seam "Untangling the
+  column" spent its effort removing.
 
-- **Fold All / Unfold All.** A View-menu pair, and the toolbar or keyboard
-  equivalents that go with it. Both are one call into `Mud.folds` — Fold All
-  puts every `h2` slug in the set (or every heading rank, if we want it to
-  close right down), Unfold All empties it — and both report the new set back
-  over `mudFolds` like any other change, so nothing else has to move.
+
+## Follow-ups
+
+- **Release notes.** Foldable headings has no entry in `Doc/RELEASES.md`.
+  v4.0.1 is the last tagged version and there is no unreleased section yet, so
+  this waits for whoever opens one.
 - **Folding in Mark Down mode.** The raw view has headings too, but its rows
   are table lines rather than blocks, so the section walk would be a different
   piece of code against `LineDiffMap`-style line ranges. Out of scope here.
-
-[^comment-a]:
-    > The Comments column needs one fix.
-
-    💬 {JP @ 2026-08-02 15:23:00}:
-
-    Adding a comment here to test it.
-
-[^comment-b]:
-    > Activating one unfolds it
-
-    💬 {JP @ 2026-08-02 17:04:48}:
-
-    Same section, second comment.

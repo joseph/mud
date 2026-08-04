@@ -7,6 +7,11 @@ import MudPreferences
 
 class DocumentWindowController: NSWindowController {
     let fileURL: URL
+    /// What this window and its tab are called when the document's own title
+    /// isn't being used: the file's name, or the folder's with a trailing "/".
+    /// Taken once at open — the name shouldn't change under the reader because
+    /// something moved on disk.
+    private let displayName: String
     let state: DocumentState
     let model: DocumentModel
     var onClose: ((DocumentWindowController) -> Void)?
@@ -26,6 +31,8 @@ class DocumentWindowController: NSWindowController {
 
     init(url: URL) {
         self.fileURL = url
+        let name = MarkdownFolder.displayName(for: url)
+        self.displayName = name
         let state = DocumentState()
         self.state = state
         self.model = DocumentModel(
@@ -37,7 +44,7 @@ class DocumentWindowController: NSWindowController {
             backing: .buffered,
             defer: false
         )
-        window.title = url.lastPathComponent
+        window.title = name
         window.representedURL = url
         window.toolbarStyle = .unified
         window.minSize = NSSize(width: 500, height: 400)
@@ -222,7 +229,7 @@ class DocumentWindowController: NSWindowController {
         if appState.uiUseHeadingAsTitle, let title = state.contentTitle {
             window?.title = title
         } else {
-            window?.title = fileURL.lastPathComponent
+            window?.title = displayName
         }
     }
 
@@ -521,7 +528,28 @@ class DocumentWindowController: NSWindowController {
     }
 
     @objc func reloadDocument(_ sender: Any?) {
+        if reopenFolder() { return }
         model.load(forced: true)
+    }
+
+    /// Cmd+R on the empty-folder window, when the folder has gained a Markdown
+    /// file since it opened. `DocumentModel` can't answer this one: every read
+    /// of a folder returns the same blank page, and a folder gets no file
+    /// watcher, so re-running the open is the only way that window moves on.
+    /// The documents open first, then this window closes — closing it first
+    /// could take the last window down and quit the app.
+    ///
+    /// Returns whether it acted. False leaves Cmd+R as it was, including for
+    /// a folder that is still empty: a re-read that raises the same notice is
+    /// the honest answer to "check again".
+    private func reopenFolder() -> Bool {
+        guard let files = MarkdownFolder.markdownFiles(in: fileURL),
+              !files.isEmpty,
+              let controller = NSDocumentController.shared as? DocumentController
+        else { return false }
+        controller.openDocument(withContentsOf: fileURL, display: true) { _, _, _ in }
+        close()
+        return true
     }
 
     @objc func performFindAction(_ sender: Any?) {

@@ -125,6 +125,17 @@ import Testing
         #expect(state.notice == DocumentNotice.externalChangeHeld)
     }
 
+    /// The empty-folder window's page is blank, so the bar carries the whole
+    /// message — and there is nothing to do about it and nothing that would
+    /// clear it, so it has neither a button nor an ×.
+    @Test func theEmptyFolderNoticeIsAPlainWarning() {
+        let notice = DocumentNotice.folderHasNoMarkdown
+
+        #expect(notice.level == .warning)
+        #expect(notice.action == nil)
+        #expect(!notice.isDismissible)
+    }
+
     @Test func openFailureNamesTheFile() {
         let notice = DocumentNotice.openFailed(fileName: "Notes.md")
 

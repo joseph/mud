@@ -297,7 +297,12 @@ final class DocumentModel: ObservableObject {
     }
 
     private func setupFileWatcher() {
-        guard !fileURL.isBundleResource else { return }
+        // Nothing to watch for a bundled guide, which can't change, or for the
+        // empty-folder window, whose blank page re-reads to the same blank
+        // page however the folder's contents move.
+        guard !fileURL.isBundleResource, !MarkdownFolder.isFolder(fileURL) else {
+            return
+        }
         fileWatcher = FileWatcher(url: fileURL) { [weak self] in
             guard let self else { return }
             let read = self.readDisk()
@@ -310,8 +315,8 @@ final class DocumentModel: ObservableObject {
             guard case .text(let text) = read else {
                 if self.state.isComposingComment {
                     self.pendingExternalReload = true
-                } else if case .failure(let html) = read {
-                    self.setLoadFailure(html)
+                } else if case .failure(let html, let notice) = read {
+                    self.setLoadFailure(html, notice: notice)
                 }
                 return
             }
@@ -354,40 +359,61 @@ final class DocumentModel: ObservableObject {
     /// deciding whether to apply or hold it.
     private enum DiskRead {
         case text(String)
-        case failure(String)  // pre-rendered error page HTML
+        /// Pre-rendered page HTML to show in place of the document, and the
+        /// notice raised over it. The notice travels with the page because the
+        /// two are written to be read together — which failure it was decides
+        /// both.
+        case failure(html: String, notice: DocumentNotice)
     }
 
     private func readDisk() -> DiskRead {
+        // The window `DocumentController` opens for a folder holding no
+        // Markdown. There is nothing to read, so the page is blank and the bar
+        // is the whole message.
+        if MarkdownFolder.isFolder(fileURL) {
+            return .failure(
+                html: ErrorPage.empty(), notice: .folderHasNoMarkdown)
+        }
         do {
             let data = try Data(contentsOf: fileURL)
             guard let text = String(data: data, encoding: .utf8) else {
-                return .failure(ErrorPage.fileEncodingError())
+                return .failure(
+                    html: ErrorPage.fileEncodingError(), notice: openFailed)
             }
             return .text(text)
         } catch let cocoaError as CocoaError where cocoaError.code == .fileReadNoSuchFile {
-            return .failure(ErrorPage.fileNotFound(error: cocoaError))
+            return .failure(
+                html: ErrorPage.fileNotFound(error: cocoaError),
+                notice: openFailed)
         } catch {
             return .failure(
-                ErrorPage.filePermissionDenied(path: fileURL.path, error: error))
+                html: ErrorPage.filePermissionDenied(
+                    path: fileURL.path, error: error),
+                notice: openFailed)
         }
+    }
+
+    /// The headline over any of the three read failures.
+    private var openFailed: DocumentNotice {
+        .openFailed(fileName: fileURL.lastPathComponent)
     }
 
     private func loadFromDisk() {
         switch readDisk() {
         case .text(let text):
             applyLoaded(text)
-        case .failure(let html):
-            setLoadFailure(html)
+        case .failure(let html, let notice):
+            setLoadFailure(html, notice: notice)
         }
     }
 
-    /// Shows the error page and raises the info-bar notice over it. The page
-    /// carries the diagnosis and what to do about it; the bar is the headline,
-    /// so the window says what went wrong without the reader having to read a
-    /// rendered document to find out.
-    private func setLoadFailure(_ html: String) {
+    /// Shows the page that took the document's place and raises its info-bar
+    /// notice. The page carries the diagnosis and what to do about it; the bar
+    /// is the headline, so the window says what went wrong without the reader
+    /// having to read a rendered document to find out.
+    private func setLoadFailure(_ html: String, notice: DocumentNotice) {
         setContent(.error(html))
-        state.raise(.openFailed(fileName: fileURL.lastPathComponent))
+        state.raise(notice)
     }
 
     /// Parses `text` and refreshes per-document state (the render, headings,

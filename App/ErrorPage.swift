@@ -31,6 +31,14 @@ enum ErrorPage {
         render("> Error: The file's text encoding couldn't be determined.")
     }
 
+    /// A page with nothing on it, for a window whose content is absent rather
+    /// than broken — the folder that held no Markdown. What happened is the
+    /// info bar's to say (`DocumentNotice.folderHasNoMarkdown`), so the page
+    /// itself says nothing.
+    static func empty() -> String {
+        render("")
+    }
+
     private static func render(_ markdown: String) -> String {
         var opts = RenderOptions()
         opts.theme = .system

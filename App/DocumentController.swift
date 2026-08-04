@@ -1,5 +1,4 @@
 import SwiftUI
-import UniformTypeIdentifiers
 
 // MARK: - Document Controller
 
@@ -18,11 +17,66 @@ class DocumentController: NSDocumentController {
         display displayDocument: Bool,
         completionHandler: @escaping (NSDocument?, Bool, (any Error)?) -> Void
     ) {
+        // A folder stands for the Markdown files directly inside it, so it
+        // takes a route of its own.
+        if let files = MarkdownFolder.markdownFiles(in: url) {
+            openFolder(url, files: files)
+            completionHandler(nil, false, nil)
+            return
+        }
+
+        presentWindow(for: url, noteRecent: !url.isBundleResource)
+        completionHandler(nil, false, nil)
+    }
+
+    /// Opens one window per Markdown file in `folder`, tabbed into one group.
+    /// A folder with none still gets a window: the request is answered with a
+    /// blank page and the info bar's warning, rather than with nothing at all.
+    ///
+    /// The tab group is why this doesn't just loop over `openDocument`. Mud's
+    /// windows don't cascade (`shouldCascadeWindows = false`) and each one
+    /// opens centered, so a folder of a dozen documents would otherwise put a
+    /// dozen windows on the same rect and look like one. Tabbing here is
+    /// explicit rather than a `tabbingMode` on every window, because
+    /// `tabbingMode` is answered by the reader's system-wide "Prefer tabs"
+    /// setting: it would either group *every* Mud window or none. One command
+    /// asking for many documents is the case that needs them together.
+    private func openFolder(_ folder: URL, files: [URL]) {
+        guard !files.isEmpty else {
+            presentWindow(for: folder, noteRecent: false)
+            return
+        }
+        // Only the windows this open creates join the group. A document
+        // already on screen is surfaced where it is — it belongs to whatever
+        // window the reader put it in, and moving it would be a surprise.
+        var host: NSWindow?
+        var previous: NSWindow?
+        for file in files {
+            guard let window = presentWindow(
+                for: file, noteRecent: !file.isBundleResource) else { continue }
+            previous?.addTabbedWindow(window, ordered: .above)
+            if host == nil { host = window }
+            previous = window
+        }
+        // Each added tab becomes the selected one, so without this the last
+        // file in the folder would be the one on screen.
+        host?.makeKeyAndOrderFront(nil)
+    }
+
+    /// Surfaces the window for `url`: the one already showing this document,
+    /// else a new one. `noteRecent` is false for anything File > Open Recent
+    /// shouldn't list — a bundled guide, or the folder that held no Markdown
+    /// (there is nothing in it to reopen).
+    ///
+    /// Returns the window only when this call created it, which is what
+    /// `openFolder` needs to know: an already-open document keeps its place
+    /// instead of being pulled into the folder's tab group.
+    @discardableResult
+    private func presentWindow(for url: URL, noteRecent: Bool) -> NSWindow? {
         if let existingWindow = findWindow(for: url) {
             existingWindow.makeKeyAndOrderFront(nil)
             didOpenDocument()
-            completionHandler(nil, false, nil)
-            return
+            return nil
         }
 
         let windowController = DocumentWindowController(url: url)
@@ -31,11 +85,11 @@ class DocumentController: NSDocumentController {
         }
         windowControllers.append(windowController)
         windowController.showWindow(nil)
-        if !url.isBundleResource {
+        if noteRecent {
             noteNewRecentDocumentURL(url)
         }
         didOpenDocument()
-        completionHandler(nil, false, nil)
+        return windowController.window
     }
 
     /// Records that a document window is up and clears any launch/Cmd+O open
@@ -83,6 +137,10 @@ class DocumentController: NSDocumentController {
         let panel = NSOpenPanel()
         panel.allowedContentTypes = OpenPanelFilter.default.contentTypes
         panel.allowsMultipleSelection = true
+        // A folder is an answer to "open what?" too — Mud opens the Markdown
+        // files directly inside it. Double-clicking a folder still navigates
+        // into it; selecting one and clicking Open is what opens it.
+        panel.canChooseDirectories = true
         panel.accessoryView = makeFilterAccessoryView()
         panel.isAccessoryViewDisclosed = true
         openPanel = panel

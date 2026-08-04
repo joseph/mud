@@ -8,6 +8,11 @@ private extension DocumentModel.Content {
         if case .parsed(let parsed) = self { return parsed.markdown }
         return nil
     }
+
+    var isErrorPage: Bool {
+        if case .error = self { return true }
+        return false
+    }
 }
 
 // MARK: - Self-write dedup policy
@@ -172,6 +177,50 @@ private extension DocumentModel.Content {
         #expect(state.commentsColumnVisible)
         // The stale locator's label no longer exists; it must be pruned.
         #expect(model.pendingCommentLocators.isEmpty)
+    }
+}
+
+// MARK: - The empty-folder window
+
+/// The model behind the window `DocumentController` opens on a folder that
+/// held no Markdown. Its URL is not a document, and this is what it does with
+/// it: the blank page under the `folderHasNoMarkdown` notice, and no watcher —
+/// what moves inside the folder can't change either one, and Cmd+R
+/// (`DocumentWindowController.reopenFolder`) is what picks up a new file.
+@MainActor
+@Suite struct DocumentModelFolderTests {
+    private let directory: URL
+    private let state: DocumentState
+    private let model: DocumentModel
+
+    init() throws {
+        directory = try makeTempDirectory()
+        state = DocumentState()
+        model = DocumentModel(
+            fileURL: directory, state: state, changeTracker: state.changeTracker)
+    }
+
+    @Test func aFolderLoadsAsABlankPageUnderTheNotice() {
+        model.load()
+
+        #expect(model.content.isErrorPage)
+        #expect(state.notice == DocumentNotice.folderHasNoMarkdown)
+    }
+
+    /// No watcher runs on a folder, so a file appearing inside it leaves the
+    /// window exactly as it was — including the badge a background reload
+    /// would have set.
+    @Test func aFileAppearingInTheFolderChangesNothing() async throws {
+        model.load()
+
+        try "# New".write(
+            to: directory.appendingPathComponent("added.md"),
+            atomically: false, encoding: .utf8)
+        await pump(0.5)
+
+        #expect(model.content.isErrorPage)
+        #expect(state.notice == DocumentNotice.folderHasNoMarkdown)
+        #expect(!model.hasBackgroundReload)
     }
 }
 

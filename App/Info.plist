@@ -60,6 +60,27 @@
       <key>CFBundleTypeIconFile</key>
       <string>MarkdownDocument</string>
     </dict>
+    <!-- Folders. Not a document type Mud renders: handed one, it opens the
+      Markdown files directly inside it (`MarkdownFolder`). Declared so a
+      folder can reach the app at all from the Finder side — Open With, and
+      a drop on the Dock icon — which LaunchServices offers only for types
+      an app claims. Without this the only routes are `open -a Mud.app <dir>`
+      and the Open panel. `public.folder`, not `public.directory`: a package
+      is a directory but not a folder, and Mud reads one as a single
+      document. Rank Alternate, so Mud never becomes the system handler for
+      folders — that stays Finder's. -->
+    <dict>
+      <key>CFBundleTypeName</key>
+      <string>Folder</string>
+      <key>CFBundleTypeRole</key>
+      <string>Viewer</string>
+      <key>LSHandlerRank</key>
+      <string>Alternate</string>
+      <key>LSItemContentTypes</key>
+      <array>
+        <string>public.folder</string>
+      </array>
+    </dict>
   </array>
   <key>UTImportedTypeDeclarations</key>
   <array>

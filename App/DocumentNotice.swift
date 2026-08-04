@@ -60,6 +60,10 @@ struct DocumentNotice: Equatable {
         /// the edit is being held: the page shows a version behind the file on
         /// disk until the box closes. See `DocumentModel.externalChangeHeld`.
         case externalChangeHeld
+        /// Mud was asked to open a folder that holds no Markdown files. The
+        /// window exists only to carry this message, so the content area is a
+        /// blank page (`ErrorPage.empty`).
+        case folderHasNoMarkdown
         /// A comment couldn't be written to the file. The only notice a reader
         /// can dismiss — nothing else takes it down, because nothing else
         /// knows they have read it.
@@ -103,6 +107,16 @@ extension DocumentNotice {
             message: "The file “\(fileName)” couldn’t be opened."
         )
     }
+
+    /// Nothing is broken — the folder just isn't a document and holds none —
+    /// so this is a warning, like a file that couldn't be read, rather than an
+    /// error. There is nothing to do about it from the bar and nothing that
+    /// clears it, so it carries neither a button nor an ×.
+    static let folderHasNoMarkdown = Self(
+        kind: .folderHasNoMarkdown,
+        level: .warning,
+        message: "This folder does not contain Markdown files."
+    )
 
     /// A comment edit that didn't reach the file. `note` is the body the
     /// reader wrote, offered to the pasteboard when there is one: on every

@@ -142,10 +142,16 @@ a:hover {
 
 /* -- Lists ---------------------------------------------------------------- */
 
+/* One number for the indent, since a task item's check box hangs in it (see
+   below). Anything that wants a different indent — the footnotes and comments
+   lists, both of mud-narrow.css's tiers — redefines the variable and leaves
+   the padding to this rule, so the box and the indent can't drift apart. */
 ul, ol {
+  --list-left-pad: 2em;
+
   margin-top: 0;
   margin-bottom: 1em;
-  padding-left: 2em;
+  padding-left: var(--list-left-pad);
 }
 
 li {
@@ -161,21 +167,27 @@ li > ul, li > ol {
 
 li:has(> input[type="checkbox"]) {
   list-style: none;
-  margin-left: -1.5em;
 }
 
 li:has(> input[type="checkbox"]) > input[type="checkbox"] {
   display: none;
 }
 
+/* The box hangs in the list's indent. It reaches 1.5em left of the item's text
+   — its own 1em plus a 0.5em gap — or the whole indent where that is less, so
+   it can never poke out of the list. The pull and the gap are stated from that
+   one reach, so the three horizontal margins always sum to zero and the first
+   line of an item starts exactly where its wrapped lines do, at any indent. */
 li:has(> input[type="checkbox"])::before {
+  --check-reach: min(1.5em, var(--list-left-pad));
+
   content: "";
   display: inline-block;
   width: 1em;
   height: 1em;
   border: 1.5px solid var(--border-color);
   border-radius: 3px;
-  margin: 0.15em 0.5em 0 0;
+  margin: 0.15em calc(var(--check-reach) - 1em) 0 calc(-1 * var(--check-reach));
   float: left;
   clear: left;
 }
@@ -400,7 +412,7 @@ blockquote > :last-child {
 }
 
 .footnotes ol {
-  padding-left: 1.5em;
+  --list-left-pad: 1.5em;
 }
 
 .footnotes li {

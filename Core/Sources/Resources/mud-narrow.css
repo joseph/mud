@@ -37,7 +37,7 @@
   }
 
   ul, ol {
-    padding-left: 1.5em;
+    --list-left-pad: 1.5em;
   }
 
   pre {
@@ -170,12 +170,12 @@
   h3 { font-size: 1.15em; }
 
   ul, ol {
-    padding-left: 1.25em;
+    --list-left-pad: 1.25em;
   }
 
   .footnotes ol,
   .comments ol {
-    padding-left: 1.25em;
+    --list-left-pad: 1.25em;
   }
 
   pre {

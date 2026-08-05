@@ -30,8 +30,15 @@ struct GeneralSettingsView: View {
                     }
                 }
                 Text("Window location where the Find bar and Changes bar appear.")
-                    .font(.callout)
+                    .font(.subheadline)
                     .foregroundStyle(.secondary)
+            }
+
+            Section {
+                Toggle(isOn: $appState.uiUseHeadingAsTitle) {
+                    Text("First heading as window title")
+                    Text("Take the text of the first heading in the document as the title in the toolbar. When off, use the filename.")
+                }
             }
 
             Section {
@@ -41,13 +48,6 @@ struct GeneralSettingsView: View {
                 )) {
                     Text("Readable column")
                     Text("Constrain content to a comfortable reading width — no more than about 80 characters per line.")
-                }
-            }
-
-            Section {
-                Toggle(isOn: $appState.uiUseHeadingAsTitle) {
-                    Text("First heading as window title")
-                    Text("Use the first heading in the document as the window title. When off, the filename is used.")
                 }
             }
 

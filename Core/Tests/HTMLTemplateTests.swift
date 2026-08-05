@@ -196,6 +196,18 @@ struct HTMLTemplateTests {
         #expect(!HTMLTemplate.mudUpJS.isEmpty)
     }
 
+    /// The fold arrow's markup is substituted into `mud-up.js` from
+    /// `fold-arrow.svg`. Renaming the placeholder on either side would ship a
+    /// heading button holding the literal placeholder text instead of an arrow
+    /// — visible only by looking at a rendered page, so pin it here.
+    @Test func mudUpJSCarriesTheFoldArrow() {
+        let js = HTMLTemplate.mudUpJS
+        #expect(!js.contains("__MUD_FOLD_ARROW_SVG__"))
+        // The SVG arrives as a JS string literal: quotes and newlines escaped.
+        #expect(js.contains(#"<svg version=\"1.1\""#))
+        #expect(js.contains("polyline"))
+    }
+
     @Test func mudDownJSNotEmpty() {
         #expect(!HTMLTemplate.mudDownJS.isEmpty)
     }

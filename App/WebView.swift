@@ -322,6 +322,13 @@ struct WebView: NSViewRepresentable {
         var commentColumnWidth: Double = 300
         var lastCommentColumnWidth: Double?
         var commentTheme: Theme = .earthy
+        /// The headings the page currently has folded, by slug. A reload
+        /// discards the page's own copy, so the set is kept here — alongside
+        /// the saved scroll position, the other page fact that has to survive
+        /// one — and replayed in `didFinish`. Per window and never persisted:
+        /// closing the window forgets the folds. The page is the only author;
+        /// it reports the whole set over `mudFolds` after every change.
+        var foldedHeadings: [String] = []
         weak var webView: WKWebView?
         private var savedFraction: CGFloat?
         private let baseURL: URL?
@@ -353,6 +360,8 @@ struct WebView: NSViewRepresentable {
                 onColumnWidthChange?(width)
             case .revealColumn(let label):
                 onRevealColumn?(label)
+            case .folds(let slugs):
+                foldedHeadings = slugs
             }
         }
 
@@ -487,6 +496,11 @@ struct WebView: NSViewRepresentable {
             restoreScrollPosition()
             applyComments()
             applyCommentColumnWidth(commentColumnWidth)
+            // A fresh page starts unfolded; put back the folds this window had.
+            // No-ops in Down mode, where `Mud.folds` doesn't exist.
+            if !foldedHeadings.isEmpty {
+                bridge.call("folds.apply", foldedHeadings)
+            }
             for ext in activeExtensions {
                 injectExtension(ext)
             }

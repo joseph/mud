@@ -61,6 +61,12 @@
   .footnotes.is-print-only { display: block; }
 
 
+  /* Up mode: the fold arrows are an on-screen control, so a printed heading
+     shows none. A folded section prints in full without anything here to undo:
+     the rule that hides it is inside `@media screen` (mud-up.css). */
+  .mud-fold-arrow { display: none; }
+
+
   /* Up mode: comments. The bottom Comments section is hidden on screen in
      favor of the column, but prints in place of the column. Being the
      article's sibling rather than its child, the footer carries its own page

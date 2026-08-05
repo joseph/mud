@@ -176,8 +176,26 @@ public enum HTMLTemplate {
     }
 
     /// Up-mode JavaScript injected at runtime by WKWebView.
+    ///
+    /// The fold arrow's markup is substituted in from `fold-arrow.svg`, so the
+    /// shape is drawn in one file rather than restated in JS. Same shape as
+    /// `mudCommentsJS`, which also assembles its script from more than one
+    /// resource.
     public static var mudUpJS: String {
-        loadResource("mud-up", type: "js") ?? ""
+        let js = loadResource("mud-up", type: "js") ?? ""
+        let svg = (loadResource("fold-arrow", type: "svg") ?? "")
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return js.replacingOccurrences(
+            of: "\"__MUD_FOLD_ARROW_SVG__\"", with: jsStringLiteral(svg))
+    }
+
+    /// A string as a JS string literal, quotes included. JSON's string escaping
+    /// is JS's, so the encoder does the work; it goes through a one-element
+    /// array to sidestep top-level-fragment limits (as `MudJSBridge.script`
+    /// does).
+    private static func jsStringLiteral(_ value: String) -> String {
+        guard let data = try? JSONEncoder().encode([value]) else { return "\"\"" }
+        return String(String(decoding: data, as: UTF8.self).dropFirst().dropLast())
     }
 
     /// Comment column (read side): projection from the hidden section, highlight

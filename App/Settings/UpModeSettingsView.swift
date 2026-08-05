@@ -15,6 +15,15 @@ struct UpModeSettingsView: View {
             }
             Section {
                 Toggle(isOn: Binding(
+                    get: { appState.viewToggles.contains(.foldableHeadings) },
+                    set: { _ in appState.toggle(.foldableHeadings) }
+                )) {
+                    Text("Foldable headings")
+                    Text("Click a heading arrow in Mark Up mode to show or hide its section.")
+                }
+            }
+            Section {
+                Toggle(isOn: Binding(
                     get: { appState.enabledExtensions.contains("mermaid") },
                     set: { newValue in
                         if newValue {
@@ -36,7 +45,6 @@ struct UpModeSettingsView: View {
                         .foregroundStyle(.link)
                     }
                 }
-
             }
             Section("Code blocks") {
                 Toggle(isOn: Binding(

@@ -374,6 +374,10 @@
       '[data-change-id="' + ids[0] + '"]'
     );
     if (!first) return;
+    // A change inside a folded section (foldable headings) opens it first —
+    // otherwise the block below reads its missing layout box as a collapsed
+    // deletion group and scrolls to the expando instead.
+    if (window.Mud.folds) window.Mud.folds.reveal(first);
     var gid = first.dataset.groupId;
 
     // For collapsed del-only groups, scroll to the overlay button.

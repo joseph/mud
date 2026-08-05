@@ -16,6 +16,7 @@ import WebKit
 /// | `mudSelection`     | `Bool`                                          | `DocumentState.commentableSelection`           |
 /// | `mudColumnWidth`   | `Double`                                        | Persisted Comments Column width                |
 /// | `mudRevealColumn`  | `String` (comment label)                        | `DocumentWindowController.revealComment`       |
+/// | `mudFolds`         | `[String]` (folded heading slugs)               | `WebView.Coordinator.foldedHeadings`           |
 enum MudJSMessage {
     case open(URL)
     case footnoteClick(FootnoteClick)
@@ -25,6 +26,10 @@ enum MudJSMessage {
     case columnWidth(Double)
     /// A comment marker was clicked, naming the comment to open the column to.
     case revealColumn(label: String)
+    /// The page's folded headings, by slug, reported after every fold change.
+    /// The whole set travels each time, so the app's copy can't drift from the
+    /// page's.
+    case folds(slugs: [String])
 }
 
 /// The `mudFootnote` payload: which marker was clicked and where. The rect is
@@ -108,6 +113,7 @@ final class MudJSBridge: NSObject, WKScriptMessageHandler {
         case selection = "mudSelection"
         case columnWidth = "mudColumnWidth"
         case revealColumn = "mudRevealColumn"
+        case folds = "mudFolds"
     }
 
     // MARK: Configuration
@@ -270,6 +276,9 @@ final class MudJSBridge: NSObject, WKScriptMessageHandler {
         case .revealColumn:
             guard let label = body as? String else { return nil }
             return .revealColumn(label: label)
+        case .folds:
+            guard let slugs = body as? [String] else { return nil }
+            return .folds(slugs: slugs)
         }
     }
 

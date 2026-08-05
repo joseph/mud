@@ -44,6 +44,69 @@ p {
   margin-bottom: 1em;
 }
 
+
+/* -- Foldable headings ---------------------------------------------------- */
+
+/* With the "Foldable headings" setting on (`is-foldable-headings`), mud-up.js
+   puts an arrow button in every h2-and-deeper heading, and a click on that
+   button folds the section under it away. Both the arrow and the folding
+   are on-screen only: paper always gets the whole document, so mud-print.css
+   has nothing to undo — it only hides the buttons. */
+@media screen {
+  /* Direct children only: a heading nested in a blockquote, a list item, or a
+     footnote body begins no section, and mud-up.js gives it no arrow. */
+  .is-foldable-headings .up-mode-output > :is(h2, h3, h4, h5, h6) {
+    position: relative;
+    /* The arrow's column, kept clear so a heading that wraps can't run under
+       it. */
+    padding-right: 1.5em;
+  }
+
+  .is-foldable-headings .up-mode-output > .is-fold-hidden {
+    display: none;
+  }
+
+  .mud-fold-arrow {
+    position: absolute;
+    right: 0;
+    bottom: var(--fold-arrow-inset, 0em);
+    box-sizing: content-box;
+    width: 1.25em;
+    height: 1.25em;
+    padding: 1em;
+    border: 0;
+    background: none;
+    color: var(--border-color);
+    cursor: pointer;
+    transition: color 0.15s ease, transform 0.15s ease;
+  }
+
+  h2 .mud-fold-arrow { --fold-arrow-inset: 0.3em; }
+
+  .mud-fold-arrow svg {
+    display: block;
+    width: 100%;
+    height: 100%;
+  }
+
+  /* fold-arrow.svg draws in black; take the h1/h2 underline color instead. The
+     file sets its color as a presentation attribute, which loses to any rule. */
+  .mud-fold-arrow polyline {
+    stroke: currentColor;
+  }
+
+  .up-mode-output > :is(h2, h3, h4, h5, h6):hover > .mud-fold-arrow,
+  .mud-fold-arrow:focus-visible {
+    color: var(--heading-color);
+  }
+
+  /* Folded: the arrow turns from pointing down to pointing right. */
+  .is-folded > .mud-fold-arrow {
+    transform: rotate(-90deg);
+  }
+}
+
+
 /* -- Links ---------------------------------------------------------------- */
 
 a {

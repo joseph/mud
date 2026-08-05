@@ -1,7 +1,7 @@
 Plan: Foldable Headings
 ===============================================================================
 
-> Status: Planning
+> Status: Underway
 
 A new General setting, "Foldable headings". With it on, every h2-and-deeper
 heading in Mark Up mode gets a faint arrow at its right edge, and clicking the

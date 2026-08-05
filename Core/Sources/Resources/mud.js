@@ -99,6 +99,10 @@
     activeIndex = ((n % marks.length) + marks.length) % marks.length;
     var el = marks[activeIndex];
     el.classList.add(ACTIVE_CLASS);
+    // A match inside a folded section has nothing to scroll to until the
+    // section opens. Matches stay counted while folded, so stepping through
+    // them with Cmd+G still walks the whole document.
+    if (window.Mud.folds) window.Mud.folds.reveal(el);
     el.scrollIntoView({ block: "center", behavior: "smooth" });
   }
 
@@ -196,7 +200,10 @@
 
   function scrollToHeading(slug) {
     var el = document.getElementById(slug);
-    if (el) el.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (!el) return;
+    // Navigating to a folded heading opens it, and opens whatever it sits in.
+    if (window.Mud.folds) window.Mud.folds.revealHeading(slug);
+    el.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
   function scrollToLine(lineNumber) {
@@ -224,6 +231,9 @@
     if (name === "show-comment-markers" && Mud.comments &&
         Mud.comments.setMarkersShown) {
       Mud.comments.setMarkersShown(enabled);
+    }
+    if (name === "is-foldable-headings" && Mud.folds) {
+      Mud.folds.setEnabled(enabled);
     }
   }
 

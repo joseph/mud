@@ -120,6 +120,7 @@ extension MudPreferences {
         case uiFloatingControlsPosition = "ui-floating-controls-position"
         case uiShowReadableColumn       = "ui-show-readable-column"
         case uiCommentColumnWidth       = "ui-comment-column-width"
+        case uiFoldableHeadings         = "ui-foldable-headings"
 
         // internal-* — app-owned bookkeeping
         case hasLaunched                = "internal-has-launched"

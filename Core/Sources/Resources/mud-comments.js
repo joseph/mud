@@ -595,15 +595,20 @@
 
   // -- Placement pass -------------------------------------------------------
 
-  // A comment's preferred position, in layout pixels: the top of its quotation
-  // highlight, or — for a quote-less comment with no highlight — the position of
-  // its hidden inline marker (kept measurable by the visually-hidden CSS).
-  function preferredPosition(label) {
+  // What a capsule sits beside in the document: its quotation highlight, or —
+  // for a quote-less comment with no highlight — its hidden inline marker (kept
+  // measurable by the visually-hidden CSS).
+  function anchorFor(label) {
     var safe = window.CSS && CSS.escape ? CSS.escape(label) : label;
-    var anchor = container.querySelector(
+    return container.querySelector(
         'mark.mud-comment-highlight[data-mud-label="' + safe + '"]') ||
       container.querySelector(
         '.mud-comment-marker[data-mud-label="' + safe + '"]');
+  }
+
+  // A comment's preferred position, in layout pixels: the top of its anchor.
+  function preferredPosition(label) {
+    var anchor = anchorFor(label);
     if (!anchor) return 0;
     return Math.max(0, layoutTop(anchor));
   }
@@ -642,6 +647,17 @@
     Object.keys(capsules).forEach(function (label) {
       var cap = capsules[label];
       var height;
+      // A comment whose quotation has been folded away (foldable headings) has
+      // no anchor on screen to sit beside: its offsetParent is null, so
+      // layoutTop would report 0 and pile the capsule at the top of the column.
+      // Take it out of the column until the section opens again — the
+      // ResizeObserver below runs this pass when it does.
+      var anchor = anchorFor(label);
+      if (anchor && anchor.offsetParent === null) {
+        cap.style.display = "none";
+        return;
+      }
+      cap.style.display = "";
       if (label === activeLabel) {
         height = sizeActive(cap);
       } else {

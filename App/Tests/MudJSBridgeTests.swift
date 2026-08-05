@@ -169,4 +169,24 @@ import Testing
         // no comment to open the column to, so the message drops.
         #expect(bridge.decode(true, for: .revealColumn) == nil)
     }
+
+    @Test func foldsDecodesTheWholeSet() throws {
+        let message = bridge.decode(["install", "usage"], for: .folds)
+        guard case .folds(let slugs) = try #require(message) else {
+            Issue.record("expected .folds"); return
+        }
+        #expect(slugs == ["install", "usage"])
+
+        // Empty is a real report — the page saying nothing is folded any more —
+        // so it must decode rather than drop, or unfolding the last section
+        // would leave the app still holding it.
+        let cleared = bridge.decode([String](), for: .folds)
+        guard case .folds(let none) = try #require(cleared) else {
+            Issue.record("expected .folds"); return
+        }
+        #expect(none.isEmpty)
+
+        #expect(bridge.decode("install", for: .folds) == nil)
+        #expect(bridge.decode([1, 2], for: .folds) == nil)
+    }
 }

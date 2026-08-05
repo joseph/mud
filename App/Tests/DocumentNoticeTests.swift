@@ -136,6 +136,18 @@ import Testing
         #expect(!notice.isDismissible)
     }
 
+    /// A truncated index isn't a failure — the document is a real one, just
+    /// not the whole tree — so it reads as information, and the walk that
+    /// fits is what takes it down rather than the reader.
+    @Test func theTruncatedIndexNoticeGivesTheLimit() {
+        let notice = DocumentNotice.folderIndexTruncated(limit: 1000)
+
+        #expect(notice.message.contains("1,000"))
+        #expect(notice.level == .info)
+        #expect(notice.action == nil)
+        #expect(!notice.isDismissible)
+    }
+
     @Test func openFailureNamesTheFile() {
         let notice = DocumentNotice.openFailed(fileName: "Notes.md")
 

@@ -32,7 +32,7 @@ struct DocumentContentView: View {
         let renderOptions = model.renderOptions
         return WebView(
             html: display.html,
-            baseURL: fileURL,
+            baseURL: model.baseURL,
             contentID: display.contentID,
             mode: state.mode,
             theme: displayTheme,

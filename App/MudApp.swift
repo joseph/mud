@@ -310,6 +310,14 @@ extension URL {
     var isBundleResource: Bool {
         path.hasPrefix(Bundle.main.bundlePath)
     }
+
+    /// Whether Mud can write a comment back to the document this URL stands
+    /// for. False for a bundled guide, which lives inside the app, and for a
+    /// folder, whose index Mud generates rather than reads — there is no file
+    /// under it to edit.
+    var isEditableDocument: Bool {
+        !isBundleResource && !MarkdownFolder.isFolder(self)
+    }
 }
 
 // MARK: - UTType

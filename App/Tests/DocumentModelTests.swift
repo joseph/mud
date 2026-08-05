@@ -1,5 +1,6 @@
 import Foundation
 import MudCore
+import MudPreferences
 import Testing
 @testable import Mud
 
@@ -187,6 +188,9 @@ private extension DocumentModel.Content {
 /// it: the blank page under the `folderHasNoMarkdown` notice, and no watcher —
 /// what moves inside the folder can't change either one, and Cmd+R
 /// (`DocumentWindowController.reopenFolder`) is what picks up a new file.
+///
+/// Under the tab behavior, which these pin rather than read from the reader's
+/// preferences, that is the only window a folder ever gets.
 @MainActor
 @Suite struct DocumentModelFolderTests {
     private let directory: URL
@@ -197,7 +201,8 @@ private extension DocumentModel.Content {
         directory = try makeTempDirectory()
         state = DocumentState()
         model = DocumentModel(
-            fileURL: directory, state: state, changeTracker: state.changeTracker)
+            fileURL: directory, state: state,
+            changeTracker: state.changeTracker, folderBehavior: { .tabs })
     }
 
     @Test func aFolderLoadsAsABlankPageUnderTheNotice() {
@@ -221,6 +226,76 @@ private extension DocumentModel.Content {
         #expect(model.content.isErrorPage)
         #expect(state.notice == DocumentNotice.folderHasNoMarkdown)
         #expect(!model.hasBackgroundReload)
+    }
+}
+
+// MARK: - The folder-index window
+
+/// The same window under the index behavior: the folder's tree becomes the
+/// document. The walk itself is `FolderIndexTests`' subject; this is about
+/// what the model does with it — that a folder with something in it is a
+/// document rather than an error page, that Cmd+R walks again, and that an
+/// empty tree still falls back to the blank page.
+@MainActor
+@Suite struct DocumentModelFolderIndexTests {
+    private let directory: URL
+    private let state: DocumentState
+    private let model: DocumentModel
+
+    init() throws {
+        directory = try makeTempDirectory()
+        state = DocumentState()
+        model = DocumentModel(
+            fileURL: directory, state: state,
+            changeTracker: state.changeTracker, folderBehavior: { .index })
+    }
+
+    private func write(_ path: String) throws {
+        let url = directory.appendingPathComponent(path)
+        try FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true)
+        try "# Heading\n".write(to: url, atomically: true, encoding: .utf8)
+    }
+
+    @Test func theTreeBecomesTheDocument() throws {
+        try write("top.md")
+        try write("Sub/deep.md")
+        model.load()
+
+        let source = try #require(model.content.markdown)
+        #expect(source.contains("- [top.md](top.md)"))
+        #expect(source.contains("- **Sub/**"))
+        #expect(source.contains("- [deep.md](Sub/deep.md)"))
+        #expect(state.notice == nil)
+    }
+
+    /// The window has no file watcher, so a document added since the index
+    /// opened turns up on the next load — which is what Cmd+R does
+    /// (`DocumentWindowController.reloadDocument`).
+    @Test func aForcedLoadWalksTheTreeAgain() throws {
+        try write("first.md")
+        model.load()
+        #expect(model.content.markdown?.contains("second.md") != true)
+
+        try write("second.md")
+        model.load(forced: true)
+
+        #expect(model.content.markdown?.contains("second.md") == true)
+    }
+
+    /// Relative destinations only resolve if the page's `<base href>` names
+    /// the folder as a folder.
+    @Test func theBaseURLEndsInASlash() {
+        #expect(model.baseURL.absoluteString.hasSuffix("/"))
+    }
+
+    @Test func aTreeWithNoMarkdownIsStillTheBlankPage() throws {
+        try write("Assets/logo.png")
+        model.load()
+
+        #expect(model.content.isErrorPage)
+        #expect(state.notice == DocumentNotice.folderHasNoMarkdown)
     }
 }
 

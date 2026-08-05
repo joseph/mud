@@ -64,6 +64,10 @@ struct DocumentNotice: Equatable {
         /// window exists only to carry this message, so the content area is a
         /// blank page (`ErrorPage.empty`).
         case folderHasNoMarkdown
+        /// The generated folder index hit `FolderIndex.fileLimit`, so it lists
+        /// part of the tree rather than all of it. Cleared by a later walk
+        /// that fits.
+        case folderIndexTruncated
         /// A comment couldn't be written to the file. The only notice a reader
         /// can dismiss — nothing else takes it down, because nothing else
         /// knows they have read it.
@@ -117,6 +121,20 @@ extension DocumentNotice {
         level: .warning,
         message: "This folder does not contain Markdown files."
     )
+
+    /// The folder index stopped at its limit. Nothing is wrong — the document
+    /// is just not the whole tree — so it reads as information, like a held
+    /// change. There is nothing to do about it from the bar, and a walk that
+    /// fits takes it down, so it carries neither a button nor an ×.
+    static func folderIndexTruncated(limit: Int) -> Self {
+        return Self(
+            kind: .folderIndexTruncated,
+            level: .info,
+            message: "This folder holds more than \(limit.formatted()) "
+                + "Markdown files. The list shows the first "
+                + "\(limit.formatted())."
+        )
+    }
 
     /// A comment edit that didn't reach the file. `note` is the body the
     /// reader wrote, offered to the pasteboard when there is one: on every

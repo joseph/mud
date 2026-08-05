@@ -54,6 +54,7 @@
 		7CAA0000000000000000C0DE /* DocumentNotice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CAA0000000000000000C0DF /* DocumentNotice.swift */; };
 		7CAA0000000000000000C1DE /* MarkdownFolder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CAA0000000000000000C1DF /* MarkdownFolder.swift */; };
 		7CAA0000000000000000C2DE /* OpenPanelFilter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CAA0000000000000000C2DF /* OpenPanelFilter.swift */; };
+		7CAA0000000000000000C3DE /* FolderIndex.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CAA0000000000000000C3DF /* FolderIndex.swift */; };
 		7CAA0000000000000000C0EE /* DocumentNoticeBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CAA0000000000000000C0EF /* DocumentNoticeBar.swift */; };
 		7CADD1000000000000005EF2 /* Pref.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7CADD1000000000000005EF1 /* Pref.swift */; };
 		7CB9BB902F38E28B008AB0BC /* Mud.icon in Resources */ = {isa = PBXBuildFile; fileRef = 7CB9BB8F2F38E28B008AB0BC /* Mud.icon */; };
@@ -195,6 +196,7 @@
 		7CAA0000000000000000C0DF /* DocumentNotice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentNotice.swift; sourceTree = "<group>"; };
 		7CAA0000000000000000C1DF /* MarkdownFolder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownFolder.swift; sourceTree = "<group>"; };
 		7CAA0000000000000000C2DF /* OpenPanelFilter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenPanelFilter.swift; sourceTree = "<group>"; };
+		7CAA0000000000000000C3DF /* FolderIndex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FolderIndex.swift; sourceTree = "<group>"; };
 		7CAA0000000000000000C0EF /* DocumentNoticeBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DocumentNoticeBar.swift; sourceTree = "<group>"; };
 		7CADD1000000000000005EF1 /* Pref.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Pref.swift; sourceTree = "<group>"; };
 		7CB9BB8F2F38E28B008AB0BC /* Mud.icon */ = {isa = PBXFileReference; lastKnownFileType = folder.iconcomposer.icon; path = Mud.icon; sourceTree = "<group>"; };
@@ -419,6 +421,7 @@
 				7C442A642F3457C20046E0CD /* DocumentController.swift */,
 				7CAA0000000000000000C1DF /* MarkdownFolder.swift */,
 				7CAA0000000000000000C2DF /* OpenPanelFilter.swift */,
+				7CAA0000000000000000C3DF /* FolderIndex.swift */,
 				7C442A672F34BB7E0046E0CD /* DocumentWindowController.swift */,
 				7C442A662F34BB7E0046E0CD /* DocumentContentView.swift */,
 				7CAA0000000000000000BADF /* TabReloadBadgeView.swift */,
@@ -807,6 +810,7 @@
 				7CAA0000000000000000C0DE /* DocumentNotice.swift in Sources */,
 				7CAA0000000000000000C1DE /* MarkdownFolder.swift in Sources */,
 				7CAA0000000000000000C2DE /* OpenPanelFilter.swift in Sources */,
+				7CAA0000000000000000C3DE /* FolderIndex.swift in Sources */,
 				7CAA0000000000000000C0EE /* DocumentNoticeBar.swift in Sources */,
 				7C134FC42F813A020020BF91 /* View+Modify.swift in Sources */,
 				7CF99A783015E7C700EB7C63 /* CommentColumnFit.swift in Sources */,

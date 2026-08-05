@@ -52,6 +52,17 @@ struct GeneralSettingsView: View {
             }
 
             Section {
+                Picker("Opening a folder", selection: $appState.folderOpenBehavior) {
+                    ForEach(FolderOpenBehavior.allCases, id: \.self) { behavior in
+                        Text(behavior.label).tag(behavior)
+                    }
+                }
+                Text("A folder isn’t a document. Mud can make one of it — an index of every Markdown file in the tree below it — or open the files directly inside it, one tab each.")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
                 Toggle("Quit when last window closes", isOn: $appState.quitOnClose)
             }
         }

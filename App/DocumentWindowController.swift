@@ -280,7 +280,7 @@ class DocumentWindowController: NSWindowController {
         ActiveDocumentSnapshot.canAddComment(
             mode: mode ?? state.mode,
             commentable: state.commentableSelection.value,
-            editable: !fileURL.isBundleResource)
+            editable: fileURL.isEditableDocument)
     }
 
     /// The "Comment" button adds a comment to the selection, so it is live only
@@ -533,17 +533,21 @@ class DocumentWindowController: NSWindowController {
     }
 
     /// Cmd+R on the empty-folder window, when the folder has gained a Markdown
-    /// file since it opened. `DocumentModel` can't answer this one: every read
-    /// of a folder returns the same blank page, and a folder gets no file
-    /// watcher, so re-running the open is the only way that window moves on.
-    /// The documents open first, then this window closes — closing it first
-    /// could take the last window down and quit the app.
+    /// file since it opened. `DocumentModel` can't answer this one under the
+    /// tab behavior: every read of a folder returns the same blank page, and a
+    /// folder gets no file watcher, so re-running the open is the only way
+    /// that window moves on. The documents open first, then this window closes
+    /// — closing it first could take the last window down and quit the app.
+    ///
+    /// Under the index behavior there is nothing to do here: a read walks the
+    /// tree, so the plain forced load below picks up whatever has been added.
     ///
     /// Returns whether it acted. False leaves Cmd+R as it was, including for
     /// a folder that is still empty: a re-read that raises the same notice is
     /// the honest answer to "check again".
     private func reopenFolder() -> Bool {
-        guard let files = MarkdownFolder.markdownFiles(in: fileURL),
+        guard AppState.shared.folderOpenBehavior == .tabs,
+              let files = MarkdownFolder.markdownFiles(in: fileURL),
               !files.isEmpty,
               let controller = NSDocumentController.shared as? DocumentController
         else { return false }

@@ -1,4 +1,5 @@
 import SwiftUI
+import MudPreferences
 
 // MARK: - Document Controller
 
@@ -17,10 +18,21 @@ class DocumentController: NSDocumentController {
         display displayDocument: Bool,
         completionHandler: @escaping (NSDocument?, Bool, (any Error)?) -> Void
     ) {
-        // A folder stands for the Markdown files directly inside it, so it
-        // takes a route of its own.
-        if let files = MarkdownFolder.markdownFiles(in: url) {
-            openFolder(url, files: files)
+        // A folder isn't a document, so it takes a route of its own — and
+        // which route is the reader's choice. Either it stands for the
+        // Markdown files directly inside it, one tab each, or for one window
+        // holding an index of the whole tree below it.
+        if MarkdownFolder.isFolder(url) {
+            switch AppState.shared.folderOpenBehavior {
+            case .tabs:
+                openFolderAsTabs(
+                    url, files: MarkdownFolder.markdownFiles(in: url) ?? [])
+            case .index:
+                // Noted as recent even when the folder currently holds no
+                // Markdown: in this mode the folder itself is the document,
+                // and what is in it can change between opens.
+                presentWindow(for: url, noteRecent: true)
+            }
             completionHandler(nil, false, nil)
             return
         }
@@ -32,6 +44,8 @@ class DocumentController: NSDocumentController {
     /// Opens one window per Markdown file in `folder`, tabbed into one group.
     /// A folder with none still gets a window: the request is answered with a
     /// blank page and the info bar's warning, rather than with nothing at all.
+    /// (`FolderOpenBehavior.tabs`; the index behavior opens one window on the
+    /// folder itself and lets `DocumentModel` make a document of it.)
     ///
     /// The tab group is why this doesn't just loop over `openDocument`. Mud's
     /// windows don't cascade (`shouldCascadeWindows = false`) and each one
@@ -41,7 +55,7 @@ class DocumentController: NSDocumentController {
     /// `tabbingMode` is answered by the reader's system-wide "Prefer tabs"
     /// setting: it would either group *every* Mud window or none. One command
     /// asking for many documents is the case that needs them together.
-    private func openFolder(_ folder: URL, files: [URL]) {
+    private func openFolderAsTabs(_ folder: URL, files: [URL]) {
         guard !files.isEmpty else {
             presentWindow(for: folder, noteRecent: false)
             return

@@ -3,11 +3,18 @@ import UniformTypeIdentifiers
 
 // MARK: - Markdown Folder
 
-/// What a folder means to Mud: the Markdown files directly inside it.
+/// What a folder means to Mud under `FolderOpenBehavior.tabs`: the Markdown
+/// files directly inside it, one window each.
 ///
 /// Only the top level, never a walk of the tree — `open -a Mud.app Doc/` on a
 /// project's docs folder should open that folder's documents, not every
 /// document beneath it, which could be hundreds of windows from one command.
+/// The walk is what the other behavior does, in `FolderIndex`, where the whole
+/// tree lands in one document instead of one window per file.
+///
+/// The two rules below — what counts as a folder, and what counts as a
+/// Markdown file — are shared with that walk, so both behaviors take the same
+/// view of what they are looking at.
 enum MarkdownFolder {
 
     /// The Markdown files directly inside `url`, ordered by name, or nil when
@@ -56,7 +63,7 @@ enum MarkdownFolder {
     /// restates what the app already declares. Dialect extensions (`.qmd`,
     /// `.mdx`, …) have no Markdown UTI and are deliberately not included —
     /// they can still be opened one at a time.
-    private static func isMarkdown(_ url: URL) -> Bool {
+    static func isMarkdown(_ url: URL) -> Bool {
         let values = try? url.resourceValues(
             forKeys: [.contentTypeKey, .isDirectoryKey])
         // A subfolder can be named `Notes.md` too, and the extension fallback

@@ -89,6 +89,7 @@ extension MudPreferences {
         case lighting                   = "lighting"
         case theme                      = "theme"
         case quitOnClose                = "quit-on-close"
+        case folderOpenBehavior         = "folder-open-behavior"
         case enabledExtensions          = "enabled-extensions"
 
         // changes-* — diff display and change-tracking
@@ -228,6 +229,14 @@ extension MudPreferences {
     public var quitOnClose: Bool {
         get { read(.quitOnClose, default: true) }
         nonmutating set { write(newValue, forKey: .quitOnClose) }
+    }
+
+    /// What Mud makes of a folder it is asked to open. The default is the
+    /// index: it answers for the whole tree, where one tab per top-level file
+    /// answers only for the folder's own contents.
+    public var folderOpenBehavior: FolderOpenBehavior {
+        get { read(.folderOpenBehavior, default: .index) }
+        nonmutating set { write(newValue, forKey: .folderOpenBehavior) }
     }
 
     public var upModeAllowRemoteContent: Bool {

@@ -8,7 +8,8 @@ import MudCore
 /// than act on a window that isn't there.
 struct ActiveDocumentSnapshot: Equatable {
     let mode: Mode
-    /// False for bundled read-only documents (the guides, release notes).
+    /// False for a document with no file to write to: the bundled guides and
+    /// release notes, and a folder's generated index.
     let editable: Bool
     /// Whether "Add Comment" applies right now: Up mode, editable document,
     /// commentable selection. Matches the toolbar Comment button's condition.
@@ -26,7 +27,8 @@ struct ActiveDocumentSnapshot: Equatable {
     ///   - commentable: Whether the page reports a commentable selection —
     ///     non-empty, and not in a code block, Mermaid diagram, math, raw HTML,
     ///     or a deletion overlay (see `mud-comments-edit.js`).
-    ///   - editable: False for the bundled read-only documents.
+    ///   - editable: False where there is no file to write to — the bundled
+    ///     read-only documents, and a folder's generated index.
     static func canAddComment(mode: Mode, commentable: Bool, editable: Bool) -> Bool {
         mode == .up && commentable && editable
     }
@@ -77,7 +79,7 @@ final class ActiveDocumentObserver: ObservableObject {
             return
         }
         let state = controller.state
-        let editable = !controller.fileURL.isBundleResource
+        let editable = controller.fileURL.isEditableDocument
         stateSubscription = state.$mode
             .combineLatest(state.commentableSelection,
                            state.$commentsColumnVisible)

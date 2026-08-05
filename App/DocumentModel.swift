@@ -39,6 +39,23 @@ final class DocumentModel: ObservableObject {
     private let state: DocumentState
     private let changeTracker: ChangeTracker
     private let waypointProvider: any WaypointProvider
+    /// What this window makes of a folder URL. Read at every load, so the
+    /// setting takes effect on the next Cmd+R; a closure rather than a value
+    /// so tests can pin it without writing the reader's preferences.
+    private let folderBehavior: () -> FolderOpenBehavior
+
+    /// The URL relative links in this document resolve against — the page's
+    /// `<base href>` and the image resolver both take it.
+    ///
+    /// A folder's generated index links to files beneath the folder, so its
+    /// base URL has to end in a slash: `<base href="file:///a/b/Doc">` would
+    /// resolve `Guides/x.md` against `/a/b/`, one level too high, and every
+    /// link in the index would miss.
+    var baseURL: URL {
+        MarkdownFolder.isFolder(fileURL)
+            ? URL(fileURLWithPath: fileURL.path, isDirectory: true)
+            : fileURL
+    }
 
     @Published private(set) var content: Content = .parsed(ParsedMarkdown(""))
     /// True while a held change is specifically an *external* edit (not our
@@ -104,12 +121,16 @@ final class DocumentModel: ObservableObject {
 
     init(
         fileURL: URL, state: DocumentState, changeTracker: ChangeTracker,
-        waypointProvider: any WaypointProvider = WaypointProviders.makeDefault()
+        waypointProvider: any WaypointProvider = WaypointProviders.makeDefault(),
+        folderBehavior: @escaping () -> FolderOpenBehavior = {
+            AppState.shared.folderOpenBehavior
+        }
     ) {
         self.fileURL = fileURL
         self.state = state
         self.changeTracker = changeTracker
         self.waypointProvider = waypointProvider
+        self.folderBehavior = folderBehavior
 
         // When the compose box closes, apply any external change held while
         // it was open (re-reading disk so a successful comment write is
@@ -139,7 +160,7 @@ final class DocumentModel: ObservableObject {
         // would report, so both consumers produce identical output.
         let snapshot = MudPreferences.shared.snapshot(
             defaultEnabledExtensions: Set(RenderExtension.registry.keys))
-        var opts = RenderOptions(snapshot: snapshot, baseURL: fileURL)
+        var opts = RenderOptions(snapshot: snapshot, baseURL: baseURL)
         // htmlClasses covers all view toggles (both modes) plus the per-window
         // comment classes, replacing the snapshot's Up-mode-only subset.
         opts.htmlClasses = Set(appState.viewToggles.map(\.className))
@@ -312,7 +333,7 @@ final class DocumentModel: ObservableObject {
             // transient gap mid atomic-save) is held the same way, so it can't
             // tear the box down either. The held change applies when composing
             // ends (`composeDidEnd`).
-            guard case .text(let text) = read else {
+            guard case .text(let text, _) = read else {
                 if self.state.isComposingComment {
                     self.pendingExternalReload = true
                 } else if case .failure(let html, let notice) = read {
@@ -358,7 +379,10 @@ final class DocumentModel: ObservableObject {
     /// the file-watcher can classify a change (self-write? composing?) before
     /// deciding whether to apply or hold it.
     private enum DiskRead {
-        case text(String)
+        /// The document's source, and a notice about it when the read has
+        /// something to say — the folder index carries one when the tree was
+        /// too big to list in full.
+        case text(String, notice: DocumentNotice?)
         /// Pre-rendered page HTML to show in place of the document, and the
         /// notice raised over it. The notice travels with the page because the
         /// two are written to be read together — which failure it was decides
@@ -367,12 +391,8 @@ final class DocumentModel: ObservableObject {
     }
 
     private func readDisk() -> DiskRead {
-        // The window `DocumentController` opens for a folder holding no
-        // Markdown. There is nothing to read, so the page is blank and the bar
-        // is the whole message.
         if MarkdownFolder.isFolder(fileURL) {
-            return .failure(
-                html: ErrorPage.empty(), notice: .folderHasNoMarkdown)
+            return readFolder()
         }
         do {
             let data = try Data(contentsOf: fileURL)
@@ -380,7 +400,7 @@ final class DocumentModel: ObservableObject {
                 return .failure(
                     html: ErrorPage.fileEncodingError(), notice: openFailed)
             }
-            return .text(text)
+            return .text(text, notice: nil)
         } catch let cocoaError as CocoaError where cocoaError.code == .fileReadNoSuchFile {
             return .failure(
                 html: ErrorPage.fileNotFound(error: cocoaError),
@@ -393,6 +413,29 @@ final class DocumentModel: ObservableObject {
         }
     }
 
+    /// The window `DocumentController` opens on a folder. Under the index
+    /// behavior the tree below it becomes the document (`FolderIndex`); under
+    /// the tab behavior this window exists only because the folder held no
+    /// Markdown, and there is nothing to read at all.
+    ///
+    /// A folder with nothing in the tree answers the same way in both: a blank
+    /// page where the notice in the bar is the whole message.
+    private func readFolder() -> DiskRead {
+        guard folderBehavior() == .index else {
+            return .failure(
+                html: ErrorPage.empty(), notice: .folderHasNoMarkdown)
+        }
+        let tree = FolderIndex.walk(fileURL)
+        guard !tree.isEmpty else {
+            return .failure(
+                html: ErrorPage.empty(), notice: .folderHasNoMarkdown)
+        }
+        let notice: DocumentNotice? = tree.isTruncated
+            ? .folderIndexTruncated(limit: FolderIndex.fileLimit)
+            : nil
+        return .text(FolderIndex.markdown(for: tree), notice: notice)
+    }
+
     /// The headline over any of the three read failures.
     private var openFailed: DocumentNotice {
         .openFailed(fileName: fileURL.lastPathComponent)
@@ -400,8 +443,11 @@ final class DocumentModel: ObservableObject {
 
     private func loadFromDisk() {
         switch readDisk() {
-        case .text(let text):
+        case .text(let text, let notice):
             applyLoaded(text)
+            // `applyLoaded` has already cleared the notices a good read
+            // settles, so a re-walk that now fits leaves the bar empty.
+            if let notice { state.raise(notice) }
         case .failure(let html, let notice):
             setLoadFailure(html, notice: notice)
         }
@@ -422,6 +468,9 @@ final class DocumentModel: ObservableObject {
     private func applyLoaded(_ text: String) {
         // The file read this time, so whatever stopped it last time is over.
         state.clear(.openFailed)
+        // Likewise for a folder index: this walk speaks for itself, and
+        // `loadFromDisk` raises the notice again if it was cut short too.
+        state.clear(.folderIndexTruncated)
         let parsed = ParsedMarkdown(text)
         setContent(.parsed(parsed))
         state.outlineHeadings = parsed.headings
@@ -465,9 +514,11 @@ final class DocumentModel: ObservableObject {
 
     /// Queries the waypoint provider off the main thread and hands the
     /// result to the change tracker — or clears the external waypoints when
-    /// the provider is off or the file is a bundled guide.
+    /// the provider is off, or there is no file behind the document to ask
+    /// about: a bundled guide, or a folder whose index Mud generated.
     private func refreshExternalWaypoints(for text: String) {
-        guard waypointProvider.isEnabled, !fileURL.isBundleResource else {
+        guard waypointProvider.isEnabled, !fileURL.isBundleResource,
+              !MarkdownFolder.isFolder(fileURL) else {
             changeTracker.setExternalWaypoints([])
             return
         }

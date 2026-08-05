@@ -18,6 +18,7 @@ class AppState: ObservableObject {
     @Pref(\.changesEnabled) var changesEnabled: Bool
     @Pref(\.changesShowInlineDeletions) var changesShowInlineDeletions: Bool
     @Pref(\.quitOnClose) var quitOnClose: Bool
+    @Pref(\.folderOpenBehavior) var folderOpenBehavior: FolderOpenBehavior
     @Pref(\.upModeAllowRemoteContent) var upModeAllowRemoteContent: Bool
     @Pref(\.markdownDocCAlertMode) var markdownDocCAlertMode: DocCAlertMode
     @Pref(\.uiUseHeadingAsTitle) var uiUseHeadingAsTitle: Bool

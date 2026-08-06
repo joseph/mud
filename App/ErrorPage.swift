@@ -6,18 +6,11 @@ import MudCore
 /// Generates error-page HTML documents for display in a WKWebView.
 enum ErrorPage {
     static func fileNotFound(error: Error) -> String {
-        render("> Error: \(error.localizedDescription)")
+        empty()
     }
 
     static func filePermissionDenied(path: String, error: Error) -> String {
         render("""
-        > Error: \(error.localizedDescription)
-
-        This can happen when you try to load another local document by
-        following a link.
-
-        ----
-
         > Tip: Try opening this document via File > Open.
         > ```\(path)```
 
@@ -28,7 +21,7 @@ enum ErrorPage {
     }
 
     static func fileEncodingError() -> String {
-        render("> Error: The file's text encoding couldn't be determined.")
+        empty()
     }
 
     /// A page with nothing on it, for a window whose content is absent rather

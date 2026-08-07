@@ -26,7 +26,7 @@ import Testing
     @Test func raisingAgainReplacesTheMessage() {
         let state = DocumentState()
         state.raise(.externalChangeHeld)
-        state.raise(.openFailed(fileName: "Notes.md"))
+        state.raise(.openFailed(fileName: "Notes.md", reason: .notFound))
 
         #expect(state.notice?.kind == .openFailed)
         #expect(state.notice?.level == .warning)
@@ -148,8 +148,22 @@ import Testing
         #expect(!notice.isDismissible)
     }
 
+    /// The reload failure is the one read failure with an ×: the reader can go
+    /// on using the document under it, and a file that stays unreadable would
+    /// otherwise never clear the notice.
+    @Test func reloadFailureNamesTheFileAndCarriesADismissButton() {
+        let notice = DocumentNotice.reloadFailed(
+            fileName: "Notes.md", reason: .notFound)
+
+        #expect(notice.message.contains("Notes.md"))
+        #expect(notice.level == .warning)
+        #expect(notice.action == nil)
+        #expect(notice.isDismissible)
+    }
+
     @Test func openFailureNamesTheFile() {
-        let notice = DocumentNotice.openFailed(fileName: "Notes.md")
+        let notice = DocumentNotice.openFailed(
+            fileName: "Notes.md", reason: .notFound)
 
         #expect(notice.message.contains("Notes.md"))
         // A document that can't be read is a warning; the held-reload notice,
@@ -157,10 +171,25 @@ import Testing
         // `.info` one.
         #expect(notice.level == .warning)
         #expect(DocumentNotice.externalChangeHeld.level == .info)
-        // Nothing to do about it from the bar, and the error page underneath
-        // is the explanation — so no button, and no way to hide the headline
-        // while the page it belongs to is still showing.
+        // Nothing to do about it from the bar — so no button, and no way to
+        // hide the headline while the page it belongs to is still showing.
         #expect(notice.action == nil)
         #expect(!notice.isDismissible)
+    }
+
+    /// Six sentences, all different. Two of the three error pages are blank,
+    /// and a failed reload has no page at all, so the bar is where the reader
+    /// learns which failure this was — a message that read the same for a
+    /// missing file and an unreadable one would tell them nothing.
+    @Test func everyReadFailureReadsDifferently() {
+        let reasons: [DocumentNotice.ReadFailure] =
+            [.notFound, .noPermission, .badEncoding]
+        let messages = reasons.flatMap {
+            [$0.openMessage(fileName: "Notes.md"),
+             $0.reloadMessage(fileName: "Notes.md")]
+        }
+
+        #expect(Set(messages).count == messages.count)
+        #expect(messages.allSatisfy { $0.contains("Notes.md") })
     }
 }

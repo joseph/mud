@@ -181,6 +181,114 @@ private extension DocumentModel.Content {
     }
 }
 
+// MARK: - A read that fails
+
+/// What a failed read does to the window, which depends entirely on whether
+/// there is a document in it. With one, the document stays and the bar says it
+/// is no longer what's on disk; without one, the error page goes up as the
+/// document's stand-in.
+///
+/// These stop the watcher after the first load, so the only reads are the ones
+/// the test asks for.
+@MainActor
+@Suite struct DocumentModelReadFailureTests {
+    private let directory: URL
+    private let fileURL: URL
+    private let state: DocumentState
+    private let model: DocumentModel
+
+    init() throws {
+        directory = try makeTempDirectory()
+        fileURL = directory.appendingPathComponent("Notes.md")
+        state = DocumentState()
+        model = DocumentModel(
+            fileURL: fileURL, state: state, changeTracker: state.changeTracker)
+    }
+
+    /// Opens the file and drops the watcher, leaving a loaded document.
+    private func openDocument() throws {
+        try "# First".write(to: fileURL, atomically: true, encoding: .utf8)
+        model.load()
+        model.stopWatching()
+    }
+
+    private func removeFile() throws {
+        try FileManager.default.removeItem(at: fileURL)
+    }
+
+    /// The point of the whole thing: a reload that can't read the file leaves
+    /// the reader's document — and their place in it — exactly where it was.
+    @Test func aFailedReloadKeepsTheDocument() throws {
+        try openDocument()
+        try removeFile()
+
+        model.load(forced: true)
+
+        #expect(model.content.markdown == "# First")
+        #expect(state.notice?.kind == .reloadFailed)
+        #expect(state.notice?.message
+            == DocumentNotice.ReadFailure.notFound.reloadMessage(
+                fileName: "Notes.md"))
+    }
+
+    /// The three failures don't read the same, so the read's classification
+    /// has to reach the bar: a file that turns into bytes Mud can't decode
+    /// must not borrow the missing-file sentence.
+    @Test func aFileThatStopsBeingUTF8SaysSo() throws {
+        try openDocument()
+        try Data([0xFF, 0xFE, 0xFF]).write(to: fileURL)
+
+        model.load(forced: true)
+
+        #expect(model.content.markdown == "# First")
+        #expect(state.notice?.message
+            == DocumentNotice.ReadFailure.badEncoding.reloadMessage(
+                fileName: "Notes.md"))
+    }
+
+    /// The reader can take the message down: nothing else will, and the
+    /// document under it is still worth reading.
+    @Test func theFailedReloadNoticeIsDismissible() throws {
+        try openDocument()
+        try removeFile()
+        model.load(forced: true)
+
+        state.dismissNotice()
+        #expect(state.notice == nil)
+    }
+
+    @Test func aLaterGoodReloadClearsTheNotice() throws {
+        try openDocument()
+        try removeFile()
+        model.load(forced: true)
+
+        try "# Second".write(to: fileURL, atomically: true, encoding: .utf8)
+        model.load(forced: true)
+
+        #expect(model.content.markdown == "# Second")
+        #expect(state.notice == nil)
+    }
+
+    /// With no document to keep, the error page is the better answer: it
+    /// carries the diagnosis, and there is nothing behind it to lose.
+    @Test func aFirstReadThatFailsShowsTheErrorPage() {
+        model.load()
+
+        #expect(model.content.isErrorPage)
+        #expect(state.notice?.kind == .openFailed)
+    }
+
+    /// A retry over an error page is not a reload of a document — there is
+    /// still nothing to keep, so the page and its `openFailed` headline stay.
+    @Test func aRetryAfterAFailedOpenKeepsTheErrorPage() {
+        model.load()
+        model.load(forced: true)
+
+        #expect(model.content.isErrorPage)
+        #expect(state.notice?.kind == .openFailed)
+    }
+}
+
 // MARK: - The empty-folder window
 
 /// The model behind the window `DocumentController` opens on a folder that

@@ -52,10 +52,16 @@ struct DocumentNotice: Equatable {
     /// a kind rather than clearing whatever is showing, so one condition
     /// ending can't take down another condition's notice.
     enum Kind {
-        /// The file couldn't be read. The content area shows the matching
-        /// `ErrorPage` with the details; this is the headline over it. Cleared
-        /// by the next successful read.
+        /// The file couldn't be read, and there was no document on screen to
+        /// keep. The content area shows the matching `ErrorPage` — blank for
+        /// two of the three failures — and this names the failure over it.
+        /// Cleared by the next successful read.
         case openFailed
+        /// A document that had opened once couldn't be read again, so the
+        /// window still shows the last version Mud read. Nothing is on screen
+        /// to explain that but this. Cleared by the next successful read, or
+        /// by the reader.
+        case reloadFailed
         /// An external edit arrived while a comment compose box was open, so
         /// the edit is being held: the page shows a version behind the file on
         /// disk until the box closes. See `DocumentModel.externalChangeHeld`.
@@ -68,15 +74,58 @@ struct DocumentNotice: Equatable {
         /// part of the tree rather than all of it. Cleared by a later walk
         /// that fits.
         case folderIndexTruncated
-        /// A comment couldn't be written to the file. The only notice a reader
-        /// can dismiss — nothing else takes it down, because nothing else
-        /// knows they have read it.
+        /// A comment couldn't be written to the file. Dismissible, like
+        /// `reloadFailed`: the reader may be looking at a window nothing else
+        /// will take the message off.
         case commentWriteFailed
         #if DEBUG
         /// Raised only from the Debugging settings pane, to see the bar at
         /// each level in a real window. Not in a release build.
         case debug
         #endif
+    }
+
+    /// Why a read of the document's file failed, in the only three flavors
+    /// Mud can tell apart (`DocumentModel.readDisk`). It exists to pick the
+    /// sentence: `openFailed` and `reloadFailed` each say a different thing
+    /// about each of these, and the two error pages that go with the first and
+    /// last are blank, so the bar carries the diagnosis on its own.
+    enum ReadFailure {
+        /// Nothing at the path — deleted, renamed, or on a volume that went
+        /// away.
+        case notFound
+        /// The file is there and Mud isn't allowed to read it. Common in the
+        /// sandboxed build, where a path Mud wasn't handed by the reader is
+        /// off limits.
+        case noPermission
+        /// The bytes read, and aren't UTF-8. Mud reads nothing else.
+        case badEncoding
+
+        /// What the bar says when this failure left the window with no
+        /// document — an error page is showing, and this is the headline.
+        func openMessage(fileName: String) -> String {
+            switch self {
+            case .notFound:
+                return "The file “\(fileName)” couldn’t be found."
+            case .noPermission:
+                return "Mud doesn’t have permission to open “\(fileName)”."
+            case .badEncoding:
+                return "The file “\(fileName)” isn’t valid UTF-8 text."
+            }
+        }
+
+        /// What the bar says when the document is still on screen: the file
+        /// opened once, and this is what stopped it opening again.
+        func reloadMessage(fileName: String) -> String {
+            switch self {
+            case .notFound:
+                return "The file “\(fileName)” is missing."
+            case .noPermission:
+                return "Mud no longer has permission to read “\(fileName)”."
+            case .badEncoding:
+                return "The file “\(fileName)” is no longer valid UTF-8 text."
+            }
+        }
     }
 
     let kind: Kind
@@ -101,14 +150,36 @@ extension DocumentNotice {
             + "Your view refreshes when you finish this comment."
     )
 
-    /// The headline over an `ErrorPage`. Deliberately short and free of
-    /// diagnosis — which of the three read failures it was, and what to do
-    /// about it, is what the page underneath is for.
-    static func openFailed(fileName: String) -> Self {
+    /// The headline over the `ErrorPage` that took the document's place on a
+    /// read that had no document to keep.
+    ///
+    /// Two of the three pages are blank (`ErrorPage.fileNotFound` and
+    /// `.fileEncodingError`), so the bar is the only thing on screen naming
+    /// the failure. That is why the message varies with `reason` rather than
+    /// leaving the diagnosis to the page.
+    static func openFailed(fileName: String, reason: ReadFailure) -> Self {
         return Self(
             kind: .openFailed,
             level: .warning,
-            message: "The file “\(fileName)” couldn’t be opened."
+            message: reason.openMessage(fileName: fileName)
+        )
+    }
+
+    /// The document on screen is still the last version Mud read, so this says
+    /// what the window can't: what you are reading is not what is on disk. No
+    /// page underneath here at all, so `reason` is the only diagnosis there is.
+    ///
+    /// It carries an × where `openFailed` doesn't, because the reader is left
+    /// with a document they can go on using. A file that stays unreadable — a
+    /// rename, a delete, a volume that went away — would otherwise leave the
+    /// bar up over a perfectly good document for as long as the window is
+    /// open.
+    static func reloadFailed(fileName: String, reason: ReadFailure) -> Self {
+        return Self(
+            kind: .reloadFailed,
+            level: .warning,
+            message: reason.reloadMessage(fileName: fileName),
+            isDismissible: true
         )
     }
 
@@ -130,9 +201,7 @@ extension DocumentNotice {
         return Self(
             kind: .folderIndexTruncated,
             level: .info,
-            message: "This folder holds more than \(limit.formatted()) "
-                + "Markdown files. The list shows the first "
-                + "\(limit.formatted())."
+            message: "This folder holds more than \(limit.formatted()) Markdown files."
         )
     }
 
@@ -203,7 +272,7 @@ extension DocumentNotice {
         case .info:
             return externalChangeHeld.message
         case .warning:
-            return openFailed(fileName: "Notes.md").message
+            return openFailed(fileName: "Notes.md", reason: .notFound).message
         case .error:
             return "Mud couldn’t write to this file, "
                 + "so the comment couldn’t be saved."

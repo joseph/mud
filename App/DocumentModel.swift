@@ -336,8 +336,8 @@ final class DocumentModel: ObservableObject {
             guard case .text(let text, _) = read else {
                 if self.state.isComposingComment {
                     self.pendingExternalReload = true
-                } else if case .failure(let html, let notice) = read {
-                    self.setLoadFailure(html, notice: notice)
+                } else {
+                    self.apply(read)
                 }
                 return
             }
@@ -383,11 +383,21 @@ final class DocumentModel: ObservableObject {
         /// something to say — the folder index carries one when the tree was
         /// too big to list in full.
         case text(String, notice: DocumentNotice?)
-        /// Pre-rendered page HTML to show in place of the document, and the
-        /// notice raised over it. The notice travels with the page because the
-        /// two are written to be read together — which failure it was decides
-        /// both.
-        case failure(html: String, notice: DocumentNotice)
+        /// The file couldn't be read. `html` is the page that takes the
+        /// document's place when there is no document yet; a read that fails
+        /// over one already on screen keeps it instead, so which of the two
+        /// notices frames `reason` is `apply(_:)`'s to decide, not the read's.
+        ///
+        /// The page and the reason both travel because neither derives from
+        /// the other here: the page is built from the underlying `Error` the
+        /// read has in hand, and the reason is the three-way split the bar's
+        /// wording turns on.
+        case unreadable(html: String, reason: DocumentNotice.ReadFailure)
+        /// There is nothing to show and nothing went wrong: the folder holds
+        /// no Markdown. The blank page and its notice go up whether or not a
+        /// document was there before, because a folder that has emptied really
+        /// has nothing left to show.
+        case blank(html: String, notice: DocumentNotice)
     }
 
     private func readDisk() -> DiskRead {
@@ -397,19 +407,19 @@ final class DocumentModel: ObservableObject {
         do {
             let data = try Data(contentsOf: fileURL)
             guard let text = String(data: data, encoding: .utf8) else {
-                return .failure(
-                    html: ErrorPage.fileEncodingError(), notice: openFailed)
+                return .unreadable(
+                    html: ErrorPage.fileEncodingError(), reason: .badEncoding)
             }
             return .text(text, notice: nil)
         } catch let cocoaError as CocoaError where cocoaError.code == .fileReadNoSuchFile {
-            return .failure(
+            return .unreadable(
                 html: ErrorPage.fileNotFound(error: cocoaError),
-                notice: openFailed)
+                reason: .notFound)
         } catch {
-            return .failure(
+            return .unreadable(
                 html: ErrorPage.filePermissionDenied(
                     path: fileURL.path, error: error),
-                notice: openFailed)
+                reason: .noPermission)
         }
     }
 
@@ -422,12 +432,12 @@ final class DocumentModel: ObservableObject {
     /// page where the notice in the bar is the whole message.
     private func readFolder() -> DiskRead {
         guard folderBehavior() == .index else {
-            return .failure(
+            return .blank(
                 html: ErrorPage.empty(), notice: .folderHasNoMarkdown)
         }
         let tree = FolderIndex.walk(fileURL)
         guard !tree.isEmpty else {
-            return .failure(
+            return .blank(
                 html: ErrorPage.empty(), notice: .folderHasNoMarkdown)
         }
         let notice: DocumentNotice? = tree.isTruncated
@@ -436,38 +446,62 @@ final class DocumentModel: ObservableObject {
         return .text(FolderIndex.markdown(for: tree), notice: notice)
     }
 
-    /// The headline over any of the three read failures.
-    private var openFailed: DocumentNotice {
-        .openFailed(fileName: fileURL.lastPathComponent)
+    private func loadFromDisk() {
+        apply(readDisk())
     }
 
-    private func loadFromDisk() {
-        switch readDisk() {
+    /// Shows what a read produced.
+    ///
+    /// A read that fails over a document already on screen is the one case
+    /// that changes nothing but the info bar. The document is still the last
+    /// version Mud read of that file, and it is worth more than the error page
+    /// would be: an unreadable file is often unreadable only for a moment (a
+    /// rename, an editor's atomic save, a volume that dropped out), and
+    /// replacing the document would throw away the reader's place in it to say
+    /// so. `reloadFailed` says it instead.
+    ///
+    /// With nothing to keep — the first read of the window, or a retry after
+    /// one that already failed — the error page goes up as before. Either way
+    /// the read's `ReadFailure` picks the sentence, so the bar names what went
+    /// wrong even where the page it sits over is blank.
+    private func apply(_ read: DiskRead) {
+        switch read {
         case .text(let text, let notice):
             applyLoaded(text)
             // `applyLoaded` has already cleared the notices a good read
             // settles, so a re-walk that now fits leaves the bar empty.
             if let notice { state.raise(notice) }
-        case .failure(let html, let notice):
-            setLoadFailure(html, notice: notice)
+        case .blank(let html, let notice):
+            setContent(.error(html))
+            state.raise(notice)
+        case .unreadable(let html, let reason):
+            let fileName = fileURL.lastPathComponent
+            guard hasDocument else {
+                setContent(.error(html))
+                state.raise(.openFailed(fileName: fileName, reason: reason))
+                return
+            }
+            state.raise(.reloadFailed(fileName: fileName, reason: reason))
         }
     }
 
-    /// Shows the page that took the document's place and raises its info-bar
-    /// notice. The page carries the diagnosis and what to do about it; the bar
-    /// is the headline, so the window says what went wrong without the reader
-    /// having to read a rendered document to find out.
-    private func setLoadFailure(_ html: String, notice: DocumentNotice) {
-        setContent(.error(html))
-        state.raise(notice)
+    /// Whether a read has already put a document on screen — what a failed
+    /// reload keeps there. False before the first read, and false when that
+    /// read put up an error page: there is nothing behind it worth keeping, so
+    /// a second failure leaves the page and its diagnosis where they are.
+    private var hasDocument: Bool {
+        guard case .parsed = content else { return false }
+        return contentVersion > 0
     }
 
     /// Parses `text` and refreshes per-document state (the render, headings,
     /// comments, title, change tracking). The single place a successful disk
     /// read becomes the displayed document.
     private func applyLoaded(_ text: String) {
-        // The file read this time, so whatever stopped it last time is over.
+        // The file read this time, so whatever stopped it last time is over —
+        // whichever of the two notices that raised.
         state.clear(.openFailed)
+        state.clear(.reloadFailed)
         // Likewise for a folder index: this walk speaks for itself, and
         // `loadFromDisk` raises the notice again if it was cut short too.
         state.clear(.folderIndexTruncated)

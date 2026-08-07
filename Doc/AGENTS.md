@@ -27,9 +27,9 @@ MVP plan.
 - Lighting: Auto/Bright/Dark cycle
 - Zoom In/Out/Actual Size (per-mode, persisted)
 - Readable Column, Line Numbers, Word Wrap toggles
-- Foldable Headings (off by default): an arrow on every h2-or-deeper heading
-  folds its section for as long as the window is open. The View menu adds Fold
-  / Unfold Headings (Ctrl+Cmd+H, Shift+Cmd+H) for the whole document
+- Foldable Headings: an arrow on every h2-or-deeper heading folds its section
+  for as long as the window is open. The View menu adds Fold / Unfold Headings
+  (Ctrl+Cmd+H, Shift+Cmd+H) for the whole document
 - Table of contents sidebar
 - Comments: select text and attach threaded comments, stored in-file as GFM
   footnotes (`^comment-[\w-]+$`); hover-revealed highlights and a Comments
@@ -157,6 +157,23 @@ MVP plan.
 - `FileWatcher.swift` — DispatchSource file monitoring
 - `CommandLineInstaller.swift` — CLI symlink creation with elevation support
 - `LocalFileSchemeHandler.swift` — `mud-asset:` URL scheme for local images
+- `LocalAssetProbe.swift` — Whether a local file can actually be read, by
+  `open(2)` and `errno`: readable / missing / denied. `FileManager.fileExists`
+  can't tell the last two apart — the sandbox denies the content read while
+  permitting `stat`. Opens `O_NONBLOCK`, since this runs on the main thread
+  inside a render
+- `BlockedAssetLog.swift` — The images one render couldn't read. Vends the
+  resolver closure `DocumentModel` hands `MudCore`, since a bare closure has
+  nowhere to report to. Denials only: a missing file is the document's problem,
+  not a permission Mud can ask for
+- `AssetAccessStore.swift` — The folders the reader has let Mud read local
+  content from, held as security-scoped bookmarks so a grant outlives the app's
+  run: launch resolution, the grant panel, revocation, and the pure
+  `reduce(grants:adding:)` (a covered folder adds no row, a covering folder
+  replaces what it covers). A `Grant` whose bookmark won't resolve is kept as
+  an unavailable row — an unplugged disk is not a revocation. Windows watch
+  `accessChanged`, not `$grants`: granting a folder Mud already covers moves no
+  row, but is still the reader asking to be shown it
 - `DeferMutation.swift` — Run-loop deferred state mutation helper
 - `Lighting+AppKit.swift` — AppKit/SwiftUI behavior on the bare `Lighting` enum
   (which lives in MudPreferences)
@@ -406,6 +423,13 @@ MVP plan.
 - `FolderIndexTests.swift` — The tree walk (depth, pruning, order, symlinks,
   the file limit) and the document written from it (nesting, relative paths,
   escaping)
+- `LocalAssetProbeTests.swift` — The probe's three answers against real temp
+  files; the denied case uses mode `000` and is skipped when running as root
+- `AssetAccessStoreTests.swift` — `reduce` and `covers`: the de-duplication
+  truth table, that a shared name prefix isn't containment, and what an
+  unavailable `Grant` still knows about itself
+- `BlockedAssetLogTests.swift` — The resolver's three answers against real temp
+  files: only a denial reaches the log
 - `CommentColumnFitTests.swift` — `CommentColumnFit.remedy` truth table
 - `AddCommentRuleTests.swift` — `ActiveDocumentSnapshot.canAddComment` truth
   table: the one rule every Add Comment affordance applies
@@ -731,6 +755,43 @@ and is **not** hidden under sandboxing. The MAS build writes the user-opened
 `.md` file via the read-write file entitlement (`App/Mud.entitlements`) plus
 security-scoped access (start/stop around an atomic write); the direct build is
 unsandboxed and writes freely (`CommentController`).
+
+
+#### Local content
+
+Opening a document grants the sandboxed build that one file, so an image beside
+it can't be read and renders broken. Three pieces answer that:
+
+- `LocalAssetProbe` tells a denial from a wrong path, so only the first is
+  reported. `DocumentModel.resolve` runs it in place of the old file-exists
+  check and hands each denied file to a `BlockedAssetLog`.
+- `DocumentModel.reportBlockedAssets` raises
+  `DocumentNotice.localAssetsBlocked` from what the render found — through
+  `deferMutation`, since the render runs inside SwiftUI's `body`, and only
+  `if isSandboxed`.
+- The notice's button carries `Action.Effect.grantFolderAccess`, which
+  `DocumentNoticeBar` performs by asking `AssetAccessStore` for a folder. The
+  bookmark taken with the grant
+  (`com.apple.security.files.bookmarks.app-scope`, resolved by `AppDelegate` at
+  launch) is what makes it survive a quit. Every window runs
+  `reloadForAssetAccessChange` on a grant, since it can unblock a document in
+  any of them.
+
+This is the only notice re-derived on every render, so it carries two rules the
+others don't need. `lastBlockedReport` ignores an answer matching the last one,
+which keeps a dismissed bar down across the re-renders a mode toggle or theme
+change causes; `blockedAssetsMayRaise` stops it taking the bar from another
+notice, which would otherwise lose `externalChangeHeld` for good. Only Up mode
+probes an image, so `reloadForAssetAccessChange` clears the notice outright in
+Down mode.
+
+The reader sees and takes back these grants in Settings → Up Mode → Content
+permissions, beside "Allow remote content": both decide what a rendered
+document may load, and neither applies in Down mode.
+
+Quick Look reaches none of this: it renders through `ImageDataURI` in its own
+extension process, which can use neither the app's sandbox extensions nor its
+bookmarks.
 
 
 ### Deferred mutations in SwiftUI

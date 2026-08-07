@@ -1,6 +1,39 @@
 RELEASES
 ===============================================================================
 
+## v4.1.0
+
+A release about long documents and lots of them: fold a document down to the
+parts you're reading, and hand Mud a whole folder at once.
+
+- **Foldable headings** — every heading now carries an arrow that folds its
+  section away, so a long document collapses to the shape you want to see. Fold
+  or unfold the whole document from the View menu (⌃⌘H and ⇧⌘H). It's on by
+  default, and off is a click away in Settings > Up Mode.
+- **Open a folder** — point Mud at a folder and it builds an index of every
+  Markdown document in the tree below it, as one page of links. If you'd rather
+  have the documents themselves, Settings > General switches folder opening to
+  a tab per Markdown file inside.
+- **A notice bar** — what Mud has to tell you about the document now appears in
+  a bar below the tab bar instead of interrupting you or taking over the
+  window: a file that changed on disk while you were commenting, a file that
+  couldn't be opened, a comment that couldn't be saved.
+- **Open any file** — an Enable popup at the bottom switches between Markdown
+  and text files and all files, so a document with an unfamiliar extension is
+  reachable.
+- Reloading a file that has been deleted, renamed, or made unreadable keeps the
+  document you were reading on screen, and says why it couldn't reload.
+- Task list items that run to more than one line align to the text rather than
+  the checkbox.
+- Comments no longer disappear if anchored within a changed paragraph with
+  Change Tracking enabled.
+- Right-click → Add Comment is disabled when a comment cannot be placed at
+  the selection (eg within a code block).
+- The Settings window resizes vertically, and the Command Line pane says when
+  the `mud` script was installed.
+- Small refinements to alert titles, blockquote bars, and theme backgrounds.
+
+
 ## v4.0.1
 
 A release about small spaces: Mud now reads well in a narrow window and in

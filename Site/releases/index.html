@@ -11,7 +11,7 @@
 :root {
   --text-color: #333;
   --bg-color: #FFF;
-  --body-bg: #FCFCFA;
+  --body-bg: #F9F9F6;
   --link-color: #8E4740;
   --border-color: #E0DBD4;
   --code-bg: #F5F3EE;
@@ -36,7 +36,7 @@
   :root {
     --text-color: #CFC9C0;
     --bg-color: #100E0D;
-    --body-bg: #0E0C0B;
+    --body-bg: #0C0A08;
     --link-color: #C67467;
     --border-color: #38332D;
     --code-bg: #1A1816;
@@ -271,6 +271,90 @@ p {
   margin-bottom: 1em;
 }
 
+
+/* -- Foldable headings ---------------------------------------------------- */
+
+/* With the "Foldable headings" setting on (`is-foldable-headings`), mud-up.js
+   puts an arrow button in every h2-and-deeper heading, and a click on that
+   button folds the section under it away. Both the arrow and the folding
+   are on-screen only: paper always gets the whole document, so mud-print.css
+   has nothing to undo — it only hides the buttons. */
+@media screen {
+  /* Direct children only: a heading nested in a blockquote, a list item, or a
+     footnote body begins no section, and mud-up.js gives it no arrow. */
+  .is-foldable-headings .up-mode-output > :is(h2, h3, h4, h5, h6) {
+    position: relative;
+    /* The arrow's column, kept clear so a heading that wraps can't run under
+       it. In rem, so it is the same width at every rank and comparable at a
+       glance with the button's own width below. */
+    padding-right: 1.75rem;
+  }
+
+  .is-foldable-headings .up-mode-output > .is-fold-hidden {
+    display: none;
+  }
+
+  .mud-fold-arrow {
+    position: absolute;
+    right: 0;
+    bottom: var(--fold-arrow-inset, 0em);
+    /* A button doesn't inherit the page's font, so an em here would be the
+       UA's ~13px at every rank rather than the heading's. Take the heading's:
+       the height below is then one of its line boxes, and the h2 inset is in
+       the same units as the padding it has to clear. */
+    font: inherit;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    /* Narrower than the column it sits in, and one line box tall, so the hit
+       box covers the arrow and no part of the heading's text. `min-height`
+       keeps h5 and h6 pointable; it grows upward, into the heading's margin. */
+    width: 1.5rem;
+    height: 1.25em;
+    min-height: 1.25rem;
+    padding: 0;
+    border: 0;
+    background: none;
+    color: var(--border-color);
+    cursor: pointer;
+    transition: color 0.15s ease, transform 0.15s ease;
+  }
+
+  /* An h2 carries 0.3em of padding and an underline below its text. Lift the
+     arrow clear of both, so it sits on the line rather than on the rule. */
+  h2 .mud-fold-arrow { --fold-arrow-inset: 0.3em; }
+
+  /* The SVG's own size, held in rem so the arrow looks the same at every rank
+     while its box tracks the line it sits on. */
+  .mud-fold-arrow svg {
+    display: block;
+    width: 0.875rem;
+    height: 0.875rem;
+  }
+
+  /* fold-arrow.svg draws in black; take the h1/h2 underline color instead. The
+     file sets its color as a presentation attribute, which loses to any rule. */
+  .mud-fold-arrow polyline {
+    stroke: currentColor;
+  }
+
+  /* A folded arrow stays dark whether or not the pointer is on it: it is the
+     only sign that a section is missing, so it has to read from across the
+     page rather than only once you go looking for it. */
+  .up-mode-output > :is(h2, h3, h4, h5, h6):hover > .mud-fold-arrow,
+  .mud-fold-arrow:focus-visible,
+  .is-folded > .mud-fold-arrow {
+    color: var(--heading-color);
+  }
+
+  /* Folded: the arrow turns from pointing down to pointing right. */
+  .is-folded > .mud-fold-arrow {
+    transform: rotate(-90deg);
+  }
+}
+
+
 /* -- Links ---------------------------------------------------------------- */
 
 a {
@@ -285,10 +369,16 @@ a:hover {
 
 /* -- Lists ---------------------------------------------------------------- */
 
+/* One number for the indent, since a task item's check box hangs in it (see
+   below). Anything that wants a different indent — the footnotes and comments
+   lists, both of mud-narrow.css's tiers — redefines the variable and leaves
+   the padding to this rule, so the box and the indent can't drift apart. */
 ul, ol {
+  --list-left-pad: 2em;
+
   margin-top: 0;
   margin-bottom: 1em;
-  padding-left: 2em;
+  padding-left: var(--list-left-pad);
 }
 
 li {
@@ -304,21 +394,27 @@ li > ul, li > ol {
 
 li:has(> input[type="checkbox"]) {
   list-style: none;
-  margin-left: -1.5em;
 }
 
 li:has(> input[type="checkbox"]) > input[type="checkbox"] {
   display: none;
 }
 
+/* The box hangs in the list's indent. It reaches 1.5em left of the item's text
+   — its own 1em plus a 0.5em gap — or the whole indent where that is less, so
+   it can never poke out of the list. The pull and the gap are stated from that
+   one reach, so the three horizontal margins always sum to zero and the first
+   line of an item starts exactly where its wrapped lines do, at any indent. */
 li:has(> input[type="checkbox"])::before {
+  --check-reach: min(1.5em, var(--list-left-pad));
+
   content: "";
   display: inline-block;
   width: 1em;
   height: 1em;
   border: 1.5px solid var(--border-color);
   border-radius: 3px;
-  margin: 0.15em 0.5em 0 0;
+  margin: 0.15em calc(var(--check-reach) - 1em) 0 calc(-1 * var(--check-reach));
   float: left;
   clear: left;
 }
@@ -448,7 +544,18 @@ blockquote {
   margin: 0 0 1em 0;
   padding: 0 1em;
   color: var(--blockquote-color);
-  border-left: 4px solid var(--blockquote-border);
+  position: relative;
+}
+
+blockquote:before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 4px;
+  border-radius: 2px;
+  background-color: var(--blockquote-border);
 }
 
 blockquote > :first-child {
@@ -471,18 +578,19 @@ blockquote > :last-child {
   align-items: center;
   gap: 0.5em;
   font-weight: 600;
+  margin-bottom: 0.25rem;
 }
 
 .alert-title svg {
   flex-shrink: 0;
 }
 
-.alert-note  { border-left-color: var(--alert-note-border); }
-.alert-tip   { border-left-color: var(--alert-tip-border); }
-.alert-important { border-left-color: var(--alert-important-border); }
-.alert-warning   { border-left-color: var(--alert-warning-border); }
-.alert-caution   { border-left-color: var(--alert-caution-border); }
-.alert-status  { border-left-color: var(--alert-status-border); }
+.alert-note  { --blockquote-border: var(--alert-note-border); }
+.alert-tip   { --blockquote-border: var(--alert-tip-border); }
+.alert-important { --blockquote-border: var(--alert-important-border); }
+.alert-warning   { --blockquote-border: var(--alert-warning-border); }
+.alert-caution   { --blockquote-border: var(--alert-caution-border); }
+.alert-status  { --blockquote-border: var(--alert-status-border); }
 
 .alert-note  .alert-title { color: var(--alert-note-title); }
 .alert-tip   .alert-title { color: var(--alert-tip-title); }
@@ -531,7 +639,7 @@ blockquote > :last-child {
 }
 
 .footnotes ol {
-  padding-left: 1.5em;
+  --list-left-pad: 1.5em;
 }
 
 .footnotes li {
@@ -831,7 +939,7 @@ footer.comments .mud-comment-time:after {
 }
 
 .comments ol {
-  padding-left: 1.5em;
+  --list-left-pad: 1.5em;
 }
 
 .comments li {
@@ -1150,6 +1258,30 @@ footer.comments .mud-comment-time:after {
 
 /* Items just inserted fade/scale in rather than snapping. */
 .mud-capsule.is-entering { opacity: 0; transform: scale(0.96); }
+
+
+/* -- A folded section's stub ---------------------------------------------- */
+
+/* Foldable headings (an app feature, mud-up.js) can take a quotation off
+   screen while its comment stays in the column. Rather than dropping the
+   capsule, mud-comments.js squashes it to a 5px sliver level with the bottom of
+   the heading — one per folded section, however many comments it holds, carried
+   by the first of them. It keeps the capsule's own border, background and
+   radius, so it reads as a comment pressed shut; clicking it opens the section
+   and the comment together. STUB_H in that file is this height, and
+   CommentResourcesTests keeps the two in step. */
+.mud-capsule.is-stub {
+  height: 5px;
+  min-height: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+/* At 5px the bar would show as a clipped sliver of its first line, so nothing
+   inside is drawn at all; the capsule's `title` carries the text instead. */
+.mud-capsule.is-stub > * {
+  display: none;
+}
 /* -- Find highlights ------------------------------------------------------ */
 /* The search-match colors. Injected only into the live app view (see
    HTMLTemplate.wrapUp / wrapDown, gated on !options.standalone); kept out of
@@ -1206,7 +1338,7 @@ mark.mud-match-active {
   }
 
   ul, ol {
-    padding-left: 1.5em;
+    --list-left-pad: 1.5em;
   }
 
   pre {
@@ -1339,12 +1471,12 @@ mark.mud-match-active {
   h3 { font-size: 1.15em; }
 
   ul, ol {
-    padding-left: 1.25em;
+    --list-left-pad: 1.25em;
   }
 
   .footnotes ol,
   .comments ol {
-    padding-left: 1.25em;
+    --list-left-pad: 1.25em;
   }
 
   pre {
@@ -1443,6 +1575,12 @@ mark.mud-match-active {
   .footnotes.is-print-only { display: block; }
 
 
+  /* Up mode: the fold arrows are an on-screen control, so a printed heading
+     shows none. A folded section prints in full without anything here to undo:
+     the rule that hides it is inside `@media screen` (mud-up.css). */
+  .mud-fold-arrow { display: none; }
+
+
   /* Up mode: comments. The bottom Comments section is hidden on screen in
      favor of the column, but prints in place of the column. Being the
      article's sibling rather than its child, the footer carries its own page
@@ -1473,6 +1611,47 @@ mark.mud-match-active {
 <body>
     <article class="up-mode-output">
 <h1 id="releases">RELEASES</h1>
+<h2 id="v410">v4.1.0</h2>
+<p>A release about long documents and lots of them: fold a document down to the
+parts you’re reading, and hand Mud a whole folder at once.</p>
+<ul>
+<li><strong>Foldable headings</strong> — every heading now carries an arrow that folds its
+section away, so a long document collapses to the shape you want to see. Fold
+or unfold the whole document from the View menu (⌃⌘H and ⇧⌘H). It’s on by
+default, and off is a click away in Settings &gt; Up Mode.
+</li>
+<li><strong>Open a folder</strong> — point Mud at a folder and it builds an index of every
+Markdown document in the tree below it, as one page of links. If you’d rather
+have the documents themselves, Settings &gt; General switches folder opening to
+a tab per Markdown file inside.
+</li>
+<li><strong>A notice bar</strong> — what Mud has to tell you about the document now appears in
+a bar below the tab bar instead of interrupting you or taking over the
+window: a file that changed on disk while you were commenting, a file that
+couldn’t be opened, a comment that couldn’t be saved.
+</li>
+<li><strong>Open any file</strong> — an Enable popup at the bottom switches between Markdown
+and text files and all files, so a document with an unfamiliar extension is
+reachable.
+</li>
+<li>Reloading a file that has been deleted, renamed, or made unreadable keeps the
+document you were reading on screen, and says why it couldn’t reload.
+</li>
+<li>Task list items that run to more than one line align to the text rather than
+the checkbox.
+</li>
+<li>Comments no longer disappear if anchored within a changed paragraph with
+Change Tracking enabled.
+</li>
+<li>Right-click → Add Comment is disabled when a comment cannot be placed at
+the selection (eg within a code block).
+</li>
+<li>The Settings window resizes vertically, and the Command Line pane says when
+the <code>mud</code> script was installed.
+</li>
+<li>Small refinements to alert titles, blockquote bars, and theme backgrounds.
+</li>
+</ul>
 <h2 id="v401">v4.0.1</h2>
 <p>A release about small spaces: Mud now reads well in a narrow window and in
 Finder’s column-view preview pane.</p>

@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src mud-asset: data: https:; style-src 'unsafe-inline'; script-src 'none'">
         
-    <title>v3.0.0</title>
+    <title>v4.1.0</title>
     <style>/* -- Theme: Earthy -------------------------------------------------------- */
 
 :root {
@@ -1610,35 +1610,45 @@ mark.mud-match-active {
 </head>
 <body>
     <article class="up-mode-output">
-<h1 id="v300">v3.0.0</h1>
+<h1 id="v410">v4.1.0</h1>
+<p>A release about long documents and lots of them: fold a document down to the
+parts you’re reading, and hand Mud a whole folder at once.</p>
 <ul>
-<li><strong>Comments!</strong> — select any passage and attach a threaded comment, perfect for
-marking up a document for a coding agent or a colleague. Comments live inside
-the Markdown file itself as standard footnotes, so they travel with the file
-and stay readable in any other tool. Replies, edits, and deletes are all
-supported.
+<li><strong>Foldable headings</strong> — every heading now carries an arrow that folds its
+section away, so a long document collapses to the shape you want to see. Fold
+or unfold the whole document from the View menu (⌃⌘H and ⇧⌘H). It’s on by
+default, and off is a click away in Settings &gt; Up Mode.
 </li>
-<li><strong>Footnotes</strong> — Mud now renders Markdown footnotes. Clicking a reference
-marker opens a popover with the footnote body rendered as Markdown, and Down
-mode highlights footnote definitions and markers.
+<li><strong>Open a folder</strong> — point Mud at a folder and it builds an index of every
+Markdown document in the tree below it, as one page of links. If you’d rather
+have the documents themselves, Settings &gt; General switches folder opening to
+a tab per Markdown file inside.
 </li>
-<li><code>mud --primer</code> prints a short Mud guide written for coding agents. Teach your
-clanker to run that command when it generates Markdown, so it knows how to
-launch Mud, write rich documents with tables and diagrams and footnotes and
-more, and reply to your comments!
+<li><strong>A notice bar</strong> — what Mud has to tell you about the document now appears in
+a bar below the tab bar instead of interrupting you or taking over the
+window: a file that changed on disk while you were commenting, a file that
+couldn’t be opened, a comment that couldn’t be saved.
 </li>
-<li><strong>Open In…</strong> — a new File menu command opens the current document in your
-editor of choice, so you don’t have to detour through the Finder to make a
-change.
+<li><strong>Open any file</strong> — an Enable popup at the bottom switches between Markdown
+and text files and all files, so a document with an unfamiliar extension is
+reachable.
 </li>
-<li>Hover over the document title in the toolbar to reveal the <em>file proxy</em> icon.
+<li>Reloading a file that has been deleted, renamed, or made unreadable keeps the
+document you were reading on screen, and says why it couldn’t reload.
 </li>
-<li>Toolbar button icons have <em>tooltips</em>.
+<li>Task list items that run to more than one line align to the text rather than
+the checkbox.
 </li>
-<li>The Changes bar and Find bar now sit side by side when bottom-centered.
+<li>Comments no longer disappear if anchored within a changed paragraph with
+Change Tracking enabled.
 </li>
-<li>Speculative fixes for people who’ve had problems getting the <em>Quick Look</em>
-feature to work.
+<li>Right-click → Add Comment is disabled when a comment cannot be placed at
+the selection (eg within a code block).
+</li>
+<li>The Settings window resizes vertically, and the Command Line pane says when
+the <code>mud</code> script was installed.
+</li>
+<li>Small refinements to alert titles, blockquote bars, and theme backgrounds.
 </li>
 </ul>
 <hr />

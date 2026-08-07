@@ -40,7 +40,7 @@ public enum ViewToggle: String, CaseIterable, Sendable {
         case .wordWrap:          return true
         case .codeHeader:        return true
         case .autoExpandChanges: return false
-        case .foldableHeadings:  return false
+        case .foldableHeadings:  return true
         }
     }
 

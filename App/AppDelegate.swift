@@ -10,6 +10,11 @@ class AppDelegate: NSObject, NSApplicationDelegate {
 
         // Install our custom document controller before anything else
         _ = DocumentController()
+
+        // Take back the folder grants the reader has made, before any document
+        // opens, so a document's local images are readable the first time it
+        // renders rather than after a reload.
+        AssetAccessStore.shared.resolveSavedGrants()
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {

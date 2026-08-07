@@ -22,6 +22,10 @@ struct DocumentNotice: Equatable {
         enum Effect: Equatable {
             /// Replace the pasteboard's contents with this string.
             case copyToPasteboard(String)
+            /// Ask the reader for a folder Mud may read local content from,
+            /// opening the panel at `startingAt`. Carried out by
+            /// `AssetAccessStore.requestAccess`.
+            case grantFolderAccess(startingAt: URL)
         }
     }
 
@@ -78,6 +82,13 @@ struct DocumentNotice: Equatable {
         /// `reloadFailed`: the reader may be looking at a window nothing else
         /// will take the message off.
         case commentWriteFailed
+        /// Local images this document references are in a folder Mud isn't
+        /// allowed to read. Raised only in the sandboxed build, where a file
+        /// the reader hasn't handed Mud is off limits and granting the folder
+        /// is the remedy; an unsandboxed Mud reads what the file system lets
+        /// it, and "grant a folder" would answer nothing. Cleared by a render
+        /// that reads every image.
+        case localAssetsBlocked
         #if DEBUG
         /// Raised only from the Debugging settings pane, to see the bar at
         /// each level in a real window. Not in a release build.
@@ -202,6 +213,33 @@ extension DocumentNotice {
             kind: .folderIndexTruncated,
             level: .info,
             message: "This folder holds more than \(limit.formatted()) Markdown files."
+        )
+    }
+
+    /// Images this document points at are there, and Mud can't read them.
+    ///
+    /// The button opens a file panel with nothing in between, so the message
+    /// carries the whole reason on its own — by the time the panel is up, the
+    /// reader has to already know what they are being asked for and why.
+    ///
+    /// `folder` is where that panel opens: the document's own folder, since a
+    /// document usually keeps its images below itself. It isn't a promise
+    /// about which folder to choose — the reader can go anywhere, and an image
+    /// somewhere else raises this again with the next render.
+    ///
+    /// Dismissible, because a reader who doesn't care about the images should
+    /// be able to put the bar away; a render that reads every image also takes
+    /// it down.
+    static func localAssetsBlocked(folder: URL) -> Self {
+        return Self(
+            kind: .localAssetsBlocked,
+            level: .warning,
+            message: "Mud doesn’t have your permission to "
+                + "access the images in this document.",
+            action: Action(
+                title: "Grant Access…",
+                effect: .grantFolderAccess(startingAt: folder)),
+            isDismissible: true
         )
     }
 

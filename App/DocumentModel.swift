@@ -119,6 +119,25 @@ final class DocumentModel: ObservableObject {
     private var cachedKey: DisplayKey?
     private var cachedDisplay: RenderedDisplay?
 
+    /// What the last Up render had to say about images it couldn't read.
+    ///
+    /// Kept so an unchanged answer can be left alone. `cachedDisplay` is a
+    /// single slot, so a mode toggle or a theme change re-renders, and without
+    /// this every one of those would raise the notice again — putting a
+    /// dismissed bar back up, and taking the bar from whatever other condition
+    /// had it.
+    private enum BlockedReport: Equatable {
+        /// Nothing reported yet, or a grant changed and the last answer is no
+        /// longer worth trusting.
+        case unknown
+        /// The render read every image it met.
+        case allRead
+        /// The render met an image it wasn't allowed to read. A grant panel
+        /// would open at `folder`.
+        case blocked(folder: URL)
+    }
+    private var lastBlockedReport: BlockedReport = .unknown
+
     init(
         fileURL: URL, state: DocumentState, changeTracker: ChangeTracker,
         waypointProvider: any WaypointProvider = WaypointProviders.makeDefault(),
@@ -244,9 +263,13 @@ final class DocumentModel: ObservableObject {
                 html: MudCore.renderDownModeDocument(parsed, options: options),
                 contentID: contentID, footnoteHTML: [:])
         }
+        // The log rides along with the resolver for the length of this render,
+        // collecting the images the sandbox wouldn't let us read.
+        let blocked = BlockedAssetLog()
         let document = MudCore.renderUpModeDocumentWithFootnotes(
             parsed.markdown, options: options,
-            resolveImageSource: Self.mudAssetResolver)
+            resolveImageSource: blocked.resolver)
+        reportBlockedAssets(blocked)
         var map: [String: String] = [:]
         for footnote in document.footnotes {
             map[footnote.label.lowercased()] = footnote.html
@@ -257,9 +280,25 @@ final class DocumentModel: ObservableObject {
     }
 
     /// Rewrites local image paths to `mud-asset:` URLs for WKWebView. Also
-    /// used by the coordinator when rendering comment items for the column.
+    /// used by the coordinator when rendering comment items for the column,
+    /// which has no window to report a denial to and so takes this plain form.
     nonisolated static func mudAssetResolver(
         source: String, baseURL: URL
+    ) -> String? {
+        return resolve(source: source, baseURL: baseURL, onDenied: nil)
+    }
+
+    /// The resolution itself. `onDenied` is called with a file that is there
+    /// and that Mud can't read — the sandbox case a folder grant fixes.
+    ///
+    /// A file that isn't there at all is passed over in silence. Both leave the
+    /// reader with a broken image, but only one of them is Mud's to offer to
+    /// do something about; a wrong path in the document is the author's.
+    ///
+    /// Kept apart from `mudAssetResolver` rather than made an overload of it,
+    /// so that passing that function as a value stays unambiguous.
+    nonisolated static func resolve(
+        source: String, baseURL: URL, onDenied: ((URL) -> Void)?
     ) -> String? {
         guard !ImageDataURI.isExternal(source) else { return nil }
         let resolved = baseURL.deletingLastPathComponent()
@@ -267,13 +306,119 @@ final class DocumentModel: ObservableObject {
             .standardized
         let ext = resolved.pathExtension.lowercased()
         guard ImageDataURI.mimeTypes[ext] != nil else { return nil }
-        guard FileManager.default.fileExists(atPath: resolved.path) else {
+        switch LocalAssetProbe.probe(resolved) {
+        case .readable:
+            break
+        case .missing:
+            return nil
+        case .denied:
+            onDenied?(resolved)
             return nil
         }
         var components = URLComponents()
         components.scheme = "mud-asset"
         components.path = resolved.path
         return components.url?.absoluteString ?? nil
+    }
+
+    /// The folder this document lives in — where a grant panel opens when the
+    /// document's own images are the ones that were blocked.
+    private var documentFolder: URL {
+        MarkdownFolder.isFolder(fileURL)
+            ? fileURL
+            : fileURL.deletingLastPathComponent()
+    }
+
+    /// Whether the blocked-assets notice may take the info bar from whatever
+    /// is showing there.
+    ///
+    /// It may not push another condition's message aside. Every other notice
+    /// is raised by something that just happened and says so once
+    /// (`externalChangeHeld` guards on its own `didSet`, and
+    /// `commentWriteFailed` is carrying text the reader typed and hasn't got
+    /// back yet); this one is re-derived on every render, so if it won the
+    /// contest it would win it repeatedly and those messages would be gone for
+    /// good.
+    static func blockedAssetsMayRaise(over showing: DocumentNotice?) -> Bool {
+        guard let showing else { return true }
+        return showing.kind == .localAssetsBlocked
+    }
+
+    /// Raises or clears the info bar's notice from what the render just found.
+    ///
+    /// Deferred, because `render` runs inside `display()`, which SwiftUI calls
+    /// from `DocumentContentView`'s body — setting an `@Published` property
+    /// there is exactly what `deferMutation` is for.
+    ///
+    /// Sandboxed builds only. The probe is a better test than the file-exists
+    /// check it replaced either way, but an unsandboxed Mud reads whatever the
+    /// file system allows, so a denial there is an ordinary permissions
+    /// problem and granting a folder would answer nothing.
+    ///
+    /// The panel opens at the document's own folder when that folder holds the
+    /// blocked file, and at the blocked file's folder when it doesn't — a
+    /// document that points at an image somewhere else entirely shouldn't send
+    /// the reader to the wrong place to go looking for it.
+    ///
+    /// An answer that repeats the last one does nothing at all. That is what
+    /// keeps a dismissed bar down through the re-renders a mode toggle and a
+    /// theme change cause, and what keeps this from raising the notice over
+    /// and over. `lastBlockedReport` is only moved on when the bar was
+    /// actually changed, so a raise that stood down for another notice is
+    /// tried again on the next render.
+    ///
+    /// Only Up mode renders images, so only Up mode calls this. A notice
+    /// raised there stays up if the reader switches to Down — which is right:
+    /// the document still has images Mud can't read, and taking the bar down
+    /// on a mode toggle would only make it flicker back on the way returning.
+    private func reportBlockedAssets(_ blocked: BlockedAssetLog) {
+        guard isSandboxed else { return }
+        var report = BlockedReport.allRead
+        if let file = blocked.denied.first {
+            let ownFolder = documentFolder
+            report = .blocked(
+                folder: AssetAccessStore.covers(ownFolder, file)
+                    ? ownFolder
+                    : file.deletingLastPathComponent())
+        }
+        guard report != lastBlockedReport else { return }
+
+        deferMutation { [weak self] in
+            guard let self else { return }
+            switch report {
+            case .blocked(let folder):
+                guard Self.blockedAssetsMayRaise(over: state.notice)
+                else { return }
+                lastBlockedReport = report
+                state.raise(.localAssetsBlocked(folder: folder))
+            case .allRead:
+                lastBlockedReport = report
+                state.clear(.localAssetsBlocked)
+            case .unknown:
+                // A render always has an answer; `.unknown` is only ever the
+                // starting value and what a grant change resets to.
+                break
+            }
+        }
+    }
+
+    /// A folder grant changed, so images this document couldn't read may be
+    /// readable now — or a revoked grant may have taken readable ones away.
+    /// Re-reads, which re-renders and probes every image again.
+    ///
+    /// The load is forced: the file's text hasn't changed, and only the bumped
+    /// load token makes the page reload and the images resolve a second time.
+    ///
+    /// The last report is dropped because the answer it held may no longer be
+    /// the answer. In Down mode the notice is taken down outright: no Down
+    /// render probes an image, so nothing else would ever take down a bar the
+    /// grant may well have just made untrue. In Up mode it is left alone, and
+    /// the render coming right behind this says whether it was fixed — which
+    /// spares the bar a blink on its way to saying the same thing.
+    func reloadForAssetAccessChange() {
+        lastBlockedReport = .unknown
+        if state.mode == .down { state.clear(.localAssetsBlocked) }
+        load(forced: true)
     }
 
     // MARK: Loading and watching

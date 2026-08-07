@@ -204,6 +204,17 @@ class DocumentWindowController: NSWindowController {
             }
             .store(in: &cancellables)
 
+        // A folder grant can unblock images in any open document, not just the
+        // one whose info bar asked for it, so every window re-reads.
+        //
+        // On `accessChanged` rather than on `$grants`: a reader who grants a
+        // folder Mud already covers leaves the list untouched, and a button
+        // that did nothing visible would read as broken.
+        AssetAccessStore.shared.accessChanged
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.model.reloadForAssetAccessChange() }
+            .store(in: &cancellables)
+
         // Track sidebar collapse state for persistence
         if let sidebarItem = splitVC?.splitViewItems.first {
             sidebarItem.publisher(for: \.isCollapsed)

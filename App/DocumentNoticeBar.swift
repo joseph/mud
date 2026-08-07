@@ -80,11 +80,20 @@ struct DocumentNoticeBar: View {
     /// No confirmation afterwards, deliberately: copying is silent everywhere
     /// else on the platform, and a button that rewrote its own label to say so
     /// would be the odd one out.
+    ///
+    /// The grant panel is hung on `NSApp.keyWindow` rather than on a window
+    /// passed in. The reader has just clicked a button in this bar, so the
+    /// window holding it is key by definition — and a bar that had to be told
+    /// its own window would need one threaded through every call site,
+    /// including the previews, for a fact AppKit already knows.
     private func perform(_ effect: DocumentNotice.Action.Effect) {
         switch effect {
         case .copyToPasteboard(let string):
             NSPasteboard.general.clearContents()
             NSPasteboard.general.setString(string, forType: .string)
+        case .grantFolderAccess(let folder):
+            AssetAccessStore.shared.requestAccess(
+                startingAt: folder, in: NSApp.keyWindow)
         }
     }
 }

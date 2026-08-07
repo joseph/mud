@@ -192,4 +192,62 @@ import Testing
         #expect(Set(messages).count == messages.count)
         #expect(messages.allSatisfy { $0.contains("Notes.md") })
     }
+
+    /// The button opens a file panel with nothing in between, so the folder it
+    /// starts at is part of what the notice promises. Assertable because the
+    /// effect is a value rather than a closure.
+    @Test func theBlockedAssetsNoticeCarriesTheFolderToGrant() {
+        let folder = URL(fileURLWithPath: "/Users/jp/Notes", isDirectory: true)
+
+        let notice = DocumentNotice.localAssetsBlocked(folder: folder)
+
+        #expect(notice.action?.title == "Grant Access…")
+        #expect(notice.action?.effect == .grantFolderAccess(startingAt: folder))
+    }
+
+    /// Nothing is broken — the document is fine and its images aren't showing —
+    /// so it is a warning rather than an error. It carries an × because a
+    /// reader who doesn't care about the images shouldn't have to grant a
+    /// folder to put the bar away.
+    @Test func theBlockedAssetsNoticeIsADismissibleWarning() {
+        let notice = DocumentNotice.localAssetsBlocked(
+            folder: URL(fileURLWithPath: "/Users/jp/Notes", isDirectory: true))
+
+        #expect(notice.kind == .localAssetsBlocked)
+        #expect(notice.level == .warning)
+        #expect(notice.isDismissible)
+    }
+
+    /// A render that reads every image clears it, and clearing is by kind, so
+    /// a grant that fixes one window can't take down another window's unread
+    /// message about something else.
+    @Test func theBlockedAssetsNoticeClearsByKind() {
+        let state = DocumentState()
+        state.raise(.localAssetsBlocked(
+            folder: URL(fileURLWithPath: "/Users/jp", isDirectory: true)))
+
+        state.clear(.openFailed)
+        #expect(state.notice?.kind == .localAssetsBlocked)
+
+        state.clear(.localAssetsBlocked)
+        #expect(state.notice == nil)
+    }
+
+    /// Unlike every other notice, this one is re-derived on every Up render —
+    /// a mode toggle or a theme change is enough. So it is the one notice that
+    /// isn't allowed to take the bar from another: `externalChangeHeld` says
+    /// its piece once and guards on its own `didSet`, so a message pushed
+    /// aside here would never come back.
+    @Test func blockedAssetsWaitsForTheBarRatherThanTakingIt() {
+        let folder = URL(fileURLWithPath: "/Users/jp/Notes", isDirectory: true)
+
+        #expect(DocumentModel.blockedAssetsMayRaise(over: nil))
+        #expect(
+            DocumentModel.blockedAssetsMayRaise(
+                over: .localAssetsBlocked(folder: folder)))
+        #expect(!DocumentModel.blockedAssetsMayRaise(over: .externalChangeHeld))
+        #expect(
+            !DocumentModel.blockedAssetsMayRaise(
+                over: .openFailed(fileName: "Notes.md", reason: .notFound)))
+    }
 }

@@ -37,7 +37,12 @@ MVP plan.
 - Find (Cmd+F), Find Next/Previous (Cmd+G, Cmd+Shift+G)
 - Print / Save as PDF (Cmd+P)
 - Open In Browser (Cmd+Shift+B) with image data-URI embedding
-- Local images via custom `mud-asset:` URL scheme; remote images allowed
+- Local images via custom `mud-asset:` URL scheme; remote images allowed. When
+  the sandbox denies one, the info bar offers a folder grant, kept as a
+  security-scoped bookmark and revocable in Settings → Up Mode
+- Info bar: a one-at-a-time notice below the tab bar for what the document
+  can't say itself — an open that failed, a held external change, a comment
+  write that failed, a folder with no Markdown, blocked local images
 - Link handling: anchors, local .md, external URLs
 - Opening a folder does one of two things, per the `folder-open-behavior`
   setting: builds an index of every Markdown file in the tree below it, as one
@@ -88,14 +93,11 @@ MVP plan.
 - `AppDelegate.swift` — Lifecycle and document handling
 - `DocumentController.swift` — NSDocumentController subclass. Owns the modeless
   open panel (`canChooseDirectories`, plus the "Enable:" popup). A folder URL
-  takes the route `folderOpenBehavior` names. Under `.index` it gets one window
-  on the folder itself, which `DocumentModel` makes a document of; under
-  `.tabs` it takes `openFolderAsTabs`, which opens one window per
-  `MarkdownFolder.markdownFiles` entry and tabs them with `addTabbedWindow` —
-  explicitly, because `NSWindow.tabbingMode` answers to the reader's "Prefer
-  tabs" setting and would group every Mud window or none. An already-open
-  document is surfaced where it is. A folder with no Markdown gets one window
-  on the folder itself
+  takes the route `folderOpenBehavior` names: under `.index` one window on the
+  folder itself, which `DocumentModel` makes a document of; under `.tabs`
+  `openFolderAsTabs`, one window per `MarkdownFolder.markdownFiles` entry,
+  tabbed with an explicit `addTabbedWindow`. An already-open document is
+  surfaced where it is; a folder with no Markdown gets a window on itself
 - `MarkdownFolder.swift` — What a folder open yields under `.tabs`: the
   Markdown files directly inside, top level only, name-ordered — nil when the
   URL isn't a folder (packages included, read as one document), empty when it
@@ -172,8 +174,7 @@ MVP plan.
   `reduce(grants:adding:)` (a covered folder adds no row, a covering folder
   replaces what it covers). A `Grant` whose bookmark won't resolve is kept as
   an unavailable row — an unplugged disk is not a revocation. Windows watch
-  `accessChanged`, not `$grants`: granting a folder Mud already covers moves no
-  row, but is still the reader asking to be shown it
+  `accessChanged`, not `$grants`
 - `DeferMutation.swift` — Run-loop deferred state mutation helper
 - `Lighting+AppKit.swift` — AppKit/SwiftUI behavior on the bare `Lighting` enum
   (which lives in MudPreferences)
@@ -187,10 +188,10 @@ MVP plan.
 - `DocumentNotice.swift` — A short, non-blocking message about the document
   (kind, level, optional action, dismissibility), plus the notices themselves —
   `openFailed`, `externalChangeHeld`, `commentWriteFailed`,
-  `folderHasNoMarkdown`, `folderIndexTruncated`. An action's effect is a value,
-  not a closure, so the notice keeps a synthesized `Equatable`;
-  `DocumentNoticeBar` performs it. One at a time in `DocumentState.notice`;
-  `clear(_:)` matches on kind
+  `folderHasNoMarkdown`, `folderIndexTruncated`, `localAssetsBlocked`. An
+  action's effect is a value, not a closure, so the notice keeps a synthesized
+  `Equatable`; `DocumentNoticeBar` performs it. One at a time in
+  `DocumentState.notice`; `clear(_:)` matches on kind
 - `DocumentNoticeBar.swift` — The info bar, attached with
   `.safeAreaInset(edge: .top)` so it takes space from the WebView instead of
   covering it. Deliberately not an `NSTitlebarAccessoryViewController` — AppKit
@@ -414,6 +415,9 @@ MVP plan.
   and its re-walk), and the waypoint-provider seam
 - `CommentControllerTests.swift` — Comment mutations on disk and the
   `anchorFailed` / `writeFailed` matrix
+- `CommentSubmissionHandlerTests.swift` — What the handler answers the column
+  over `resolveSubmission`, for every action including the ones with no compose
+  box
 - `OpenInFormatTests.swift` — The Open In `.auto` format truth table
 - `OpenPanelFilterTests.swift` — The open panel's Enable filter: type lists and
   the raw-value-to-menu-index contract
@@ -498,13 +502,11 @@ MVP plan.
   submit/reply/edit/delete bridge (`mudCommentSubmit`)
 - `mud-up.js` — Up-mode JS: link routing, footnote-marker clicks, and
   `Mud.folds`. Folds keeps the folded headings' slugs and recomputes every
-  block's visibility from that set in one walk — which is what keeps a
-  sub-section folded when its parent opens — stamping each hidden block with
-  `data-fold-host`. The app replays the set through `folds.apply` after a
-  reload; the page reports it back over `mudFolds`. Every navigation that
-  scrolls calls `folds.reveal` first, since WebKit can't scroll to a hidden
-  target. `folds.hiding(el)` reads the stamp back as `{ key, top }`, all
-  `mud-comments.js` needs to place a stub
+  block's visibility from that set in one walk, stamping each hidden block with
+  `data-fold-host` — which is what keeps a sub-section folded when its parent
+  opens. The app replays the set through `folds.apply` after a reload; the page
+  reports it back over `mudFolds`. Every navigation that scrolls calls
+  `folds.reveal` first, since WebKit can't scroll to a hidden target
 - `mud-down.js` — Down-mode JS
 - `emoji.json` — GitHub gemoji shortcode database
 - `alert-*.svg` — Octicon alert icons

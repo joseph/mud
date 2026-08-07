@@ -49,7 +49,20 @@ Mud does just one thing — it marks up Markdown! — and it does it really well
 | ⌃⌘S or F3 | Show / hide sidebar                   |
 | ⌃⌘C       | Show / hide changes                   |
 | ⌃⌘R       | Toggle readable column                |
+| ⌃⌘H       | Fold every heading                    |
+| ⇧⌘H       | Unfold every heading                  |
 | F6 or ⌘L  | Cycle lighting (Auto → Bright → Dark) |
+
+Fold and unfold appear in the View menu only while **Foldable headings** is on
+in Settings > Up Mode, and only in Mark Up mode.
+
+
+### Comments
+
+| Shortcut | Action                             |
+| -------- | ---------------------------------- |
+| ⌘⇧K      | Add a comment on the selected text |
+| ⌃⌘K      | Show / hide the Comments column    |
 
 
 ### Zoom
@@ -79,4 +92,5 @@ Mud does just one thing — it marks up Markdown! — and it does it really well
 | ⌘W       | Close window                                 |
 | ⌘R       | Reload                                       |
 | ⌘P       | Print…                                       |
+| ⌘⇧E      | Open In — your editor                        |
 | ⌘⇧B      | Open In Browser _(direct distribution only)_ |

@@ -6,16 +6,16 @@ Mud: A Perfect Markdown Viewer
 
 ## Why Mud?
 
-Markdown is suddenly everywhere. It's how we speak to machines now. It's how
+Markdown is suddenly everywhere. It’s how we speak to machines now. It’s how
 they speak to us.
 
 _We should make it nice!_
 
-But you already have a favorite text editor. You don't want a special tool for
-writing Markdown. You just need a way to preview the Markdown you're writing,
+But you already have a favorite text editor. You don’t want a special tool for
+writing Markdown. You just need a way to preview the Markdown you’re writing,
 marked up.
 
-That's what **Mud** is for. It renders Markdown beautifully, bright or dark. It
+That’s what **Mud** is for. It renders Markdown beautifully, bright or dark. It
 automatically reloads the document when you save it — or when Claude Code
 writes to it, or Codex, or whatever you use.
 
@@ -29,8 +29,8 @@ Mud shows you both sides of the document:
 
 Hit Space to flip between them. Your scroll position carries over.
 
-Mud is a Mac-assed Mac app with excellent command-line tooling. It's free and
-it's open source.
+Mud is a Mac-assed Mac app with excellent command-line tooling. It’s free and
+it’s open source.
 
 
 ## Quick start
@@ -47,8 +47,8 @@ Mud requires macOS Sonoma (14.0) or higher, and comes in two flavors:
 
 - [x] **GitHub-flavored Markdown** with syntax-highlighted code blocks
 - [x] Full support for macOS **Quick Look** and thumbnail previews in Finder
-- [x] **Comments!** Take notes for yourself and your collaborators, or chat with
-  your agent
+- [x] **Comments!** Take notes for yourself and your collaborators, or chat
+      with your agent
 - [x] **Change tracking!** See what your coding agent is doing to the document
 - [x] **Reload** automatically every time the file is saved to disk
 - [x] Table of contents — **document outliner** in sidebar
@@ -62,9 +62,11 @@ Mud requires macOS Sonoma (14.0) or higher, and comes in two flavors:
 - [x] Native popovers for **footnotes**
 - [x] Collapsible **YAML** frontmatter
 - [x] **GFM Alerts** and Status blockquote styles
+- [x] **Foldable headings** — collapse the sections you aren’t reading
+- [x] **Open a folder** to get a tree of every Markdown document inside it
 - [x] Excellent **command-line** tools (Direct release, mostly)
 - [x] Configure Mud to open the document in **your editor** with a click or a
-  keystroke
+      keystroke
 
 The [**Feature Showcase**](Doc/Examples/feature-showcase.md) demonstrates Mud’s
 Markdown rendering.
@@ -74,7 +76,8 @@ Markdown rendering.
 
 I wrote an overview of my current Claude Code workflow, and how Mud is a great
 fit for it:
-* [Plan-based workflows with Claude Code & Mud](https://apps.josephpearson.org/mud/plan-workflows.html)
+
+- [Plan-based workflows with Claude Code & Mud](https://apps.josephpearson.org/mud/plan-workflows.html)
 
 
 ## Command line tool

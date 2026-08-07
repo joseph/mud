@@ -9,7 +9,7 @@ class SettingsWindowController: NSWindowController {
         let window = NSWindow(
             contentRect: NSRect(
                 x: 0, y: 0,
-                width: SettingsView.width, height: SettingsView.minHeight),
+                width: SettingsView.width, height: SettingsView.defHeight),
             styleMask: [.titled, .closable, .resizable, .fullSizeContentView],
             backing: .buffered,
             defer: true
@@ -44,6 +44,13 @@ class SettingsWindowController: NSWindowController {
             width: SettingsView.width, height: SettingsView.minHeight)
         window.contentMaxSize = NSSize(
             width: SettingsView.width, height: SettingsView.maxHeight)
+
+        // Installing it also resized the window to the hosting view's fitting
+        // height, which is the minimum the frame allows — so the height given
+        // to `contentRect` above is already gone. State the opening height
+        // here instead, after the limits it has to sit within.
+        window.setContentSize(
+            NSSize(width: SettingsView.width, height: SettingsView.defHeight))
 
         self.init(window: window)
     }

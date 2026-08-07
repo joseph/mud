@@ -17,8 +17,8 @@ struct CommentsSettingsView: View {
             Section {
                 TextField("Author", text: $appState.commentAuthor,
                           prompt: Text(NSFullUserName()))
-                Text("The name associated with your comments. "
-                     + "Leave blank to use your system full name.")
+                Text("Who your comments are written by. "
+                     + "Leave blank to use your macOS account name.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }
@@ -34,7 +34,7 @@ struct CommentsSettingsView: View {
 
             Section {
                 Toggle("Show comment markers", isOn: $appState.commentsShowMarkers)
-                Text("Show the inline 💬 markers in Mark Up. Hover a marker to "
+                Text("Show the inline 💬 markers in Up mode. Hover a marker to "
                      + "highlight its quotation; click one to open the comments "
                      + "column at that comment.")
                     .font(.callout)

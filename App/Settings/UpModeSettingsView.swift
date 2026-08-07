@@ -15,7 +15,7 @@ struct UpModeSettingsView: View {
                     set: { _ in appState.toggle(.foldableHeadings) }
                 )) {
                     Text("Foldable headings")
-                    Text("Click a heading arrow in Mark Up mode to show or hide its section.")
+                    Text("Click the arrow beside a heading to show or hide its section.")
                 }
             }
             Section {
@@ -61,13 +61,13 @@ struct UpModeSettingsView: View {
                     }
                 )) {
                     Text("Copy button")
-                    Text("Hover over code blocks to reveal a button that copies the contents to your clipboard.")
+                    Text("Hover over code blocks for a button that copies it to your clipboard.")
                 }
             }
             Section("Content permissions") {
                 Toggle(isOn: $appState.upModeAllowRemoteContent) {
                     Text("Allow remote content")
-                    Text("Load remote images and other external resources referenced in Markdown documents.")
+                    Text("Load images and other resources from the web.")
                 }
                 // Only the sandboxed build needs permission to read a local
                 // file. An unsandboxed Mud reads whatever the file system
@@ -96,13 +96,10 @@ struct UpModeSettingsView: View {
             }
         } label: {
             Text("Allow local content from:")
-            Text("Mud can show images and other local files stored inside these folders.")
+            Text("Mud can show images and other local files in these folders.")
         }
 
-        if access.grants.isEmpty {
-            Text("No folders yet.")
-                .foregroundStyle(.secondary)
-        } else {
+        if !access.grants.isEmpty {
             ForEach(access.grants) { grant in
                 HStack(spacing: 6) {
                     Image(nsImage: NSWorkspace.shared.icon(forFile: grant.path))

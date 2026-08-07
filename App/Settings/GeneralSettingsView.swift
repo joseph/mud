@@ -41,15 +41,15 @@ struct GeneralSettingsView: View {
                 }
             }
 
-            Section {
-                Toggle(isOn: Binding(
-                    get: { appState.viewToggles.contains(.readableColumn) },
-                    set: { _ in appState.toggle(.readableColumn) }
-                )) {
-                    Text("Readable column")
-                    Text("Constrain content to a comfortable reading width — no more than about 80 characters per line.")
-                }
-            }
+            // Section {
+            //     Toggle(isOn: Binding(
+            //         get: { appState.viewToggles.contains(.readableColumn) },
+            //         set: { _ in appState.toggle(.readableColumn) }
+            //     )) {
+            //         Text("Readable column")
+            //         Text("Constrain the document to a comfortable reading width.")
+            //     }
+            // }
 
             Section {
                 Picker("Opening a folder", selection: $appState.folderOpenBehavior) {

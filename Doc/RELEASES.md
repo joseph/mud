@@ -1,6 +1,15 @@
 RELEASES
 ===============================================================================
 
+## v4.1.1
+
+A fix for where a comment marker appears when you select text by dragging.
+If you highlight a whole block, the comment will appear beside it (not beside
+the following block!).
+
+The app icon has been subtly tweaked, too.
+
+
 ## v4.1.0
 
 A release about long documents and lots of them: fold a document down to the
@@ -27,8 +36,8 @@ parts you're reading, and hand Mud a whole folder at once.
   the checkbox.
 - Comments no longer disappear if anchored within a changed paragraph with
   Change Tracking enabled.
-- Right-click → Add Comment is disabled when a comment cannot be placed at
-  the selection (eg within a code block).
+- Right-click → Add Comment is disabled when a comment cannot be placed at the
+  selection (eg within a code block).
 - The Settings window resizes vertically, and the Command Line pane says when
   the `mud` script was installed.
 - Small refinements to alert titles, blockquote bars, and theme backgrounds.

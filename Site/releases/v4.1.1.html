@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src mud-asset: data: https:; style-src 'unsafe-inline'; script-src 'none'">
         
-    <title>v4.1.0</title>
+    <title>v4.1.1</title>
     <style>/* -- Theme: Earthy -------------------------------------------------------- */
 
 :root {
@@ -1610,47 +1610,11 @@ mark.mud-match-active {
 </head>
 <body>
     <article class="up-mode-output">
-<h1 id="v410">v4.1.0</h1>
-<p>A release about long documents and lots of them: fold a document down to the
-parts you’re reading, and hand Mud a whole folder at once.</p>
-<ul>
-<li><strong>Foldable headings</strong> — every heading now carries an arrow that folds its
-section away, so a long document collapses to the shape you want to see. Fold
-or unfold the whole document from the View menu (⌃⌘H and ⇧⌘H). It’s on by
-default, and off is a click away in Settings &gt; Up Mode.
-</li>
-<li><strong>Open a folder</strong> — point Mud at a folder and it builds an index of every
-Markdown document in the tree below it, as one page of links. If you’d rather
-have the documents themselves, Settings &gt; General switches folder opening to
-a tab per Markdown file inside.
-</li>
-<li><strong>A notice bar</strong> — what Mud has to tell you about the document now appears in
-a bar below the tab bar instead of interrupting you or taking over the
-window: a file that changed on disk while you were commenting, a file that
-couldn’t be opened, a comment that couldn’t be saved.
-</li>
-<li><strong>Open any file</strong> — an Enable popup at the bottom switches between Markdown
-and text files and all files, so a document with an unfamiliar extension is
-reachable.
-</li>
-<li>Reloading a file that has been deleted, renamed, or made unreadable keeps the
-document you were reading on screen, and says why it couldn’t reload.
-</li>
-<li>Task list items that run to more than one line align to the text rather than
-the checkbox.
-</li>
-<li>Comments no longer disappear if anchored within a changed paragraph with
-Change Tracking enabled.
-</li>
-<li>Right-click → Add Comment is disabled when a comment cannot be placed at the
-selection (eg within a code block).
-</li>
-<li>The Settings window resizes vertically, and the Command Line pane says when
-the <code>mud</code> script was installed.
-</li>
-<li>Small refinements to alert titles, blockquote bars, and theme backgrounds.
-</li>
-</ul>
+<h1 id="v411">v4.1.1</h1>
+<p>A fix for where a comment marker appears when you select text by dragging.
+If you highlight a whole block, the comment will appear beside it (not beside
+the following block!).</p>
+<p>The app icon has been subtly tweaked, too.</p>
 <hr />
 <p><a href="https://apps.josephpearson.org/mud/releases">All release notes</a></p>
 

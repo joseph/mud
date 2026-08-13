@@ -484,10 +484,13 @@ MVP plan.
 - `mud-changes.js` — Change tracking JS: overlays, expand/collapse, navigation
 - `mud-comment-anchor.js` — Shared comment-anchoring primitives
   (`Mud.commentAnchor`): the leaf-block and marker-free-text rules that map a
-  rendered-DOM position to a block of source text. `HTMLTemplate.mudCommentsJS`
-  concatenates it ahead of `mud-comments.js`, so it ships wherever the read
-  side does. Its skip rules (comment markers, footnote references, and math)
-  match `CommentAnchor.swift`, mirrored in `CommentAnchorParityTests`
+  rendered-DOM position to a block of source text. `anchorableEnd` comes first:
+  WebKit ends a selection dragged past a line at a boundary in the block
+  _below_, so the end is walked back to the last text it really covers.
+  `HTMLTemplate.mudCommentsJS` concatenates it ahead of `mud-comments.js`, so
+  it ships wherever the read side does. Its skip rules (comment markers,
+  footnote references, and math) match `CommentAnchor.swift`, mirrored in
+  `CommentAnchorParityTests`
 - `mud-comments.js` — Comments column (read side, bundled everywhere): projects
   a capsule per comment from the hidden bottom section, anchors quotation
   highlights off the hidden markers, runs the slot solver, and on `setData`

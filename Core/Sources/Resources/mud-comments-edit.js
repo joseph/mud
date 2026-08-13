@@ -77,13 +77,11 @@
 
   // -- Locator (selection end → source byte) --------------------------------
 
-  // The leaf-block / segment / marker-text primitives are shared with the read
-  // side; see mud-comment-anchor.js. leafBlock is wrapped to bind the container
-  // as its root so the call site below stays unchanged.
+  // The selection-end, leaf-block, segment, and marker-text primitives are
+  // shared with the read side; see mud-comment-anchor.js.
   var anchor = window.Mud.commentAnchor;
   var normalizeWS = anchor.normalizeWS;
   var isMarkerElement = anchor.isMarkerElement;
-  function leafBlock(node) { return anchor.leafBlock(node, container); }
 
   // -- Quotation truncation -------------------------------------------------
 
@@ -113,9 +111,11 @@
     return quote;
   }
 
-  function endLocator(range) {
-    var endNode = range.endContainer;
-    var endOffset = range.endOffset;
+  // `end` comes from `Mud.commentAnchor.anchorableEnd`: always a text node in
+  // the block being commented on, never a boundary in the block below it.
+  function endLocator(end) {
+    var endNode = end.node;
+    var endOffset = end.offset;
     // The logical block the selection ends in: the whole leaf block, or — in a
     // tight `<li>` that also holds a nested list — just the inline segment the
     // end sits in, so `blockText` is the one cmark paragraph and not the item's
@@ -152,33 +152,26 @@
     };
   }
 
-  // A selection is commentable when it is non-empty, lives in the body, is not
-  // inside a code block, a Mermaid diagram, or math, and resolves to a source
-  // byte.
+  // A selection is commentable when it is non-empty, lives in the body, covers
+  // no code block, Mermaid diagram, or math, and resolves to a source byte.
   function commentableDraft() {
     var sel = window.getSelection();
     if (!sel || sel.isCollapsed || sel.rangeCount === 0) return null;
     var range = sel.getRangeAt(0);
     if (!container.contains(range.commonAncestorContainer)) return null;
-    // A skipped subtree (rendered math, a code block, a Mermaid diagram, …)
-    // has no source byte its rendered text maps back to, so a selection ending
-    // inside one is not commentable. Inline math sits inside an
-    // otherwise-commentable `<p>`, so this end-container ancestor walk catches
-    // it where the leaf-block check below cannot; the skip list itself lives
-    // in `Mud.commentAnchor.isSkippedSubtree`.
-    if (anchor.inSkippedSubtree(range.endContainer, container)) return null;
-    var block = leafBlock(range.endContainer);
-    if (!block || block.tagName === "PRE") return null;
-    // A Mermaid diagram (a `<div class="mermaid">` whose rendered SVG labels
-    // are HTML with no source byte), a raw-HTML block (one cmark `htmlBlock`
-    // node CommentAnchor can never match), and a change-tracking deletion
-    // overlay (text that isn't even in the current source) are all
-    // un-anchorable, so a selection inside one is not commentable.
-    if (block.closest &&
-        block.closest(".mermaid, .mud-html-block, .mud-change-del")) return null;
+    // Where the selection really ends: WebKit leaves a dragged end at a
+    // boundary in the block below, and every question here — which block, is it
+    // anchorable, which byte — would then answer about that one.
+    var end = anchor.anchorableEnd(
+      range.endContainer, range.endOffset, container);
+    // Nothing anchorable behind it, or the selection covers a skipped subtree
+    // (code block, math, Mermaid, raw HTML, deletion overlay) — none of which
+    // has a source byte. That list lives in `commentAnchor.isSkippedSubtree`.
+    if (!end || end.crossedSkipped) return null;
     var quotation = normalizeWS(sel.toString()).trim();
     if (!quotation) return null;
-    var locator = endLocator(range);
+    // No leaf block behind the end means no block text: the locator refuses it.
+    var locator = endLocator(end);
     if (!locator) return null;
     // Position is deliberately not measured here: it must be read after the
     // column opens and the document reflows (see addFromSelection).

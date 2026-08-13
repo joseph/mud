@@ -29,6 +29,10 @@
 // `segmentAt` maps a selection end to its block, and `occurrenceOf` counts by
 // logical-block identity (element + child range).
 //
+// `anchorableEnd` runs before all of those: WebKit ends a selection dragged
+// past a line at a boundary in the block *below* it, so the end is first walked
+// back to the last text the selection really covers.
+//
 // The skip rules match CommentAnchor.swift: comment markers and footnote
 // references contribute no text (`isMarkerElement`); the bottom `.comments` /
 // `.footnotes` sections, code blocks (`<pre>`), Mermaid diagrams, raw-HTML
@@ -195,6 +199,63 @@
     })(root, false);
   }
 
+  // The node before `n` in a backward document-order walk. Stops at `root`.
+  function previousInDocument(n, root) {
+    if (n === root) return null;
+    var prev = n.previousSibling;
+    if (!prev) return n.parentNode === root ? null : n.parentNode;
+    while (prev.lastChild) prev = prev.lastChild;
+    return prev;
+  }
+
+  // Whether a text node sits inside a marker (💬, a footnote number): no part
+  // of any block's anchor text, but the block around it still anchors.
+  function inMarker(node, root) {
+    for (var el = node.parentNode; el && el !== root; el = el.parentNode) {
+      if (isMarkerElement(el)) return true;
+    }
+    return false;
+  }
+
+  // The last position at or before (node, offset) holding text a comment can
+  // anchor to: `{node: <a text node>, offset, crossedSkipped}`, or null.
+  //
+  // WebKit doesn't leave a dragged selection's end on the last character it
+  // covers: drag past the end of a line and the range ends at a boundary in the
+  // block below — `(nextLi, 0)`, or the whitespace between the two — with
+  // nothing of that block selected. Taken at face value it anchors the comment
+  // in the wrong block, so walk back to the text the selection really covers.
+  //
+  // `crossedSkipped` says the walk crossed real text in a skipped subtree: the
+  // quotation would carry text `markerFreeText` leaves out, which the read side
+  // could never match, so the write side refuses the selection.
+  function anchorableEnd(node, offset, root) {
+    var n = node, head = null, crossedSkipped = false;
+    if (node.nodeType === Node.TEXT_NODE) {
+      head = node.nodeValue.slice(0, offset);
+    } else if (offset > 0) {
+      // (element, k) is the boundary before childNodes[k].
+      n = node.childNodes[offset - 1];
+      while (n.lastChild) n = n.lastChild;
+      if (n.nodeType === Node.TEXT_NODE) head = n.nodeValue;
+    }
+    while (n) {
+      if (n.nodeType === Node.TEXT_NODE && !inMarker(n, root)) {
+        // The first node counts only as far as the end; the rest count whole.
+        var text = (head === null ? n.nodeValue : head).replace(/\s+$/, "");
+        if (text !== "") {
+          if (!inSkippedSubtree(n, root)) {
+            return { node: n, offset: text.length, crossedSkipped: crossedSkipped };
+          }
+          crossedSkipped = true;
+        }
+      }
+      n = previousInDocument(n, root);
+      head = null;
+    }
+    return null;
+  }
+
   // The logical block a selection end sits in: the nearest-ancestor leaf block,
   // narrowed to the segment whose child range contains `node` when that block
   // also holds nested leaf blocks. Returns {element, childStart, childEnd, text}
@@ -259,6 +320,7 @@
     inSkippedSubtree: inSkippedSubtree,
     markerFreeText: markerFreeText,
     leafBlock: leafBlock,
+    anchorableEnd: anchorableEnd,
     eachLogicalBlock: eachLogicalBlock,
     segmentAt: segmentAt,
     occurrenceOf: occurrenceOf

@@ -91,10 +91,5 @@ header .app-icon {
   max-width: 80px;
   font-size: 80px;
   font-size: min(8vw, 80px);
-  filter:
-    drop-shadow(-0.0075em -0.01em 0 #d1b795)
-    drop-shadow(0.00625em 0.00625em 0 #BDA37F99)
-    drop-shadow(0.025em 0.025em 0.0075em #997855)
-    drop-shadow(0.0125em 0.0125em 0.125em #372b1d55)
-    drop-shadow(0 0 5em #FFF);
+  transform: translateY(-20%) scale(1.75);
 }

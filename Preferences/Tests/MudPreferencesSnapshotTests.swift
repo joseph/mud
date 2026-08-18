@@ -15,10 +15,10 @@ struct MudPreferencesSnapshotTests {
         #expect(snap.upModeZoomLevel == 1.0)
         #expect(snap.upModeAllowRemoteContent == true)
         #expect(snap.markdownDocCAlertMode == .extended)
-        // lineNumbers, wordWrap, codeHeader default true;
+        // lineNumbers, wordWrap, codeHeader, foldableHeadings default true;
         // readableColumn and autoExpandChanges default false.
         #expect(snap.viewToggles == [
-            .lineNumbers, .wordWrap, .codeHeader,
+            .lineNumbers, .wordWrap, .codeHeader, .foldableHeadings,
         ])
         #expect(snap.enabledExtensions == [])
     }
@@ -35,6 +35,7 @@ struct MudPreferencesSnapshotTests {
         tc.config.writeViewToggle(.lineNumbers, enabled: true)
         tc.config.writeViewToggle(.wordWrap, enabled: false)
         tc.config.writeViewToggle(.codeHeader, enabled: false)
+        tc.config.writeViewToggle(.foldableHeadings, enabled: false)
         tc.config.writeEnabledExtensions(["alpha"])
 
         let all: Set<String> = ["alpha", "beta"]

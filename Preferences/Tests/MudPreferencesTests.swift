@@ -155,6 +155,9 @@ struct MudPreferencesTests {
         tc.config.writeViewToggle(.wordWrap, enabled: true)
         tc.config.writeViewToggle(.codeHeader, enabled: false)
         tc.config.writeViewToggle(.autoExpandChanges, enabled: true)
+        // Written explicitly, though it defaults on, so the assertion stays
+        // about what this test wrote rather than about the defaults.
+        tc.config.writeViewToggle(.foldableHeadings, enabled: false)
         let set = tc.config.viewToggles
         #expect(set == [.readableColumn, .wordWrap, .autoExpandChanges])
     }
@@ -368,7 +371,7 @@ struct MudPreferencesTests {
     // MARK: - Key-catalog invariants
 
     @Test func keyCatalogCount() {
-        #expect(MudPreferences.Keys.allCases.count == 33)
+        #expect(MudPreferences.Keys.allCases.count == 34)
     }
 
     @Test func keyRawValuesAreDistinct() {

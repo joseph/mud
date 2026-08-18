@@ -28,6 +28,13 @@ struct MudPreferencesTests {
         #expect(tc.config.markdownDocCAlertMode == .off)
     }
 
+    @Test func upModeDiagramLookRoundTrip() {
+        let tc = TestPreferences()
+        defer { tc.tearDown() }
+        tc.config.upModeDiagramLook = .handwritten
+        #expect(tc.config.upModeDiagramLook == .handwritten)
+    }
+
     @Test func doubleRoundTrip() {
         let tc = TestPreferences()
         defer { tc.tearDown() }
@@ -180,6 +187,12 @@ struct MudPreferencesTests {
         let tc = TestPreferences()
         defer { tc.tearDown() }
         #expect(tc.config.markdownDocCAlertMode == .extended)
+    }
+
+    @Test func emptySuiteDiagramLookDefault() {
+        let tc = TestPreferences()
+        defer { tc.tearDown() }
+        #expect(tc.config.upModeDiagramLook == .simplicity)
     }
 
     @Test func emptySuiteZoomDefaults() {
@@ -371,7 +384,7 @@ struct MudPreferencesTests {
     // MARK: - Key-catalog invariants
 
     @Test func keyCatalogCount() {
-        #expect(MudPreferences.Keys.allCases.count == 34)
+        #expect(MudPreferences.Keys.allCases.count == 35)
     }
 
     @Test func keyRawValuesAreDistinct() {

@@ -1,0 +1,129 @@
+/* -- Diagrams ------------------------------------------------------------- */
+/* Appended by HTMLTemplate.wrapUp only when the document contains a Mermaid
+   diagram, the way mud-math.css is appended only for a document with math.
+   Everything both looks share is here; the Handwritten look adds
+   mud-diagram-font.css after it. */
+
+/* The label font, read by mermaid-init.js rather than applied here: Mermaid
+   measures each label's box with the font it is given, so the name has to
+   reach its config. This is the Simplicity look's stack, the page's own sans;
+   mud-diagram-font.css names Caveat over it for the Handwritten look. */
+
+:root {
+  --diagram-font: system-ui, sans-serif;
+}
+
+.mermaid {
+  text-align: center;
+  margin-bottom: 1em;
+  font-size-adjust: 0.5; /* Controls the text scale across all diagrams! */
+}
+
+.mermaid svg {
+  max-width: 100%;
+  height: auto;
+  /* Mermaid is given --diagram-bg as its `background` theme variable, which
+     it needs to work out label contrast. It doesn't need to paint it: the
+     page already has a ground, and a painted one would show as a panel with
+     its own edge where the body's gradient runs. */
+  background: transparent;
+}
+
+/* Mermaid sizes each label's foreignObject to the text's advance width, and a
+   foreignObject clips to its own box. Caveat is a handwriting face whose
+   letters lean and trail past that width, so the last glyph of a label loses
+   its final pixels. Let the ink overhang. */
+
+.mermaid foreignObject,
+.mermaid foreignObject > div {
+  overflow: visible;
+}
+
+/* Labels that sit on top of a line.
+
+   A flowchart's edge label gets an opaque plate and reads fine. The others
+   don't: a sequence diagram's message label has no plate at all, and the
+   state, ER and git commit plates (`.labelBkg`, `.relationshipLabelBox`,
+   `.commit-label-bkg`) are drawn at half or 0.7 opacity, so the line shows
+   through the text.
+
+   Two rules cover them. Text drawn as SVG gets a halo — the glyphs stroked in
+   the page's own ground and painted under the fill, which clears the line out
+   from behind the letters. Backing plates, whether an HTML background or an
+   SVG fill, are made opaque in that same ground so they disappear against the
+   page. Mermaid scopes its rules under the diagram's id, which outranks any
+   class selector, hence the !important throughout. */
+
+.mermaid .messageText,
+.mermaid .relationshipLabel,
+.mermaid .edgeLabel text {
+  paint-order: stroke fill;
+  stroke: var(--diagram-bg, #F5F0E4) !important;
+  stroke-width: 4;
+  stroke-linejoin: round;
+}
+
+.mermaid .edgeLabel,
+.mermaid .labelBkg {
+  background-color: var(--diagram-bg, #F5F0E4) !important;
+}
+
+.mermaid rect.labelBkg,
+.mermaid .relationshipLabelBox,
+.mermaid .commit-label-bkg {
+  fill: var(--diagram-bg, #F5F0E4) !important;
+  opacity: 1 !important;
+}
+
+/* Gantt charts.
+
+   Mermaid draws a Gantt from a set of theme variables of its own, and
+   mermaid-init.js names every one of them. What it can't reach from there is
+   settled here.
+
+   The grid's vertical rules are `<line stroke="currentColor">`, and that
+   attribute on the line itself beats the `stroke` the `.tick` group around it
+   inherits — which is the only thing `gridColor` sets. So the rules come out
+   black however the page is lit, and have to be colored directly. */
+
+.mermaid .grid .tick line {
+  stroke: var(--diagram-line, #4D4A44);
+  stroke-opacity: 0.35;
+}
+
+/* Every Gantt color mermaid-init.js hands over is already named at the
+   strength it should be seen at, so Mermaid's own 0.2 on the section bands is
+   a second dilution of a color that was picked for the page — and it left the
+   banding invisible. The bands meant to read as the page are transparent
+   rather than faint, so nothing here has to paint the ground. */
+
+.mermaid .section,
+.mermaid .section1,
+.mermaid .section3 {
+  opacity: 1 !important;
+}
+
+/* A milestone is a moment rather than a span, and Mermaid outlines it like any
+   other task in its section. Give it the accent instead, so it reads as a
+   marker. Mermaid scopes that rule under the diagram's id, hence !important —
+   and the wash rim carries the same class, so it is held out by name to keep
+   the per-shape stroke color the JS sets on it. */
+
+.mermaid .milestone:not([data-mud-wash="edge"]) {
+  stroke: var(--diagram-accent, #9A4A24) !important;
+}
+
+/* The watercolor wash. mermaid-init.js marks the shapes and clones the rim;
+   the opacities live here so a theme can tune them without touching the JS.
+   The rim's fill and stroke color are per-shape and set inline, and its width
+   is !important, both for the same reason: Mermaid scopes its own fill and
+   stroke rules under the diagram's id, which outranks a class selector. */
+
+.mermaid [data-mud-wash="fill"] {
+  fill-opacity: var(--diagram-wash, 0.3);
+}
+
+.mermaid [data-mud-wash="edge"] {
+  stroke-width: 1.4 !important;
+  stroke-opacity: var(--diagram-wash-edge, 0.34);
+}

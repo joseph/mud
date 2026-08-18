@@ -149,6 +149,78 @@ struct HTMLTemplateTests {
         #expect(!doc.contains("<script"))
     }
 
+    // MARK: - Diagram styles
+
+    /// `data-mud-wash` is the marker unique to mud-diagram.css, which both
+    /// looks carry.
+    @Test func diagramCSSRidesAlongWithADiagram() {
+        var opts = RenderOptions()
+        opts.extensions.insert("mermaid")
+        let body = "<pre><code class=\"language-mermaid\">graph TD</code></pre>"
+        let doc = HTMLTemplate.wrapUp(body: body, options: opts)
+        #expect(doc.contains("data-mud-wash"))
+    }
+
+    /// Only the Handwritten look ships a font, so only its document carries the
+    /// `@font-face` and the `font-src` the embedded data URI needs. Simplicity
+    /// letters its labels in a stack the page already has.
+    @Test func embeddedFontShipsWithTheHandwrittenLookOnly() {
+        var opts = RenderOptions()
+        opts.extensions.insert("mermaid")
+        let body = "<pre><code class=\"language-mermaid\">graph TD</code></pre>"
+
+        #expect(opts.diagramLook == .simplicity)
+        let simplicity = HTMLTemplate.wrapUp(body: body, options: opts)
+        #expect(!simplicity.contains("@font-face"))
+        #expect(!simplicity.contains("font-src"))
+
+        opts.diagramLook = .handwritten
+        let handwritten = HTMLTemplate.wrapUp(body: body, options: opts)
+        #expect(handwritten.contains("@font-face"))
+        #expect(handwritten.contains("font-src data:"))
+    }
+
+    /// The look reaches Mermaid as a custom property: each stylesheet names
+    /// `--diagram-font`, the Handwritten one after (and so over) the other, and
+    /// `mermaid-init.js` reads it. Rename it in one place and the labels fall
+    /// back to the script's own default with nothing else failing.
+    @Test func diagramFontIsNamedByTheStylesheetsAndReadByTheScript() {
+        var opts = RenderOptions()
+        opts.extensions.insert("mermaid")
+        let body = "<pre><code class=\"language-mermaid\">graph TD</code></pre>"
+
+        let simplicity = HTMLTemplate.wrapUp(body: body, options: opts)
+        #expect(simplicity.contains("--diagram-font: system-ui"))
+
+        opts.diagramLook = .handwritten
+        let handwritten = HTMLTemplate.wrapUp(body: body, options: opts)
+        #expect(handwritten.contains("--diagram-font: \"Caveat\""))
+        // Loaded second, so it wins the cascade.
+        let rules = handwritten.components(separatedBy: "--diagram-font")
+        #expect(rules.count == 3)
+        #expect(rules[2].hasPrefix(": \"Caveat\""))
+
+        let script = RenderExtension.registry["mermaid"]?.runtimeJS().joined() ?? ""
+        #expect(script.contains("--diagram-font"))
+    }
+
+    @Test func diagramCSSAbsentWithoutADiagram() {
+        var opts = RenderOptions()
+        opts.extensions.insert("mermaid")
+        let doc = HTMLTemplate.wrapUp(body: "<p>no diagram</p>", options: opts)
+        #expect(!doc.contains("data-mud-wash"))
+        #expect(!doc.contains("font-src"))
+    }
+
+    /// With the extension off the block stays a highlighted code block, so the
+    /// styles — and the font they embed — have nothing to do.
+    @Test func diagramCSSAbsentWhenTheExtensionIsOff() {
+        let body = "<pre><code class=\"language-mermaid\">graph TD</code></pre>"
+        let doc = HTMLTemplate.wrapUp(body: body, options: .init())
+        #expect(!doc.contains("data-mud-wash"))
+        #expect(!doc.contains("font-src"))
+    }
+
     // MARK: - The Comments footer
 
     /// The bottom Comments section is the article's sibling, not its last
@@ -184,6 +256,7 @@ struct HTMLTemplateTests {
                 + "class=\"language-mermaid\">graph TD</code></pre></footer>",
             options: opts)
         #expect(mermaid.contains("cdn.jsdelivr.net"))
+        #expect(mermaid.contains("data-mud-wash"))
     }
 
     // MARK: - JS resources

@@ -20,6 +20,7 @@ class AppState: ObservableObject {
     @Pref(\.quitOnClose) var quitOnClose: Bool
     @Pref(\.folderOpenBehavior) var folderOpenBehavior: FolderOpenBehavior
     @Pref(\.upModeAllowRemoteContent) var upModeAllowRemoteContent: Bool
+    @Pref(\.upModeDiagramLook) var upModeDiagramLook: DiagramLook
     @Pref(\.markdownDocCAlertMode) var markdownDocCAlertMode: DocCAlertMode
     @Pref(\.uiUseHeadingAsTitle) var uiUseHeadingAsTitle: Bool
     @Pref(\.changesWordDiffThreshold) var changesWordDiffThreshold: Double

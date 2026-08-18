@@ -86,6 +86,34 @@ article {
 }
 
 
+/* -- Diagram variables ---------------------------------------------------- */
+/* Consumed by mermaid-init.js, which resolves them and hands them to Mermaid
+   as theme variables (Mermaid computes the rest of its palette from them, so
+   it needs real values, not var() references). Every variable read here has
+   its own dark override in the theme files, so this block needs no
+   prefers-color-scheme twin: one mapping covers four themes times two
+   lightings. A theme may override any of these where the derived color reads
+   badly in a diagram.
+
+   --border-color is deliberately not the source for --diagram-border: it is
+   the page's hairline rule color, too faint to outline a node with. */
+
+:root {
+  /* The ground a diagram is drawn on: Mermaid works out label contrast from
+     it, and it is what a label's backing plate and a message label's halo
+     are painted in so they disappear against the page. */
+  --diagram-bg: var(--bg-color, #F5F0E4);
+  --diagram-fg: var(--text-color, #221E16);
+  --diagram-surface: var(--code-bg, #EAD9B9);
+  --diagram-line: var(--blockquote-color, #4D4A44);
+  --diagram-border: var(--blockquote-color, #5A564E);
+  --diagram-accent: var(--link-color, #9A4A24);
+
+  --diagram-wash: 0.3;
+  --diagram-wash-edge: 0.34;
+}
+
+
 /* -- Syntax highlighting -------------------------------------------------- */
 
 .hljs {

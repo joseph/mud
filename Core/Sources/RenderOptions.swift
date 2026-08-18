@@ -30,6 +30,11 @@ public struct RenderOptions: Sendable, Equatable {
         public var blockRemoteContent: Bool = false
         public var extensions: Set<String> = []
 
+        /// The face a diagram's labels are lettered in. Read only when the
+        /// mermaid extension is on and the document draws a diagram; it
+        /// decides whether the embedded font ships with the document.
+        public var diagramLook: DiagramLook = .simplicity
+
         // Markdown processing
         public var docCAlertMode: DocCAlertMode = .extended
         public var footnoteMode: FootnoteMode = .section
@@ -69,6 +74,10 @@ public struct RenderOptions: Sendable, Equatable {
     public var extensions: Set<String> {
         get { contentIdentity.extensions }
         set { contentIdentity.extensions = newValue }
+    }
+    public var diagramLook: DiagramLook {
+        get { contentIdentity.diagramLook }
+        set { contentIdentity.diagramLook = newValue }
     }
     public var docCAlertMode: DocCAlertMode {
         get { contentIdentity.docCAlertMode }

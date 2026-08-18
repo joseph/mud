@@ -11,6 +11,12 @@ struct HTMLDocument {
     var styles: [String] = []
     var cspImgSrc: [String] = []
     var cspScriptSrc: [String] = []
+    /// Sources for `font-src`. Left empty for a document that embeds no font:
+    /// `default-src 'none'` then covers it. Set to `["data:"]` alongside
+    /// `mud-diagram-font.css`, which carries the Handwritten look's label font
+    /// as a data URI — without the directive the font is blocked and the labels
+    /// quietly fall back.
+    var cspFontSrc: [String] = []
     var htmlClasses: [String]
     var htmlStyles: [String]
     var bodyContent: String = ""
@@ -60,6 +66,9 @@ struct HTMLDocument {
             directives.append("img-src \(cspImgSrc.joined(separator: " "))")
         }
         directives.append("style-src 'unsafe-inline'")
+        if !cspFontSrc.isEmpty {
+            directives.append("font-src \(cspFontSrc.joined(separator: " "))")
+        }
         if cspScriptSrc.isEmpty {
             directives.append("script-src 'none'")
         } else {

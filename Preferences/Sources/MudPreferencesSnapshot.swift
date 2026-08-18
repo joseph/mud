@@ -13,6 +13,7 @@ public struct MudPreferencesSnapshot: Sendable {
     public let viewToggles: Set<ViewToggle>
     public let upModeAllowRemoteContent: Bool
     public let enabledExtensions: Set<String>
+    public let diagramLook: DiagramLook
     public let markdownDocCAlertMode: DocCAlertMode
 
     public init(
@@ -21,6 +22,7 @@ public struct MudPreferencesSnapshot: Sendable {
         viewToggles: Set<ViewToggle>,
         upModeAllowRemoteContent: Bool,
         enabledExtensions: Set<String>,
+        diagramLook: DiagramLook,
         markdownDocCAlertMode: DocCAlertMode
     ) {
         self.theme = theme
@@ -28,6 +30,7 @@ public struct MudPreferencesSnapshot: Sendable {
         self.viewToggles = viewToggles
         self.upModeAllowRemoteContent = upModeAllowRemoteContent
         self.enabledExtensions = enabledExtensions
+        self.diagramLook = diagramLook
         self.markdownDocCAlertMode = markdownDocCAlertMode
     }
 
@@ -60,6 +63,7 @@ extension RenderOptions {
         self.baseURL = baseURL
         self.theme = snapshot.theme
         self.extensions = snapshot.enabledExtensions
+        self.diagramLook = snapshot.diagramLook
         self.htmlClasses = snapshot.upModeHTMLClasses
         self.zoomLevel = snapshot.upModeZoomLevel
         self.blockRemoteContent = !snapshot.upModeAllowRemoteContent
@@ -75,6 +79,7 @@ extension MudPreferences {
             viewToggles: viewToggles,
             upModeAllowRemoteContent: upModeAllowRemoteContent,
             enabledExtensions: readEnabledExtensions(defaultValue: defaultEnabledExtensions),
+            diagramLook: upModeDiagramLook,
             markdownDocCAlertMode: markdownDocCAlertMode
         )
     }

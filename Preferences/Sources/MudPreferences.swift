@@ -103,6 +103,7 @@ extension MudPreferences {
         case upModeZoomLevel            = "up-mode-zoom-level"
         case upModeAllowRemoteContent   = "up-mode-allow-remote-content"
         case upModeShowCodeHeader       = "up-mode-show-code-header"
+        case upModeDiagramLook          = "up-mode-diagram-look"
 
         // down-mode-* — source view options
         case downModeZoomLevel          = "down-mode-zoom-level"
@@ -242,6 +243,15 @@ extension MudPreferences {
     public var upModeAllowRemoteContent: Bool {
         get { read(.upModeAllowRemoteContent, default: true) }
         nonmutating set { write(newValue, forKey: .upModeAllowRemoteContent) }
+    }
+
+    /// The face a diagram's labels are lettered in. Read only when the mermaid
+    /// extension is on — whether diagrams are drawn at all is still
+    /// `enabledExtensions`, which the Up Mode settings pane presents as one
+    /// list with this.
+    public var upModeDiagramLook: DiagramLook {
+        get { read(.upModeDiagramLook, default: .simplicity) }
+        nonmutating set { write(newValue, forKey: .upModeDiagramLook) }
     }
 
     public var markdownDocCAlertMode: DocCAlertMode {

@@ -35,6 +35,20 @@ public enum HTMLTemplate {
         if renders(anyOf: "<math", "mud-math-block", "temml-error") {
             doc.styles.append(mathCSS)
         }
+        // Diagram styles only for a document that will actually draw one: the
+        // body holds a Mermaid block *and* the extension is on. With it off
+        // the block stays a highlighted code block, which needs none of this.
+        if options.extensions.contains(RenderExtension.mermaid.name),
+           renders(anyOf: RenderExtension.mermaid.marker) {
+            doc.styles.append(diagramCSS)
+            // The Handwritten look is the only one that ships a font, carried
+            // as a data URI — so the CSP has to allow that font, and the
+            // Simplicity look's document carries neither.
+            if options.diagramLook == .handwritten {
+                doc.styles.append(diagramFontCSS)
+                doc.cspFontSrc = ["data:"]
+            }
+        }
         // Narrow-viewport overrides come after every base stylesheet they
         // tighten, and before the print overrides, which win over both.
         doc.styles.append(narrowCSS)
@@ -132,6 +146,22 @@ public enum HTMLTemplate {
     /// contains math, so a math-free document never carries them.
     private static var mathCSS: String {
         loadResource("mud-math", type: "css") ?? ""
+    }
+
+    /// Diagram styles (`mud-diagram.css`): the `.mermaid` layout rules, the
+    /// watercolor wash opacities, and the Simplicity look's label font.
+    /// Appended in `wrapUp` only when the body contains a Mermaid block, so a
+    /// diagram-free document carries none of it.
+    private static var diagramCSS: String {
+        loadResource("mud-diagram", type: "css") ?? ""
+    }
+
+    /// The Handwritten look's label font (`mud-diagram-font.css`): the Caveat
+    /// `@font-face`, embedded as a data URI, and the `--diagram-font` name that
+    /// puts it in front of the Simplicity stack. Appended after `diagramCSS`,
+    /// which is what lets it win; ~100 KB, so it ships for that look alone.
+    private static var diagramFontCSS: String {
+        loadResource("mud-diagram-font", type: "css") ?? ""
     }
 
     /// Find highlight styles (`mud-find.css`): the search-match colors, themed

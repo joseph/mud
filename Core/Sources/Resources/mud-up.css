@@ -493,17 +493,9 @@ tr:nth-child(even) {
   background-color: var(--code-bg);
 }
 
-/* -- Mermaid diagrams ----------------------------------------------------- */
-
-.mermaid {
-  text-align: center;
-  margin-bottom: 1em;
-}
-
-.mermaid svg {
-  max-width: 100%;
-  height: auto;
-}
+/* Mermaid diagram styles live in mud-diagram.css, which rides along only with
+   a document that has a diagram. The Handwritten look's font is a second file,
+   mud-diagram-font.css, added after it. */
 
 /* -- Images --------------------------------------------------------------- */
 

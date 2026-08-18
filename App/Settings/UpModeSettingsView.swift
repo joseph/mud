@@ -19,19 +19,14 @@ struct UpModeSettingsView: View {
                 }
             }
             Section {
-                Toggle(isOn: Binding(
-                    get: { appState.enabledExtensions.contains("mermaid") },
-                    set: { newValue in
-                        if newValue {
-                            appState.enabledExtensions.insert("mermaid")
-                        } else {
-                            appState.enabledExtensions.remove("mermaid")
-                        }
+                Picker("Diagrams", selection: diagramSetting) {
+                    ForEach(DiagramSetting.allCases, id: \.self) { setting in
+                        Text(setting.label).tag(setting)
                     }
-                )) {
-                    Text("Generate diagrams")
+                }
+                VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 0) {
-                        Text("Learn more: ")
+                        Text("Draw a Mermaid code block as a diagram. Learn more: ")
                         Button("mermaid-diagrams.md") {
                             SettingsWindowController.shared.window?.close()
                             DocumentController.openBundledDocument(
@@ -41,6 +36,8 @@ struct UpModeSettingsView: View {
                         .foregroundStyle(.link)
                     }
                 }
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
             }
             Section("Code blocks") {
                 Toggle(isOn: Binding(
@@ -80,6 +77,48 @@ struct UpModeSettingsView: View {
         }
         .formStyle(.grouped)
         .padding(.top, -18) // XXX-03-2026-JP -- hack to align top-of-pane with top-of-sidebar
+    }
+
+    /// What the Diagrams list offers: each look, and off. Two preferences sit
+    /// underneath — the look itself, and whether the mermaid extension is
+    /// enabled — but a reader choosing a look is also asking for diagrams, so
+    /// they are one control here rather than a switch beside a list.
+    private enum DiagramSetting: Hashable, CaseIterable {
+        case look(DiagramLook)
+        case disabled
+
+        static let allCases: [DiagramSetting] =
+            [.disabled] + DiagramLook.allCases.map(DiagramSetting.look)
+
+        var label: String {
+            switch self {
+            case .disabled: return "Off"
+            case .look(.simplicity): return "Simplicity"
+            case .look(.handwritten): return "Handwritten"
+            }
+        }
+    }
+
+    /// Reads and writes the two preferences the list stands for. Turning
+    /// diagrams off leaves the look alone, so switching them back on returns
+    /// the reader to the look they picked.
+    private var diagramSetting: Binding<DiagramSetting> {
+        Binding(
+            get: {
+                appState.enabledExtensions.contains("mermaid")
+                    ? DiagramSetting.look(appState.upModeDiagramLook)
+                    : DiagramSetting.disabled
+            },
+            set: { setting in
+                switch setting {
+                case .look(let look):
+                    appState.upModeDiagramLook = look
+                    appState.enabledExtensions.insert("mermaid")
+                case .disabled:
+                    appState.enabledExtensions.remove("mermaid")
+                }
+            }
+        )
     }
 
     /// The folders Mud may read local content from, one row each, under a

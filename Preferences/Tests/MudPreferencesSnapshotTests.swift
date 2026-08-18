@@ -21,6 +21,7 @@ struct MudPreferencesSnapshotTests {
             .lineNumbers, .wordWrap, .codeHeader, .foldableHeadings,
         ])
         #expect(snap.enabledExtensions == [])
+        #expect(snap.diagramLook == .simplicity)
     }
 
     @Test func snapshotReflectsEachField() {
@@ -31,6 +32,7 @@ struct MudPreferencesSnapshotTests {
         tc.config.upModeZoomLevel = 1.25
         tc.config.upModeAllowRemoteContent = false
         tc.config.markdownDocCAlertMode = .common
+        tc.config.upModeDiagramLook = .handwritten
         tc.config.writeViewToggle(.readableColumn, enabled: false)
         tc.config.writeViewToggle(.lineNumbers, enabled: true)
         tc.config.writeViewToggle(.wordWrap, enabled: false)
@@ -47,6 +49,7 @@ struct MudPreferencesSnapshotTests {
         #expect(snap.markdownDocCAlertMode == .common)
         #expect(snap.viewToggles == [.lineNumbers])
         #expect(snap.enabledExtensions == ["alpha"])
+        #expect(snap.diagramLook == .handwritten)
     }
 
     @Test func mirrorBackedSnapshotMatchesDefaults() {
@@ -83,7 +86,7 @@ struct MudPreferencesSnapshotTests {
             theme: .earthy, upModeZoomLevel: 1.0,
             viewToggles: [.readableColumn, .wordWrap, .lineNumbers],
             upModeAllowRemoteContent: true, enabledExtensions: [],
-            markdownDocCAlertMode: .extended
+            diagramLook: .simplicity, markdownDocCAlertMode: .extended
         )
         #expect(snap.upModeHTMLClasses == [
             "is-readable-column", "has-word-wrap", "has-line-numbers",
@@ -95,7 +98,7 @@ struct MudPreferencesSnapshotTests {
             theme: .earthy, upModeZoomLevel: 1.0,
             viewToggles: [.readableColumn, .codeHeader, .autoExpandChanges],
             upModeAllowRemoteContent: true, enabledExtensions: [],
-            markdownDocCAlertMode: .extended
+            diagramLook: .simplicity, markdownDocCAlertMode: .extended
         )
         #expect(snap.upModeHTMLClasses == ["is-readable-column"])
     }
@@ -105,7 +108,7 @@ struct MudPreferencesSnapshotTests {
             theme: .earthy, upModeZoomLevel: 1.0,
             viewToggles: [.codeHeader, .autoExpandChanges],
             upModeAllowRemoteContent: true, enabledExtensions: [],
-            markdownDocCAlertMode: .extended
+            diagramLook: .simplicity, markdownDocCAlertMode: .extended
         )
         #expect(snap.upModeHTMLClasses.isEmpty)
     }

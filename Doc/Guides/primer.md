@@ -57,37 +57,37 @@ Markdown tool (on GitHub it shows as a footnote with a `{author @ time}`
 byline) — so use comments freely to annotate, review, or leave notes for the
 user.
 
-A comment is a footnote whose label matches `comment-<id>` (`<id>` is any run
-of `[\w-]`, e.g. `comment-a`, `comment-1`, `comment-intro`). Write it in two
-parts:
+A comment is a footnote whose label is `💬-<id>`, where `<id>` is any run of
+`[\w-]` — `💬-a`, `💬-1`, `💬-intro`. (The older `comment-<id>` means the same
+thing; write the emoji form.) A comment has two parts:
 
-1. **The reference** `[^comment-a]` — inline, immediately after the word or
-   passage it annotates.
-2. **The definition** `[^comment-a]: …` — at the **bottom** of the document,
-   where Mud keeps all comment definitions. Continuation lines are indented
-   **four spaces** (standard footnote structure — this indentation is
-   required).
+1. **The reference** `[^💬-a]` — inline, immediately after the word or passage
+   it annotates.
+2. **The definition** `[^💬-a]: …` — at the **bottom** of the document, where
+   Mud keeps all comment definitions. Continuation lines are indented **four
+   spaces** (standard footnote structure — this indentation is required).
 
 The definition holds:
 
 - A leading **quotation** — a blockquote echoing the document text the thread
   is anchored to. Always open a thread with one, then leave a blank line.
-- One or more **messages**. Each opens with an attribution line —
-  `💬 {author @ YYYY-MM-DD HH:MM:SS}:` — followed by the message body in the
-  paragraph below.
+- One or more **messages**. Each opens with an attribution line — an **avatar**
+  emoji, then `{author @ YYYY-MM-DD HH:MM:SS}:` — followed by the message body
+  in the paragraph below. The avatar stands for whoever wrote the message: use
+  🤖 as yours.
 
 An example thread with a quotation, an opening message, and a reply:
 
 ```
-The build step[^comment-a] runs before tests.
+The build step[^💬-a] runs before tests.
 
-[^comment-a]: > The build step
+[^💬-a]: > The build step
 
-    💬 {Claude @ 2026-06-22 14:30:05}:
+    🤖 {Claude @ 2026-06-22 14:30:05}:
 
     Should this be cached? It reruns on every push.
 
-    💬 {Mudder @ 2026-06-22 15:02:31}:
+    👤 {Mudder @ 2026-06-22 15:02:31}:
 
     Good catch — caching it now.
 ```
@@ -95,11 +95,14 @@ The build step[^comment-a] runs before tests.
 Guidelines for commenting:
 
 - Each label must be **unique** and is a stable join key — never renumber or
-  reuse one. Pick fresh ids (`comment-a`, `comment-b`, …) as you go.
-- To **reply**, add another `💬 {…}:` attribution paragraph to the same
-  definition; each one at a paragraph start begins a new message.
-- An attribution is recognized only at a **paragraph start** — a `{` or `💬` in
-  running prose is ordinary text and never starts a message.
+  reuse one. Pick fresh ids (`💬-a`, `💬-b`, …) as you go.
+- To **reply**, add another attribution paragraph to the same definition; each
+  one at a paragraph start begins a new message.
+- An attribution counts only at a **paragraph start**, and only when it ends in
+  a colon. An emoji or a `{` anywhere else is ordinary text, so a message may
+  open with an emoji, or be nothing but one. To write a paragraph that really
+  does read as an attribution, backtick it — the grammar doesn't look inside
+  inline code.
 - Put a **blank line** between the quotation and the first message, and no
   space between `}` and `:`.
 - Message bodies are full Markdown — they may contain their own lists, code

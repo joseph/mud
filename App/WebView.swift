@@ -156,7 +156,7 @@ struct WebView: NSViewRepresentable {
     /// (no reload). The drag handle reports changes back via `onColumnWidthChange`.
     var commentColumnWidth: Double = 300
     var searchQuery: SearchQuery?
-    /// The options this document was rendered with. `theme`, `bodyClasses`, and
+    /// The options this document was rendered with. `bodyClasses` and
     /// `zoomLevel` above are the parts `updateNSView` diffs and pushes on their
     /// own; the whole value is kept for the one call that needs it entire —
     /// wrapping a page-supplied popover body into a matching document.
@@ -265,8 +265,10 @@ struct WebView: NSViewRepresentable {
         let contentChanged = context.coordinator.lastContentID != contentID
 
         if !modeChanged && !contentChanged {
-            // Only theme/zoom/classes/width changed — apply without reload.
-            context.coordinator.applyTheme(theme)
+            // Only zoom/classes/width/comments changed — apply without reload.
+            // The theme is not among them: it is part of `contentIdentity`, so
+            // changing it mints a new contentID and takes the reload path below,
+            // which is what re-embeds the theme stylesheet.
             context.coordinator.applyBodyClasses(bodyClasses)
             context.coordinator.applyZoom(zoomLevel)
             if context.coordinator.lastCommentColumnWidth != commentColumnWidth {
@@ -477,10 +479,6 @@ struct WebView: NSViewRepresentable {
             guard let fraction = savedFraction, fraction > 0 else { return }
             bridge.call("setScrollFraction", fraction)
             savedFraction = nil
-        }
-
-        func applyTheme(_ theme: Theme) {
-            bridge.call("setTheme", HTMLTemplate.themeCSS(for: theme))
         }
 
         func applyZoom(_ level: Double) {

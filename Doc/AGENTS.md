@@ -826,10 +826,10 @@ Menu and toolbar commands travel the responder chain (`NSApp.sendAction`) to
 the key window's `DocumentWindowController`, which mutates its `DocumentState`
 — for page actions (print, scroll, add comment), it sends a `WebCommand` over
 `state.webCommands`, which the `WebView` coordinator executes as it arrives.
-`updateNSView` diffs only declarative state (contentID, mode, theme, zoom,
-classes, comments, search). Cmd+R calls `DocumentModel.load(forced:)`, whose
-bumped load token changes the contentID so the page reloads even when the
-file's text hasn't.
+`updateNSView` diffs only declarative state (contentID, mode, zoom, classes,
+comments, search — the theme rides in the contentID). Cmd+R calls
+`DocumentModel.load(forced:)`, whose bumped load token changes the contentID so
+the page reloads even when the file's text hasn't.
 
 All Swift ↔ page traffic goes through `MudJSBridge` (`App/MudJSBridge.swift`):
 outbound `bridge.call("comments.setData", …)` JSON-encodes every argument and

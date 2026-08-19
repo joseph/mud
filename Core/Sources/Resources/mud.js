@@ -237,13 +237,6 @@
     }
   }
 
-  // -- Theme ----------------------------------------------------------------
-
-  function setTheme(cssString) {
-    var el = document.getElementById("mud-theme");
-    if (el) el.textContent = cssString;
-  }
-
   // -- Zoom ----------------------------------------------------------------
 
   function setZoom(level) {
@@ -329,7 +322,6 @@
     setScrollY: setScrollY,
     getScrollFraction: getScrollFraction,
     setScrollFraction: setScrollFraction,
-    setTheme: setTheme,
     setClass: setClass,
     setZoom: setZoom,
     scrollToHeading: scrollToHeading,

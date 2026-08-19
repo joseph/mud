@@ -399,6 +399,94 @@ struct CommentSerializationTests {
       """)
   }
 
+  // MARK: - Attribution escaping (write side)
+
+  private static let zwsp = "\u{200B}"
+
+  // A body paragraph shaped like an attribution is written with a leading
+  // zero-width space, so a message the reader wrote as one cannot come back as
+  // two. Without it this body parses as two messages, the second authored by
+  // nobody and avatared ❌.
+  @Test func escape_attributionShapedParagraph() {
+    let serialized = CommentSerialization.serialize(
+      quotation: nil,
+      [CommentMessage(
+        author: "JP", created: ts("2026-06-01 18:33:00"),
+        body: "A sentence first.\n\n❌: wrong")])
+    #expect(serialized.contains("\(Self.zwsp)❌: wrong"))
+
+    let (_, reparsed) = CommentSerialization.parse(serialized)
+    #expect(reparsed.count == 1)
+    #expect(reparsed[0].author == "JP")
+    #expect(reparsed[0].body == "A sentence first.\n\n\(Self.zwsp)❌: wrong")
+  }
+
+  // The brace form, and the colon-at-end form that has no separator to alter —
+  // one rule covers both, which is why the escape leads the line.
+  @Test func escape_coversEveryAttributionForm() {
+    for shape in ["{TODO}: fix this", "❌:", "👤 {JP @ 2026-06-01}: hello"] {
+      let serialized = CommentSerialization.serialize(
+        quotation: nil,
+        [CommentMessage(
+          author: "JP", created: ts("2026-06-01 18:33:00"),
+          body: "A sentence first.\n\n\(shape)")])
+      #expect(
+        serialized.contains("\(Self.zwsp)\(shape)"),
+        "\(shape) must be escaped")
+
+      let (_, reparsed) = CommentSerialization.parse(serialized)
+      #expect(reparsed.count == 1, "\(shape) must not split the message")
+    }
+  }
+
+  // Idempotent: the check is `parseAttribution` itself, so escaped text no
+  // longer trips it and a rewrite adds nothing. This is what makes an unescape
+  // on read unnecessary.
+  @Test func escape_isIdempotent() {
+    let message = CommentMessage(
+      author: "JP", created: ts("2026-06-01 18:33:00"),
+      body: "A sentence first.\n\n❌: wrong")
+    let once = CommentSerialization.serialize(quotation: nil, [message])
+    let (_, reparsed) = CommentSerialization.parse(once)
+    let twice = CommentSerialization.serialize(quotation: nil, reparsed)
+    #expect(twice == once)
+    #expect(!twice.contains("\(Self.zwsp)\(Self.zwsp)"))
+  }
+
+  // Only a paragraph can be an attribution, so a fenced code block is left
+  // alone. Injecting a zero-width space into the reader's code would be silent
+  // corruption — this is why the escape parses the body instead of splitting it
+  // on blank lines.
+  @Test func escape_leavesFencedCodeAlone() {
+    let body = """
+      Try this:
+
+      ```
+      {x: 1}: not prose
+      ```
+      """
+    let serialized = CommentSerialization.serialize(
+      quotation: nil,
+      [CommentMessage(
+        author: "JP", created: ts("2026-06-01 18:33:00"), body: body)])
+    #expect(!serialized.contains(Self.zwsp))
+
+    let (_, reparsed) = CommentSerialization.parse(serialized)
+    #expect(reparsed.count == 1)
+    #expect(reparsed[0].body == body)
+  }
+
+  // An ordinary body is written untouched: the escape costs nothing where it
+  // isn't needed.
+  @Test func escape_leavesOrdinaryProseAlone() {
+    let serialized = CommentSerialization.serialize(
+      quotation: "fox",
+      [CommentMessage(
+        author: "JP", created: ts("2026-06-01 18:33:00"),
+        body: "A note.\n\nAnd a second paragraph.")])
+    #expect(!serialized.contains(Self.zwsp))
+  }
+
   // MARK: - Quotation
 
   // A quotation is matched against the document's *rendered* text, so it keeps

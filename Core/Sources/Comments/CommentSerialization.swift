@@ -16,7 +16,9 @@ import Foundation
 /// has content): written out, it is indistinguishable from an attribution
 /// standing at the head of the message below it, and the two merge on re-parse.
 /// Nothing reaches `CommentEditor` that way — the compose box treats Done on an
-/// empty box as Cancel.
+/// empty box as Cancel. Third, a body paragraph that would itself read as an
+/// attribution is written with a leading zero-width space and parses back
+/// carrying it (see `escapingAttributions`).
 ///
 /// Working on the already-de-indented body is what lets this stay pure,
 /// testable Swift over one `CMarkDocument` parse: the multi-paragraph misparse
@@ -164,6 +166,9 @@ enum CommentSerialization {
     /// that carried none is written without one, so rewriting a thread never
     /// stamps Mud's own avatar onto someone else's message. The single
     /// exception is the message-boundary marker below, which structure demands.
+    ///
+    /// Every body goes through `escapingAttributions` on the way out, so a line
+    /// the reader typed can never come back as a message they did not write.
     static func serialize(
         quotation: String?, _ messages: [CommentMessage]
     ) -> String {
@@ -172,7 +177,7 @@ enum CommentSerialization {
             blocks.append("> " + quotation)
         }
         for (index, message) in messages.enumerated() {
-            let body = message.body
+            let body = escapingAttributions(message.body)
             if let header = headerLine(message) {
                 blocks.append(header)
                 if !body.isEmpty { blocks.append(body) }
@@ -193,6 +198,56 @@ enum CommentSerialization {
             if !body.isEmpty { blocks.append(body) }
         }
         return blocks.joined(separator: "\n\n")
+    }
+
+    /// The character Mud prefixes to a body paragraph that would otherwise read
+    /// as a message attribution: a zero-width space, which renders as nothing.
+    ///
+    /// It defeats the grammar on its *first* rule — an attribution must begin
+    /// with an emoji or a `{` — rather than on the separator rule, which is the
+    /// narrowest condition in the grammar and the likeliest to be relaxed later.
+    /// An escape is only as durable as the rule it depends on. U+200B also
+    /// carries no White_Space property, so widening the leading-whitespace skip
+    /// would not start eating it either.
+    private static let attributionEscape = "\u{200B}"
+
+    /// Prefixes `attributionEscape` to every top-level paragraph of `body` that
+    /// would read as a message attribution, so a message the reader wrote as one
+    /// cannot come back as two.
+    ///
+    /// A message body is one message by construction, so a paragraph inside it is
+    /// never an attribution however it is written — but `❌: wrong` on its own
+    /// line is exactly the shape of one, and nothing about the compose box tells
+    /// the reader that. The check is `parseAttribution` itself, which makes the
+    /// escape **idempotent**: escaped text no longer opens with an emoji or a
+    /// `{`, so a later rewrite leaves it alone and nothing compounds. There is
+    /// deliberately no unescape on read; that is what keeps it idempotent, and
+    /// costs the round-trip invariant its third exception.
+    ///
+    /// The body is parsed rather than split on blank lines because only a
+    /// *paragraph* can be an attribution. A fenced code block's lines are the
+    /// reader's code, and injecting a zero-width space into them would be
+    /// silent corruption.
+    private static func escapingAttributions(_ body: String) -> String {
+        guard !body.isEmpty, let document = CMarkDocument(parsing: body)
+        else { return body }
+        var lines = body.components(separatedBy: "\n")
+        // Collected before any edit: prefixing a line changes no line number,
+        // but reading the source while mutating it would be a trap for later.
+        let starts = document.root.children
+            .filter { $0.kind == .paragraph }
+            .filter {
+                guard let text = sourceText(of: $0, lines: lines) else {
+                    return false
+                }
+                return parseAttribution(text).isHeader
+            }
+            .map(\.startLine)
+        guard !starts.isEmpty else { return body }
+        for start in starts where start >= 1 && start <= lines.count {
+            lines[start - 1] = attributionEscape + lines[start - 1]
+        }
+        return lines.joined(separator: "\n")
     }
 
     /// The `👤 {author @ timestamp}:` header for an attributed message, or `nil`

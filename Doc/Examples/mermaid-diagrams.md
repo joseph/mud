@@ -15,6 +15,28 @@ graph TD
 ```
 
 
+## Flowchart with subgraphs
+
+```mermaid
+flowchart LR
+    subgraph App
+        DM[DocumentModel]
+        WV[WebView]
+    end
+
+    subgraph MudCore
+        P[ParsedMarkdown]
+        V[UpHTMLVisitor]
+        T[HTMLTemplate]
+    end
+
+    DM --> P
+    P --> V
+    V --> T
+    T --> WV
+```
+
+
 ## Sequence diagram
 
 ```mermaid
@@ -74,6 +96,134 @@ pie title Lines of code
     "JavaScript" : 800
     "CSS" : 600
     "Other" : 200
+```
+
+
+## Entity relationship diagram
+
+```mermaid
+erDiagram
+    DOCUMENT ||--o{ COMMENT : carries
+    DOCUMENT ||--|| WINDOW : "opens in"
+    COMMENT ||--o{ MESSAGE : holds
+    DOCUMENT {
+        string path
+        string markdown
+    }
+    COMMENT {
+        string label
+        string quotation
+    }
+```
+
+
+## Gantt chart
+
+```mermaid
+gantt
+    title Release schedule
+    dateFormat YYYY-MM-DD
+    axisFormat %b %d
+
+    section Build
+    Rendering       :done,    a1, 2026-01-05, 20d
+    Comments column :done,    a2, after a1, 15d
+    Watercolor      :active,  a3, after a2, 10d
+
+    section Ship
+    Release notes   :         b1, after a3, 5d
+    App Store       :milestone, after b1, 0d
+```
+
+
+## Git graph
+
+```mermaid
+gitGraph
+    commit id: "v4.1.0"
+    branch watercolor
+    commit id: "palette"
+    commit id: "wash"
+    checkout main
+    commit id: "docs"
+    merge watercolor
+    commit id: "v4.2.0"
+```
+
+
+## Mindmap
+
+```mermaid
+mindmap
+  root((Mud))
+    Up mode
+      Comments
+      Foldable headings
+      Diagrams
+    Down mode
+      Line numbers
+      Word wrap
+    Extensions
+      Quick Look
+      Thumbnail
+```
+
+
+## Timeline
+
+```mermaid
+timeline
+    title Mud releases
+    v1.0 : Two modes : Auto-reload
+    v2.0 : Themes : Table of contents
+    v3.0 : Change tracking
+    v4.0 : Comments : Quick Look
+```
+
+
+## User journey
+
+```mermaid
+journey
+    title Reading a document
+    section Open
+      Double-click a .md file: 5: Reader
+      Wait for the render: 4: Reader
+    section Read
+      Fold a section: 5: Reader
+      Leave a comment: 3: Reader
+    section Share
+      Save as PDF: 4: Reader
+```
+
+
+## XY chart
+
+```mermaid
+xychart-beta
+    title "Render time by document size"
+    x-axis [1kb, 10kb, 100kb, 1mb]
+    y-axis "Milliseconds" 0 --> 400
+    bar [4, 18, 95, 380]
+    line [4, 18, 95, 380]
+```
+
+
+## Quadrant chart
+
+```mermaid
+quadrantChart
+    title Feature effort and value
+    x-axis Low effort --> High effort
+    y-axis Low value --> High value
+    quadrant-1 Do next
+    quadrant-2 Do now
+    quadrant-3 Skip
+    quadrant-4 Maybe
+    Watercolor diagrams: [0.35, 0.6]
+    Comments column: [0.8, 0.9]
+    Line numbers: [0.2, 0.45]
+    Right-hand sidebar: [0.75, 0.25]
 ```
 
 

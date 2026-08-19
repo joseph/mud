@@ -37,7 +37,7 @@ distribution platform, including but not limited to the Apple App Store, Google
 Play Store, Microsoft Store, or any similar platform, whether or not a fee is
 charged to end users.
 
-For purposes of this restriction, "**Sell**" means practicing any or all of the
+For purposes of this restriction, **"Sell"** means practicing any or all of the
 rights granted to you under the License to provide to third parties, on a
 distribution platform or marketplace, a product or service whose value derives,
 entirely or substantially, from the functionality of the Software, whether or
@@ -45,3 +45,22 @@ not for a monetary fee.
 
 This restriction applies to the Software in its original form and to any
 modified or derivative versions of the Software.
+
+
+-------------------------------------------------------------------------------
+
+
+## Third-party components
+
+Mud bundles the following, each under its own license:
+
+- **Caveat** — the label font for the Handwritten diagram look, embedded in
+  `Core/Sources/Resources/mud-diagram-font.css`. Copyright 2014 The Caveat
+  Project Authors
+  ([https://github.com/googlefonts/caveat](https://github.com/googlefonts/caveat)),
+  licensed under the SIL Open Font License, Version 1.1
+  ([https://scripts.sil.org/OFL](https://scripts.sil.org/OFL)).
+- **Mermaid** (`mermaid.min.js`) — MIT.
+- **highlight.js** (`highlight.min.js`) — BSD 3-Clause.
+- **Temml** (`temml.min.js`) — MIT.
+- **GitHub gemoji** (`emoji.json`) and **Octicons** (`alert-*.svg`) — MIT.

@@ -31,7 +31,7 @@ struct CommentLocationTests {
     let bytes = Array(inserted.source.utf8)
     let slice = String(
       decoding: bytes[loc.defStart..<loc.defContentEnd], as: UTF8.self)
-    #expect(slice.hasPrefix("[^comment-a]:"))
+    #expect(slice.hasPrefix("[^💬-a]:"))
     #expect(slice.hasSuffix("First."))  // content end excludes the newline
   }
 

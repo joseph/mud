@@ -13,30 +13,34 @@ struct CommentEditorTests {
   // MARK: - nextLabel / scheme
 
   @Test func nextLabel_emptySource() {
-    #expect(CommentEditor.nextLabel(in: "no comments here") == "comment-a")
+    #expect(CommentEditor.nextLabel(in: "no comments here") == "💬-a")
   }
 
   @Test func nextLabel_incrementsGreatest() {
+    #expect(CommentEditor.nextLabel(in: "x[^💬-a] y[^💬-b]") == "💬-c")
+  }
+
+  // Both prefixes name the same scheme, so a document written before the emoji
+  // prefix keeps counting where it left off — under the new prefix.
+  @Test func nextLabel_readsBothPrefixes() {
     #expect(
-      CommentEditor.nextLabel(in: "x[^comment-a] y[^comment-b]") == "comment-c")
+      CommentEditor.nextLabel(in: "x[^comment-a] y[^comment-b]") == "💬-c")
+    #expect(CommentEditor.nextLabel(in: "x[^comment-a] y[^💬-b]") == "💬-c")
   }
 
   @Test func nextLabel_rollsOverAtZ() {
-    #expect(CommentEditor.nextLabel(in: "[^comment-z]") == "comment-za")
-    #expect(CommentEditor.nextLabel(in: "[^comment-zz]") == "comment-zza")
+    #expect(CommentEditor.nextLabel(in: "[^💬-z]") == "💬-za")
+    #expect(CommentEditor.nextLabel(in: "[^💬-zz]") == "💬-zza")
   }
 
   @Test func nextLabel_ignoresAnomalies() {
     // `ya` is not scheme-valid, so the basis is `b` → `c`.
     #expect(
-      CommentEditor.nextLabel(in: "[^comment-a][^comment-b][^comment-ya]")
-        == "comment-c")
+      CommentEditor.nextLabel(in: "[^💬-a][^💬-b][^💬-ya]") == "💬-c")
     // `aa` is not scheme-valid → basis `a` → `b`.
-    #expect(
-      CommentEditor.nextLabel(in: "[^comment-a][^comment-aa]") == "comment-b")
+    #expect(CommentEditor.nextLabel(in: "[^💬-a][^💬-aa]") == "💬-b")
     // Only anomalies present → start over at `a`.
-    #expect(
-      CommentEditor.nextLabel(in: "[^comment-1][^comment-foo]") == "comment-a")
+    #expect(CommentEditor.nextLabel(in: "[^💬-1][^💬-foo]") == "💬-a")
   }
 
   @Test func increment_cases() {
@@ -64,13 +68,13 @@ struct CommentEditorTests {
       into: "Hello world.\n", markerByteOffset: 11, quotation: nil,
       message: CommentMessage(author: nil, created: nil, body: "Note."))
 
-    #expect(result.comment.label == "comment-a")
+    #expect(result.comment.label == "💬-a")
     #expect(result.comment.quotation == nil)
     #expect(result.comment.messages.count == 1)
     // Marker spliced right before the period (the selection end).
-    #expect(result.source.contains("Hello world[^comment-a]."))
+    #expect(result.source.contains("Hello world[^💬-a]."))
     // Canonical definition appended, body four-space indented.
-    #expect(result.source.contains("[^comment-a]:\n    Note."))
+    #expect(result.source.contains("[^💬-a]:\n    Note."))
   }
 
   @Test func insert_atEndOfFileEndsWithSingleNewline() {
@@ -102,8 +106,8 @@ struct CommentEditorTests {
       message: CommentMessage(
         author: "JP", created: ts("2026-06-01 18:33:00"), body: "Nice."))
 
-    #expect(result.source.contains("brown fox[^comment-a]."))
-    #expect(result.source.contains("[^comment-a]:\n    > quick brown"))
+    #expect(result.source.contains("brown fox[^💬-a]."))
+    #expect(result.source.contains("[^💬-a]:\n    > quick brown"))
     #expect(result.source.contains("💬 {JP @ 2026-06-01 18:33:00}:"))
     #expect(result.source.contains("Nice."))
   }
@@ -116,7 +120,7 @@ struct CommentEditorTests {
       message: CommentMessage(author: nil, created: nil, body: "Note."))
 
     let rewritten = try #require(CommentEditor.rewrite(
-      inserted.source, label: "comment-a", quotation: nil,
+      inserted.source, label: "💬-a", quotation: nil,
       messages: [
         CommentMessage(author: "JP", created: ts("2026-06-01 18:33:00"),
           body: "First."),
@@ -124,7 +128,7 @@ struct CommentEditorTests {
           body: "Second."),
       ]))
 
-    #expect(rewritten.contains("Hello world[^comment-a]."))  // marker intact
+    #expect(rewritten.contains("Hello world[^💬-a]."))  // marker intact
     #expect(rewritten.contains("💬 {JP @ 2026-06-01 18:33:00}:"))
     #expect(rewritten.contains("💬 {Claude @ 2026-06-01 18:34:00}:"))
     #expect(rewritten.contains("First."))
@@ -164,7 +168,7 @@ struct CommentEditorTests {
       message: CommentMessage(author: nil, created: nil, body: "Note."))
 
     let rewritten = try #require(CommentEditor.rewrite(
-      inserted.source, label: "comment-a", quotation: nil,
+      inserted.source, label: "💬-a", quotation: nil,
       messages: [
         CommentMessage(author: nil, created: nil, body: "Note."),
         CommentMessage(author: nil, created: nil, body: "Reply."),
@@ -176,6 +180,9 @@ struct CommentEditorTests {
 
   // MARK: - delete
 
+  // The sources below keep the `comment-` prefix: every edit path has to keep
+  // working on a document written before the emoji prefix existed. The insert
+  // tests above cover the same paths under the prefix Mud writes now.
   @Test func delete_removesOneCommentLeavesOthers() throws {
     let source = """
       Alpha[^comment-a] and beta[^comment-b].

@@ -16,20 +16,20 @@ public enum CommentMode: String, Sendable, Equatable {
 }
 
 /// A comment stored in a Markdown document as a GFM footnote whose label
-/// matches `^comment-[\w-]+$`. The on-disk grammar (one worked example per case
-/// with the exact properties it parses to) is pinned in
-/// `Doc/Spec/comments.md`.
+/// ``CommentLabel`` recognizes (`💬-a`, or the older equivalent `comment-a`).
+/// The on-disk grammar (one worked example per case with the exact properties
+/// it parses to) is pinned in `Doc/Guides/spec-comments.md`.
 ///
 /// A comment carries an optional **quotation** (a leading blockquote echoing the
 /// document text the comment refers to; `nil` ⇒ a *general*, unanchored comment)
 /// and one or more **messages** (a thread). Whether an anchored comment actually
 /// draws a highlight is a render-time DOM question, never stored here.
 public struct Comment: Sendable, Equatable, Identifiable {
-    /// Stable identity — the footnote label (e.g. `comment-a`). The reference is
+    /// Stable identity — the footnote label (e.g. `💬-a`). The reference is
     /// `[^\(label)]`.
     public var id: String { label }
 
-    /// The footnote label, e.g. `comment-a`. Allocated in insertion order and
+    /// The footnote label, e.g. `💬-a`. Allocated in insertion order and
     /// never renumbered; used purely as a stable join key.
     public let label: String
 

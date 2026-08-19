@@ -364,7 +364,7 @@ struct UpHTMLVisitor: CMarkWalker {
         // the raw-text fallback below (see `isDeletionRender`). A reference
         // consumes nothing from an active span emitter, so the early return
         // shears no word markers.
-        if isDeletionRender, FootnoteProcessor.isCommentLabel(label) { return }
+        if isDeletionRender, CommentLabel.isComment(label) { return }
         guard let literal = node.literal, Int(literal) != nil,
               let range = node.verifiedRange else {
             // Emitted directly, bypassing any active span emitter:
@@ -374,7 +374,7 @@ struct UpHTMLVisitor: CMarkWalker {
                 EmojiShortcodes.replaceShortcodes(in: "[^\(label)]"))
             return
         }
-        if FootnoteProcessor.isCommentLabel(label) {
+        if CommentLabel.isComment(label) {
             result += FootnoteProcessor.commentMarkerHTML(label: label)
         } else if let footnoteNumbers {
             // Mid-document walk: use the numbering a full walk assigned.
@@ -1143,7 +1143,7 @@ private struct FootnoteNumberingWalker: CMarkWalker {
         guard let label = node.parentFootnoteDefinition?.literal else { return }
         guard let literal = node.literal, Int(literal) != nil,
               let range = node.verifiedRange else { return }
-        guard !FootnoteProcessor.isCommentLabel(label) else { return }
+        guard !CommentLabel.isComment(label) else { return }
         let number = authorialNumber[label] ?? nextFootnoteNumber
         if authorialNumber[label] == nil {
             authorialNumber[label] = number

@@ -36,8 +36,9 @@ struct FootnoteProcessingResult {
     let comments: [Comment]
 }
 
-/// The byte geometry of a single comment (a footnote whose label matches
-/// `^comment-[\w-]+$`), used by ``CommentEditor`` for byte-surgical rewrites.
+/// The byte geometry of a single comment (a footnote whose label
+/// ``CommentLabel`` recognizes), used by ``CommentEditor`` for byte-surgical
+/// rewrites.
 struct CommentLocation {
     let label: String
     /// Start byte of the definition's opener line (`[^label]:`).
@@ -53,19 +54,6 @@ struct CommentLocation {
 }
 
 enum FootnoteProcessor {
-    /// True when `label` is a comment label (`^comment-[\w-]+$`) rather than an
-    /// authorial footnote label. The `comment-` prefix is the statement of
-    /// intent; the suffix is any run of word characters or hyphens.
-    static func isCommentLabel(_ label: String) -> Bool {
-        let prefix = "comment-"
-        guard label.hasPrefix(prefix) else { return false }
-        let suffix = label.dropFirst(prefix.count)
-        guard !suffix.isEmpty else { return false }
-        return suffix.allSatisfy {
-            $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-"
-        }
-    }
-
     /// Creates the cmark parser for footnote and comment scanning:
     /// `CMARK_OPT_FOOTNOTES | CMARK_OPT_SOURCEPOS`, with the same GFM syntax
     /// extensions the render parse attaches. Deliberately narrower than the
@@ -166,7 +154,7 @@ enum FootnoteProcessor {
             guard def.startLine >= 1, def.endLine <= lastLine else { continue }
             defLineRanges.append(
                 DefRange(startLine: def.startLine, endLine: def.endLine))
-            if isCommentLabel(def.label) {
+            if CommentLabel.isComment(def.label) {
                 commentDefs.append((
                     label: def.label, startLine: def.startLine,
                     body: def.bodyMarkdown))
@@ -191,7 +179,7 @@ enum FootnoteProcessor {
         var nextNumber = 1
         var commentFirstRef: [String: Int] = [:]
         for ref in orderedRefs {
-            if isCommentLabel(ref.label) {
+            if CommentLabel.isComment(ref.label) {
                 if commentFirstRef[ref.label] == nil {
                     commentFirstRef[ref.label] = ref.start
                 }
@@ -230,8 +218,8 @@ enum FootnoteProcessor {
         return FootnoteProcessingResult(footnotes: footnotes, comments: comments)
     }
 
-    /// Locates every comment (a footnote whose label matches
-    /// `^comment-[\w-]+$`) in `source` by byte range, for byte-surgical edits.
+    /// Locates every comment (a footnote whose label ``CommentLabel``
+    /// recognizes) in `source` by byte range, for byte-surgical edits.
     /// Derives from the cached ``FootnoteScan`` shared with
     /// ``process(_:mode:)`` but rewrites nothing.
     static func locateComments(_ source: String) -> [CommentLocation] {
@@ -242,7 +230,7 @@ enum FootnoteProcessor {
 
         var refsByLabel: [String: [Range<Int>]] = [:]
         for ref in facts.refs {
-            guard let label = ref.label, isCommentLabel(label),
+            guard let label = ref.label, CommentLabel.isComment(label),
                   ref.startLine == ref.endLine,
                   ref.startLine >= 1, ref.startLine <= lastLine
             else { continue }
@@ -254,7 +242,7 @@ enum FootnoteProcessor {
         }
 
         return facts.defs.compactMap { def in
-            guard isCommentLabel(def.label),
+            guard CommentLabel.isComment(def.label),
                   def.startLine >= 1, def.endLine <= lastLine,
                   def.endLine >= def.startLine
             else { return nil }
@@ -292,7 +280,7 @@ enum FootnoteProcessor {
         let facts = FootnoteScan.scan(source)
         let lastLine = facts.geometry.lastLine
         return facts.defs.compactMap { def in
-            guard isCommentLabel(def.label),
+            guard CommentLabel.isComment(def.label),
                   def.startLine >= 1, def.endLine >= def.startLine,
                   def.endLine <= lastLine
             else { return nil }
@@ -300,7 +288,7 @@ enum FootnoteProcessor {
         }
     }
 
-    /// Removes every comment from `source` — all `[^comment-x]` references and
+    /// Removes every comment from `source` — all `[^💬-x]` references and
     /// every comment-definition block (with its trailing blanks) — by byte
     /// range, reusing ``locateComments(_:)``. The result renders identically to
     /// `source` minus its comments, so it is a stable, comment-invariant content
@@ -330,15 +318,18 @@ enum FootnoteProcessor {
     /// The marker glyph, shared by the emitter and the strip pattern.
     private static let commentMarkerGlyph = "💬"
 
-    /// Comment-only regex precompiled once: the raw reference form
-    /// `[^comment-x]` and the baked marker HTML, whose pattern is built from
-    /// the same constants ``commentMarkerHTML(label:)`` emits. Used by
-    /// ``stripCommentTokens(_:)``.
+    /// Comment-only regex precompiled once: the raw reference form (`[^💬-x]`
+    /// or `[^comment-x]`, both prefixes taken from ``CommentLabel``) and the
+    /// baked marker HTML, whose pattern is built from the same constants
+    /// ``commentMarkerHTML(label:)`` emits. Used by ``stripCommentTokens(_:)``.
     private static let commentTokenRegexes: [NSRegularExpression] = {
         let cls = NSRegularExpression.escapedPattern(for: commentMarkerClass)
         let glyph = NSRegularExpression.escapedPattern(for: commentMarkerGlyph)
+        let prefixes = CommentLabel.prefixes
+            .map { NSRegularExpression.escapedPattern(for: $0) }
+            .joined(separator: "|")
         let patterns = [
-            #"\[\^comment-[\w-]+\]"#,
+            #"\[\^(?:\#(prefixes))[\w-]+\]"#,
             "<a class=\"\(cls)\"[^>]*>\(glyph)</a>",
         ]
         return patterns.compactMap { try? NSRegularExpression(pattern: $0) }
@@ -392,7 +383,7 @@ enum FootnoteProcessor {
             + " data-fn-label=\"\(escLabel)\" data-fn-num=\"\(number)\">\(number)</a></sup>"
     }
 
-    /// The inline-HTML marker that replaces a `[^comment-…]` reference: a `💬`
+    /// The inline-HTML marker that replaces a comment reference: a `💬`
     /// chip carrying the label. Unlike a footnote marker it has no number — so
     /// comments never consume a footnote number — and points at the bottom
     /// Comments section (`#cmt-LABEL`) as the no-JS fallback. The in-app JS reads

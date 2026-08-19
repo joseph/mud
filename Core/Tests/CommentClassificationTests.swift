@@ -41,6 +41,59 @@ struct CommentClassificationTests {
     #expect(!body.contains("[^comment-a]"))
   }
 
+  // The prefix Mud writes now. cmark takes any non-space bytes as a footnote
+  // label, so the emoji survives the parse and the whole comment layer — model,
+  // marker, and the `#cmt-` anchor — reads exactly as the `comment-` form does.
+  @Test func emojiPrefixIsTheSameComment() {
+    let md = """
+      The quick brown fox[^💬-a] jumped.
+
+      [^💬-a]: > brown fox
+
+          💬 {JP @ 2026-06-01 18:33}: Nice.
+      """
+    let result = FootnoteProcessor.process(md, mode: .section)
+
+    #expect(result.footnotes.isEmpty)
+    #expect(result.comments.count == 1)
+    #expect(result.comments[0].label == "💬-a")
+    #expect(result.comments[0].ordinal == 1)
+    #expect(result.comments[0].quotation == "brown fox")
+    #expect(result.comments[0].messages.count == 1)
+    #expect(result.comments[0].messages[0].author == "JP")
+    #expect(result.comments[0].messages[0].body == "Nice.")
+
+    let body = MudCore.renderUpToHTML(md)
+    #expect(body.contains("class=\"mud-comment-marker\""))
+    #expect(body.contains("data-mud-label=\"💬-a\""))
+    #expect(body.contains("href=\"#cmt-💬-a\""))
+    #expect(!body.contains("footnote-ref"))
+    #expect(!body.contains("[^💬-a]"))
+  }
+
+  // Both prefixes in one document: each is a comment, neither takes a footnote
+  // number, and the labels stay distinct join keys.
+  @Test func bothPrefixesCoexist() {
+    let md = """
+      Alpha[^comment-a] and beta[^💬-b] and a footnote[^1].
+
+      [^comment-a]: An older comment.
+
+      [^💬-b]: A newer comment.
+
+      [^1]: An authorial footnote.
+      """
+    let result = FootnoteProcessor.process(md, mode: .section)
+
+    #expect(result.comments.map(\.label) == ["comment-a", "💬-b"])
+    #expect(result.footnotes.map(\.number) == [1])
+    #expect(MudCore.removeComments(md) == """
+      Alpha and beta and a footnote[^1].
+
+      [^1]: An authorial footnote.
+      """)
+  }
+
   @Test func authorialNumbersSkipComments() {
     // C8: footnote numbers count only authorial references; the comment occupies
     // no number, so the footnotes are 1 and 2 (not 1 and 3).

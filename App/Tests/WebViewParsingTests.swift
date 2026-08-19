@@ -33,7 +33,7 @@ import Testing
     // `MudComment` (see TestSupport.swift): Swift Testing exports a
     // `Comment` type too, so the bare name is ambiguous in test files.
     private func comment(
-        label: String = "comment-a", quotation: String? = "quoted text",
+        label: String = "💬-a", quotation: String? = "quoted text",
         author: String? = "JP", created: Date? = Date(timeIntervalSince1970: 100),
         body: String = "A note."
     ) -> MudComment {
@@ -55,7 +55,7 @@ import Testing
     @Test func eachContentFieldChangesTheSignature() {
         let base = WebView.Coordinator.commentSignature([comment()])
         let variants = [
-            comment(label: "comment-b"),
+            comment(label: "💬-b"),
             comment(quotation: "other text"),
             comment(quotation: nil),
             comment(author: "Someone Else"),
@@ -81,8 +81,8 @@ import Testing
     }
 
     @Test func orderMatters() {
-        let a = comment(label: "comment-a")
-        let b = comment(label: "comment-b")
+        let a = comment(label: "💬-a")
+        let b = comment(label: "💬-b")
         #expect(WebView.Coordinator.commentSignature([a, b])
             != WebView.Coordinator.commentSignature([b, a]))
     }

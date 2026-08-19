@@ -179,7 +179,7 @@ private struct LeafBlockCollector: CMarkWalker {
     mutating func visitFootnoteDefinition(_ node: CMarkNode) {
         guard policy == .descendPlainFootnotes,
               let label = node.literal,
-              !FootnoteProcessor.isCommentLabel(label) else { return }
+              !CommentLabel.isComment(label) else { return }
         descendInto(node)
     }
 

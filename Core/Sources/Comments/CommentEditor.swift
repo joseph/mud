@@ -10,7 +10,7 @@ import Foundation
 ///
 /// Locating existing definitions/references by label goes through
 /// ``FootnoteProcessor/locateComments(_:)`` (a fresh `cmark-gfm` parse), so a
-/// `[^comment-x]:` inside a code block is never mistaken for a real definition.
+/// `[^💬-x]:` inside a code block is never mistaken for a real definition.
 public enum CommentEditor {
     /// Inserts a new comment: splices the `[^label]` marker at `markerByteOffset`
     /// (the selection end, mapped to a source byte by the caller) and appends a
@@ -110,31 +110,37 @@ public enum CommentEditor {
         return String(decoding: bytes, as: UTF8.self)
     }
 
-    /// The next label: `comment-` plus the lexicographically greatest existing
-    /// *scheme-valid* suffix, incremented (last letter `z` ⇒ append `a`,
-    /// otherwise bump it). Anomalous suffixes (`az`, `aa`, `comment-1`,
-    /// `comment-foo`) are ignored as the basis, so they can neither lengthen nor
+    /// The next label: ``CommentLabel/written`` plus the lexicographically
+    /// greatest existing *scheme-valid* suffix, incremented (last letter `z` ⇒
+    /// append `a`, otherwise bump it). Anomalous suffixes (`az`, `aa`, `💬-1`,
+    /// `💬-foo`) are ignored as the basis, so they can neither lengthen nor
     /// misdirect the next label; the result exceeds every scheme-valid label and
     /// differs from every anomaly, so it can never collide.
+    ///
+    /// The suffix scan reads both prefixes but the new label always carries the
+    /// written one, so a document holding `[^comment-a]` gets `[^💬-b]` next:
+    /// the prefixes are equivalent, and the suffix alone keeps labels distinct.
     static func nextLabel(in source: String) -> String {
         guard let greatest = schemeValidSuffixes(in: source).max() else {
-            return "comment-a"
+            return CommentLabel.written + "a"
         }
-        return "comment-" + increment(greatest)
+        return CommentLabel.written + increment(greatest)
     }
 
     // MARK: - Labelling internals
 
-    /// Scans `source` for `[^comment-<suffix>]` labels (references and
-    /// definitions alike) and returns the suffixes that match the allocation
-    /// scheme `^(z*[a-y]|z+)$`.
+    /// Scans `source` for comment labels under either prefix (`[^💬-<suffix>]`,
+    /// `[^comment-<suffix>]`; references and definitions alike) and returns the
+    /// suffixes that match the allocation scheme `^(z*[a-y]|z+)$`.
     static func schemeValidSuffixes(in source: String) -> [String] {
         let bytes = Array(source.utf8)
-        let prefix = Array("[^comment-".utf8)
+        let prefixes = CommentLabel.prefixes.map { Array("[^\($0)".utf8) }
         var suffixes: [String] = []
         var i = 0
-        while i + prefix.count <= bytes.count {
-            guard Array(bytes[i..<i + prefix.count]) == prefix else { i += 1; continue }
+        while i < bytes.count {
+            guard let prefix = prefixes.first(
+                where: { starts(bytes, at: i, with: $0) })
+            else { i += 1; continue }
             var j = i + prefix.count
             var suffix: [UInt8] = []
             while j < bytes.count, isLabelByte(bytes[j]) {
@@ -148,6 +154,14 @@ public enum CommentEditor {
             i = max(j, i + 1)
         }
         return suffixes
+    }
+
+    /// Whether `bytes` carries `pattern` starting at `index`.
+    private static func starts(
+        _ bytes: [UInt8], at index: Int, with pattern: [UInt8]
+    ) -> Bool {
+        guard index + pattern.count <= bytes.count else { return false }
+        return Array(bytes[index..<index + pattern.count]) == pattern
     }
 
     /// A label-suffix byte: `[A-Za-z0-9_-]`.

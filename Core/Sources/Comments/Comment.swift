@@ -56,9 +56,15 @@ public struct Comment: Sendable, Equatable, Identifiable {
     }
 }
 
-/// One message in a comment thread, introduced on disk by a `💬 {author @
+/// One message in a comment thread, introduced on disk by a `👤 {author @
 /// timestamp}:` attributes block.
 public struct CommentMessage: Sendable, Equatable {
+    /// The single emoji leading the attributes block, standing for whoever
+    /// wrote the message; `nil` when the source carries none. Kept on the model
+    /// so a thread rewrite puts every message's own avatar back — see
+    /// ``CommentAvatar`` for what Mud writes and what a bare message shows.
+    public let avatar: String?
+
     /// The brace text before the timestamp's `@`; `nil` if the message is
     /// unattributed.
     public let author: String?
@@ -72,7 +78,13 @@ public struct CommentMessage: Sendable, Equatable {
     /// blocks — anything the "new block below the header" rule allows).
     public let body: String
 
-    public init(author: String?, created: Date?, body: String) {
+    /// `avatar` leads the parameter list because it leads the attribution on
+    /// disk, and defaults to `nil` — a message with no avatar is written
+    /// without one, which is what keeps an older document's bytes as they were.
+    public init(
+        avatar: String? = nil, author: String?, created: Date?, body: String
+    ) {
+        self.avatar = avatar
         self.author = author
         self.created = created
         self.body = body

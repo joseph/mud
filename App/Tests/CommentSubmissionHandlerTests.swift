@@ -39,7 +39,9 @@ import Testing
         // Seed one real comment while the file is still writable, so the delete
         // cases below have something to remove.
         label = try CommentController(fileURL: fileURL)
-            .addComment(Self.draft, author: "Tester", body: "A note.").get()
+            .addComment(
+                Self.draft, author: "Tester", avatar: "👤", body: "A note."
+            ).get()
         state = DocumentState()
         model = DocumentModel(
             fileURL: fileURL, state: state, changeTracker: state.changeTracker)

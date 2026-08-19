@@ -113,8 +113,12 @@ enum CommentHTMLRenderer {
     }
 
     /// The opening `<div class="mud-comment-message">` tag, carrying the
-    /// message's author as a machine-readable `data-mud-author` so the column
-    /// can show "💬 author" without re-parsing the visible attribution line.
+    /// message's avatar and author as machine-readable `data-mud-avatar` /
+    /// `data-mud-author` so the column can show "👤 author" without re-parsing
+    /// the visible attribution line. The avatar attribute is written only when
+    /// the source carries one, so the column can tell an explicit avatar from
+    /// the ``CommentAvatar/fallback`` it draws for a message without one — the
+    /// same distinction `formatAttribution` makes below.
     /// There is no matching time attribute: HTML has an element that means
     /// "this text is a time", and `formatAttribution` uses it, so the column
     /// reads the attribution's `<time datetime>` instead.
@@ -127,6 +131,9 @@ enum CommentHTMLRenderer {
         _ message: CommentMessage, mode: CommentMode
     ) -> String {
         var attrs = "class=\"mud-comment-message\""
+        if let avatar = message.avatar, !avatar.isEmpty {
+            attrs += " data-mud-avatar=\"\(HTMLEscaping.escape(avatar))\""
+        }
         if let author = message.author, !author.isEmpty {
             attrs += " data-mud-author=\"\(HTMLEscaping.escape(author))\""
         }
@@ -136,8 +143,12 @@ enum CommentHTMLRenderer {
         return "<div \(attrs)>\n"
     }
 
-    /// The `author · timestamp` attribution line for a message, HTML-escaped;
-    /// empty when the message carries neither.
+    /// The `avatar author · timestamp` attribution line for a message,
+    /// HTML-escaped; empty when the message carries none of the three.
+    ///
+    /// A message with an author or a time but no avatar of its own is drawn
+    /// with ``CommentAvatar/fallback`` — the glyph every attribution carried
+    /// before avatars existed, so an older document reads as it always did.
     ///
     /// The timestamp is a `<time>` carrying the wall clock twice: as the
     /// `datetime` attribute for machines and as the visible text for readers.
@@ -145,7 +156,15 @@ enum CommentHTMLRenderer {
     /// column reads its `datetime` rather than a parallel `data-mud-*`
     /// attribute on the message div.
     private static func formatAttribution(_ message: CommentMessage) -> String {
-        var parts: [String] = []
+        let hasAuthor = !(message.author ?? "").isEmpty
+        guard hasAuthor || message.created != nil || message.avatar != nil
+        else { return "" }
+
+        var parts: [String] = [
+            "<span class=\"mud-comment-avatar\">"
+            + HTMLEscaping.escape(message.avatar ?? CommentAvatar.fallback)
+            + "</span>"
+        ]
         if let author = message.author, !author.isEmpty {
             parts.append(HTMLEscaping.escape(author))
         }

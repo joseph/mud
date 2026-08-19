@@ -34,13 +34,14 @@ import Testing
     // `Comment` type too, so the bare name is ambiguous in test files.
     private func comment(
         label: String = "💬-a", quotation: String? = "quoted text",
+        avatar: String? = "👤",
         author: String? = "JP", created: Date? = Date(timeIntervalSince1970: 100),
         body: String = "A note."
     ) -> MudComment {
         MudComment(
             label: label, ordinal: 1, quotation: quotation,
-            messages: [CommentMessage(author: author, created: created,
-                                      body: body)])
+            messages: [CommentMessage(avatar: avatar, author: author,
+                                      created: created, body: body)])
     }
 
     @Test func identicalListsProduceEqualSignatures() {
@@ -58,6 +59,8 @@ import Testing
             comment(label: "💬-b"),
             comment(quotation: "other text"),
             comment(quotation: nil),
+            comment(avatar: "🤖"),
+            comment(avatar: nil),
             comment(author: "Someone Else"),
             comment(author: nil),
             comment(created: Date(timeIntervalSince1970: 200)),

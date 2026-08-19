@@ -16,9 +16,11 @@ struct CommentLocationTests {
     CommentSerialization.parseTimestamp(Substring(s))
   }
 
+  /// A message shaped like the ones the app writes: avatar, author, and time.
   private var message: CommentMessage {
     CommentMessage(
-      author: "JP", created: ts("2026-06-01 18:33:00"), body: "First.")
+      avatar: "👤", author: "JP", created: ts("2026-06-01 18:33:00"),
+      body: "First.")
   }
 
   @Test func defSliceCoversExactlyTheDefinition() throws {
@@ -78,7 +80,7 @@ struct CommentLocationTests {
       [^comment-a]:
           > Alpha
 
-          💬 {JP @ 2026-06-01 18:33:00}:
+          👤 {JP @ 2026-06-01 18:33:00}:
 
           First.
 

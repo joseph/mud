@@ -33,6 +33,28 @@ struct CommentSectionRenderingTests {
     if let fn, let cmt { #expect(fn.lowerBound < cmt.lowerBound) }
   }
 
+  // The avatar is content, so it renders in the attribution and rides along as
+  // `data-mud-avatar` for the column. A message whose source names none gets
+  // `CommentAvatar.fallback` in the attribution and no attribute, which is how
+  // the column tells the two apart.
+  @Test func attributionCarriesTheMessageAvatar() {
+    let md = """
+      Body[^💬-a] and more[^💬-b].
+
+      [^💬-a]: 🤖 {Claude @ 2026-06-01 18:33}: Nice.
+
+      [^💬-b]: {JP @ 2026-06-01 18:34}: Also nice.
+      """
+    let html = MudCore.renderUpModeDocument(md, options: RenderOptions())
+
+    #expect(html.contains("data-mud-avatar=\"🤖\""))
+    #expect(html.contains("<span class=\"mud-comment-avatar\">🤖</span>"))
+    // The avatar-less message: drawn with the fallback, no attribute written.
+    #expect(html.contains(
+      "<span class=\"mud-comment-avatar\">\(CommentAvatar.fallback)</span>"))
+    #expect(!html.contains("data-mud-avatar=\"\(CommentAvatar.fallback)\""))
+  }
+
   @Test func interactiveModeMarksSectionPrintOnly() {
     let md = "x[^comment-a].\n\n[^comment-a]: Note.\n"
     var options = RenderOptions()

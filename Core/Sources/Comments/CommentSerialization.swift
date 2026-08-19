@@ -8,21 +8,34 @@ import Foundation
 /// clean CommonMark `FootnoteProcessor` already produces via
 /// `renderDefinitionBody`) and structures it into a root quotation plus ordered
 /// messages. `serialize` is the strict inverse, with the round-trip invariant
-/// `parse(serialize(quotation, messages)) == (quotation, messages)`.
+/// `parse(serialize(quotation, messages)) == (quotation, messages)`. Two
+/// exceptions. An unattributed message after the first has to be written with an
+/// avatar attribution or the two messages merge back into one, so it parses back
+/// carrying `CommentAvatar.fallback` — the avatar it already rendered as. And a
+/// message with no content at all is outside the convention (a message always
+/// has content): written out, it is indistinguishable from an attribution
+/// standing at the head of the message below it, and the two merge on re-parse.
+/// Nothing reaches `CommentEditor` that way — the compose box treats Done on an
+/// empty box as Cancel.
 ///
 /// Working on the already-de-indented body is what lets this stay pure,
 /// testable Swift over one `CMarkDocument` parse: the multi-paragraph misparse
 /// that forced cmark for footnote *bodies* does not bite a pre-normalized
 /// string. Message bodies are sliced verbatim from the source by block
 /// sourcepos rather than re-serialized, so a message no one has edited
-/// round-trips byte-for-byte.
+/// round-trips byte-for-byte — including the remainder of a message written on
+/// one line, `{JP @ …}: like this`, which is sliced from the same source and not
+/// read off the flattened inline text.
 ///
-/// Message attributes live in **braces** — `💬 {author @ timestamp}:` — where
-/// the `💬`, both fields, and the trailing colon are each optional and a
-/// paragraph-leading `{` is the signal.
+/// A message attribution is `👤 {author @ timestamp}:` — an optional leading
+/// emoji (the message's *avatar*), an optional brace group, and a **required**
+/// colon. At least one of the avatar and the braces must be present. The colon
+/// is the signal: a paragraph that merely opens with an emoji or a `{` and
+/// never reaches one is ordinary content, so a message may begin with an emoji,
+/// or be nothing but one. The grammar reads source text, so inline code is
+/// opaque to it: backticking an emoji or a brace group keeps it content even
+/// with a colon after it.
 enum CommentSerialization {
-    static let commentEmoji = "💬"
-
     // MARK: - Read
 
     /// Structures a comment definition's de-indented body Markdown into the root
@@ -34,7 +47,9 @@ enum CommentSerialization {
             return (nil, [])
         }
         // Source lines, 1-based by index + 1, so a block's `startLine` /
-        // `endLine` slice its verbatim bytes back out (see `sliceBody`).
+        // `endLine` slice its verbatim bytes back out. Both the message bodies
+        // and the attribution grammar read this rather than the AST's flattened
+        // inline text (see `sliceBody` and `sourceText`).
         let lines = bodyMarkdown.components(separatedBy: "\n")
         var blocks = Array(document.root.children)
 
@@ -48,13 +63,16 @@ enum CommentSerialization {
         }
 
         // (2) Split the remaining blocks into messages at every paragraph that
-        // *begins* with a message attributes block — a `💬` or a `{`. Blocks
-        // before the first such paragraph (or all of them, when there is none)
-        // form one implicit author-less message.
+        // *begins* with a message attribution. Blocks before the first such
+        // paragraph (or all of them, when there is none) form one implicit
+        // author-less message. An attribution only splits once the message it
+        // would close has content — see `hasContent`.
         var groups: [[CMarkNode]] = []
         var current: [CMarkNode] = []
         for block in blocks {
-            if isMessageStart(block), !current.isEmpty {
+            if isMessageStart(block, lines: lines),
+                hasContent(current, lines: lines)
+            {
                 groups.append(current)
                 current = []
             }
@@ -66,27 +84,59 @@ enum CommentSerialization {
         return (quotation, messages)
     }
 
-    /// True when `block` is a paragraph whose text begins (after any leading
-    /// whitespace) with a message attributes block — the `💬` header emoji or a
-    /// `{` brace. A `💬` or `{` anywhere else in running prose never splits a
-    /// message.
-    private static func isMessageStart(_ block: CMarkNode) -> Bool {
-        guard block.kind == .paragraph else { return false }
-        let text = plainText(of: block).drop { $0.isWhitespace }
-        return text.hasPrefix(commentEmoji) || text.first == "{"
+    /// True when `block` is a paragraph that opens with a message attribution.
+    /// The whole grammar lives in `parseAttribution`, so what splits a thread and
+    /// what a header parses to can never drift apart. An attribution anywhere
+    /// but at a paragraph's start is running prose and never splits a message.
+    private static func isMessageStart(
+        _ block: CMarkNode, lines: [String]
+    ) -> Bool {
+        guard block.kind == .paragraph,
+            let text = sourceText(of: block, lines: lines)
+        else { return false }
+        return parseAttribution(text).isHeader
+    }
+
+    /// Whether the message a block group has built so far carries any content —
+    /// which is what an attribution needs before it may close that message and
+    /// open the next.
+    ///
+    /// A group holding nothing but a bare attribution paragraph has none, so the
+    /// paragraph below it is read as that message's content rather than as a
+    /// second, empty message following an empty one. A message always has
+    /// content — which is what lets a message be a single line that is itself
+    /// attribution-shaped, the one ambiguity the colon can't settle.
+    private static func hasContent(_ group: [CMarkNode], lines: [String]) -> Bool {
+        guard let only = group.first else { return false }
+        // Past the first block, everything in the group is content.
+        guard group.count == 1, only.kind == .paragraph,
+            let text = sourceText(of: only, lines: lines)
+        else { return true }
+        let parsed = parseAttribution(text)
+        // An unattributed paragraph is itself content; an attribution counts
+        // only when something follows its colon.
+        return !parsed.isHeader || !parsed.inlineBody.isEmpty
     }
 
     /// Builds a `CommentMessage` from its block group. The first paragraph is run
-    /// through `parseAttribution`; when it carries a header (a `💬` and/or a
-    /// `{…}` block — even an empty or partial one), that paragraph is the header
-    /// and the rest is the body. Otherwise the whole group is an unattributed
-    /// body.
+    /// through `parseAttribution`; when it carries a header (an avatar and/or a
+    /// `{…}` block, closed by a colon), that paragraph is the header and the rest
+    /// is the body. Otherwise the whole group is an unattributed body.
+    ///
+    /// The header paragraph's remainder — the text after the colon, when a
+    /// message is written on one line — comes off the same verbatim source slice
+    /// as every other block, so it keeps its Markdown. Reading it off the
+    /// flattened inline text instead would hand back `see the doc for details`
+    /// for `see [the doc](x) for *details*`, and a later rewrite would write
+    /// that back.
     private static func buildMessage(
         _ blocks: [CMarkNode], lines: [String]
     ) -> CommentMessage {
-        if let para = blocks.first, para.kind == .paragraph {
-            let (author, created, inlineBody, isHeader) =
-                parseAttribution(plainText(of: para))
+        if let para = blocks.first, para.kind == .paragraph,
+            let paragraphSource = sourceText(of: para, lines: lines)
+        {
+            let (avatar, author, created, inlineBody, isHeader) =
+                parseAttribution(paragraphSource)
             if isHeader {
                 var parts: [String] = []
                 if !inlineBody.isEmpty { parts.append(inlineBody) }
@@ -94,7 +144,7 @@ enum CommentSerialization {
                     parts.append(body)
                 }
                 return CommentMessage(
-                    author: author, created: created,
+                    avatar: avatar, author: author, created: created,
                     body: parts.joined(separator: "\n\n"))
             }
         }
@@ -106,9 +156,14 @@ enum CommentSerialization {
 
     /// Renders a quotation + messages into the strict canonical body Markdown
     /// (un-indented): the quotation as a leading blockquote, then one
-    /// `💬 {author @ timestamp}:` header per attributed message — alone on its
+    /// `👤 {author @ timestamp}:` header per attributed message — alone on its
     /// line, commentary in the block below. The caller (`CommentEditor`) prefixes
     /// `[^label]:` and indents continuation lines by four spaces.
+    ///
+    /// A message's avatar is written back exactly as it was read, and a message
+    /// that carried none is written without one, so rewriting a thread never
+    /// stamps Mud's own avatar onto someone else's message. The single
+    /// exception is the message-boundary marker below, which structure demands.
     static func serialize(
         quotation: String?, _ messages: [CommentMessage]
     ) -> String {
@@ -117,28 +172,33 @@ enum CommentSerialization {
             blocks.append("> " + quotation)
         }
         for (index, message) in messages.enumerated() {
+            let body = message.body
             if let header = headerLine(message) {
                 blocks.append(header)
-                if !message.body.isEmpty { blocks.append(message.body) }
-            } else if index > 0 {
-                // A new message with no attribution still needs a bare `💬` to
-                // mark it — without one, re-parsing would merge it into the
-                // previous message. The marker rides on the body, matching the
-                // spec's bare-`💬` form; the first message needs no marker.
-                blocks.append(message.body.isEmpty
-                    ? commentEmoji
-                    : "\(commentEmoji) \(message.body)")
-            } else if !message.body.isEmpty {
-                blocks.append(message.body)
+                if !body.isEmpty { blocks.append(body) }
+                continue
             }
+            // No attributes to put in braces, so the attribution is an avatar
+            // and a colon. A message after the first still needs one to mark it
+            // — without it, re-parsing would merge it into the previous message
+            // — so an avatar-less one gets `CommentAvatar.fallback`, which is
+            // what a message with no avatar already renders as and claims nobody
+            // in particular wrote it. The first message needs no marker and
+            // keeps only the avatar it came with. This is the one thing
+            // serialize adds that the model did not carry, so such a message
+            // parses back with that avatar.
+            let marker = message.avatar
+                ?? (index > 0 ? CommentAvatar.fallback : nil)
+            if let marker { blocks.append("\(marker):") }
+            if !body.isEmpty { blocks.append(body) }
         }
         return blocks.joined(separator: "\n\n")
     }
 
-    /// The `💬 {author @ timestamp}:` header for an attributed message, or `nil`
-    /// for a bare unattributed message (which serializes as body alone). With
-    /// only one field present the brace carries just that field: `{author}` or
-    /// `{@ timestamp}`.
+    /// The `👤 {author @ timestamp}:` header for an attributed message, or `nil`
+    /// for a bare unattributed message (which serializes as body alone). The
+    /// avatar is written only when the message carries one. With one field
+    /// present the brace carries just that: `{author}` or `{@ timestamp}`.
     private static func headerLine(_ message: CommentMessage) -> String? {
         let author = message.author.flatMap { $0.isEmpty ? nil : $0 }
         guard author != nil || message.created != nil else { return nil }
@@ -147,54 +207,69 @@ enum CommentSerialization {
             let stamp = formatTimestamp(created)
             interior = interior.isEmpty ? "@ \(stamp)" : "\(interior) @ \(stamp)"
         }
-        return "\(commentEmoji) {\(interior)}:"
+        let avatar = message.avatar.map { "\($0) " } ?? ""
+        return "\(avatar){\(interior)}:"
     }
 
     // MARK: - Attribution grammar
 
-    /// Peels a leading message attributes block — `[💬 ]{author @ timestamp}[:]`
-    /// — from a message's first paragraph. The `💬` is optional and the braces
-    /// are the signal: a paragraph that (after an optional `💬`) begins with `{`
-    /// carries attributes, even when they are empty (`{}`) or hold one field. A
-    /// `💬` with no following brace is itself a (no-attribute) header. The
-    /// returned `isHeader` lets the caller peel such a bare marker even when it
-    /// yields no author or timestamp.
+    /// Peels a leading message attribution — `[<avatar>][{author @ timestamp}]:`
+    /// — from a message's first paragraph. The avatar (any one emoji) and the
+    /// brace group are each optional, but at least one must be present and the
+    /// **colon is required**.
+    ///
+    /// The colon is what separates an attribution from ordinary content, so a
+    /// paragraph that opens with an emoji or a `{…}` and never reaches one is
+    /// body text and starts no message — which is what lets a message begin with
+    /// an emoji, or be nothing but one. It must *immediately* follow the brace
+    /// group (or the avatar, when there is no brace group), and be followed by a
+    /// space or the end of the paragraph: a space before it, or a character
+    /// other than a space after it, makes the whole paragraph content.
     ///
     /// Inside the braces, the **last** `@` whose trailing text parses as a
     /// timestamp splits `author` from `created`; with no such `@` the whole
     /// interior is the author (so an author may contain `@`).
     static func parseAttribution(
         _ paragraphText: String
-    ) -> (author: String?, created: Date?, inlineBody: String, isHeader: Bool) {
+    ) -> (
+        avatar: String?, author: String?, created: Date?,
+        inlineBody: String, isHeader: Bool
+    ) {
+        let content = (
+            avatar: String?.none, author: String?.none, created: Date?.none,
+            inlineBody: paragraphText, isHeader: false)
+
         var scanner = paragraphText[...]
         scanner = scanner.drop { $0 == " " || $0 == "\t" }
 
-        var sawEmoji = false
-        if scanner.hasPrefix(commentEmoji) {
-            sawEmoji = true
-            scanner = scanner.dropFirst(commentEmoji.count)
-                .drop { $0 == " " || $0 == "\t" }
+        var avatar: String?
+        if let first = scanner.first, first.isEmoji {
+            avatar = String(first)
+            scanner = scanner.dropFirst()
         }
 
-        // Brace form (canonical). The `{…}` must open the (post-💬) text; a `{`
+        // The brace group, when there is one, opens the post-avatar text; a `{`
         // later in the paragraph is ordinary prose.
-        if scanner.first == "{", let close = scanner.firstIndex(of: "}") {
-            let interior = scanner[scanner.index(after: scanner.startIndex)..<close]
-            let (author, created) = parseBraceInterior(interior)
-            // The colon is optional but, when present, must *immediately* follow
-            // `}` — a space before it makes the colon message content.
-            var rest = scanner[scanner.index(after: close)...]
-            if rest.first == ":" { rest = rest.dropFirst() }
-            rest = rest.drop { $0 == " " || $0 == "\t" }
-            return (author, created, String(rest), true)
+        var author: String?
+        var created: Date?
+        var sawBraces = false
+        let braced = scanner.drop { $0 == " " || $0 == "\t" }
+        if braced.first == "{", let close = braced.firstIndex(of: "}") {
+            let interior = braced[braced.index(after: braced.startIndex)..<close]
+            (author, created) = parseBraceInterior(interior)
+            scanner = braced[braced.index(after: close)...]
+            sawBraces = true
         }
+        guard avatar != nil || sawBraces else { return content }
 
-        // A bare `💬` with no brace is still a header carrying no attributes.
-        if sawEmoji {
-            return (nil, nil, String(scanner), true)
-        }
+        guard scanner.first == ":" else { return content }
+        let rest = scanner.dropFirst()
+        guard rest.isEmpty || rest.first == " " || rest.first == "\t"
+        else { return content }
 
-        return (nil, nil, paragraphText, false)
+        return (
+            avatar, author, created,
+            String(rest.drop { $0 == " " || $0 == "\t" }), true)
     }
 
     /// Splits a brace interior into author and timestamp at the **last** `@`
@@ -260,12 +335,16 @@ enum CommentSerialization {
 
     // MARK: - Helpers
 
-    /// Recursively collects the text of a node for the attribution grammar and
-    /// the quotation: a text or inline-code node contributes its literal (code
-    /// **without** its backticks, so a `{` inside code still reads as a brace),
-    /// a soft or hard break contributes a space, and every container joins its
-    /// children. Distinct from `CMarkNode.plainText`, which keeps the code
-    /// backticks and maps a hard break to a newline.
+    /// Recursively collects the text of a node **for the quotation**: a text or
+    /// inline-code node contributes its literal, a soft or hard break
+    /// contributes a space, and every container joins its children. Inline code
+    /// gives up its backticks here because a quotation is matched against the
+    /// document's *rendered* text, where `` `foo` `` reads as `foo`.
+    ///
+    /// Distinct from `CMarkNode.plainText`, which maps a hard break to a
+    /// newline. The quotation is the only thing flattened this way — the
+    /// attribution grammar reads source text (`sourceText(of:lines:)`), which is
+    /// what keeps inline code opaque to it.
     private static func plainText(of node: CMarkNode) -> String {
         switch node.kind {
         case .text, .inlineCode:
@@ -293,8 +372,23 @@ enum CommentSerialization {
         _ blocks: ArraySlice<CMarkNode>, lines: [String]
     ) -> String? {
         guard let first = blocks.first, let last = blocks.last else { return nil }
-        let start = first.startLine
-        let end = last.endLine
+        return sourceLines(from: first.startLine, to: last.endLine, lines: lines)
+    }
+
+    /// The verbatim source of one block — the same slice `sliceBody` takes, for
+    /// a single node. This is what the attribution grammar reads: scanning the
+    /// source rather than the flattened inline text is what keeps inline code
+    /// opaque to the grammar, and what lets a message written on one line keep
+    /// the Markdown in its body.
+    private static func sourceText(of block: CMarkNode, lines: [String]) -> String? {
+        sourceLines(from: block.startLine, to: block.endLine, lines: lines)
+    }
+
+    /// Lines `start` through `end` of the source, 1-based and inclusive, joined
+    /// as they appear. Nil when the range falls outside `lines`.
+    private static func sourceLines(
+        from start: Int, to end: Int, lines: [String]
+    ) -> String? {
         guard start >= 1, end >= start, end <= lines.count else { return nil }
         return lines[(start - 1)...(end - 1)].joined(separator: "\n")
     }

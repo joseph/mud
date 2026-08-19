@@ -38,3 +38,40 @@ public enum CommentLabel {
             || character == "_" || character == "-"
     }
 }
+
+/// The emoji that may lead a message attribution, standing for whoever wrote
+/// the message — an avatar. It is optional on disk, and any single emoji.
+public enum CommentAvatar {
+    /// What Mud writes when the reader has chosen nothing else.
+    public static let standard = "👤"
+
+    /// What a rendered attribution shows for a message whose source carries no
+    /// avatar: the glyph Mud drew before avatars existed, so a document written
+    /// by an older version reads exactly as it did.
+    public static let fallback = "💬"
+
+    /// True when `text` is exactly one emoji, which is all an avatar may be.
+    public static func isValid(_ text: String) -> Bool {
+        text.count == 1 && text.first?.isEmoji == true
+    }
+
+    /// `text` when it is a valid avatar, else ``standard``. The preference
+    /// holds whatever the reader typed into it, so every write path resolves
+    /// through here.
+    public static func resolve(_ text: String) -> String {
+        isValid(text) ? text : standard
+    }
+}
+
+extension Character {
+    /// True when this character is an emoji: its first scalar carries the Emoji
+    /// property, and either presents as emoji by default or is part of a longer
+    /// sequence (a variation selector, a keycap, a ZWJ sequence). That second
+    /// half is what keeps a bare `#` or `1` — both Emoji-property characters —
+    /// from reading as one.
+    var isEmoji: Bool {
+        guard let first = unicodeScalars.first, first.properties.isEmoji
+        else { return false }
+        return unicodeScalars.count > 1 || first.properties.isEmojiPresentation
+    }
+}

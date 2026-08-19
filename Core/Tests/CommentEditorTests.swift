@@ -104,11 +104,12 @@ struct CommentEditorTests {
       into: "The quick brown fox.\n", markerByteOffset: 19,
       quotation: "quick brown",
       message: CommentMessage(
-        author: "JP", created: ts("2026-06-01 18:33:00"), body: "Nice."))
+        avatar: "👤", author: "JP", created: ts("2026-06-01 18:33:00"),
+        body: "Nice."))
 
     #expect(result.source.contains("brown fox[^💬-a]."))
     #expect(result.source.contains("[^💬-a]:\n    > quick brown"))
-    #expect(result.source.contains("💬 {JP @ 2026-06-01 18:33:00}:"))
+    #expect(result.source.contains("👤 {JP @ 2026-06-01 18:33:00}:"))
     #expect(result.source.contains("Nice."))
   }
 
@@ -122,15 +123,15 @@ struct CommentEditorTests {
     let rewritten = try #require(CommentEditor.rewrite(
       inserted.source, label: "💬-a", quotation: nil,
       messages: [
-        CommentMessage(author: "JP", created: ts("2026-06-01 18:33:00"),
-          body: "First."),
-        CommentMessage(author: "Claude", created: ts("2026-06-01 18:34:00"),
-          body: "Second."),
+        CommentMessage(avatar: "👤", author: "JP",
+          created: ts("2026-06-01 18:33:00"), body: "First."),
+        CommentMessage(avatar: "🤖", author: "Claude",
+          created: ts("2026-06-01 18:34:00"), body: "Second."),
       ]))
 
     #expect(rewritten.contains("Hello world[^💬-a]."))  // marker intact
-    #expect(rewritten.contains("💬 {JP @ 2026-06-01 18:33:00}:"))
-    #expect(rewritten.contains("💬 {Claude @ 2026-06-01 18:34:00}:"))
+    #expect(rewritten.contains("👤 {JP @ 2026-06-01 18:33:00}:"))
+    #expect(rewritten.contains("🤖 {Claude @ 2026-06-01 18:34:00}:"))
     #expect(rewritten.contains("First."))
     #expect(rewritten.contains("Second."))
     #expect(!rewritten.contains("Note."))  // old body replaced
@@ -156,10 +157,11 @@ struct CommentEditorTests {
         CommentMessage(author: nil, created: nil, body: "A reply."),
       ]))
 
-    // The reply is a distinct message (bare `💬`), and the following paragraph
-    // stays separated by a blank line rather than merging into the definition.
-    #expect(rewritten.contains("    💬 A reply."))
-    #expect(rewritten.contains("    💬 A reply.\n\nFollowing paragraph."))
+    // The reply is a distinct message (an avatar attribution, `💬:`), and the
+    // following paragraph stays separated by a blank line rather than merging
+    // into the definition.
+    #expect(rewritten.contains("    💬:\n\n    A reply."))
+    #expect(rewritten.contains("    A reply.\n\nFollowing paragraph."))
   }
 
   @Test func rewrite_atEndOfFileEndsWithSingleNewline() throws {
@@ -174,7 +176,7 @@ struct CommentEditorTests {
         CommentMessage(author: nil, created: nil, body: "Reply."),
       ]))
 
-    #expect(rewritten.hasSuffix("    💬 Reply.\n"))
+    #expect(rewritten.hasSuffix("    💬:\n\n    Reply.\n"))
     #expect(!rewritten.hasSuffix("\n\n"))
   }
 

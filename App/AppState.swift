@@ -38,6 +38,7 @@ class AppState: ObservableObject {
         set: { MudPreferences.shared.writeEnabledExtensions($0) }
     ) var enabledExtensions: Set<String>
     @Pref(\.commentAuthor) var commentAuthor: String
+    @Pref(\.commentAvatar) var commentAvatar: String
     @Pref(\.commentReturnSaves) var commentReturnSaves: Bool
     @Pref(\.commentsIncludeInExport) var commentsIncludeInExport: Bool
     @Pref(\.commentsShowMarkers) var commentsShowMarkers: Bool

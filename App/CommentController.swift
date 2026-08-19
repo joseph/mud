@@ -79,7 +79,7 @@ final class CommentController {
     /// to place the live `💬` marker. v1 has no general-comment fallback for an
     /// anchor miss (a code block, or a structure the mapping doesn't handle).
     func addComment(
-        _ draft: CommentDraft, author: String, body: String
+        _ draft: CommentDraft, author: String, avatar: String, body: String
     ) -> Result<String, CommentWriteError> {
         guard let source = readSource() else {
             NSLog("Mud: comment add failed; couldn't read the file.")
@@ -99,7 +99,8 @@ final class CommentController {
                 + "occurrence=\(draft.occurrence)")
             return .failure(.anchorFailed)
         }
-        let message = CommentMessage(author: author, created: Date(), body: body)
+        let message = CommentMessage(
+            avatar: avatar, author: author, created: Date(), body: body)
         let result = CommentEditor.insert(
             into: source, markerByteOffset: byteOffset,
             quotation: draft.quotation, message: message)
@@ -112,21 +113,23 @@ final class CommentController {
     /// a concurrent external edit isn't lost.
     @discardableResult
     func reply(
-        toLabel label: String, author: String, body: String
+        toLabel label: String, author: String, avatar: String, body: String
     ) -> Result<Void, CommentWriteError> {
         guard let source = readSource() else { return .failure(.writeFailed) }
         guard let comment = MudCore.parseComments(source)
             .first(where: { $0.label == label })
         else { return .failure(.anchorFailed) }
         var messages = comment.messages
-        messages.append(CommentMessage(author: author, created: Date(), body: body))
+        messages.append(CommentMessage(
+            avatar: avatar, author: author, created: Date(), body: body))
         return rewriteAndWrite(
             source, label: label, quotation: comment.quotation,
             messages: messages)
     }
 
     /// Replaces the body of the `label` comment's most recent message, keeping
-    /// that message's author and timestamp (it is the same message, edited).
+    /// that message's avatar, author, and timestamp (it is the same message,
+    /// edited).
     @discardableResult
     func editLastMessage(
         label: String, body: String
@@ -138,7 +141,8 @@ final class CommentController {
         else { return .failure(.anchorFailed) }
         var messages = comment.messages
         messages[messages.count - 1] = CommentMessage(
-            author: last.author, created: last.created, body: body)
+            avatar: last.avatar, author: last.author, created: last.created,
+            body: body)
         return rewriteAndWrite(
             source, label: label, quotation: comment.quotation,
             messages: messages)

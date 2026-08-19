@@ -126,21 +126,29 @@ struct CommentSerializationTests {
     #expect(messages[0].body.contains("💬"))
   }
 
-  @Test func commentG_headerWithoutColon() {
+  // The colon is required, so a colon-less attribution is not one: the whole
+  // definition body is a single unattributed message whose text happens to open
+  // with an avatar and a brace group.
+  @Test func commentG_headerWithoutColonIsContent() {
     let (quotation, messages) = CommentSerialization.parse(
       """
       > brown fox
 
       💬 {JP @ 2026-06-01 18:33}
 
-      The colon after the closing brace is optional; this block omits it.
+      The colon after the closing brace is missing.
       """)
     #expect(quotation == "brown fox")
     #expect(messages.count == 1)
-    #expect(messages[0].author == "JP")
-    #expect(messages[0].created == ts("2026-06-01 18:33"))
+    #expect(messages[0].avatar == nil)
+    #expect(messages[0].author == nil)
+    #expect(messages[0].created == nil)
     #expect(messages[0].body
-      == "The colon after the closing brace is optional; this block omits it.")
+      == """
+      💬 {JP @ 2026-06-01 18:33}
+
+      The colon after the closing brace is missing.
+      """)
   }
 
   @Test func commentH_generalAndThreaded() {
@@ -221,33 +229,198 @@ struct CommentSerializationTests {
     #expect(messages[0].body == "Empty braces carry no attributes.")
   }
 
-  @Test func commentM_bareEmojiUnattributedThread() {
+  @Test func commentM_avatarOnlyUnattributedThread() {
     let (quotation, messages) = CommentSerialization.parse(
       """
       > fox
 
-      💬
+      💬: A threaded message with no author or timestamp.
 
-      A threaded message with no author or timestamp.
-
-      💬
-
-      A reply, also unattributed.
+      💬: A reply, also unattributed.
       """)
     #expect(quotation == "fox")
     #expect(messages.count == 2)
+    #expect(messages[0].avatar == "💬")
     #expect(messages[0].author == nil)
     #expect(messages[0].created == nil)
     #expect(messages[0].body == "A threaded message with no author or timestamp.")
+    #expect(messages[1].avatar == "💬")
     #expect(messages[1].author == nil)
     #expect(messages[1].body == "A reply, also unattributed.")
+  }
+
+  // A message may be nothing but an emoji: `✨` reaches no colon, so it is not
+  // an attribution and begins no second message.
+  @Test func commentP_emojiOnlyBody() {
+    let (quotation, messages) = CommentSerialization.parse(
+      """
+      > lazy dog
+
+      👤 {JP @ 2026-06-01 18:33}:
+
+      ✨
+      """)
+    #expect(quotation == "lazy dog")
+    #expect(messages.count == 1)
+    #expect(messages[0].avatar == "👤")
+    #expect(messages[0].author == "JP")
+    #expect(messages[0].created == ts("2026-06-01 18:33"))
+    #expect(messages[0].body == "✨")
+  }
+
+  // An attribution never closes an empty message, so an attribution-shaped
+  // paragraph that is a message's whole content stays content.
+  @Test func commentQ_attributionShapedContent() {
+    let (quotation, messages) = CommentSerialization.parse(
+      """
+      > brown
+
+      👤 {JP @ 2026-06-01 18:33}:
+
+      {x: 1}: the default mapping
+      """)
+    #expect(quotation == "brown")
+    #expect(messages.count == 1)
+    #expect(messages[0].author == "JP")
+    #expect(messages[0].body == "{x: 1}: the default mapping")
+  }
+
+  // The documented limit of that rescue: once the message has content, the same
+  // paragraph does begin a second message, authored by `x: 1`.
+  @Test func commentQ_attributionShapedContentAfterASentence() {
+    let (_, messages) = CommentSerialization.parse(
+      """
+      👤 {JP @ 2026-06-01 18:33}:
+
+      A sentence first.
+
+      {x: 1}: the default mapping
+      """)
+    #expect(messages.count == 2)
+    #expect(messages[0].body == "A sentence first.")
+    #expect(messages[1].author == "x: 1")
+    #expect(messages[1].body == "the default mapping")
+  }
+
+  // Inline code is opaque to the attribution grammar, which is what makes the
+  // documented workaround true: backtick the thing and it stays content. Here
+  // the emoji form, which otherwise reads as an avatar attribution.
+  @Test func commentR_backtickedEmojiIsContent() {
+    let body = """
+      Here's the start of my comment.
+
+      `🌚`: foo
+
+      `🐲`: bar
+      """
+    let (_, messages) = CommentSerialization.parse(
+      """
+      👤 {JP @ 2026-08-17 08:19:45}:
+
+      \(body)
+      """)
+    #expect(messages.count == 1)
+    #expect(messages[0].author == "JP")
+    #expect(messages[0].body == body)
+  }
+
+  // The same for the brace form. A sentence stands above it so the rescue is
+  // the backticks and not the empty-message tie-break — contrast
+  // `commentQ_attributionShapedContentAfterASentence`, which does split.
+  @Test func commentR_backtickedBracesAreContent() {
+    let (_, messages) = CommentSerialization.parse(
+      """
+      👤 {JP @ 2026-06-01 18:33}:
+
+      A sentence first.
+
+      `{x: 1}`: the default mapping
+      """)
+    #expect(messages.count == 1)
+    #expect(messages[0].author == "JP")
+    #expect(messages[0].body == """
+      A sentence first.
+
+      `{x: 1}`: the default mapping
+      """)
+  }
+
+  // MARK: - The one-line form
+
+  // A message written on one line keeps the Markdown in its body: the remainder
+  // after the colon is sliced from the source like every other block, not read
+  // off the flattened inline text (which would hand back
+  // "See the doc for details.").
+  @Test func inlineBody_keepsItsMarkdown() {
+    let (_, messages) = CommentSerialization.parse(
+      "{JP @ 2026-06-01 18:33}: See [the doc](x) for *details*.")
+    #expect(messages.count == 1)
+    #expect(messages[0].author == "JP")
+    #expect(messages[0].body == "See [the doc](x) for *details*.")
+  }
+
+  // Inline code in a one-line body keeps its backticks too — the same slice,
+  // and the same reason the grammar can't be fooled by code.
+  @Test func inlineBody_keepsInlineCode() {
+    let (_, messages) = CommentSerialization.parse(
+      "👤 {JP @ 2026-06-01 18:33}: try `mud -u` first.")
+    #expect(messages.count == 1)
+    #expect(messages[0].avatar == "👤")
+    #expect(messages[0].body == "try `mud -u` first.")
+  }
+
+  // A header paragraph that wraps keeps its line break: the slice runs to the
+  // paragraph's last line, not its first.
+  @Test func inlineBody_spansTheWholeParagraph() {
+    let (_, messages) = CommentSerialization.parse(
+      """
+      {JP @ 2026-06-01 18:33}: first line
+      second line
+      """)
+    #expect(messages.count == 1)
+    #expect(messages[0].body == "first line\nsecond line")
+  }
+
+  // The one-line form and a following block still join with a blank line.
+  @Test func inlineBody_joinsTheBlocksBelowIt() {
+    let (_, messages) = CommentSerialization.parse(
+      """
+      {JP @ 2026-06-01 18:33}: An opening line.
+
+      * a bullet
+      * another bullet
+      """)
+    #expect(messages.count == 1)
+    #expect(messages[0].body == """
+      An opening line.
+
+      * a bullet
+      * another bullet
+      """)
+  }
+
+  // MARK: - Quotation
+
+  // A quotation is matched against the document's *rendered* text, so it keeps
+  // giving up its backticks even though the attribution grammar no longer does.
+  @Test func quotationDropsItsBackticks() {
+    let (quotation, messages) = CommentSerialization.parse(
+      """
+      > the `foo` value
+
+      A note.
+      """)
+    #expect(quotation == "the foo value")
+    #expect(messages.count == 1)
+    #expect(messages[0].body == "A note.")
   }
 
   // MARK: - Attributes / timestamp grammar
 
   @Test func attribution_braceAuthorAndTimestamp() {
-    let (author, created, body, isHeader) = CommentSerialization.parseAttribution(
-      "{JP @ 2026-06-01 18:33}: the body")
+    let (_, author, created, body, isHeader) =
+      CommentSerialization.parseAttribution(
+        "{JP @ 2026-06-01 18:33}: the body")
     #expect(isHeader)
     #expect(author == "JP")
     #expect(created == ts("2026-06-01 18:33"))
@@ -255,8 +428,9 @@ struct CommentSerializationTests {
   }
 
   @Test func attribution_lastAtSplits_authorMayContainAt() {
-    let (author, created, body, isHeader) = CommentSerialization.parseAttribution(
-      "{jp@example.com @ 2026-06-01 18:33}: hi")
+    let (_, author, created, body, isHeader) =
+      CommentSerialization.parseAttribution(
+        "{jp@example.com @ 2026-06-01 18:33}: hi")
     #expect(isHeader)
     #expect(author == "jp@example.com")
     #expect(created == ts("2026-06-01 18:33"))
@@ -264,49 +438,90 @@ struct CommentSerializationTests {
   }
 
   @Test func attribution_authorOnly() {
-    let (author, created, _, isHeader) = CommentSerialization.parseAttribution("{JP}:")
+    let (_, author, created, _, isHeader) =
+      CommentSerialization.parseAttribution("{JP}:")
     #expect(isHeader)
     #expect(author == "JP")
     #expect(created == nil)
   }
 
   @Test func attribution_dateOnlyNoAuthor() {
-    let (author, created, _, isHeader) = CommentSerialization.parseAttribution(
-      "{@ 2026-06-01}")
+    let (_, author, created, _, isHeader) =
+      CommentSerialization.parseAttribution(
+        "{@ 2026-06-01}:")
     #expect(isHeader)
     #expect(author == nil)
     #expect(created == ts("2026-06-01"))
   }
 
   @Test func attribution_emptyBracesIsHeaderNoAttributes() {
-    let (author, created, body, isHeader) = CommentSerialization.parseAttribution(
-      "{}: body")
+    let (_, author, created, body, isHeader) =
+      CommentSerialization.parseAttribution(
+        "{}: body")
     #expect(isHeader)
     #expect(author == nil)
     #expect(created == nil)
     #expect(body == "body")
   }
 
+  // No whitespace may stand between the closing `}` and the `:`. Written apart,
+  // the paragraph carries no attribution at all and the whole of it is content.
   @Test func attribution_spaceBeforeColonMakesItContent() {
-    let (author, _, body, isHeader) = CommentSerialization.parseAttribution(
-      "{JP} : the body")
-    #expect(isHeader)
-    #expect(author == "JP")
-    #expect(body == ": the body")
+    let (avatar, author, _, body, isHeader) =
+      CommentSerialization.parseAttribution(
+        "{JP} : the body")
+    #expect(!isHeader)
+    #expect(avatar == nil)
+    #expect(author == nil)
+    #expect(body == "{JP} : the body")
   }
 
-  @Test func attribution_bareEmojiIsHeader() {
-    let (author, created, body, isHeader) = CommentSerialization.parseAttribution(
-      "💬 hello")
+  // The colon is what makes an attribution one. Without it a paragraph-leading
+  // emoji or brace group is ordinary content, and needs no escaping.
+  @Test func attribution_withoutAColonIsContent() {
+    for text in ["💬 hello", "🎉 We shipped it!", "✨", "{x: 1} is the default"] {
+      let (avatar, author, created, body, isHeader) =
+        CommentSerialization.parseAttribution(text)
+      #expect(!isHeader, "\(text) must not be an attribution")
+      #expect(avatar == nil)
+      #expect(author == nil)
+      #expect(created == nil)
+      #expect(body == text)
+    }
+  }
+
+  // The colon must be followed by a space or the end of the paragraph.
+  @Test func attribution_colonNeedsASpaceAfterIt() {
+    let (_, _, _, body, isHeader) =
+      CommentSerialization.parseAttribution("{JP}:hello")
+    #expect(!isHeader)
+    #expect(body == "{JP}:hello")
+  }
+
+  // An avatar and a colon, with no braces, is the shortest valid attribution.
+  @Test func attribution_avatarAndColonAlone() {
+    let (avatar, author, created, body, isHeader) =
+      CommentSerialization.parseAttribution("💬: hello")
     #expect(isHeader)
+    #expect(avatar == "💬")
     #expect(author == nil)
     #expect(created == nil)
     #expect(body == "hello")
   }
 
+  // A colon on its own is not an attribution: one of the avatar and the braces
+  // must be there.
+  @Test func attribution_colonAloneIsContent() {
+    let (_, _, _, body, isHeader) =
+      CommentSerialization.parseAttribution(": not an attribution")
+    #expect(!isHeader)
+    #expect(body == ": not an attribution")
+  }
+
   @Test func attribution_noHeader_isAllBody() {
-    let (author, created, body, isHeader) = CommentSerialization.parseAttribution(
-      "A quoted comment, no attributes.")
+    let (_, author, created, body, isHeader) =
+      CommentSerialization.parseAttribution(
+        "A quoted comment, no attributes.")
     #expect(!isHeader)
     #expect(author == nil)
     #expect(created == nil)
@@ -397,14 +612,18 @@ struct CommentSerializationTests {
   }
 
   // A thread of consecutive unattributed messages must keep its boundaries: each
-  // message after the first serializes with a bare `💬`, or the two would merge
-  // back into one on re-parse.
+  // message after the first serializes with an avatar attribution (`💬:`), or
+  // the two would merge back into one on re-parse. That marker is the one thing
+  // serialize adds, so the reply comes back carrying `CommentAvatar.fallback` —
+  // the avatar it rendered as all along.
   @Test func roundTrip_unattributedThread() {
     roundTrip(
       quotation: "fox",
       [
         CommentMessage(author: nil, created: nil, body: "First, unattributed."),
-        CommentMessage(author: nil, created: nil, body: "Reply, also unattributed."),
+        CommentMessage(
+          avatar: CommentAvatar.fallback, author: nil, created: nil,
+          body: "Reply, also unattributed."),
       ])
   }
 
@@ -417,6 +636,98 @@ struct CommentSerializationTests {
         CommentMessage(
           author: "JP", created: ts("2026-06-01 18:33:00"), body: "A reply."),
       ])
+  }
+
+  // MARK: - Avatars
+
+  // Any single emoji leads an attributes block, and is kept on the message so a
+  // thread rewrite puts each one back where it was.
+  @Test func avatar_anyEmojiLeadsTheAttribution() {
+    let (_, messages) = CommentSerialization.parse(
+      """
+      > fox
+
+      🤖 {Claude @ 2026-06-01 18:33}:
+
+      A message from a robot.
+
+      👤 {JP @ 2026-06-01 18:40}:
+
+      A message from a person.
+      """)
+    #expect(messages.count == 2)
+    #expect(messages[0].avatar == "🤖")
+    #expect(messages[0].author == "Claude")
+    #expect(messages[1].avatar == "👤")
+    #expect(messages[1].author == "JP")
+  }
+
+  // The avatar stays optional: a brace-only attribution parses to no avatar and
+  // serializes back without one, so a document that never had avatars keeps its
+  // bytes when Mud rewrites the thread.
+  @Test func avatar_absentStaysAbsent() {
+    let (_, messages) = CommentSerialization.parse(
+      "{JP @ 2026-06-01 18:33}: A message with no avatar.")
+    #expect(messages.count == 1)
+    #expect(messages[0].avatar == nil)
+    #expect(
+      CommentSerialization.serialize(quotation: nil, messages)
+        == "{JP @ 2026-06-01 18:33:00}:\n\nA message with no avatar.")
+  }
+
+  // An avatar-and-colon attribution takes any emoji, not just `💬`.
+  @Test func avatar_anyEmojiLeadsABracelessAttribution() {
+    let (avatar, author, created, body, isHeader) =
+      CommentSerialization.parseAttribution("🎩: hello")
+    #expect(isHeader)
+    #expect(avatar == "🎩")
+    #expect(author == nil)
+    #expect(created == nil)
+    #expect(body == "hello")
+  }
+
+  // An avatar with no attributes serializes as `👤:` on its own line, so the
+  // first message of a thread keeps the avatar it came with.
+  @Test func avatar_withoutAttributesRoundTrips() {
+    roundTrip(
+      quotation: "fox",
+      [CommentMessage(
+        avatar: "🎩", author: nil, created: nil, body: "A note.")])
+    #expect(
+      CommentSerialization.serialize(
+        quotation: nil,
+        [CommentMessage(
+          avatar: "🎩", author: nil, created: nil, body: "A note.")])
+        == "🎩:\n\nA note.")
+  }
+
+  @Test func avatar_roundTripsThroughAThread() {
+    roundTrip(
+      quotation: "quick brown fox",
+      [
+        CommentMessage(
+          avatar: "👤", author: "JP", created: ts("2026-06-01 18:33:00"),
+          body: "First."),
+        CommentMessage(
+          avatar: "🤖", author: "Claude", created: ts("2026-06-01 18:33:13"),
+          body: "Second."),
+      ])
+  }
+
+  // A digit is not an avatar even though Unicode gives it the Emoji property:
+  // it needs the keycap sequence to present as one.
+  @Test func avatar_validity() {
+    #expect(CommentAvatar.isValid("👤"))
+    #expect(CommentAvatar.isValid("🤖"))
+    #expect(CommentAvatar.isValid("✍️"))     // emoji presentation selector
+    #expect(CommentAvatar.isValid("1️⃣"))     // keycap sequence
+    #expect(!CommentAvatar.isValid("1"))
+    #expect(!CommentAvatar.isValid("#"))
+    #expect(!CommentAvatar.isValid("JP"))
+    #expect(!CommentAvatar.isValid(""))
+    #expect(!CommentAvatar.isValid("👤👤"))
+    #expect(CommentAvatar.resolve("🤖") == "🤖")
+    #expect(CommentAvatar.resolve("nope") == CommentAvatar.standard)
   }
 
   // MARK: - Byte identity

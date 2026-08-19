@@ -18,7 +18,15 @@ struct CommentsSettingsView: View {
                 TextField("Author", text: $appState.commentAuthor,
                           prompt: Text(NSFullUserName()))
                 Text("Who your comments are written by. "
-                     + "Leave blank to use your macOS account name.")
+                     + "Default: your macOS account name.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+
+                LabeledContent("Avatar") {
+                    AvatarPicker(avatar: $appState.commentAvatar)
+                }
+                Text("The emoji shown beside your name on each comment "
+                     + "you write.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
             }

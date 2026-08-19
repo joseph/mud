@@ -527,12 +527,13 @@ struct WebView: NSViewRepresentable {
 
         /// A content fingerprint of a comment list — the change unit for the
         /// no-reload column refresh. Covers label, quotation, and every message
-        /// (author, time, body) so a reply or edit re-pushes; an unrelated body
-        /// edit elsewhere keeps it stable and does no DOM work.
+        /// (avatar, author, time, body) so a reply or edit re-pushes; an
+        /// unrelated body edit elsewhere keeps it stable and does no DOM work.
         static func commentSignature(_ comments: [Comment]) -> [String] {
             comments.map { comment in
                 let messages = comment.messages.map {
-                    "\($0.author ?? "")\u{2}\($0.created?.timeIntervalSince1970 ?? 0)\u{2}\($0.body)"
+                    "\($0.avatar ?? "")\u{2}\($0.author ?? "")\u{2}"
+                        + "\($0.created?.timeIntervalSince1970 ?? 0)\u{2}\($0.body)"
                 }.joined(separator: "\u{3}")
                 return "\(comment.label)\u{1}\(comment.quotation ?? "")\u{1}\(messages)"
             }

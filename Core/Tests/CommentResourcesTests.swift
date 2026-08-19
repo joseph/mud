@@ -92,6 +92,16 @@ struct CommentResourcesTests {
       .contains(marker) == true)
   }
 
+  @Test func avatarFallbackAgreesAcrossSwiftAndJS() {
+    // A message with no avatar of its own is drawn with the same glyph on both
+    // sides: CommentHTMLRenderer writes it into the bottom section, and
+    // mud-comments.js supplies it when projecting a capsule from a message div
+    // with no `data-mud-avatar`. Only Swift can state the constant, so the JS
+    // repeats it — a change to one has to reach the other.
+    #expect(HTMLTemplate.mudCommentsJS.contains(
+      "|| \"\(CommentAvatar.fallback)\""))
+  }
+
   @Test func stubHeightAgreesAcrossJSAndCSS() {
     // A folded section's comments collapse into one sliver capsule.
     // mud-comments.js places it (STUB_H, halved, so the sliver straddles the

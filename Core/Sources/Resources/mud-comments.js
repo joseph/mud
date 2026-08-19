@@ -369,17 +369,26 @@
     return h === 1 ? "1 hour ago" : h + " hours ago";
   }
 
+  // A message's own avatar emoji, or the glyph every attribution carried before
+  // avatars existed. Mirrors CommentHTMLRenderer.formatAttribution:
+  // data-mud-avatar is present only when the source names one. Takes a missing
+  // element, since a comment with no messages still draws a collapsed bar.
+  function avatarOf(msg) {
+    return (msg && msg.getAttribute("data-mud-avatar")) || "💬";
+  }
+
   function buildMessage(src) {
     var m = document.createElement("div");
     m.className = "mud-comment-message";
     var author = src.getAttribute("data-mud-author") || "";
+    var avatar = avatarOf(src);
     var srcTime = timeElementOf(src);
-    if (author || srcTime) {
+    if (author || srcTime || src.hasAttribute("data-mud-avatar")) {
       var attr = document.createElement("div");
       attr.className = "mud-comment-attribution";
       var a = document.createElement("span");
       a.className = "mud-comment-author";
-      a.textContent = author ? "💬 " + author : "";
+      a.textContent = author ? avatar + " " + author : avatar;
       attr.appendChild(a);
       if (srcTime) {
         var tm = document.createElement("time");
@@ -419,12 +428,13 @@
     cap.className = "mud-capsule";
     cap.setAttribute("data-mud-label", label);
 
-    // Collapsed bar: "💬 Author: first message…".
+    // Collapsed bar: "👤 Author: first message…" — the opening message's own
+    // avatar, so a thread is recognizable by who started it.
     var bar = document.createElement("div");
     bar.className = "mud-capsule-bar";
     var emoji = document.createElement("span");
     emoji.className = "mud-bar-emoji";
-    emoji.textContent = "💬";
+    emoji.textContent = avatarOf(first);
     var author = document.createElement("span");
     author.className = "mud-bar-author";
     var firstAuthor = first ? (first.getAttribute("data-mud-author") || "") : "";

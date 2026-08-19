@@ -136,6 +136,7 @@ extension MudPreferences {
 
         // comment-* — comment authoring
         case commentAuthor                 = "comment-author"
+        case commentAvatar                 = "comment-avatar"
         case commentReturnSaves            = "comment-return-saves"
         case commentsIncludeInExport       = "comments-include-in-export"
         case commentsShowMarkers           = "comments-show-markers"
@@ -312,7 +313,7 @@ extension MudPreferences {
         nonmutating set { write(newValue, forKey: .openInDefaultFormat) }
     }
 
-    /// Author name written into new comment messages' `💬 <author> (…)` header.
+    /// Author name written into new comment messages' `{<author> @ …}` brace.
     /// An empty or unset value resolves to the system full name, so a fresh
     /// install attributes comments without any configuration.
     public var commentAuthor: String {
@@ -322,6 +323,17 @@ extension MudPreferences {
             return NSFullUserName()
         }
         nonmutating set { write(newValue, forKey: .commentAuthor) }
+    }
+
+    /// The avatar emoji written ahead of new comment messages' attribution.
+    /// Returned exactly as stored, unlike `commentAuthor` above: an avatar has
+    /// a validity rule (one emoji, nothing else), and a getter that quietly
+    /// replaced a bad value would fight the settings field as the reader typed
+    /// into it. `CommentAvatar.resolve` applies the rule at the two points that
+    /// need an answer — the write path and the settings preview.
+    public var commentAvatar: String {
+        get { defaults.string(forKey: Keys.commentAvatar.rawValue) ?? "" }
+        nonmutating set { write(newValue, forKey: .commentAvatar) }
     }
 
     /// When on, pressing Return in a comment compose box saves the message (as

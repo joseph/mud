@@ -50,7 +50,7 @@ struct CommentClassificationTests {
 
       [^💬-a]: > brown fox
 
-          💬 {JP @ 2026-06-01 18:33}: Nice.
+          👤 {JP @ 2026-06-01 18:33}: Nice.
       """
     let result = FootnoteProcessor.process(md, mode: .section)
 
@@ -60,6 +60,7 @@ struct CommentClassificationTests {
     #expect(result.comments[0].ordinal == 1)
     #expect(result.comments[0].quotation == "brown fox")
     #expect(result.comments[0].messages.count == 1)
+    #expect(result.comments[0].messages[0].avatar == "👤")
     #expect(result.comments[0].messages[0].author == "JP")
     #expect(result.comments[0].messages[0].body == "Nice.")
 

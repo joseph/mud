@@ -1,4 +1,5 @@
 import Combine
+import MudCore
 
 /// Routes a column edit posted from the page (`CommentSubmission`, over the
 /// `mudCommentSubmit` bridge) to `CommentController`, then answers the page
@@ -21,6 +22,9 @@ struct CommentSubmissionHandler {
             model.registerSelfWrite($0)
         }
         let author = AppState.shared.commentAuthor
+        // Whatever is in the settings field, resolved to one emoji here — the
+        // one place a new message's avatar is decided.
+        let avatar = CommentAvatar.resolve(AppState.shared.commentAvatar)
         let body = submission.body ?? ""
         // Respect a read-only or locked file: refuse every comment edit with a
         // clear message rather than atomically replacing a file the user marked
@@ -34,7 +38,8 @@ struct CommentSubmissionHandler {
         switch submission.action {
         case .add:
             guard let draft = submission.draft else { resolveSubmission(false); return }
-            switch controller.addComment(draft, author: author, body: body) {
+            switch controller.addComment(
+                draft, author: author, avatar: avatar, body: body) {
             case .success(let label):
                 model.pendingCommentLocators[label] = CommentLocator(
                     blockText: draft.blockText, offset: draft.offsetInBlock,
@@ -50,7 +55,8 @@ struct CommentSubmissionHandler {
         case .reply:
             guard let label = submission.label else { resolveSubmission(false); return }
             resolveThreadEdit(
-                controller.reply(toLabel: label, author: author, body: body),
+                controller.reply(
+                    toLabel: label, author: author, avatar: avatar, body: body),
                 note: body)
         case .edit:
             guard let label = submission.label else { resolveSubmission(false); return }

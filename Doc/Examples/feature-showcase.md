@@ -20,13 +20,14 @@ Standard inline markup: **bold**, _italic_, _**bold and italic**_,
 Emoji shortcodes resolve to Unicode using GitHub's gemoji database (~1,800
 aliases): :rocket: :sparkles: :tada: :white_check_mark: :warning:
 
-> "Mud renders Markdown the way GitHub does, right on your Mac."[^comment-a]
+> "Mud renders Markdown the way GitHub does, right on your Mac."[^💬-a]
 
 
 ## Syntax highlighting
 
-Code blocks with a language tag are highlighted server-side by highlight.js via
-JavaScriptCore — no network requests, no external dependencies.
+Code blocks with a language tag are highlighted server-side by
+[highlight.js](https://highlightjs.org) — no networking requests, no external
+dependencies.
 
 ```swift
 struct Renderer {
@@ -130,7 +131,7 @@ GFM tables support per-column text alignment using `:` in the separator row.
 | Frontmatter      | `---` … `---`        | ✓      |
 | Change tracking  | View → Show Changes  | ✓      |
 | Footnotes        | `text[^1]`           | ✓      |
-| Comments         | `[^comment-1]`       | ✓      |
+| Comments         | `[^💬-1]`             | ✓      |
 
 
 ## Footnotes
@@ -147,9 +148,9 @@ source.
 ## Comments
 
 A comment is Mud's own convention layered on standard footnotes: a footnote
-whose label starts with `comment-`.[^comment-b] Mud shows comments in a margin
-column beside the text, anchored to the quoted passage they annotate, rather
-than in the footnote list at the bottom.
+whose label starts with `💬-`.[^💬-b] Mud shows comments in a margin column
+beside the text, anchored to the quoted passage they annotate, rather than in
+the footnote list at the bottom.
 
 Because a comment is just a footnote, it survives untouched in any other
 Markdown tool. On GitHub it renders as an ordinary footnote with a byline. In
@@ -287,22 +288,24 @@ See `Doc/Guides/change-tracking.md` for the full guide.
     - first point
     - second point
 
-[^comment-a]: > "Mud renders Markdown the way GitHub does, right on your Mac."
+[^💬-a]:
+    > “Mud renders Markdown the way GitHub does, right on your Mac.”
 
-    💬 {Mud @ 2026-06-22 09:14:00}:
+    👤 {Mud @ 2026-06-22 09:14:00}:
 
-    This is a comment, anchored to the quotation above. It appears in
-    the margin column to the right, beside the text it annotates.
+    This is a comment, anchored to the quotation above. It appears in the
+    margin column to the right, beside the text it annotates.
 
-    💬 {Mudder @ 2026-06-22 09:15:30}:
+    👤 {Mudder @ 2026-06-22 09:15:30}:
 
-    Replies stack underneath. Each `💬 {author @ time}:` line starts a
-    new message in the same thread.
+    Replies stack underneath. Each `{author @ time}:` line starts a new
+    message in the same thread, and the emoji ahead of it is that writer's
+    avatar.
 
-[^comment-b]: > a footnote whose label starts with `comment-`
+[^💬-b]: > a footnote whose label starts with `💬-`
 
-    💬 {Claude @ 2026-06-22 09:18:42}:
+    🤖 {Claude @ 2026-06-22 09:18:42}:
 
-    For example, this thread is defined by a footnote labelled
-    `comment-b`. The label is a unique key — never renumber or reuse
-    one.
+    For example, this thread is defined by a footnote labelled `💬-b`. The
+    label is a unique key — never renumber or reuse one. The older
+    `comment-b` form means exactly the same thing.

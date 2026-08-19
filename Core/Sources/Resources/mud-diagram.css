@@ -178,7 +178,8 @@
 }
 
 /* The watercolor wash. mermaid-init.js marks the shapes and clones the rim;
-   the opacities live here so a theme can tune them without touching the JS.
+   the opacities are CSS (`--diagram-wash`, declared in mud.css) so a theme can
+   tune them without touching the JS.
    The rim's fill and stroke color are per-shape and set inline, and its width
    is !important, both for the same reason: Mermaid scopes its own fill and
    stroke rules under the diagram's id, which outranks a class selector. */

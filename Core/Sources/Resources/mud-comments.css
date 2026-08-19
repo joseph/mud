@@ -138,9 +138,14 @@ footer.comments .mud-comment-time:after {
 
 /* -- Comments column ------------------------------------------------------ */
 
-/* The quotation highlight color. A theme may override `--comment-highlight`. */
+/* The quotation highlight color and its dark twin. Two names rather than one
+   redeclared under `prefers-color-scheme`, because the dark one is read only
+   from inside that query — by the `.is-active` rule above and by the draft
+   highlight in mud-comments-edit.css, which is always loaded after this sheet.
+   A theme may override either: it is loaded last of all. */
 :root {
   --comment-highlight: #fde047;
+  --comment-highlight-dark: rgba(253, 224, 71, 0.4);
 
   /* The column's inner content width (the capsule / header / compose width),
      200–400px. The app's drag handle rewrites it live; everywhere else it holds

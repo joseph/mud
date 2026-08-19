@@ -20,7 +20,18 @@ public enum HTMLTemplate {
             needles.contains { body.contains($0) || footer.contains($0) }
         }
         var doc = HTMLDocument(options: options)
-        doc.styles = [themeCSS(for: options.theme), sharedCSS, upCSS, commentsCSS]
+        // The theme goes last of the base sheets, and the order is
+        // load-bearing: a theme file is nothing but `:root` custom properties,
+        // light and dark, so the only thing that lets it override a default one
+        // of the sheets above declares is coming after them. Pinned by
+        // `themeOverridesSharedDefaults`.
+        //
+        // The conditional sheets appended below still follow the theme, and two
+        // of them beat it on purpose: `mud-narrow.css` re-tightens the page box
+        // per width tier, and `mud-diagram-font.css` names `--diagram-font` for
+        // the Handwritten look. Both are settings the reader chose, not palette
+        // the theme owns.
+        doc.styles = [sharedCSS, upCSS, commentsCSS, themeCSS(for: options.theme)]
         // The write-side comment styles ride along only in the app's editable
         // view; a read-only export omits them (see commentsEditCSS).
         if options.commentsEditable { doc.styles.append(commentsEditCSS) }
@@ -95,7 +106,9 @@ public enum HTMLTemplate {
     /// Wraps pre-built body HTML in a Down-mode document.
     static func wrapDown(bodyHTML: String, options: RenderOptions) -> String {
         var doc = HTMLDocument(options: options)
-        doc.styles = [themeCSS(for: options.theme), sharedCSS, downCSS]
+        // Theme last, so it can override every default above it — see the note
+        // in `wrapUp`.
+        doc.styles = [sharedCSS, downCSS, themeCSS(for: options.theme)]
         if options.waypoint != nil { doc.styles.append(changesCSS) }
         // Find styles only in the live app view — exports have no Find bar.
         if !options.standalone { doc.styles.append(findCSS) }

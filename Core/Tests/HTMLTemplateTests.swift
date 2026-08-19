@@ -92,6 +92,47 @@ struct HTMLTemplateTests {
         #expect(doc.contains("<title>&lt;script&gt;</title>"))
     }
 
+    // MARK: - Stylesheet order
+
+    /// A theme file is nothing but `:root` custom properties, and every sheet
+    /// it shares the one `<style>` block with writes plain `:root` too — so the
+    /// only thing that makes a theme win is coming last. That is the rule: the
+    /// theme is the last word on every variable in the document.
+    ///
+    /// Asserted as *last declaration wins*, against a property each earlier
+    /// sheet really declares, rather than as "the theme string sits at index 3".
+    /// The predecessor of this check asserted the emission shape (`id`
+    /// `"mud-theme"` exists) and was deleted along with that id in 92783bf,
+    /// taking the guarantee with it and leaving `Mud.setTheme` silently dead
+    /// for months. A test that names the rule survives a refactor of the
+    /// mechanism; one that names the mechanism does not.
+    @Test func themeOverridesSharedDefaults() throws {
+        // One probe per base sheet, each declared there and nowhere else.
+        let up = [
+            "mud.css": "--alert-note-border:",
+            // Not `--up-page-inset`: mud-narrow.css redeclares that per width
+            // tier, from after the theme, and is meant to win there.
+            "mud-up.css": "--check-reach:",
+            "mud-comments.css": "--comment-highlight:",
+        ]
+        let down = ["mud.css": "--alert-note-border:"]
+
+        for (doc, probes) in [
+            (HTMLTemplate.wrapUp(body: "<p>hi</p>", options: .init()), up),
+            (HTMLTemplate.wrapDown(bodyHTML: "<p>hi</p>", options: .init()), down),
+        ] {
+            // `--text-color` is declared by every theme file and by no other.
+            let theme = try #require(doc.range(of: "--text-color:"))
+            for (sheet, probe) in probes {
+                let earlier = try #require(
+                    doc.range(of: probe), "\(probe) missing — moved sheets?")
+                #expect(
+                    earlier.lowerBound < theme.lowerBound,
+                    "\(sheet) must precede the theme, so a theme can override it")
+            }
+        }
+    }
+
     // MARK: - HTML classes and zoom
 
     @Test func htmlClassesBakedIn() {

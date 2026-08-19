@@ -32,8 +32,8 @@ article {
 
 
 /* -- Alert color variables ------------------------------------------------ */
-/* Shared between Up and Down mode. */
-/* Themes may override these custom properties. */
+/* Shared between Up and Down mode. A theme may override any of these: it is
+   loaded last of all, and both write plain :root. */
 
 :root {
   --alert-note-border: #0969da;
@@ -94,8 +94,9 @@ article {
    prefers-color-scheme twin: one mapping covers four themes times two
    lightings.
 
-   A theme changes a diagram's colors by changing the variables named on the
-   right, not by naming the ones on the left.
+   A theme normally changes a diagram's colors by changing the variables named
+   on the right. Naming one on the left works too, and breaks that derivation
+   for that theme alone: the theme is loaded last of all.
 
    --border-color is deliberately not the source for --diagram-border: it is
    the page's hairline rule color, too faint to outline a node with. */

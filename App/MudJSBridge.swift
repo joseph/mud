@@ -11,15 +11,28 @@ import WebKit
 /// | ------------------ | ----------------------------------------------- | ---------------------------------------------- |
 /// | `mudOpen`          | `String` (resolved URL)                         | Link routing (document view, footnote popover) |
 /// | `mudFootnote`      | `{label, num, rect: {x, y, width, height}}`     | Footnote popover presentation                  |
+/// | `mudPopover`       | `{html, rect: {x, y, width, height}}`           | Page-supplied popover presentation             |
 /// | `mudCommentSubmit` | `{action, label?, body?, quotation?, locator?}` | Comment write path (`CommentSubmissionHandler`)|
 /// | `mudComposing`     | `Bool`                                          | `DocumentState.isColumnComposing`              |
 /// | `mudSelection`     | `Bool`                                          | `DocumentState.commentableSelection`           |
 /// | `mudColumnWidth`   | `Double`                                        | Persisted Comments Column width                |
 /// | `mudRevealColumn`  | `String` (comment label)                        | `DocumentWindowController.revealComment`       |
 /// | `mudFolds`         | `[String]` (folded heading slugs)               | `WebView.Coordinator.foldedHeadings`           |
+///
+/// `mudPopover` is the one case whose payload is HTML the bridge loads into a
+/// WebView, rather than a label, a number, or a flag. Only Mud's own injected
+/// `WKUserScript`s can post it: a rendered document is served
+/// `script-src 'none'`, so nothing in the Markdown can run script and reach a
+/// message handler at all. The popover is still not a place for anything a
+/// document supplies verbatim — a caller showing document text escapes it
+/// first (`mermaid-init.js` sets its message with `textContent` and never
+/// builds HTML out of Mermaid's string).
 enum MudJSMessage {
     case open(URL)
     case footnoteClick(FootnoteClick)
+    /// The page asks for a popover over the HTML it supplies. See the note
+    /// above on what may and may not go in one.
+    case popover(PopoverRequest)
     case commentSubmit(CommentSubmission)
     case composing(Bool)
     case commentableSelection(Bool)
@@ -32,14 +45,26 @@ enum MudJSMessage {
     case folds(slugs: [String])
 }
 
-/// The `mudFootnote` payload: which marker was clicked and where. The rect is
-/// in visual (zoomed) viewport coordinates with a top-left origin.
+/// Where on the page a popover should be anchored, in visual (zoomed) viewport
+/// coordinates with a top-left origin — what `getBoundingClientRect` returns.
+/// `WebView.Coordinator.anchorRect(from:in:)` converts it to AppKit space.
+struct PopoverRect: Decodable {
+    let x, y, width, height: Double
+}
+
+/// The `mudFootnote` payload: which marker was clicked and where.
 struct FootnoteClick: Decodable {
-    struct Rect: Decodable {
-        let x, y, width, height: Double
-    }
     let label: String
-    let rect: Rect
+    let rect: PopoverRect
+}
+
+/// The `mudPopover` payload: the body HTML to show and where to anchor it.
+/// Unlike a footnote, whose body Swift rendered before the page loaded and
+/// looks up by label, this content exists only in the page — a Mermaid parse
+/// error, which nothing knows until Mermaid has failed.
+struct PopoverRequest: Decodable {
+    let html: String
+    let rect: PopoverRect
 }
 
 // MARK: - Wire decoding
@@ -94,9 +119,9 @@ extension CommentSubmission.Action: Decodable {}
 /// - Inbound: decodes each `WKScriptMessage` into a `MudJSMessage` and hands
 ///   it to `onMessage`; malformed payloads are logged and dropped.
 ///
-/// Shared by the document `WebView` (all handlers) and
-/// `FootnotePopoverController` (`mudOpen` only), which also share
-/// `makeConfiguration` and the link `navigationPolicy`.
+/// Shared by the document `WebView` (all handlers) and `HTMLPopoverController`
+/// (`mudOpen` only), which also share `makeConfiguration` and the link
+/// `navigationPolicy`.
 final class MudJSBridge: NSObject, WKScriptMessageHandler {
     /// The page this bridge talks to; calls no-op while unset or gone.
     weak var webView: WKWebView?
@@ -108,6 +133,7 @@ final class MudJSBridge: NSObject, WKScriptMessageHandler {
     enum Handler: String, CaseIterable {
         case open = "mudOpen"
         case footnote = "mudFootnote"
+        case popover = "mudPopover"
         case commentSubmit = "mudCommentSubmit"
         case composing = "mudComposing"
         case selection = "mudSelection"
@@ -120,7 +146,7 @@ final class MudJSBridge: NSObject, WKScriptMessageHandler {
 
     /// A `WKWebViewConfiguration` with the `mud-asset:` scheme handler and the
     /// given user scripts (document-end, main frame only) — the setup shared
-    /// by the document view and the footnote popover.
+    /// by the document view and the popover.
     static func makeConfiguration(scripts: [String]) -> WKWebViewConfiguration {
         let config = WKWebViewConfiguration()
         config.setURLSchemeHandler(LocalFileSchemeHandler(),
@@ -263,6 +289,9 @@ final class MudJSBridge: NSObject, WKScriptMessageHandler {
         case .footnote:
             guard let click: FootnoteClick = decodePayload(body) else { return nil }
             return .footnoteClick(click)
+        case .popover:
+            guard let request: PopoverRequest = decodePayload(body) else { return nil }
+            return .popover(request)
         case .commentSubmit:
             guard let submission: CommentSubmission = decodePayload(body) else { return nil }
             return .commentSubmit(submission)

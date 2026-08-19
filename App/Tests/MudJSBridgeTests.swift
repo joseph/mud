@@ -91,6 +91,24 @@ import Testing
         #expect(bridge.decode(["label": "1"], for: .footnote) == nil)
     }
 
+    @Test func popoverDecodesBodyAndRect() throws {
+        let body: [String: Any] = [
+            "html": "<p class=\"mud-diagram-error\">Parse error on line 2.</p>",
+            "rect": ["x": 1.0, "y": 2.0, "width": 30.0, "height": 4.5],
+        ]
+        let message = bridge.decode(body, for: .popover)
+        guard case .popover(let request) = try #require(message) else {
+            Issue.record("expected .popover"); return
+        }
+        #expect(request.html.contains("Parse error on line 2."))
+        #expect(request.rect.height == 4.5)
+    }
+
+    @Test func popoverRejectsAMissingBody() {
+        let rect: [String: Any] = ["x": 1.0, "y": 2.0, "width": 3.0, "height": 4.0]
+        #expect(bridge.decode(["rect": rect], for: .popover) == nil)
+    }
+
     @Test func commentSubmitAddAssemblesTheDraft() throws {
         let body: [String: Any] = [
             "action": "add",

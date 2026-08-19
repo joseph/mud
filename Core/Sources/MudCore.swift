@@ -287,6 +287,35 @@ public enum MudCore {
         }
     }
 
+    // MARK: - Popover documents
+
+    /// Wraps ready-made body HTML as a self-contained themed document for a
+    /// popover's WebView — the general form of the recipe
+    /// ``renderCommentThreadDocument(_:options:resolveImageSource:)`` and the
+    /// footnote popover documents each apply to their own body. It exists for
+    /// content Swift can't produce ahead of time: a Mermaid diagram's parse
+    /// error, which the page only has once Mermaid has failed.
+    ///
+    /// `options` should be the host window's, so the popover matches it in
+    /// theme, lighting, and zoom; the whole-window state a small separate page
+    /// has no use for is stripped (see `forPopover`), and the waypoint and
+    /// title with it.
+    ///
+    /// The body arrives as HTML, not Markdown — a caller holding Markdown
+    /// renders it with ``renderUpToHTML(_:options:resolveImageSource:)`` first
+    /// — and nothing here escapes it. So a caller must not build the fragment
+    /// out of text the document supplied.
+    public static func renderPopoverDocument(
+        body: String, options: RenderOptions = .init()
+    ) -> String {
+        var popoverOptions = options.forPopover()
+        popoverOptions.waypoint = nil
+        popoverOptions.title = ""
+        // The same trimmed padding the footnote and comment popovers use.
+        popoverOptions.htmlClasses.insert("footnote-popover")
+        return HTMLTemplate.wrapUp(body: body, options: popoverOptions)
+    }
+
     // MARK: - Comment rendering
 
     /// Renders a single comment's `<li>` exactly as it appears in the bottom

@@ -240,6 +240,11 @@
       startOnLoad: false,
       securityLevel: "strict",
       theme: "base",
+      // Mermaid's own failure graphic is a bomb icon reading "Syntax error in
+      // text", which names neither the line nor the problem. Off, so a failed
+      // render leaves the container alone and `showError` can put the block
+      // back with the parser's actual complaint under it.
+      suppressErrorRendering: true,
       look: "handDrawn",
       // Fixed, because Mud re-renders on every content change: an unseeded
       // wobble would redraw itself differently on each keystroke.
@@ -409,7 +414,9 @@
   // -- Rendering ----------------------------------------------------------
 
   // Replaces each mermaid code block with the container Mermaid renders into,
-  // keeping the source on the container so a re-render has something to read.
+  // keeping the source on the container so a re-render has something to read,
+  // and the block itself so a diagram that won't parse can be shown as the
+  // reader wrote it.
   function collect() {
     document.querySelectorAll("code.language-mermaid").forEach(function (code) {
       var pre = code.parentElement;
@@ -422,15 +429,29 @@
       container.className = "mermaid";
       container.textContent = code.textContent;
       container.dataset.mudSource = code.textContent;
+      // The <pre> as the document rendered it — highlighted, with its header
+      // and copy button. Held rather than rebuilt, so the block an error puts
+      // back is exactly the one turning diagrams off would show.
+      container.mudSourceBlock = pre;
 
-      // Preserve change-tracking attributes through the replacement.
+      // Change-tracking attributes *move* rather than copy: the <pre> goes
+      // back on screen when the diagram won't parse, and two elements
+      // carrying one change id would draw that change twice.
       if (pre.dataset.changeId) {
         container.dataset.changeId = pre.dataset.changeId;
         container.dataset.groupId = pre.dataset.groupId;
         container.dataset.groupIndex = pre.dataset.groupIndex;
+        var moved = [];
         pre.classList.forEach(function (cls) {
-          if (cls.startsWith("mud-change-")) container.classList.add(cls);
+          if (cls.startsWith("mud-change-")) moved.push(cls);
         });
+        moved.forEach(function (cls) {
+          container.classList.add(cls);
+          pre.classList.remove(cls);
+        });
+        delete pre.dataset.changeId;
+        delete pre.dataset.groupId;
+        delete pre.dataset.groupIndex;
       }
 
       pre.parentNode.replaceChild(container, pre);
@@ -438,24 +459,110 @@
     });
   }
 
+  // A diagram Mermaid couldn't draw. Its own graphic is a bomb icon and the
+  // words "Syntax error in text", which names neither the line nor the
+  // problem — so it is turned off (suppressErrorRendering) and this stands in:
+  // the block as the reader wrote it, an INVALID badge in its corner, and the
+  // parser's complaint behind that badge.
+  //
+  // The complaint runs to three or four lines, most of it a list of expected
+  // tokens, so it is not left sitting in the document pushing the following
+  // text down. It goes in the block below, hidden, and the badge shows it.
+  function showError(container, error) {
+    container.textContent = "";
+    container.classList.add("is-error");
+
+    if (container.mudSourceBlock) {
+      container.appendChild(container.mudSourceBlock);
+      container.mudSourceBlock.appendChild(badge(container));
+    }
+
+    var message = document.createElement("p");
+    message.className = "mud-diagram-error";
+    message.textContent = messageOf(error);
+    container.appendChild(message);
+  }
+
+  // The badge in the block's corner. Clicking it asks the app for a popover
+  // over the message; where there is no app to ask — an export, Open In
+  // Browser, Quick Look — it shows the hidden block below the code instead,
+  // and clicking again puts it away.
+  function badge(container) {
+    var button = document.createElement("button");
+    button.type = "button";
+    button.className = "mud-diagram-badge";
+    button.textContent = "Invalid";
+    button.title = "Show why this diagram could not be drawn";
+    button.addEventListener("click", function () {
+      var message = container.querySelector(".mud-diagram-error");
+      if (!message) return;
+      if (showPopover(button, message)) return;
+      container.classList.toggle("is-showing-error");
+    });
+    return button;
+  }
+
+  // Hands the message to the app's popover, anchored at the badge. The message
+  // element is passed rather than its text, and `outerHTML` read off it, so
+  // what crosses the bridge is what `textContent` already escaped — Mermaid's
+  // string is never built into HTML. Returns false where `Mud.popover` isn't
+  // there at all (an export carries mermaid-init.js without mud.js) or where
+  // it is and finds no message handler.
+  function showPopover(button, message) {
+    var popover = window.Mud && window.Mud.popover;
+    if (!popover) return false;
+    return popover.show(button.getBoundingClientRect(), message.outerHTML);
+  }
+
+  // What Mermaid rejects with is its own wrapper, which carries `message` for
+  // a parse error and a thrown Error alike. A parse error's text runs to
+  // several lines and draws a caret under the offending column, which is why
+  // the message is set as text and left to the stylesheet to letter.
+  function messageOf(error) {
+    if (!error) return "The diagram could not be drawn.";
+    return error.message || error.str || String(error);
+  }
+
+  // Back to an undrawn container: Mermaid renders a node once and marks it
+  // `data-processed`, and an error block has to come off with that mark. The
+  // badge goes with the block it sits in, and `showError` builds a fresh one
+  // if the diagram fails again.
+  function reset(container) {
+    container.removeAttribute("data-processed");
+    container.classList.remove("is-error", "is-showing-error");
+    var stale = container.querySelector(".mud-diagram-badge");
+    if (stale) stale.remove();
+    container.textContent = container.dataset.mudSource;
+  }
+
   function render() {
     if (containers.length === 0) return;
 
     var colors = palette();
     initialize(colors);
+    var isWashable = washable(colors);
 
-    mermaid
-      .run({ nodes: containers })
-      .then(function () {
-        var isWashable = washable(colors);
-        containers.forEach(function (container) {
-          var svg = container.querySelector("svg");
-          if (svg) wash(svg, isWashable);
-        });
-      })
-      .catch(function (error) {
-        console.error("Mud: mermaid render failed", error);
+    // One run per container, so a diagram that won't parse is contained to its
+    // own block: handing Mermaid the whole list makes one rejection the result
+    // of the whole pass, and every diagram that did render loses its wash.
+    //
+    // Chained rather than started together, because Mermaid ids its temporary
+    // render element with `Date.now()` unless `deterministicIds` is set. Two
+    // runs alive in the same millisecond would be handed the same id and draw
+    // over each other.
+    containers.reduce(function (chain, container) {
+      return chain.then(function () {
+        return mermaid
+          .run({ nodes: [container] })
+          .then(function () {
+            var svg = container.querySelector("svg");
+            if (svg) wash(svg, isWashable);
+          })
+          .catch(function (error) {
+            showError(container, error);
+          });
       });
+    }, Promise.resolve());
   }
 
   collect();
@@ -468,10 +575,7 @@
   var scheme = window.matchMedia("(prefers-color-scheme: dark)");
   if (scheme.addEventListener) {
     scheme.addEventListener("change", function () {
-      containers.forEach(function (container) {
-        container.removeAttribute("data-processed");
-        container.textContent = container.dataset.mudSource;
-      });
+      containers.forEach(reset);
       render();
     });
   }

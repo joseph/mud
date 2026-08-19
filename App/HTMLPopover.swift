@@ -3,11 +3,17 @@ import WebKit
 import MudCore
 
 /// Hosts a transient `NSPopover` containing a small `WKWebView` that renders a
-/// footnote body as Up-mode Markdown HTML. Anchored at the clicked footnote
-/// marker. Links inside the footnote route through the same `openURL` handler
-/// the main view uses (external → browser, `.md` → new Mud document).
-final class FootnotePopoverController: NSObject, WKNavigationDelegate,
-                                      NSPopoverDelegate {
+/// self-contained Up-mode document, anchored to a rect in the page. What goes
+/// in it is the caller's business: a footnote body, which Swift rendered before
+/// the page loaded and looks up by label, or HTML the page sent over
+/// `mudPopover` and `MudCore.renderPopoverDocument` wrapped. Links inside route
+/// through the same `openURL` handler the main view uses (external → browser,
+/// `.md` → new Mud document).
+///
+/// `WebView.Coordinator` keeps one of these and both callers show through it,
+/// so two popovers can never be open at once.
+final class HTMLPopoverController: NSObject, WKNavigationDelegate,
+                                   NSPopoverDelegate {
     private let popover = NSPopover()
     /// The bridge to the popover's page: `mudOpen` link routing inbound, the
     /// height measurement outbound. Same type the document view uses.

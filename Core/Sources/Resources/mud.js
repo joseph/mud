@@ -250,6 +250,40 @@
     document.documentElement.style.zoom = level;
   }
 
+  // -- Popover --------------------------------------------------------------
+
+  // Asks the app for a native popover over `html`, anchored at `rect` — a
+  // viewport rect straight from getBoundingClientRect, which is the space
+  // WebView.swift's anchorRect converts from. Swift wraps the fragment into a
+  // document carrying the window's theme, lighting, and zoom (MudCore's
+  // renderPopoverDocument), so callers send a body and nothing more.
+  //
+  // Returns false where there is no app to ask — an export, Open In Browser,
+  // Quick Look — so a caller can fall back to something the page can do on its
+  // own. Same check the footnote-marker handler in mud-up.js makes before it
+  // falls through to the plain anchor jump.
+  //
+  // Only Mud's own injected scripts get here: a rendered document is served
+  // `script-src 'none'`, so nothing in the Markdown can run and post a message.
+  // The fragment is still loaded as HTML — a caller showing text the document
+  // supplied has to escape it first.
+  var popover = {
+    show: function (rect, html) {
+      var handlers = window.webkit && window.webkit.messageHandlers;
+      if (!handlers || !handlers.mudPopover) return false;
+      handlers.mudPopover.postMessage({
+        html: html,
+        rect: {
+          x: rect.left,
+          y: rect.top,
+          width: rect.width,
+          height: rect.height
+        }
+      });
+      return true;
+    }
+  };
+
   // -- Geometry ------------------------------------------------------------
 
   // Shared zoom/position helpers for the app-only overlay and comment-column
@@ -300,6 +334,7 @@
     setZoom: setZoom,
     scrollToHeading: scrollToHeading,
     scrollToLine: scrollToLine,
+    popover: popover,
     geometry: geometry
   });
 })();

@@ -38,13 +38,18 @@ public enum HTMLTemplate {
         // Diagram styles only for a document that will actually draw one: the
         // body holds a Mermaid block *and* the extension is on. With it off
         // the block stays a highlighted code block, which needs none of this.
+        // One document has a use for these rules and no block to draw: the
+        // popover a diagram's INVALID badge opens, which is the parser's
+        // message alone. `mud-diagram-error` is the marker it matches on.
+        let drawsDiagram = renders(anyOf: RenderExtension.mermaid.marker)
         if options.extensions.contains(RenderExtension.mermaid.name),
-           renders(anyOf: RenderExtension.mermaid.marker) {
+           drawsDiagram || renders(anyOf: "mud-diagram-error") {
             doc.styles.append(diagramCSS)
             // The Handwritten look is the only one that ships a font, carried
             // as a data URI — so the CSP has to allow that font, and the
-            // Simplicity look's document carries neither.
-            if options.diagramLook == .handwritten {
+            // Simplicity look's document carries neither. The error popover
+            // letters no diagram labels, so it takes neither whatever the look.
+            if options.diagramLook == .handwritten, drawsDiagram {
                 doc.styles.append(diagramFontCSS)
                 doc.cspFontSrc = ["data:"]
             }

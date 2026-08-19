@@ -227,6 +227,37 @@ quadrantChart
 ```
 
 
+## Invalid diagram
+
+A diagram that won't parse shows the block as the author wrote it, with an
+INVALID badge in the corner. Click the badge for the parser's complaint: in the
+app it opens in a popover, and in an exported document — where there is no app
+to ask — it appears under the block instead. Here the first node's bracket is
+never closed:
+
+```mermaid
+graph TD
+    A[Start] --> B[Unclosed
+    B --> C[End]
+```
+
+A diagram type Mermaid doesn't recognize fails differently — there is no line
+or column to point at, so the message just says what it couldn't match:
+
+```mermaid
+flowbart TD
+    A --> B
+```
+
+Neither failure stops the diagrams around it. This one still draws, and still
+takes its wash:
+
+```mermaid
+graph LR
+    A[Still here] --> B[And still drawn]
+```
+
+
 ## Regular code block (not mermaid)
 
 This should render as a normal syntax-highlighted code block, not a diagram:

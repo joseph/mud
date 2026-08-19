@@ -29,6 +29,70 @@
   background: transparent;
 }
 
+/* A diagram that wouldn't parse. `mermaid-init.js` turns Mermaid's own bomb
+   graphic off and puts the code block back, with an INVALID badge in its
+   corner — so the container holds ordinary document content and has to give up
+   the two rules it carries for holding an SVG. */
+
+.mermaid.is-error {
+  text-align: left;
+  font-size-adjust: none;
+}
+
+.mermaid.is-error > pre {
+  margin-bottom: 0;
+}
+
+/* The badge, in the block's bottom right. The copy button takes the top right,
+   so the two never meet. The red is the one the alerts use, which has a
+   dark-lighting twin. */
+
+.mud-diagram-badge {
+  position: absolute;
+  right: 1em;
+  bottom: 1em;
+  padding: 0.2em 0.8em;
+  border: none;
+  border-radius: 999px;
+  background-color: var(--alert-caution-title, #d1242f);
+  color: #fff;
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* A Mermaid parse error runs to several lines and draws a caret under the
+   column it stopped at, so it is lettered and wrapped like the code it refers
+   to. This is also the whole body of the popover the badge opens, which is why
+   the rule is unscoped and carries no margin of its own — the popover has its
+   own padding, and only the in-document copy below needs the gap. */
+
+.mud-diagram-error {
+  margin: 0;
+  color: var(--alert-caution-title, #d1242f);
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  font-size: 0.8125em;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
+/* In the document the message stays out of the way: three or four lines of
+   expected tokens would push the following text down for as long as the file
+   holds the error. It is there for where there is no app to open a popover —
+   an export, Open In Browser, Quick Look — and the badge shows it in place. */
+
+.mermaid.is-error > .mud-diagram-error {
+  display: none;
+  margin-top: 0.5em;
+}
+
+.mermaid.is-error.is-showing-error > .mud-diagram-error {
+  display: block;
+}
+
 /* Mermaid sizes each label's foreignObject to the text's advance width, and a
    foreignObject clips to its own box. Caveat is a handwriting face whose
    letters lean and trail past that width, so the last glyph of a label loses

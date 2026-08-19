@@ -67,6 +67,13 @@
   .mud-fold-arrow { display: none; }
 
 
+  /* Up mode: a diagram that wouldn't parse. On screen the parser's message is
+     behind the INVALID badge; nothing on paper can be clicked, so it prints
+     under the block. The badge prints with it, as a marker rather than a
+     control. */
+  .mermaid.is-error > .mud-diagram-error { display: block; }
+
+
   /* Up mode: comments. The bottom Comments section is hidden on screen in
      favor of the column, but prints in place of the column. Being the
      article's sibling rather than its child, the footer carries its own page

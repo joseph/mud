@@ -156,6 +156,11 @@ struct WebView: NSViewRepresentable {
     /// (no reload). The drag handle reports changes back via `onColumnWidthChange`.
     var commentColumnWidth: Double = 300
     var searchQuery: SearchQuery?
+    /// The options this document was rendered with. `theme`, `bodyClasses`, and
+    /// `zoomLevel` above are the parts `updateNSView` diffs and pushes on their
+    /// own; the whole value is kept for the one call that needs it entire —
+    /// wrapping a page-supplied popover body into a matching document.
+    var renderOptions = RenderOptions()
     /// The window's command channel: one-shot page actions (print, scroll,
     /// compose acknowledgements, …) sent by menu/toolbar/sidebar handlers.
     /// The coordinator subscribes in `makeNSView` and runs each command as it
@@ -239,6 +244,7 @@ struct WebView: NSViewRepresentable {
         context.coordinator.onRevealColumn = onRevealColumn
         context.coordinator.commentColumnWidth = commentColumnWidth
         context.coordinator.commentTheme = theme
+        context.coordinator.renderOptions = renderOptions
 
         // Handle search. The coordinator keeps the current query so didFinish
         // can re-apply it to a freshly loaded page.
@@ -338,9 +344,15 @@ struct WebView: NSViewRepresentable {
         /// it reports the whole set over `mudFolds` after every change.
         var foldedHeadings: [String] = []
         weak var webView: WKWebView?
+        /// The window's current render options, mirrored from `updateNSView`.
+        /// Used to wrap a page-supplied popover body into a document that
+        /// matches the window it opened from — theme, lighting, zoom.
+        var renderOptions = RenderOptions()
         private var savedFraction: CGFloat?
         private let baseURL: URL?
-        private lazy var footnotePopover = FootnotePopoverController()
+        /// The one popover, shared by every caller, so two can't be open at
+        /// once (see `HTMLPopoverController`).
+        private lazy var popover = HTMLPopoverController()
         private var commandSubscription: AnyCancellable?
 
         init(baseURL: URL?) {
@@ -358,6 +370,8 @@ struct WebView: NSViewRepresentable {
                 openURL(url)
             case .footnoteClick(let click):
                 presentFootnote(click)
+            case .popover(let request):
+                presentPopover(request)
             case .commentSubmit(let submission):
                 onCommentSubmit?(submission)
             case .composing(let composing):
@@ -589,7 +603,7 @@ struct WebView: NSViewRepresentable {
         /// Converts the JS click rect (top-left origin, zoom-normalized CSS
         /// pixels) into an `NSRect` in the WebView's AppKit space.
         private func anchorRect(
-            from rect: FootnoteClick.Rect, in webView: WKWebView
+            from rect: PopoverRect, in webView: WKWebView
         ) -> NSRect {
             let appKitY = webView.isFlipped
                 ? rect.y : webView.bounds.height - (rect.y + rect.height)
@@ -610,14 +624,31 @@ struct WebView: NSViewRepresentable {
             }
         }
 
-        /// Shows the footnote popover anchored at the clicked marker.
+        /// Shows the popover over a footnote body, anchored at the clicked
+        /// marker. Swift rendered every body before the page loaded, so this
+        /// one only has to look its content up by label.
         private func presentFootnote(_ click: FootnoteClick) {
             guard let html = footnoteHTML[click.label.lowercased()],
                   let webView = webView else { return }
 
-            footnotePopover.show(
+            popover.show(
                 html: html, baseURL: baseURL,
                 relativeTo: anchorRect(from: click.rect, in: webView),
+                of: webView,
+                onOpenURL: { [weak self] url in self?.openURL(url) })
+        }
+
+        /// Shows the popover over HTML the page supplied — content Swift can't
+        /// produce ahead of time, so the page sends the body and Core wraps it
+        /// into a document carrying this window's theme, lighting, and zoom.
+        private func presentPopover(_ request: PopoverRequest) {
+            guard let webView = webView else { return }
+
+            popover.show(
+                html: MudCore.renderPopoverDocument(
+                    body: request.html, options: renderOptions),
+                baseURL: baseURL,
+                relativeTo: anchorRect(from: request.rect, in: webView),
                 of: webView,
                 onOpenURL: { [weak self] url in self?.openURL(url) })
         }

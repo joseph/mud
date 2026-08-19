@@ -137,8 +137,11 @@ MVP plan.
   (JSON-encoded arguments, namespace guards, error logging), typed inbound
   messages (`MudJSMessage`, with the full message table), the shared
   `WKWebViewConfiguration` factory and link `navigationPolicy`
-- `FootnotePopover.swift` — Transient `NSPopover` hosting a `WKWebView` that
-  renders a footnote body; shares `MudJSBridge` with the main view
+- `HTMLPopover.swift` — Transient `NSPopover` hosting a `WKWebView` that
+  renders a self-contained Up-mode document; shares `MudJSBridge` with the main
+  view. Two callers, one instance on `WebView.Coordinator`, so two popovers
+  can't be open at once: a footnote body, which Swift rendered before the page
+  loaded and looks up by label, and HTML the page sent over `mudPopover`
 - `CommentController.swift` — `CommentDraft` plus the comment write path
   (re-read from disk, byte-surgical edit via `CommentEditor`, atomic
   security-scoped write). Add / reply / edit-last / delete
@@ -287,7 +290,9 @@ MVP plan.
 - `MudCore.swift` — Public API facade: the Up- and Down-mode entry points
   (dispatch only — HTML emission lives in `Rendering/`), `renderUpPipeline`,
   `exportDocument` (the one self-contained export recipe), `computeChanges`,
-  and the extractHeadings / parseComments / removeComments calls
+  `renderPopoverDocument` (body HTML → a themed popover document, for content
+  only the page has), and the extractHeadings / parseComments / removeComments
+  calls
 - `CMark/CMarkDocument.swift` — Owning wrapper over the one footnote-aware
   cmark-gfm parse: hard-coded parse options, range APIs in swift-markdown's
   byte conventions (exclusive upper bound, UTF-8 byte columns, backtick
@@ -463,7 +468,7 @@ MVP plan.
   table: the one rule every Add Comment affordance applies
 - `WebViewParsingTests.swift` — `parseMatchInfo` and `commentSignature`
 - `MudJSBridgeTests.swift` — Outbound script building (escaping) and inbound
-  message decoding
+  message decoding, including the `mudPopover` payload
 - `GitProviderTests.swift` — Waypoint assembly and git-output parsing over a
   scripted runner (`#if GIT_PROVIDER`)
 
@@ -519,8 +524,11 @@ MVP plan.
   off the wash rim by name so the rim keeps its own color; and the section
   bands are forced opaque, since `mermaid-init.js` already names them at the
   strength they should be seen at and Mermaid's own 0.2 left the banding
-  invisible. `wrapUp` appends it only when the body holds a Mermaid block _and_
-  the extension is on
+  invisible. The INVALID badge and the parse message it opens are here too; the
+  message rule is unscoped and carries no margin, because it is also the whole
+  body of the popover. `wrapUp` appends this file when the body holds a Mermaid
+  block _and_ the extension is on — or when it holds a `mud-diagram-error`,
+  which is how the popover document gets these rules with no block to draw
 - `mud-diagram-font.css` — The Handwritten look's label font: the Caveat
   `@font-face` (variable weight, Latin subset, embedded as a data URI so the
   labels need no second request and no swap up from the fallback face — an
@@ -534,7 +542,10 @@ MVP plan.
   KB, which is why the Simplicity look ships none of it
 - `mud.js` — Shared JS: find, scroll, lighting, zoom. Find and outline
   navigation unfold their target first (`Mud.folds`); `setClass` routes
-  `is-foldable-headings` to `folds.setEnabled`
+  `is-foldable-headings` to `folds.setEnabled`. `Mud.popover.show(rect, html)`
+  is the one way to ask the app for a native popover over page-built HTML; it
+  returns false where there is no app to ask, so the caller can fall back to
+  something the page does itself
 - `mud-changes.js` — Change tracking JS: overlays, expand/collapse, navigation
 - `mud-comment-anchor.js` — Shared comment-anchoring primitives
   (`Mud.commentAnchor`): the leaf-block and marker-free-text rules that map a
@@ -621,7 +632,13 @@ MVP plan.
   underneath them, so an opaque fill is the point. It keeps each diagram's
   source on the container, because a lighting change has to draw them all again
   — the colors are baked into the SVG, and only a theme change reloads the
-  document
+  document. Each container is run on its own and chained, not handed to Mermaid
+  as one list: a rejection would otherwise be the whole pass's result and every
+  diagram that did draw would lose its wash, and two runs alive in the same
+  millisecond would be given the same temporary id. A diagram that won't parse
+  takes the path in `showError` — Mermaid's own bomb graphic is off
+  (`suppressErrorRendering`), so the block goes back as the reader wrote it
+  with an INVALID badge in its corner.
 - `temml.min.js` — Temml TeX-to-MathML library (v0.13.3, MIT). Loaded into a
   `JSContext` by `MathRenderer`; renders server-side, never shipped in exports
 - `Doc/Guides/command-line.md` — Bundled guide: CLI usage
@@ -818,7 +835,14 @@ All Swift ↔ page traffic goes through `MudJSBridge` (`App/MudJSBridge.swift`):
 outbound `bridge.call("comments.setData", …)` JSON-encodes every argument and
 logs JS errors; inbound `window.webkit.messageHandlers` posts decode into the
 typed `MudJSMessage` enum (the message table is documented on that enum). The
-footnote popover uses the same bridge type for its `mudOpen` link routing.
+popover uses the same bridge type for its `mudOpen` link routing.
+
+`mudPopover` is the one inbound message whose payload is HTML rather than a
+label, a number, or a flag, so it is worth knowing what bounds it. Only Mud's
+own injected `WKUserScript`s can post it: a rendered document is served
+`script-src 'none'`, so nothing in the Markdown can run script and reach a
+message handler at all. It is still not a place for anything a document
+supplies verbatim — a caller showing document text escapes it first.
 
 
 ## Key conventions

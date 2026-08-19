@@ -40,6 +40,7 @@ struct DocumentContentView: View {
             zoomLevel: renderOptions.zoomLevel,
             commentColumnWidth: appState.commentColumnWidth,
             searchQuery: findState.currentQuery,
+            renderOptions: renderOptions,
             commands: state.webCommands,
             extensions: appState.enabledExtensions,
             footnoteHTML: display.footnoteHTML,

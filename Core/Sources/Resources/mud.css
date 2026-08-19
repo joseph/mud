@@ -92,8 +92,10 @@ article {
    it needs real values, not var() references). Every variable read here has
    its own dark override in the theme files, so this block needs no
    prefers-color-scheme twin: one mapping covers four themes times two
-   lightings. A theme may override any of these where the derived color reads
-   badly in a diagram.
+   lightings.
+
+   A theme changes a diagram's colors by changing the variables named on the
+   right, not by naming the ones on the left.
 
    --border-color is deliberately not the source for --diagram-border: it is
    the page's hairline rule color, too faint to outline a node with. */

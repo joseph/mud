@@ -3,7 +3,7 @@ import Testing
 
 @testable import MudCore
 
-/// Mirrors the worked examples in `Doc/Spec/comments.md`. Each `parse`
+/// Mirrors the worked examples in `Doc/Guides/spec-comments.md`. Each `parse`
 /// test feeds the **de-indented** definition body (what
 /// `FootnoteProcessor.renderDefinitionBody` produces) and asserts the declared
 /// properties; the round-trip tests assert

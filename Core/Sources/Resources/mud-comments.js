@@ -157,7 +157,7 @@
 
   // The flat-text index where `quote` begins, anchored to end just before the
   // marker at `end` — or -1 if it doesn't anchor. Two phases (see
-  // Doc/Spec/comments.md, "Quotation truncation"):
+  // Doc/Guides/spec-comments.md, "Quotation truncation"):
   //   1. Verbatim — the whole quotation sits immediately before the marker.
   //   2. Truncated — only when phase 1 fails and the quotation carries a spaced
   //      ellipsis. Split into parts; anchor the last part at the marker, then

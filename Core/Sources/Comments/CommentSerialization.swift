@@ -2,7 +2,7 @@ import Foundation
 
 /// The read/write codec for a comment definition's body — no IO. Mud *writes* a
 /// strict canonical form but *reads* anything the convention in
-/// `Doc/Spec/comments.md` allows.
+/// `Doc/Guides/spec-comments.md` allows.
 ///
 /// `parse` takes the footnote definition's **de-indented body Markdown** (the
 /// clean CommonMark `FootnoteProcessor` already produces via

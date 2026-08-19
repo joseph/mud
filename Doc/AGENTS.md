@@ -32,8 +32,9 @@ MVP plan.
   (Ctrl+Cmd+H, Shift+Cmd+H) for the whole document
 - Table of contents sidebar
 - Comments: select text and attach threaded comments, stored in-file as GFM
-  footnotes (`^comment-[\w-]+$`); hover-revealed highlights and a Comments
-  Column (Up mode only; GUI authoring writes the `.md` file)
+  footnotes (`[^💬-a]`, or the older equivalent `[^comment-a]`); hover-revealed
+  highlights and a Comments Column (Up mode only; GUI authoring writes the
+  `.md` file)
 - Find (Cmd+F), Find Next/Previous (Cmd+G, Cmd+Shift+G)
 - Print / Save as PDF (Cmd+P)
 - Open In Browser (Cmd+Shift+B) with image data-URI embedding
@@ -222,13 +223,25 @@ MVP plan.
 - `ThemePreviewCard.swift` — Theme color constants and preview card view
 - `MarkdownSettingsView.swift` — Markdown settings pane (DocC alert mode)
 - `UpModeSettingsView.swift` — Up Mode settings pane (remote content, foldable
-  headings, Mermaid)
+  headings, diagrams). Its Diagrams list is one control over two preferences:
+  `DiagramSetting` maps Simplicity / Handwritten onto `upModeDiagramLook` and
+  Disabled onto dropping `mermaid` from `enabledExtensions`. Turning diagrams
+  off leaves the look alone, so switching them back on returns the reader to
+  the look they picked
 - `DownModeSettingsView.swift` — Down Mode settings pane
 - `ChangesSettingsView.swift` — Changes settings pane (inline deletions, git
   waypoints)
 - `CommentsSettingsView.swift` — Comments settings pane (`comment-author`,
-  `comment-return-saves`, `comments-show-markers`,
+  `comment-avatar`, `comment-return-saves`, `comments-show-markers`,
   `comments-include-in-export`)
+- `AvatarPicker.swift` — The `comment-avatar` control: a button showing the
+  current avatar, opening a popover grid of `AvatarChoices` (forty-nine emoji,
+  seven to a row, grouped by kind). No text field, so nothing invalid can be
+  entered and the preference needs no validation on the way in. The list is an
+  offering rather than the rule — `CommentAvatar.isValid` still takes any
+  single emoji, so a `defaults write comment-avatar` value outside the list
+  shows on the button with no cell highlighted and survives until the reader
+  picks one
 - `CommandLineSettingsView.swift` — Command Line settings pane
 - `UpdateSettingsView.swift` — Updates pane (`#if SPARKLE`)
 - `SettingsWindowController.swift` — Settings window lifecycle (singleton)
@@ -267,6 +280,9 @@ MVP plan.
 - `RenderExtension.swift` — Client-side rendering extension type and registry
 - `RenderOptions.swift` — Rendering configuration value type
 - `Theme.swift` — austere/blues/earthy/riot enum (plus internal `.system`)
+- `DiagramLook.swift` — simplicity/handwritten enum: the face a diagram's
+  labels are lettered in. Only the font differs; both looks take the page's
+  palette, the rough outlines, and the wash
 - `Mode.swift` — up/down enum (Mark Up / Mark Down)
 - `MudCore.swift` — Public API facade: the Up- and Down-mode entry points
   (dispatch only — HTML emission lives in `Rendering/`), `renderUpPipeline`,
@@ -310,9 +326,9 @@ MVP plan.
   marker. Hosts the `DiffContext(old:new:)` convenience initializer
 - `Rendering/FootnoteProcessor.swift` — Scans a source's footnotes and comments
   through one memoized `FootnoteScan`. Builds the models for the bottom
-  sections, classifies `^comment-[\w-]+$` labels as comments, and supplies the
-  comment byte geometry (`CommentLocation`), `removeComments`, and
-  `stripCommentTokens`. It rewrites no source
+  sections, classifies comment labels (via `CommentLabel`) apart from authorial
+  ones, and supplies the comment byte geometry (`CommentLocation`),
+  `removeComments`, and `stripCommentTokens`. It rewrites no source
 - `Rendering/FootnoteHTMLRenderer.swift` — Bottom footnotes section and the
   per-footnote popover documents
 - `Rendering/CommentHTMLRenderer.swift` — Bottom comments section, single
@@ -342,6 +358,12 @@ MVP plan.
   in both places and `HTMLTemplateTests` checks they agree
 - `Comments/Comment.swift` — `Comment` / `CommentMessage` models and the
   `CommentMode` enum
+- `Comments/CommentGrammar.swift` — The two parts of the on-disk form that are
+  values rather than structure: `CommentLabel` (which footnote labels are
+  comments — `💬-` and the older `comment-`, equivalent — and which prefix Mud
+  writes) and `CommentAvatar` (the single emoji that may lead a message
+  attribution: what Mud writes, what a message without one is shown with, and
+  what counts as one)
 - `Comments/CommentSerialization.swift` — Read/write codec for a comment body
 - `Comments/CommentEditor.swift` — Pure source rewriting (no IO):
   insert/rewrite/delete with stable, never-renumbered alpha labels
@@ -434,6 +456,8 @@ MVP plan.
   unavailable `Grant` still knows about itself
 - `BlockedAssetLogTests.swift` — The resolver's three answers against real temp
   files: only a denial reaches the log
+- `AvatarChoicesTests.swift` — Every curated avatar passes
+  `CommentAvatar.isValid`, the entries are distinct, and they fill whole rows
 - `CommentColumnFitTests.swift` — `CommentColumnFit.remedy` truth table
 - `AddCommentRuleTests.swift` — `ActiveDocumentSnapshot.canAddComment` truth
   table: the one rule every Add Comment affordance applies
@@ -478,6 +502,36 @@ MVP plan.
   and accent rules adapted from Temml-Local.css. Appended to an Up document
   only when its body contains math, so a math-free document never carries it.
   No matching JS — MathML renders natively
+- `mud-diagram.css` — Diagram styles: the `.mermaid` layout rules, the wash
+  opacities `mermaid-init.js` marks shapes for, and `--diagram-font`, the label
+  face the init script reads and hands to Mermaid — here the Simplicity look's
+  stack, the page's own sans. Two more concerns are covered here:
+  `foreignObject` gets `overflow: visible`, since Caveat's letters trail past
+  the advance width Mermaid sized the box to; and every label sitting on a line
+  is made readable — SVG text (`.messageText`, `.relationshipLabel`) takes a
+  halo in the page's ground, and the plates Mermaid draws half-transparent
+  (`.labelBkg` on a state transition, `.relationshipLabelBox` on an ER
+  relationship) are made opaque in that same ground. Three Gantt rules live
+  here because no theme variable reaches them: the grid's vertical rules are
+  `<line stroke="currentColor">`, and that attribute beats the `stroke` the
+  `.tick` group around it inherits — which is all `gridColor` sets — so they
+  come out black however the page is lit; a milestone takes the accent, held
+  off the wash rim by name so the rim keeps its own color; and the section
+  bands are forced opaque, since `mermaid-init.js` already names them at the
+  strength they should be seen at and Mermaid's own 0.2 left the banding
+  invisible. `wrapUp` appends it only when the body holds a Mermaid block _and_
+  the extension is on
+- `mud-diagram-font.css` — The Handwritten look's label font: the Caveat
+  `@font-face` (variable weight, Latin subset, embedded as a data URI so the
+  labels need no second request and no swap up from the fallback face — an
+  export still loads `mermaid.min.js` from a CDN, so it is not offline), and
+  `--diagram-font` named again over the Simplicity stack — this file is
+  appended after `mud-diagram.css`, so the second declaration is what switches
+  the look. `wrapUp` adds it only for
+  `RenderOptions.diagramLook == .handwritten`, and gives that document
+  `font-src data:` along with it — without the directive `default-src 'none'`
+  blocks the font and the labels quietly fall back to system-ui. Roughly 100
+  KB, which is why the Simplicity look ships none of it
 - `mud.js` — Shared JS: find, scroll, lighting, zoom. Find and outline
   navigation unfold their target first (`Mud.folds`); `setClass` routes
   `is-foldable-headings` to `folds.setEnabled`
@@ -519,7 +573,55 @@ MVP plan.
   riot)
 - `theme-system.css` — System theme (internal; used for error pages)
 - `mermaid.min.js` — Mermaid diagram library (v11, UMD build)
-- `mermaid-init.js` — Mermaid init script for Up mode rendering
+- `mermaid-init.js` — Mermaid init and render for Up mode. Reads the page's
+  `--diagram-*` variables through `getComputedStyle` (Mermaid computes the rest
+  of its palette from them, so it needs resolved values) and hands them over as
+  theme variables, flattened onto the ground first (a theme may write a
+  translucent color — Austere's `--code-bg` is a green at 3.5% alpha — and
+  Mermaid picks some label colors by inverting a fill, which on a near-
+  transparent one yields a label you can't read). It runs with
+  `look: handDrawn` and a fixed `handDrawnSeed` — an unseeded wobble would
+  redraw differently on every content change. `labelFont` reads
+  `--diagram-font` the same way and passes it to Mermaid as `fontFamily`, since
+  Mermaid measures each label's box with the font it is given: that one
+  property is the whole difference between the Simplicity and Handwritten
+  looks. Mermaid derives every categorical color (pie slices, journey and
+  timeline sections, git branches) from its primary/secondary/tertiary colors,
+  which for us are three near-neighbors out of one theme — so `ramp` supplies
+  them instead, one hue circle walked in twelve steps from the accent's hue. It
+  is called twice, because the two jobs want opposite lightness: colors that
+  carry text (`pie1`…`pie12`, `cScale0`…`cScale11`, `git0`…`git7`, with
+  `cScaleLabel*` and `gitBranchLabel*` named as the page's ink) are pitched
+  toward the ground so that ink reads over them, while a chart's bars and lines
+  (`xyChart.plotColorPalette`, the one list an xy chart reads) take a mid tone
+  so they stand out from it. `isDarkGround` decides which way by comparing
+  `--diagram-bg` against `--diagram-fg`, not by a media query. Every ramp color
+  is written as hex by `hslHex`, because `plotColorPalette` is one
+  comma-separated string and an `hsl(20, 45%, 43%)` in it is torn into three
+  entries that name no color — which draws the bars in SVG's default black and
+  the line with no stroke at all. Gantt and xy charts each read a set of
+  variables of their own, so both sets are named in full: Mermaid otherwise
+  defaults a Gantt to literal colors no theme reaches (white alternating bands,
+  a grey done bar, a red today line) and builds an xy chart's config from its
+  _default_ theme, not the base one the rest of the page uses. The `bars` block
+  holds the Gantt's three task states, and unlike everything else here those
+  are final colors — a Gantt takes no glaze, so each is named at the strength
+  it is seen at. None of the fills is a color at full strength, since every bar
+  carries a label in the page's ink; the accent goes on the active bar's border
+  instead. After the run it applies the watercolor wash: node and cluster fills
+  become a glaze, and a clone of each outline, stroked in the fill color, pools
+  the pigment at the edge. Only shapes filled in a palette color are glazed,
+  which leaves a state diagram's start and end dots alone. `WASHABLE_BAR` adds
+  an xy chart's bars, which are one series and lose nothing to a uniform glaze;
+  a Gantt's don't take one, because its three states have to be told apart at a
+  glance and the glaze costs most of the difference between them. Only a shape
+  that names its own `fill` is glazed, which is what keeps the wash off the
+  families Mermaid fills from a class — a mindmap above all, whose every shape
+  is filled by a `.section-N` rule and which draws its edges up to 17px wide
+  underneath them, so an opaque fill is the point. It keeps each diagram's
+  source on the container, because a lighting change has to draw them all again
+  — the colors are baked into the SVG, and only a theme change reloads the
+  document
 - `temml.min.js` — Temml TeX-to-MathML library (v0.13.3, MIT). Loaded into a
   `JSContext` by `MathRenderer`; renders server-side, never shipped in exports
 - `Doc/Guides/command-line.md` — Bundled guide: CLI usage
@@ -594,17 +696,27 @@ self-contained document for the in-app `NSPopover`.
 
 ### Comments
 
-A footnote whose label matches `^comment-[\w-]+$` is a comment. Its reference
-renders as a `[⋯]` marker (consuming no footnote number) and its definition
-parses into a quotation plus threaded messages. `RenderOptions.commentMode`
-selects the output: `.section` emits a visible bottom Comments section with
-visible `💬` markers, while `.interactive` keeps that section `is-print-only`
-and instead draws hover-revealed highlights and feeds the Comments Column. The
-live app and exports are always `.interactive` (`exportDocument` upgrades a
-commented source through `showingReadOnlyComments`) — except Quick Look, which
-passes `commentsColumn: false` and stays on `.section`. Without `.interactive`
-the document carries neither the `comments-column` class nor the column script,
-so there is nothing to project and nothing for a media query to hide.
+A footnote whose label `CommentLabel` recognizes — `💬-a`, or the older
+equivalent `comment-a` — is a comment. Its reference renders as a `[⋯]` marker
+(consuming no footnote number) and its definition parses into a quotation plus
+threaded messages. `RenderOptions.commentMode` selects the output: `.section`
+emits a visible bottom Comments section with visible `💬` markers, while
+`.interactive` keeps that section `is-print-only` and instead draws
+hover-revealed highlights and feeds the Comments Column. The live app and
+exports are always `.interactive` (`exportDocument` upgrades a commented source
+through `showingReadOnlyComments`) — except Quick Look, which passes
+`commentsColumn: false` and stays on `.section`. Without `.interactive` the
+document carries neither the `comments-column` class nor the column script, so
+there is nothing to project and nothing for a media query to hide.
+
+Each message may carry an **avatar** — one emoji leading its attribution, kept
+on `CommentMessage.avatar` so a thread rewrite puts every message's own back.
+Mud writes the `comment-avatar` preference (`👤` unless the reader changes it,
+resolved once in `CommentSubmissionHandler`); a message with none is drawn with
+`CommentAvatar.fallback`. `CommentHTMLRenderer` writes the resolved glyph into
+the attribution and the raw one as `data-mud-avatar`, present only when the
+source names one — which is how `mud-comments.js` tells an explicit avatar from
+the fallback when it projects a capsule.
 
 The section is emitted as a `<footer class="comments">` **outside** the
 `<article>`, as its next sibling, always after any footnotes section. Being a

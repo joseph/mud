@@ -20,6 +20,10 @@ MVP plan.
 - GFM rendering with syntax highlighting (highlight.js)
 - GFM math: TeX rendered to MathML server-side (Temml), three delimiter forms
   (```` ```math ````, `$$…$$`, inline `` $`…`$ ``); no client-side JS
+- Diagrams: a ```` ```mermaid ```` block drawn in the page's palette, with a
+  watercolor wash; two label looks (Simplicity, Handwritten) and off, chosen in
+  Settings → Up Mode. A block that won't parse keeps its source and takes an
+  INVALID badge opening the parser's message
 - Two modes: Mark Up (rendered) and Mark Down (raw, syntax-highlighted)
 - Space bar toggles modes; scroll position preserved
 - Auto-reload on file change (DispatchSource); manual reload (Cmd+R)

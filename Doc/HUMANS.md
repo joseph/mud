@@ -24,6 +24,7 @@ Mud does just one thing — it marks up Markdown! — and it does it really well
 - [Command-line usage](Guides/command-line.md)
 - [Setting preferences from the command line](Guides/preferences.md)
 - [Sandbox limitations](Guides/sandbox-limitations.md)
+- [Comments specification](Guides/spec-comments.md)
 
 
 ### Examples

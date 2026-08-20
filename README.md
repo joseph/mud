@@ -57,7 +57,7 @@ Mud requires macOS Sonoma (14.0) or higher, and comes in two flavors:
 - [x] Find (**Cmd+F**)
 - [x] **Print** and **Open In Browser**
 - [x] **Zoom**, readable column, word wrap, and line number toggles
-- [x] Mermaid **diagrams**
+- [x] Mermaid **diagrams**, drawn in your theme’s colors
 - [x] High-quality presentation of **math equations**
 - [x] Native popovers for **footnotes**
 - [x] Collapsible **YAML** frontmatter

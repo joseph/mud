@@ -556,16 +556,22 @@ MVP plan.
   it ships wherever the read side does. Its skip rules (comment markers,
   footnote references, math, and the inline `<del>` a tracked change's removed
   words render as) match `CommentAnchor.swift`, mirrored in
-  `CommentAnchorParityTests`
+  `CommentAnchorParityTests`. `rangeSlices` applies those same rules to a DOM
+  range: the quotable text-node slices a selection covers, which is what a
+  quotation is built from. `sel.toString()` would carry the removed words and
+  the footnote number too, and the read side searches under these rules, so a
+  quotation taken from it could never be found again
 - `mud-comments.js` — Comments column (read side, bundled everywhere): projects
   a capsule per comment from the hidden bottom section, anchors quotation
-  highlights off the hidden markers, runs the slot solver, and on `setData`
-  rebuilds and reprojects in place (no reload). A marker click doesn't open the
-  column itself: it posts `mudRevealColumn` and waits for the app to make room
-  and call `openToComment`. An export has no app to ask, so it picks on the
-  column's own width. `foldOver` asks `Mud.folds.hiding` — null wherever
-  folding doesn't exist, so an export takes no fold branch; comments hidden by
-  one fold collapse to a single stub
+  highlights off the hidden markers (`buildIndex` builds the flat text it
+  searches under the shared rules, so it holds only what the source says), runs
+  the slot solver, and on `setData` rebuilds and reprojects in place (no
+  reload). A marker click doesn't open the column itself: it posts
+  `mudRevealColumn` and waits for the app to make room and call
+  `openToComment`. An export has no app to ask, so it picks on the column's own
+  width. `foldOver` asks `Mud.folds.hiding` — null wherever folding doesn't
+  exist, so an export takes no fold branch; comments hidden by one fold
+  collapse to a single stub
 - `mud-comments-edit.js` — Comments column (write side, app only): the Add
   Comment button on a commentable selection, the compose box, and the
   submit/reply/edit/delete bridge (`mudCommentSubmit`)

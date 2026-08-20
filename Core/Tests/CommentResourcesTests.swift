@@ -92,6 +92,29 @@ struct CommentResourcesTests {
       .contains(marker) == true)
   }
 
+  @Test func quotationRuleIsSharedByBothSides() {
+    // Which rendered characters a quotation may hold is decided once, by
+    // `rangeSlices` in mud-comment-anchor.js. The write side builds the stored
+    // text with it, and the read side leaves the same elements out of the flat
+    // text it searches. If either side stops asking, a quotation carrying a
+    // tracked change's removed words or a footnote's number is written to the
+    // file and then never found again.
+    let anchorJS = HTMLTemplate.loadResource("mud-comment-anchor", type: "js") ?? ""
+    #expect(anchorJS.contains("function rangeSlices("))
+    #expect(anchorJS.contains("rangeSlices: rangeSlices"))
+
+    // Write side: the quotation, and the provisional highlight painted over the
+    // selection while the comment is composed, are the same characters.
+    #expect(HTMLTemplate.mudCommentsEditJS.contains(
+      "anchor.slicesText(anchor.rangeSlices(range, container))"))
+    let read = HTMLTemplate.mudCommentsJS
+    #expect(read.contains("anchor.rangeSlices(range, container)"))
+
+    // Read side: the flat text `buildIndex` searches applies the same rules.
+    #expect(read.contains("if (isMarkerElement(node) || anchor.isSkippedSubtree(node)) return;"))
+    #expect(read.contains("if (anchor.isBottomSection(node)) return;"))
+  }
+
   @Test func avatarFallbackAgreesAcrossSwiftAndJS() {
     // A message with no avatar of its own is drawn with the same glyph on both
     // sides: CommentHTMLRenderer writes it into the bottom section, and

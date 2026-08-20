@@ -149,7 +149,9 @@
     // Nothing anchorable behind it, or the selection covers a skipped subtree —
     // none of which has a source byte.
     if (!end || end.crossedSkipped) return null;
-    var quotation = normalizeWS(sel.toString()).trim();
+    // The range's *quotable* text, not `sel.toString()` — see `rangeSlices`.
+    var quotation = normalizeWS(
+      anchor.slicesText(anchor.rangeSlices(range, container))).trim();
     if (!quotation) return null;
     var locator = endLocator(end);
     if (!locator) return null;

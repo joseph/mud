@@ -90,16 +90,16 @@
         return;
       }
       if (node.nodeType !== Node.ELEMENT_NODE) return;
-      if (node.classList) {
-        if (node.classList.contains("comments") ||
-            node.classList.contains("footnotes")) return;
-        if (node.classList.contains("mud-comment-marker")) {
-          var label = node.getAttribute("data-mud-label");
-          // A repeated label anchors its quotation at the first reference.
-          if (!(label in markerAt)) markerAt[label] = flat.length;
-          return;
-        }
+      if (anchor.isBottomSection(node)) return;
+      if (node.classList && node.classList.contains("mud-comment-marker")) {
+        var label = node.getAttribute("data-mud-label");
+        // A repeated label anchors its quotation at the first reference.
+        if (!(label in markerAt)) markerAt[label] = flat.length;
+        return;
       }
+      // The same exclusions the write side built the quotation under: count
+      // them here and it would never match again (`rangeSlices`).
+      if (isMarkerElement(node) || anchor.isSkippedSubtree(node)) return;
       for (var c = node.firstChild; c; c = c.nextSibling) walk(c);
     }
 
@@ -214,50 +214,12 @@
   // drops the unknown-label marker, so it is swept up either way.
   var DRAFT_LABEL = "mud-draft";
 
-  // True when a text node sits inside a marker glyph or the hidden bottom
-  // sections — never part of a quotable selection.
-  function inSkippedRegion(node) {
-    var el = node.parentNode;
-    while (el && el !== container) {
-      if (el.classList && (el.classList.contains("mud-comment-marker") ||
-          el.classList.contains("comments") ||
-          el.classList.contains("footnotes"))) return true;
-      el = el.parentNode;
-    }
-    return false;
-  }
-
-  function collectRangeTextSlices(range) {
-    var slices = [];
-    var common = range.commonAncestorContainer;
-    if (common.nodeType === Node.TEXT_NODE) {
-      if (!inSkippedRegion(common) && range.endOffset > range.startOffset) {
-        slices.push({
-          node: common, start: range.startOffset, end: range.endOffset
-        });
-      }
-      return slices;
-    }
-    var walker = document.createTreeWalker(common, NodeFilter.SHOW_TEXT, {
-      acceptNode: function (n) {
-        return range.intersectsNode(n) && !inSkippedRegion(n)
-          ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
-      }
-    });
-    var n;
-    while ((n = walker.nextNode())) {
-      var s = n === range.startContainer ? range.startOffset : 0;
-      var e = n === range.endContainer ? range.endOffset : n.nodeValue.length;
-      if (e > s) slices.push({ node: n, start: s, end: e });
-    }
-    return slices;
-  }
-
-  // One <mark> per slice: surroundContents needs a single-node range.
+  // One <mark> per slice: surroundContents needs a single-node range. The draft
+  // marker after the last one stands where the saved marker will.
   function showSelectionDraft(range) {
     clearSelectionDraft();
     if (!range) return;
-    var slices = collectRangeTextSlices(range);
+    var slices = anchor.rangeSlices(range, container);
     var lastMark = null;
     for (var i = 0; i < slices.length; i++) {
       var mark = wrapSlice(

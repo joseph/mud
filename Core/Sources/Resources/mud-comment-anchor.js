@@ -5,6 +5,9 @@
 // `CommentAnchorParityTests.logicalBlocks` pins the Swift mirror of
 // `eachLogicalBlock`. Keep the two in sync.
 //
+// The same rules decide which rendered text a quotation may hold
+// (`rangeSlices`), so the write side stores what the read side searches for.
+//
 // A **logical block** maps one-to-one to a cmark leaf block. It is either an
 // *innermost leaf element* (`<p>`, `<h1>`–`<h6>`, `<td>`, `<th>`, or an `<li>`
 // with no nested leaf blocks), or a *segment* — one maximal run of inline
@@ -111,6 +114,87 @@
     var text = "";
     var kids = element.childNodes;
     for (var i = start; i < end; i++) text += markerFreeText(kids[i]);
+    return text;
+  }
+
+  // No part of a quotation: everything `markerFreeText` leaves out, plus the
+  // hidden bottom sections.
+  function isUnquotable(node) {
+    return isMarkerElement(node) || isSkippedSubtree(node) ||
+      isBottomSection(node);
+  }
+
+  // Trimmed at both ends, so the slices are exactly the quotation's
+  // characters: the provisional highlight then shows what will be stored.
+  function trimSlices(slices) {
+    while (slices.length) {
+      var first = slices[0];
+      var head = first.node.nodeValue.slice(first.start, first.end);
+      var keptHead = head.replace(/^\s+/, "");
+      if (!keptHead) { slices.shift(); continue; }
+      first.start += head.length - keptHead.length;
+      break;
+    }
+    while (slices.length) {
+      var last = slices[slices.length - 1];
+      var tail = last.node.nodeValue.slice(last.start, last.end);
+      var keptTail = tail.replace(/\s+$/, "");
+      if (!keptTail) { slices.pop(); continue; }
+      last.end = last.start + keptTail.length;
+      break;
+    }
+    return slices;
+  }
+
+  // The quotable text a DOM range covers: one `{node, start, end}` per
+  // intersected text node, in document order, clipped to the range's ends. Not
+  // `sel.toString()`, which takes the rendered text whole — a selection across
+  // a tracked change would carry the removed words, one across a footnote
+  // reference its number, and neither is in the file.
+  //
+  // An unquotable subtree is descended into rather than skipped, since a range
+  // end can sit inside one; it contributes no slice. `range` need only carry
+  // the four boundary fields, so this runs outside a browser.
+  function rangeSlices(range, root) {
+    var slices = [];
+    var sc = range.startContainer, so = range.startOffset;
+    var ec = range.endContainer, eo = range.endOffset;
+    var inside = false, finished = false;
+
+    (function walk(node, quotable) {
+      if (finished) return;
+      if (node.nodeType === Node.TEXT_NODE) {
+        if (node === sc) inside = true;
+        if (inside && quotable) {
+          var from = node === sc ? so : 0;
+          var to = node === ec ? eo : node.nodeValue.length;
+          if (to > from) slices.push({ node: node, start: from, end: to });
+        }
+        if (node === ec) finished = true;
+        return;
+      }
+      if (node.nodeType !== Node.ELEMENT_NODE) return;
+      var kids = node.childNodes;
+      // (node, i) is the boundary before child i, and at kids.length the one
+      // after the last child.
+      for (var i = 0; i <= kids.length; i++) {
+        if (node === sc && so === i) inside = true;
+        if (node === ec && eo === i) { finished = true; return; }
+        if (i === kids.length) break;
+        walk(kids[i], quotable && !isUnquotable(kids[i]));
+        if (finished) return;
+      }
+    })(root, !isUnquotable(root));
+
+    return trimSlices(slices);
+  }
+
+  function slicesText(slices) {
+    var text = "";
+    for (var i = 0; i < slices.length; i++) {
+      var s = slices[i];
+      text += s.node.nodeValue.slice(s.start, s.end);
+    }
     return text;
   }
 
@@ -274,7 +358,10 @@
     isInnermostLeaf: isInnermostLeaf,
     isSkippedSubtree: isSkippedSubtree,
     inSkippedSubtree: inSkippedSubtree,
+    isBottomSection: isBottomSection,
     markerFreeText: markerFreeText,
+    rangeSlices: rangeSlices,
+    slicesText: slicesText,
     leafBlock: leafBlock,
     anchorableEnd: anchorableEnd,
     eachLogicalBlock: eachLogicalBlock,

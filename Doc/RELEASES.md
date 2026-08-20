@@ -1,11 +1,34 @@
 RELEASES
 ===============================================================================
 
+## v4.2.0
+
+- **Diagrams in theme colors** — a Mermaid diagram is drawn in whichever theme
+  and lighting the window is in, with rough outlines and a watercolor wash,
+  instead of Mermaid's stock lavender and grey.
+- Settings > Up Mode now offers two lettering looks for diagram labels —
+  Simplicity, in the page's own type, and Handwritten — or switches diagrams
+  off entirely.
+- Diagram errors are now indicated by a red `INVALID` badge in the corner of
+  the raw mermaid code block. Click the badge for the parser's real complaint,
+  in place of Mermaid's old "syntax error" bomb.
+- **Comment avatars** — each message carries an emoji for whoever wrote it,
+  shown ahead of the author in the margin column. Choose yours from the picker
+  in Settings > Comments.  - New comments are labeled `[^💬-a]` rather than `[^comment-a]`. Mud reads both,
+  so nothing you've already written needs changing.
+- Commenting on a paragraph, heading, or list item that Mud is showing as a
+  tracked change works again. With **Settings > Changes > Inline deletions**
+  on, it occasionally failed. (Thanks PH!)
+- A GFM alert with text on the same line as its `[!NOTE]` tag keeps the line
+  break after it, instead of running the first two lines together.
+- Word-level change marks now appear inside a GFM alert.
+
+
 ## v4.1.1
 
-A fix for where a comment marker appears when you select text by dragging.
-If you highlight a whole block, the comment will appear beside it (not beside
-the following block!).
+A fix for where a comment marker appears when you select text by dragging. If
+you highlight a whole block, the comment will appear beside it (not beside the
+following block!).
 
 The app icon has been subtly tweaked, too.
 

@@ -6,54 +6,7 @@
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src mud-asset: data: https:; style-src 'unsafe-inline'; script-src 'none'">
         
     <title>v4.1.1</title>
-    <style>/* -- Theme: Earthy -------------------------------------------------------- */
-
-:root {
-  --text-color: #333;
-  --bg-color: #FFF;
-  --body-bg: #F9F9F6;
-  --link-color: #8E4740;
-  --border-color: #E0DBD4;
-  --code-bg: #F5F3EE;
-  --code-fg: #5D662E;
-  --heading-color: #7A4A2A;
-  --blockquote-color: #8A7B68;
-  --blockquote-border: #DCD6CE;
-
-  --syntax-comment: #9A7A4A;
-  --syntax-number: #705D73;
-  --syntax-function: #9A5435;
-  --syntax-type: #7A4A2A;
-  --syntax-constant: #705D73;
-  --syntax-keyword: var(--heading-color);
-  --syntax-string: var(--code-fg);
-  --syntax-variable: var(--text-color);
-  --syntax-operator: var(--text-color);
-  --syntax-punctuation: var(--text-color);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --text-color: #CFC9C0;
-    --bg-color: #100E0D;
-    --body-bg: #0C0A08;
-    --link-color: #C67467;
-    --border-color: #38332D;
-    --code-bg: #1A1816;
-    --code-fg: #A8B36B;
-    --heading-color: #D9B87C;
-    --blockquote-color: #9A8C7C;
-    --blockquote-border: #3D3731;
-
-    --syntax-comment: #B8A06A;
-    --syntax-number: #947E96;
-    --syntax-function: #C98A60;
-    --syntax-type: #D4A06A;
-    --syntax-constant: #947E96;
-    --syntax-keyword: #D4A06A;
-  }
-}
-/* -- Structure ------------------------------------------------------------ */
+    <style>/* -- Structure ------------------------------------------------------------ */
 
 * {
   box-sizing: border-box;
@@ -87,8 +40,8 @@ article {
 
 
 /* -- Alert color variables ------------------------------------------------ */
-/* Shared between Up and Down mode. */
-/* Themes may override these custom properties. */
+/* Shared between Up and Down mode. A theme may override any of these: it is
+   loaded last of all, and both write plain :root. */
 
 :root {
   --alert-note-border: #0969da;
@@ -138,6 +91,37 @@ article {
     --find-match-active-bg: rgba(245, 158, 11, 0.5);
     --find-match-active-outline: rgba(217, 119, 6, 0.7);
   }
+}
+
+
+/* -- Diagram variables ---------------------------------------------------- */
+/* Consumed by mermaid-init.js, which resolves them and hands them to Mermaid
+   as theme variables (Mermaid computes the rest of its palette from them, so
+   it needs real values, not var() references). Every variable read here has
+   its own dark override in the theme files, so this block needs no
+   prefers-color-scheme twin: one mapping covers four themes times two
+   lightings.
+
+   A theme normally changes a diagram's colors by changing the variables named
+   on the right. Naming one on the left works too, and breaks that derivation
+   for that theme alone: the theme is loaded last of all.
+
+   --border-color is deliberately not the source for --diagram-border: it is
+   the page's hairline rule color, too faint to outline a node with. */
+
+:root {
+  /* The ground a diagram is drawn on: Mermaid works out label contrast from
+     it, and it is what a label's backing plate and a message label's halo
+     are painted in so they disappear against the page. */
+  --diagram-bg: var(--bg-color, #F5F0E4);
+  --diagram-fg: var(--text-color, #221E16);
+  --diagram-surface: var(--code-bg, #EAD9B9);
+  --diagram-line: var(--blockquote-color, #4D4A44);
+  --diagram-border: var(--blockquote-color, #5A564E);
+  --diagram-accent: var(--link-color, #9A4A24);
+
+  --diagram-wash: 0.3;
+  --diagram-wash-edge: 0.34;
 }
 
 
@@ -720,17 +704,9 @@ tr:nth-child(even) {
   background-color: var(--code-bg);
 }
 
-/* -- Mermaid diagrams ----------------------------------------------------- */
-
-.mermaid {
-  text-align: center;
-  margin-bottom: 1em;
-}
-
-.mermaid svg {
-  max-width: 100%;
-  height: auto;
-}
+/* Mermaid diagram styles live in mud-diagram.css, which rides along only with
+   a document that has a diagram. The Handwritten look's font is a second file,
+   mud-diagram-font.css, added after it. */
 
 /* -- Images --------------------------------------------------------------- */
 
@@ -905,10 +881,8 @@ footer.comments .mud-comment-attribution {
   margin: 0.75rem 0 0.25rem;
 }
 
-footer.comments .mud-comment-attribution:before {
-  content: '💬 ';
+footer.comments .mud-comment-avatar {
   margin-left: -0.2rem;
-  margin-right: 0.2rem;
 }
 
 footer.comments .mud-comment-time {
@@ -965,9 +939,14 @@ footer.comments .mud-comment-time:after {
 
 /* -- Comments column ------------------------------------------------------ */
 
-/* The quotation highlight color. A theme may override `--comment-highlight`. */
+/* The quotation highlight color and its dark twin. Two names rather than one
+   redeclared under `prefers-color-scheme`, because the dark one is read only
+   from inside that query — by the `.is-active` rule above and by the draft
+   highlight in mud-comments-edit.css, which is always loaded after this sheet.
+   A theme may override either: it is loaded last of all. */
 :root {
   --comment-highlight: #fde047;
+  --comment-highlight-dark: rgba(253, 224, 71, 0.4);
 
   /* The column's inner content width (the capsule / header / compose width),
      200–400px. The app's drag handle rewrites it live; everywhere else it holds
@@ -1171,7 +1150,8 @@ footer.comments .mud-comment-time:after {
   cursor: default;
 }
 
-/* Collapsed: a single 45px line — "💬 Author: message…", ellipsized. */
+/* Collapsed: a single 45px line — "👤 Author: message…", ellipsized, opening
+   with the first message's avatar. */
 .mud-capsule-bar {
   display: flex;
   align-items: center;
@@ -1216,7 +1196,7 @@ footer.comments .mud-comment-time:after {
 /* Each message is its own bordered box. The first (the original comment) is
    shaded to mark the active thread; replies below it stay white. */
 .mud-capsule-thread .mud-comment-message {
-  padding: 9px 14px;
+  padding: 0.9em 14px;
   border-radius: 23px;
   border: 1px solid var(--blockquote-color);
   background: var(--bg-color);
@@ -1281,6 +1261,53 @@ footer.comments .mud-comment-time:after {
    inside is drawn at all; the capsule's `title` carries the text instead. */
 .mud-capsule.is-stub > * {
   display: none;
+}
+/* -- Theme: Earthy -------------------------------------------------------- */
+
+:root {
+  --text-color: #333;
+  --bg-color: #FFF;
+  --body-bg: #F9F9F6;
+  --link-color: #8E4740;
+  --border-color: #E0DBD4;
+  --code-bg: #F5F3EE;
+  --code-fg: #5D662E;
+  --heading-color: #7A4A2A;
+  --blockquote-color: #8A7B68;
+  --blockquote-border: #DCD6CE;
+
+  --syntax-comment: #9A7A4A;
+  --syntax-number: #705D73;
+  --syntax-function: #9A5435;
+  --syntax-type: #7A4A2A;
+  --syntax-constant: #705D73;
+  --syntax-keyword: var(--heading-color);
+  --syntax-string: var(--code-fg);
+  --syntax-variable: var(--text-color);
+  --syntax-operator: var(--text-color);
+  --syntax-punctuation: var(--text-color);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --text-color: #CFC9C0;
+    --bg-color: #100E0D;
+    --body-bg: #0C0A08;
+    --link-color: #C67467;
+    --border-color: #38332D;
+    --code-bg: #1A1816;
+    --code-fg: #A8B36B;
+    --heading-color: #D9B87C;
+    --blockquote-color: #9A8C7C;
+    --blockquote-border: #3D3731;
+
+    --syntax-comment: #B8A06A;
+    --syntax-number: #947E96;
+    --syntax-function: #C98A60;
+    --syntax-type: #D4A06A;
+    --syntax-constant: #947E96;
+    --syntax-keyword: #D4A06A;
+  }
 }
 /* -- Find highlights ------------------------------------------------------ */
 /* The search-match colors. Injected only into the live app view (see
@@ -1581,6 +1608,13 @@ mark.mud-match-active {
   .mud-fold-arrow { display: none; }
 
 
+  /* Up mode: a diagram that wouldn't parse. On screen the parser's message is
+     behind the INVALID badge; nothing on paper can be clicked, so it prints
+     under the block. The badge prints with it, as a marker rather than a
+     control. */
+  .mermaid.is-error > .mud-diagram-error { display: block; }
+
+
   /* Up mode: comments. The bottom Comments section is hidden on screen in
      favor of the column, but prints in place of the column. Being the
      article's sibling rather than its child, the footer carries its own page
@@ -1611,9 +1645,9 @@ mark.mud-match-active {
 <body>
     <article class="up-mode-output">
 <h1 id="v411">v4.1.1</h1>
-<p>A fix for where a comment marker appears when you select text by dragging.
-If you highlight a whole block, the comment will appear beside it (not beside
-the following block!).</p>
+<p>A fix for where a comment marker appears when you select text by dragging. If
+you highlight a whole block, the comment will appear beside it (not beside the
+following block!).</p>
 <p>The app icon has been subtly tweaked, too.</p>
 <hr />
 <p><a href="https://apps.josephpearson.org/mud/releases">All release notes</a></p>

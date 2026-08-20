@@ -248,6 +248,14 @@ struct UpRenderingTests {
             old: "> [!NOTE]\n> Important info.\n\nKeep.\n",
             new: "Keep.\n"),
         .init(
+            label: "GFM alert body reworded",
+            old: "> [!NOTE]\n> The report covers March results.\n",
+            new: "> [!NOTE]\n> The report covers April results.\n"),
+        .init(
+            label: "GFM alert reworded on the tag line",
+            old: "> [!TIP] Ship the beta build.\n> Then tag it.\n",
+            new: "> [!TIP] Ship the final build.\n> Then tag it.\n"),
+        .init(
             label: "DocC aside replaced",
             old: "> Status: Planning\n",
             new: "> Status: Underway\n"),

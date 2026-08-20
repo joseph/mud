@@ -91,14 +91,19 @@ struct UpHTMLVisitor: CMarkWalker {
                 ?? .empty
             emitAlertOpen(category, attrs: attrs)
             emitAlertTitle(category, title)
+            activateAlertWordSpans(
+                for: innerParagraph,
+                prefixLength: Self.gfmTagPrefixLength(
+                    blockQuote, category: category))
             emitGFMAlertContent(blockQuote, category: category)
+            deactivateWordSpans()
             result += "</blockquote>\n"
         } else if let alert = alertDetector.detectDocCAlert(blockQuote) {
             let attrs = innerParagraph.flatMap { changeAttributes(for: $0) }
                 ?? .empty
             emitAlertOpen(alert.category, attrs: attrs)
             activateAlertWordSpans(
-                for: innerParagraph, tagByteLength: alert.tagByteLength)
+                for: innerParagraph, prefixLength: alert.tagByteLength)
             emitDocCAlertTitleAndContent(
                 alert.category, alert.title,
                 blockQuote: blockQuote, tagByteLength: alert.tagByteLength)
@@ -809,10 +814,16 @@ struct UpHTMLVisitor: CMarkWalker {
     /// trailing content on the same line), drops the soft break that
     /// ended a tag line with nothing else on it, then visits remaining
     /// inlines and subsequent block children.
+    ///
+    /// The tag is in the text the word diff ran over and is not rendered, so
+    /// an active `spanEmitter` must be advanced past it before this runs —
+    /// `activateAlertWordSpans` does that with `gfmTagPrefixLength`. Each
+    /// stripped character is accounted for here in the same way: the tag-line
+    /// remainder through `emitTextRun`, the dropped soft break by a silent
+    /// advance.
     private mutating func emitGFMAlertContent(
         _ blockQuote: CMarkNode, category: AlertCategory
     ) {
-        let tag = "[!\(category.rawValue.uppercased())]"
         let children = Array(blockQuote.children)
         guard let firstPara = children.first, firstPara.kind == .paragraph
         else { return }
@@ -821,16 +832,14 @@ struct UpHTMLVisitor: CMarkWalker {
         var index = 0
         var opened = false
 
-        // Strip the [!TYPE] tag from the first text node, then escape the
-        // remainder without emoji replacement (so a `:tada:` on the tag line
-        // stays literal).
+        // Strip the [!TYPE] tag from the first text node and emit what is
+        // left of that line as ordinary body text.
         if let tagNode = inlines.first, tagNode.kind == .text {
             index = 1
             let literal = tagNode.literal ?? ""
             var after = String(
-                literal.dropFirst(tag.count)
-                    .drop(while: { $0 == " " })
-            )
+                literal.dropFirst(
+                    Self.gfmTagPrefixLength(blockQuote, category: category)))
             // Mirror visitText: when the tag text node abuts an inline-math
             // span, its trailing `$` is a math delimiter, not content.
             if spanEmitter == nil, let next = tagNode.nextSibling,
@@ -840,7 +849,10 @@ struct UpHTMLVisitor: CMarkWalker {
             if !after.isEmpty {
                 opened = true
                 result += "<p>"
-                result += HTMLEscaping.escape(after)
+                // Through emitTextRun, so this run is emitted the way every
+                // other text run is: word spans when they are active, and
+                // emoji shortcodes replaced either way.
+                emitTextRun(after)
             }
             // The soft break ending the tag line. When the tag was alone on
             // that line, the line goes with it and so does the break. When
@@ -850,6 +862,12 @@ struct UpHTMLVisitor: CMarkWalker {
             if !opened, index < inlines.count,
                inlines[index].kind == .softBreak {
                 index += 1
+                // The break is one character of the paragraph's inline text,
+                // so the emitter still consumes it (visitSoftBreak would
+                // have).
+                if spanEmitter != nil {
+                    result += spanEmitter!.advance(by: 1, emit: false)
+                }
             }
         }
 
@@ -860,8 +878,29 @@ struct UpHTMLVisitor: CMarkWalker {
         }
         if opened { result += "</p>\n" }
 
+        // The first paragraph is the only block the spans were cut from; a
+        // later paragraph in the same alert brings its own.
+        deactivateWordSpans()
+
         // Visit remaining block children after the first paragraph.
         for child in children.dropFirst() { visit(child) }
+    }
+
+    /// How many characters `emitGFMAlertContent` strips from an alert's first
+    /// text node: the `[!TYPE]` tag and the spaces after it. They are part of
+    /// the paragraph's `WordDiff.inlineText` and are never rendered, so a word
+    /// span emitter has to advance past exactly this many before the first
+    /// character that is.
+    private static func gfmTagPrefixLength(
+        _ blockQuote: CMarkNode, category: AlertCategory
+    ) -> Int {
+        guard let firstPara = blockQuote.firstChild,
+              firstPara.kind == .paragraph,
+              let tagNode = firstPara.firstChild, tagNode.kind == .text,
+              let literal = tagNode.literal else { return 0 }
+        let tag = "[!\(category.rawValue.uppercased())]"
+        let after = literal.dropFirst(tag.count).drop(while: { $0 == " " })
+        return literal.count - after.count
     }
 
     /// Emits the opening `<blockquote>` tag with alert CSS classes
@@ -1001,19 +1040,19 @@ struct UpHTMLVisitor: CMarkWalker {
     /// `WordSpanEmitter`.
     private var spanEmitter: WordSpanEmitter?
 
-    /// Activates word spans for a DocC aside's inner paragraph, advancing
-    /// the cursor past the tag prefix so spans align with the rendered
-    /// content. The prefix length is the detector's `tagByteLength`: the
-    /// prefix is ASCII (`Kind:` plus spaces/tabs), so its **byte** length
-    /// equals the **character** count `skipPrefix` expects.
+    /// Activates word spans for an alert's inner paragraph, advancing the
+    /// cursor past the prefix that paragraph renders without — a DocC aside's
+    /// `Kind:` (the detector's `tagByteLength`) or a GFM alert's `[!TYPE]`
+    /// (`gfmTagPrefixLength`). Both prefixes are ASCII, so a **byte** length
+    /// is also the **character** count `skipPrefix` expects.
     private mutating func activateAlertWordSpans(
-        for paragraph: CMarkNode?, tagByteLength: Int
+        for paragraph: CMarkNode?, prefixLength: Int
     ) {
         guard let para = paragraph else { return }
         activateWordSpans(for: para)
         guard spanEmitter != nil else { return }
-        if tagByteLength > 0 {
-            spanEmitter?.skipPrefix(charCount: tagByteLength)
+        if prefixLength > 0 {
+            spanEmitter?.skipPrefix(charCount: prefixLength)
         }
     }
 
@@ -1058,8 +1097,20 @@ struct UpHTMLVisitor: CMarkWalker {
             var visitor = UpHTMLVisitor()
             visitor.footnoteNumbers = footnoteNumbers
             visitor.isDeletionRender = true
+            // Math-bearing alerts skip word spans, the same rule
+            // `activateWordSpans` applies on the insertion side.
+            if let spans = wordSpans, !spans.isEmpty,
+               !containsInlineMath(blockQuote) {
+                visitor.spanEmitter = WordSpanEmitter(
+                    spans: spans, role: .deletion,
+                    showInlineDeletions: false)
+                visitor.spanEmitter?.skipPrefix(
+                    charCount: gfmTagPrefixLength(
+                        blockQuote, category: category))
+            }
             visitor.emitAlertTitle(category, title)
             visitor.emitGFMAlertContent(blockQuote, category: category)
+            visitor.deactivateWordSpans()
             return (visitor.result, category)
         }
 

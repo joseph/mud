@@ -888,6 +888,64 @@ struct UpModeChangeTrackingTests {
     #expect(!html.contains("<ins"), "Must not use <ins> wrappers")
   }
 
+  /// The `[!TYPE]` tag is part of the paragraph cmark parses and so part of
+  /// the text the word diff runs over, but it is never rendered — the title
+  /// paragraph stands in for it. These three pin that the emitter is advanced
+  /// past exactly that prefix: a marker landing early would sit against the
+  /// generated title, and one landing late would shear every following word.
+
+  @Test func rewordedGFMAlertMarksTheChangedWords() {
+    let old = "> [!NOTE]\n> The report covers March results.\n"
+    let new = "> [!NOTE]\n> The report covers April results.\n"
+    var opts = RenderOptions()
+    opts.waypoint = ParsedMarkdown(old)
+    opts.showInlineDeletions = true
+    let html = MudCore.renderUpToHTML(new, options: opts)
+    let insBlock = extractBlock(html, class: "mud-change-ins")
+    #expect(insBlock != nil)
+    if let block = insBlock {
+      #expect(block.contains("<del>March</del>"))
+      #expect(block.contains("<ins>April</ins>"))
+      // The surrounding words are unmarked, and the tag never reaches the
+      // body: the title paragraph is all that is emitted for it.
+      #expect(block.contains("<p>The report covers <del>March</del>"))
+      #expect(!block.contains("[!NOTE]"))
+    }
+  }
+
+  @Test func rewordedGFMAlertMarksTheDeletedWordsInTheRedBlock() {
+    let old = "> [!NOTE]\n> The report covers March results.\n"
+    let new = "> [!NOTE]\n> The report covers April results.\n"
+    var opts = RenderOptions()
+    opts.waypoint = ParsedMarkdown(old)
+    let html = MudCore.renderUpToHTML(new, options: opts)
+    let delBlock = extractBlock(html, class: "mud-change-del")
+    #expect(delBlock != nil)
+    if let block = delBlock {
+      #expect(block.contains("<del>March</del>"))
+      #expect(!block.contains("<ins>"), "Red block must not show the insertion")
+      // The skipped prefix must not leave a marker before the alert title.
+      #expect(!block.contains("<del>[!NOTE]"))
+    }
+  }
+
+  @Test func rewordedGFMAlertTagLineMarksTheChangedWords() {
+    // Content on the tag line is stripped along with the tag itself, so the
+    // prefix the emitter skips is the tag *and* the space after it.
+    let old = "> [!TIP] Ship the beta build.\n> Then tag it.\n"
+    let new = "> [!TIP] Ship the final build.\n> Then tag it.\n"
+    var opts = RenderOptions()
+    opts.waypoint = ParsedMarkdown(old)
+    opts.showInlineDeletions = true
+    let html = MudCore.renderUpToHTML(new, options: opts)
+    let insBlock = extractBlock(html, class: "mud-change-ins")
+    #expect(insBlock != nil)
+    if let block = insBlock {
+      #expect(block.contains("<p>Ship the <del>beta</del><ins>final</ins>"))
+      #expect(block.contains("Then tag it."))
+    }
+  }
+
   @Test func replacedDocCAsideHasChangeAttributes() {
     let old = "> Status: Planning\n"
     let new = "> Status: Underway\n"

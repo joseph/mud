@@ -33,13 +33,13 @@
 // past a line at a boundary in the block *below* it, so the end is first walked
 // back to the last text the selection really covers.
 //
-// The skip rules match CommentAnchor.swift: comment markers and footnote
-// references contribute no text (`isMarkerElement`); the bottom `.comments` /
-// `.footnotes` sections, code blocks (`<pre>`), Mermaid diagrams, raw-HTML
-// blocks (`.mud-html-block`), and change-tracking deletion overlays
-// (`.mud-change-del`) are skipped entirely — none has a source byte the anchor
-// could match. `CommentAnchorParityTests.logicalBlocks` is the pinned Swift
-// mirror of `eachLogicalBlock`; keep the two in sync.
+// The skip rules match CommentAnchor.swift: comment markers, footnote
+// references, and inline deletions contribute no text (`isMarkerElement`); the
+// bottom `.comments` / `.footnotes` sections, code blocks (`<pre>`), Mermaid
+// diagrams, raw-HTML blocks (`.mud-html-block`), and change-tracking deletion
+// overlays (`.mud-change-del`) are skipped entirely — none has a source byte
+// the anchor could match. `CommentAnchorParityTests.logicalBlocks` is the
+// pinned Swift mirror of `eachLogicalBlock`; keep the two in sync.
 
 (function () {
   "use strict";
@@ -54,13 +54,28 @@
   function normalizeWS(s) { return s.replace(/\s+/g, " "); }
 
   // The elements whose text is not part of a block's anchor text: the comment
-  // markers (💬) and authorial footnote references (the superscript number).
-  // Skipping the footnote reference is the one behavior change of extracting
-  // this shared file: the read side used to skip only the comment marker, so
-  // exact marker placement missed in a block that also held a footnote
-  // reference and fell back to a quotation search (Phase 3e).
+  // markers (💬), authorial footnote references (the superscript number), and
+  // the words a tracked change removed. Skipping the footnote reference is the
+  // one behavior change of extracting this shared file: the read side used to
+  // skip only the comment marker, so exact marker placement missed in a block
+  // that also held a footnote reference and fell back to a quotation search
+  // (Phase 3e).
+  //
+  // A `<del>` is in exactly a marker's position: present in the rendered DOM,
+  // absent from the source. `WordSpanEmitter` writes one into a changed block
+  // for each removed word run when Settings → Changes → Inline deletions is on,
+  // and counting those words toward the block's text describes a block the file
+  // does not contain — no cmark leaf matches and every comment on the block
+  // fails to anchor. Naming it here rather than in `isSkippedSubtree` is
+  // deliberate: a deletion sits mid-paragraph, so it must not break an inline
+  // segment, and a selection ending inside one must still be commentable (it
+  // walks back to the last surviving text). Authored `~~strikethrough~~`
+  // renders as `<s>`, so a `<del>` in Mud's Up output is always change tracking
+  // and never text the document supplied.
   function isMarkerElement(node) {
-    return node.nodeType === Node.ELEMENT_NODE && node.classList &&
+    if (node.nodeType !== Node.ELEMENT_NODE) return false;
+    if (node.tagName === "DEL") return true;
+    return !!node.classList &&
       (node.classList.contains("mud-comment-marker") ||
        node.classList.contains("footnote-ref"));
   }

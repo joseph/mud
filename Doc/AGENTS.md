@@ -554,7 +554,8 @@ MVP plan.
   _below_, so the end is walked back to the last text it really covers.
   `HTMLTemplate.mudCommentsJS` concatenates it ahead of `mud-comments.js`, so
   it ships wherever the read side does. Its skip rules (comment markers,
-  footnote references, and math) match `CommentAnchor.swift`, mirrored in
+  footnote references, math, and the inline `<del>` a tracked change's removed
+  words render as) match `CommentAnchor.swift`, mirrored in
   `CommentAnchorParityTests`
 - `mud-comments.js` — Comments column (read side, bundled everywhere): projects
   a capsule per comment from the hidden bottom section, anchors quotation

@@ -113,6 +113,91 @@ struct CommentAnchorParityTests {
     #expect(failingBlocks(markdown).isEmpty)
   }
 
+  // MARK: - Tests, over a change-tracked document
+
+  /// One rewording of each shape that takes word-level change spans: a heading,
+  /// a paragraph, a tight list item that also holds a nested list, and a
+  /// multi-word table cell. Rendered against `changedBefore` with inline
+  /// deletions on, every one of them carries the removed words in a bare
+  /// `<del>` — text that is in the DOM and not in the source.
+  private static let changedBefore = """
+    # The Quarterly Notes
+
+    The report covers March results.
+
+    - Ship the beta build.
+      - A nested detail.
+
+    | Column | Status                 |
+    | ------ | ---------------------- |
+    | Build  | Now amber and slipping |
+    """
+
+  private static let changedAfter = """
+    # The Monthly Notes
+
+    The report covers April results.
+
+    - Ship the final build.
+      - A nested detail.
+
+    | Column | Status                 |
+    | ------ | ---------------------- |
+    | Build  | Now green and shipping |
+    """
+
+  private static var inlineDeletionOptions: RenderOptions {
+    var options = RenderOptions()
+    options.waypoint = ParsedMarkdown(changedBefore)
+    options.showInlineDeletions = true
+    return options
+  }
+
+  @Test func changedBlocksWithInlineDeletionsAnchor() {
+    let options = Self.inlineDeletionOptions
+    // The fixture only says anything while it renders inline deletions.
+    #expect(
+      MudCore.renderUpToHTML(Self.changedAfter, options: options)
+        .contains("<del>"))
+    #expect(failingBlocks(Self.changedAfter, options: options).isEmpty)
+  }
+
+  @Test func inlineDeletionsContributeNoBlockText() {
+    // The removed words are in the rendered DOM and not in the source, so a
+    // block's text has to be the surviving text alone. Counting them made the
+    // page post a block the file doesn't contain ("covers MarchApril results"),
+    // which matched no cmark leaf and failed every comment on that block.
+    let texts = blockTexts(Self.changedAfter, options: Self.inlineDeletionOptions)
+    #expect(texts.contains("The report covers April results."))
+    #expect(texts.contains("Now green and shipping"))
+    #expect(texts.contains("The Monthly Notes"))
+    // The tight item's inline run is still one segment: a mid-run `<del>`
+    // contributes no text and must not break the run either.
+    #expect(texts.contains("Ship the final build."))
+    #expect(
+      !texts.contains {
+        $0.contains("Quarterly") || $0.contains("March") || $0.contains("beta")
+          || $0.contains("amber")
+      })
+  }
+
+  @Test func endInsideAnInlineDeletionAnchorsBeforeIt() {
+    // A selection ending inside a removed word: the JS half (`anchorableEnd`)
+    // walks back to the last surviving text before it — "The report covers",
+    // trailing space trimmed — and the locator posts the block's marker-free
+    // text with that offset. This pins the Swift half: the offset resolves to
+    // the byte just after "covers", so the marker lands there.
+    let source = Self.changedAfter
+    let blockText = "The report covers April results."
+    let surviving = "The report covers"
+    let expected = source.utf8.distance(
+      from: source.utf8.startIndex, to: source.range(of: surviving)!.upperBound)
+    #expect(
+      CommentAnchor.insertionOffset(
+        in: source, blockText: blockText, offsetInBlock: surviving.count)
+        == expected)
+  }
+
   // MARK: - Driver
 
   /// Renders `markdown`, enumerates every logical block the way the JS locator
@@ -150,6 +235,18 @@ struct CommentAnchorParityTests {
     return failures
   }
 
+  /// The normalized text of every logical block, in document order: the strings
+  /// the page would post as `blockText`. Same walk as `failingBlocks`, without
+  /// the anchoring step, so a test can name the text it expects.
+  private func blockTexts(
+    _ markdown: String, options: RenderOptions = .init()
+  ) -> [String] {
+    logicalBlocks(parseHTML(MudCore.renderUpToHTML(markdown, options: options)))
+      .filter { !$0.element.classes.contains("alert-title") }
+      .map { normalizeWS($0.text) }
+      .filter { !$0.isEmpty }
+  }
+
   // MARK: - The JS DOM rules, re-implemented over rendered HTML
 
   /// `LEAF_BLOCK_TAGS` from `mud-comments.js` / `mud-comments-edit.js`.
@@ -158,11 +255,16 @@ struct CommentAnchorParityTests {
     "blockquote", "pre", "dd", "dt", "figcaption", "caption", "summary",
   ]
 
-  /// `isMarkerElement` from `mud-comments-edit.js`: elements whose text the
+  /// `isMarkerElement` from `mud-comment-anchor.js`: elements whose text the
   /// locator skips (comment markers and footnote reference numbers).
   private static let markerClasses: Set<String> = [
     "mud-comment-marker", "footnote-ref",
   ]
+
+  /// The other half of `isMarkerElement`: an inline `<del>`, the words a
+  /// tracked change removed. It is a tag rather than a class, so it sits beside
+  /// `markerClasses` instead of in it.
+  private static let markerTag = "del"
 
   private final class Node {
     let tag: String  // "" for a text node
@@ -222,6 +324,7 @@ struct CommentAnchorParityTests {
   /// marker elements and skipped subtrees. Mirrors `rangeText` / `markerFreeText`.
   private func markerFreeText(_ node: Node) -> String {
     if node.tag.isEmpty { return node.text }
+    if node.tag == Self.markerTag { return "" }
     if !node.classes.isDisjoint(with: Self.markerClasses) { return "" }
     if isSkippedSubtree(node) { return "" }
     return node.children.map(markerFreeText).joined()

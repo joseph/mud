@@ -1,9 +1,8 @@
 /* -- Up Mode -------------------------------------------------------------- */
 
-/* The Up-mode page box. The article and the bottom Comments footer are
-   siblings — the comments sit outside the article — so they can't inherit one
-   box from the other; they read these two instead. mud-narrow.css tightens
-   both at once by rewriting them, rather than restating each box's padding. */
+/* The Up-mode page box. The article and the Comments footer are siblings, so
+   neither can inherit the other's box; both read these. mud-narrow.css tightens
+   them together by rewriting these two values. */
 :root {
   --up-page-inset: 2em;
   --up-page-clearance: 6em; /* space for floating bars beneath */
@@ -47,19 +46,15 @@ p {
 
 /* -- Foldable headings ---------------------------------------------------- */
 
-/* With the "Foldable headings" setting on (`is-foldable-headings`), mud-up.js
-   puts an arrow button in every h2-and-deeper heading, and a click on that
-   button folds the section under it away. Both the arrow and the folding
-   are on-screen only: paper always gets the whole document, so mud-print.css
-   has nothing to undo — it only hides the buttons. */
+/* Screen only: paper always gets the whole document, so mud-print.css has
+   nothing to undo here — it only hides the buttons. */
 @media screen {
-  /* Direct children only: a heading nested in a blockquote, a list item, or a
-     footnote body begins no section, and mud-up.js gives it no arrow. */
+  /* Direct children only: a nested heading begins no section, and mud-up.js
+     gives it no arrow. */
   .is-foldable-headings .up-mode-output > :is(h2, h3, h4, h5, h6) {
     position: relative;
-    /* The arrow's column, kept clear so a heading that wraps can't run under
-       it. In rem, so it is the same width at every rank and comparable at a
-       glance with the button's own width below. */
+    /* The arrow's column, kept clear of a heading that wraps. In rem, so it is
+       the same width at every rank. */
     padding-right: 1.75rem;
   }
 
@@ -72,17 +67,14 @@ p {
     right: 0;
     bottom: var(--fold-arrow-inset, 0em);
     /* A button doesn't inherit the page's font, so an em here would be the
-       UA's ~13px at every rank rather than the heading's. Take the heading's:
-       the height below is then one of its line boxes, and the h2 inset is in
-       the same units as the padding it has to clear. */
+       UA's ~13px at every rank rather than the heading's. */
     font: inherit;
     display: flex;
     align-items: center;
     justify-content: center;
     box-sizing: border-box;
-    /* Narrower than the column it sits in, and one line box tall, so the hit
-       box covers the arrow and no part of the heading's text. `min-height`
-       keeps h5 and h6 pointable; it grows upward, into the heading's margin. */
+    /* One line box tall, so the hit box covers no part of the heading's text.
+       `min-height` keeps h5 and h6 pointable, growing into the margin. */
     width: 1.5rem;
     height: 1.25em;
     min-height: 1.25rem;
@@ -94,34 +86,29 @@ p {
     transition: color 0.15s ease, transform 0.15s ease;
   }
 
-  /* An h2 carries 0.3em of padding and an underline below its text. Lift the
-     arrow clear of both, so it sits on the line rather than on the rule. */
+  /* Clear of an h2's padding and underline, so it sits on the line. */
   h2 .mud-fold-arrow { --fold-arrow-inset: 0.3em; }
 
-  /* The SVG's own size, held in rem so the arrow looks the same at every rank
-     while its box tracks the line it sits on. */
+  /* In rem, so the arrow is the same size at every rank. */
   .mud-fold-arrow svg {
     display: block;
     width: 0.875rem;
     height: 0.875rem;
   }
 
-  /* fold-arrow.svg draws in black; take the h1/h2 underline color instead. The
-     file sets its color as a presentation attribute, which loses to any rule. */
+  /* fold-arrow.svg sets black as a presentation attribute, which loses to any
+     rule. */
   .mud-fold-arrow polyline {
     stroke: currentColor;
   }
 
-  /* A folded arrow stays dark whether or not the pointer is on it: it is the
-     only sign that a section is missing, so it has to read from across the
-     page rather than only once you go looking for it. */
+  /* A folded arrow stays dark: it is the only sign a section is missing. */
   .up-mode-output > :is(h2, h3, h4, h5, h6):hover > .mud-fold-arrow,
   .mud-fold-arrow:focus-visible,
   .is-folded > .mud-fold-arrow {
     color: var(--heading-color);
   }
 
-  /* Folded: the arrow turns from pointing down to pointing right. */
   .is-folded > .mud-fold-arrow {
     transform: rotate(-90deg);
   }
@@ -142,10 +129,9 @@ a:hover {
 
 /* -- Lists ---------------------------------------------------------------- */
 
-/* One number for the indent, since a task item's check box hangs in it (see
-   below). Anything that wants a different indent — the footnotes and comments
-   lists, both of mud-narrow.css's tiers — redefines the variable and leaves
-   the padding to this rule, so the box and the indent can't drift apart. */
+/* One number for the indent, since a task item's check box hangs in it.
+   Anything wanting a different indent redefines the variable and leaves the
+   padding to this rule, so the box and the indent can't drift apart. */
 ul, ol {
   --list-left-pad: 2em;
 
@@ -173,11 +159,10 @@ li:has(> input[type="checkbox"]) > input[type="checkbox"] {
   display: none;
 }
 
-/* The box hangs in the list's indent. It reaches 1.5em left of the item's text
-   — its own 1em plus a 0.5em gap — or the whole indent where that is less, so
-   it can never poke out of the list. The pull and the gap are stated from that
-   one reach, so the three horizontal margins always sum to zero and the first
-   line of an item starts exactly where its wrapped lines do, at any indent. */
+/* The box hangs in the list's indent, reaching 1.5em left of the item's text
+   or the whole indent where that is less, so it can't poke out of the list. The
+   pull and the gap are stated from that one reach, so the three horizontal
+   margins sum to zero at any indent. */
 li:has(> input[type="checkbox"])::before {
   --check-reach: min(1.5em, var(--list-left-pad));
 
@@ -427,8 +412,7 @@ blockquote > :last-child {
   text-decoration: none;
 }
 
-/* In `.popover` mode the section is hidden on screen (footnotes show in a
-   native popover) but reappears for Print / Save-PDF (see mud-print.css). */
+/* Hidden on screen in `.popover` mode; mud-print.css brings it back. */
 .footnotes.is-print-only { display: none; }
 
 
@@ -452,15 +436,12 @@ table {
   border-spacing: 0;
 }
 
-/* A table too wide to fit — many columns, or a cell that can't wrap — would
-   otherwise be clipped by `.up-mode-output { overflow-x: hidden }`. Make each
-   content table its own horizontal scroll box so the overflow stays reachable
-   without scrolling the whole document. `display: block` turns the table into
-   a scroll container; `width: fit-content` (overriding the `width: 100%` above)
-   sizes it to its columns, and `max-width: 100%` caps that at the text width so
-   a wide table scrolls instead of overflowing. Excludes the frontmatter table,
-   which has its own layout. The Comments footer is named alongside the article
-   because a comment body is rendered Markdown and clips the same way. */
+/* A table too wide to fit would be clipped by the article's `overflow-x:
+   hidden`, so each content table is its own horizontal scroll box: `display:
+   block` makes the scroll container, `width: fit-content` sizes it to its
+   columns, and `max-width: 100%` caps that at the text width. The frontmatter
+   table has its own layout; a comment body clips the same way as the
+   article. */
 :is(.up-mode-output, footer.comments) table:not(.mud-frontmatter-table) {
   display: block;
   overflow-x: auto;
@@ -475,11 +456,9 @@ th, td {
   vertical-align: top;
 }
 
-/* Honor the delimiter-row alignment. The visitor emits it as the presentational
-   `align` attribute, which an author `text-align` rule (the one above) would
-   otherwise override — a presentational hint loses to any author CSS. These
-   attribute selectors outrank the bare `th, td` rule, so the column alignment
-   wins. */
+/* The delimiter row's alignment is emitted as the presentational `align`
+   attribute, which loses to any author CSS — so these selectors, outranking the
+   bare `th, td` rule above, are what make the column alignment win. */
 th[align="left"], td[align="left"] { text-align: left; }
 th[align="center"], td[align="center"] { text-align: center; }
 th[align="right"], td[align="right"] { text-align: right; }
@@ -493,9 +472,8 @@ tr:nth-child(even) {
   background-color: var(--code-bg);
 }
 
-/* Mermaid diagram styles live in mud-diagram.css, which rides along only with
-   a document that has a diagram. The Handwritten look's font is a second file,
-   mud-diagram-font.css, added after it. */
+/* Diagram styles are in mud-diagram.css, added only to a document holding a
+   diagram; the Handwritten look's font is mud-diagram-font.css after it. */
 
 /* -- Images --------------------------------------------------------------- */
 

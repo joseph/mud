@@ -23,8 +23,8 @@
 }
 
 
-/* Each line: flex row.  Default stretch alignment ensures .ln
-   background covers the full row height when .lc wraps. */
+/* Stretch alignment keeps the .ln background covering the row when .lc
+   wraps. */
 
 .dl {
   display: flex;
@@ -90,42 +90,31 @@ html:not(.has-line-numbers) .ln {
   background: var(--code-bg);
 }
 
-/* Code fence lines — content dimmed, line number untouched */
-
 .dc-fence .lc {
   opacity: 0.5;
 }
 
-/* When word-wrap is off, grow the container to the widest content
-   so all lines share the same width and line numbers stick across
-   the full scroll range. */
+/* Word-wrap off: every line shares the widest content's width, so the line
+   numbers stay stuck across the whole scroll range. */
 
 html:not(.has-word-wrap) .down-lines {
   min-width: max-content;
 }
 
-/* Scrollable code block wrapper */
-
 .dc-scroll {
   display: grid;
 }
 
-/* When word-wrap is on, code blocks scroll independently. */
+/* With word-wrap on, code blocks scroll independently. */
 
 .has-word-wrap .dc-scroll {
   overflow-x: auto;
   overscroll-behavior-x: none;
 }
 
-/* Code lines grow to fit content — triggers dc-scroll scrolling
-   when word-wrap is on. */
-
 .has-word-wrap .dc-code {
   min-width: max-content;
 }
-
-
-/* Print: don't clip code blocks — see mud-print.css. */
 
 
 /* -- AST-based syntax highlighting ---------------------------------------- */
@@ -147,7 +136,6 @@ html:not(.has-word-wrap) .down-lines {
   text-decoration-color: color-mix(in srgb, currentColor 30%, transparent);
 }
 
-/* Alert tag colorization */
 .md-alert-note .md-alert-tag    { color: var(--alert-note-border);    font-style: normal; font-weight: bold; }
 .md-alert-tip .md-alert-tag     { color: var(--alert-tip-border);     font-style: normal; font-weight: bold; }
 .md-alert-important .md-alert-tag { color: var(--alert-important-border); font-style: normal; font-weight: bold; }

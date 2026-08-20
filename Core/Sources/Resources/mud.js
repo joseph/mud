@@ -4,9 +4,8 @@
 (function () {
   "use strict";
 
-  // What Find searches. Up mode is two roots, not one: the bottom Comments
-  // section is a `<footer>` beside the article rather than inside it, and its
-  // text is still part of the document a reader searches.
+  // Up mode is two roots: the bottom Comments section is a `<footer>` beside
+  // the article rather than inside it, and a reader searches its text too.
   function CONTAINERS() {
     return document.querySelector(".up-mode-output")
         ? ".up-mode-output, footer.comments"
@@ -20,8 +19,6 @@
 
   // -- Highlight helpers ---------------------------------------------------
 
-  // Walk all text nodes inside the search roots, split at case-insensitive
-  // matches, and wrap each match in <mark class="mud-match">.
   function highlightAll(text) {
     clearHighlights();
     if (!text) return;
@@ -34,8 +31,8 @@
       "gi"
     );
 
-    // Collect text nodes first (mutating the DOM while walking is unsafe).
-    // Roots come back in document order, so the marks do too.
+    // Collected first: mutating the DOM while walking is unsafe. Roots come
+    // back in document order, so the marks do too.
     var nodes = [];
     var node;
     for (var r = 0; r < roots.length; r++) {
@@ -99,9 +96,8 @@
     activeIndex = ((n % marks.length) + marks.length) % marks.length;
     var el = marks[activeIndex];
     el.classList.add(ACTIVE_CLASS);
-    // A match inside a folded section has nothing to scroll to until the
-    // section opens. Matches stay counted while folded, so stepping through
-    // them with Cmd+G still walks the whole document.
+    // A folded match has nothing to scroll to until its section opens. Matches
+    // stay counted while folded, so Cmd+G still walks the whole document.
     if (window.Mud.folds) window.Mud.folds.reveal(el);
     el.scrollIntoView({ block: "center", behavior: "smooth" });
   }
@@ -131,8 +127,6 @@
   }
 
   function findRefine(text) {
-    // Remember the active match's viewport position so we can pick the
-    // nearest match after re-highlighting.
     var refY = null;
     if (activeIndex >= 0 && activeIndex < marks.length) {
       refY = marks[activeIndex].getBoundingClientRect().top;
@@ -143,7 +137,6 @@
     if (marks.length === 0) return result();
 
     if (refY !== null) {
-      // Pick the match closest to the previous active position.
       var best = 0;
       var bestDist = Infinity;
       for (var i = 0; i < marks.length; i++) {
@@ -158,8 +151,7 @@
   }
 
   function findAdvance(text, direction) {
-    // If highlights are stale or absent, rebuild them.
-    if (marks.length === 0) {
+    if (marks.length === 0) {   // stale or absent — rebuild
       highlightAll(text);
       if (marks.length === 0) return result();
       activateMatch(0);
@@ -201,7 +193,6 @@
   function scrollToHeading(slug) {
     var el = document.getElementById(slug);
     if (!el) return;
-    // Navigating to a folded heading opens it, and opens whatever it sits in.
     if (window.Mud.folds) window.Mud.folds.revealHeading(slug);
     el.scrollIntoView({ behavior: "smooth", block: "start" });
   }
@@ -245,21 +236,13 @@
 
   // -- Popover --------------------------------------------------------------
 
-  // Asks the app for a native popover over `html`, anchored at `rect` — a
-  // viewport rect straight from getBoundingClientRect, which is the space
-  // WebView.swift's anchorRect converts from. Swift wraps the fragment into a
-  // document carrying the window's theme, lighting, and zoom (MudCore's
-  // renderPopoverDocument), so callers send a body and nothing more.
+  // A native popover over `html`, anchored at `rect` (a viewport rect straight
+  // from getBoundingClientRect). Swift wraps the fragment in a document carrying
+  // the window's theme, lighting and zoom, so callers send a body and no more.
+  // False where there is no app to ask, so the caller can fall back.
   //
-  // Returns false where there is no app to ask — an export, Open In Browser,
-  // Quick Look — so a caller can fall back to something the page can do on its
-  // own. Same check the footnote-marker handler in mud-up.js makes before it
-  // falls through to the plain anchor jump.
-  //
-  // Only Mud's own injected scripts get here: a rendered document is served
-  // `script-src 'none'`, so nothing in the Markdown can run and post a message.
-  // The fragment is still loaded as HTML — a caller showing text the document
-  // supplied has to escape it first.
+  // The fragment is loaded as HTML: a caller showing text the document supplied
+  // has to escape it first.
   var popover = {
     show: function (rect, html) {
       var handlers = window.webkit && window.webkit.messageHandlers;
@@ -279,28 +262,20 @@
 
   // -- Geometry ------------------------------------------------------------
 
-  // Shared zoom/position helpers for the app-only overlay and comment-column
-  // files (mud-changes.js, mud-comments-edit.js). The document `zoom` on <html>
-  // scales the whole layout, so getBoundingClientRect reports zoomed viewport
-  // pixels while overlays and capsules position in pre-zoom layout pixels; these
-  // convert between the two. (mud-comments.js keeps its own offsetParent-based
-  // layoutTop instead of using this — it is inlined into exports without mud.js,
-  // so it must stay self-contained.)
+  // The document `zoom` on <html> scales the whole layout, so
+  // getBoundingClientRect reports zoomed viewport pixels while overlays and
+  // capsules position in pre-zoom layout pixels; these convert between the two.
+  // (mud-comments.js keeps its own layoutTop — it is inlined into exports
+  // without mud.js, so it has to stay self-contained.)
   var geometry = {
-    // The current document zoom factor (1 when unset).
     zoom: function () {
       return parseFloat(document.documentElement.style.zoom) || 1;
     },
-    // A rect's top as an absolute position from the document top, in layout
-    // pixels — the same space mud-comments.js's layoutTop returns, via the
-    // viewport rect and page scroll (used where an offsetParent walk isn't
-    // handy, e.g. a selection range).
+    // The same space mud-comments.js's layoutTop returns, for where an
+    // offsetParent walk isn't handy — a selection range, say.
     layoutTopFromRect: function (rect) {
       return (rect.top + window.scrollY) / geometry.zoom();
     },
-    // A viewport Y coordinate converted to a position relative to a container's
-    // scrolled content: subtract the container's viewport top, undo the zoom,
-    // then add the container's scrollTop.
     viewportToLayout: function (viewportY, containerRect, scrollTop) {
       return (viewportY - containerRect.top) / geometry.zoom() + scrollTop;
     }
@@ -308,10 +283,8 @@
 
   // -- Public namespace ----------------------------------------------------
 
-  // Merge rather than assign, so the namespace is built the same defensive way
-  // in every file and injection order is not a silent requirement. mud.js is
-  // still injected first (see WebView.swift), because it seeds the shared
-  // helpers the other files call at runtime.
+  // Merged rather than assigned, so injection order is not a silent
+  // requirement. mud.js is still injected first: it seeds the shared helpers.
   window.Mud = window.Mud || {};
   Object.assign(window.Mud, {
     findFromTop: findFromTop,

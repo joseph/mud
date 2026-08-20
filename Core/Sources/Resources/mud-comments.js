@@ -1,17 +1,14 @@
 // Mud - Comments column (read side, Up mode).
 //
-// Projects a capsule per comment from the hidden bottom `<section
-// class="comments">` (the single source of comment HTML), positions each
-// capsule beside its quotation with the placement pass below, and reveals a
-// quotation's highlight on hover / activate. This file is bundled everywhere,
-// exports
-// included; the write side (selection, compose, submit, edit, delete) lives in
-// mud-comments-edit.js and is bundled in the app only.
+// Projects a capsule per comment from the hidden bottom `<footer
+// class="comments">` — the single source of comment HTML — positions each
+// beside its quotation, and reveals a quotation's highlight on hover. Bundled
+// everywhere, exports included; the write side (selection, compose, submit,
+// edit, delete) is mud-comments-edit.js and is bundled in the app only.
 //
-// The column is built only in column mode (`<html class="comments-column">`,
-// set by MudCore) with the toggle on (`is-comments-column`). It clones
-// already-rendered nodes out of the section — it never parses Markdown — and
-// strips their ids so the page holds no duplicates.
+// The column is built only in column mode (`<html class="comments-column">`)
+// with the toggle on (`is-comments-column`). It clones already-rendered nodes
+// out of the section — never parsing Markdown — and strips their ids.
 
 (function () {
   "use strict";
@@ -33,18 +30,14 @@
   var lastVisible = null;     // last applied visibility (idempotent setVisible)
 
   // Shared anchoring primitives (mud-comment-anchor.js, concatenated ahead of
-  // this file by HTMLTemplate). eachLogicalBlock enumerates the same
-  // logical blocks the write side anchors to (segments in tight list items
-  // included); isMarkerElement skips footnote references as well as comment
-  // markers, so exact marker placement matches the write side in a block that
-  // also holds a footnote reference (Phase 3e).
+  // this file by HTMLTemplate).
   var anchor = window.Mud.commentAnchor;
   var normalizeWS = anchor.normalizeWS;
   var isMarkerElement = anchor.isMarkerElement;
 
-  // The element's top in layout (pre-zoom) pixels, summed up the offsetParent
-  // chain to the body. Robust to the document `zoom`, which scales container and
-  // capsules together, so capsule `top` values stay in the same space.
+  // The element's top in layout (pre-zoom) pixels. Robust to the document
+  // `zoom`, which scales container and capsules together, so capsule `top`
+  // values stay in the same space.
   function layoutTop(el) {
     var y = 0;
     while (el && el !== document.body) {
@@ -54,33 +47,25 @@
     return y;
   }
 
-  // The bottom Comments section: a `<footer>` outside the article, as its next
-  // sibling (CommentHTMLRenderer / HTMLTemplate.wrapUp).
   function section() {
     return document.querySelector("footer.comments[data-comments]");
   }
 
-  // Visible when the render is in column mode and the column is toggled on. In
-  // an export the toggle class is force-included, so the test is uniform.
+  // In an export the toggle class is force-included, so the test is uniform.
   function enabled() {
     var root = document.documentElement;
     return root.classList.contains("comments-column") &&
       root.classList.contains("is-comments-column");
   }
 
-  // The "Show comment markers" preference: the inline 💬 markers are visible
-  // on screen and interactive (hover highlights the quotation; click opens the
-  // column to the comment). Independent of whether the column is showing.
   function markersShown() {
     return document.documentElement.classList.contains("show-comment-markers");
   }
 
   // -- Highlight anchoring (off the hidden quote markers) -------------------
 
-  // Build a whitespace-collapsed flat text of the body with a parallel char →
-  // (textNode, offset) map, plus each marker's flat-index anchor. The bottom
-  // sections and the marker glyphs are skipped so a quotation never matches
-  // inside them.
+  // Whitespace-collapsed flat text of the body with a parallel char →
+  // (textNode, offset) map, plus each marker's flat-index anchor.
   function buildIndex() {
     var flat = "";
     var map = [];
@@ -110,8 +95,7 @@
             node.classList.contains("footnotes")) return;
         if (node.classList.contains("mud-comment-marker")) {
           var label = node.getAttribute("data-mud-label");
-          // A repeated label anchors its quotation at the first reference —
-          // the marker anchorFor picks in every case that arises in practice.
+          // A repeated label anchors its quotation at the first reference.
           if (!(label in markerAt)) markerAt[label] = flat.length;
           return;
         }
@@ -151,19 +135,14 @@
     }
   }
 
-  // A truncation marker: an ellipsis (the `…` character or three dots) with
-  // whitespace on both sides. Splitting `flat` on it yields the kept parts.
   var ELLIPSIS_SPLIT = /\s+(?:…|\.\.\.)\s+/;
 
   // The flat-text index where `quote` begins, anchored to end just before the
-  // marker at `end` — or -1 if it doesn't anchor. Two phases (see
-  // Doc/Guides/spec-comments.md, "Quotation truncation"):
-  //   1. Verbatim — the whole quotation sits immediately before the marker.
-  //   2. Truncated — only when phase 1 fails and the quotation carries a spaced
-  //      ellipsis. Split into parts; anchor the last part at the marker, then
-  //      walk left, matching each earlier part to its nearest occurrence before
-  //      the part already matched. The returned range (first part's start →
-  //      marker) covers the elided middle too.
+  // marker at `end`, or -1. Two phases (Doc/Guides/spec-comments.md, "Quotation
+  // truncation"): verbatim, then — only if that fails and the quotation carries
+  // a spaced ellipsis — anchor the last part at the marker and walk left,
+  // matching each earlier part to its nearest occurrence before the one already
+  // matched. The returned range covers the elided middle too.
   function matchQuotationStart(flat, end, quote) {
     var start = end - quote.length;
     if (start >= 0 && flat.slice(start, end) === quote) return start;
@@ -186,9 +165,6 @@
     return s;
   }
 
-  // For each marker, find where its quotation anchors (verbatim, or truncated).
-  // On a match, wrap each intersected text-node slice in its own
-  // <mark data-mud-label>.
   function anchorAll() {
     clearHighlights();
     var idx = buildIndex();
@@ -231,18 +207,15 @@
 
   // -- Selection draft (write side, while composing) ------------------------
 
-  // While a new comment is being written, the native text selection collapses
-  // the moment the compose box takes focus. To keep the quoted span visible we
-  // paint our own provisional highlight + 💬 marker over the live selection,
-  // under a sentinel label. The highlight carries `.mud-comment-draft` so it
-  // stays painted (not hover-toggled like a real one) until the comment is
-  // saved or dismissed; that styling is app-only (mud-comments-edit.css). A
-  // real `setData` on save drops the unknown-label marker and reprojects the
-  // highlights, so it is swept up even without the explicit clear.
+  // The native text selection collapses the moment the compose box takes focus,
+  // so a provisional highlight + 💬 marker is painted over the live selection
+  // under this sentinel label. `.mud-comment-draft` keeps it painted rather than
+  // hover-toggled until the comment is saved or dismissed. A real `setData`
+  // drops the unknown-label marker, so it is swept up either way.
   var DRAFT_LABEL = "mud-draft";
 
   // True when a text node sits inside a marker glyph or the hidden bottom
-  // sections — never part of a quotable selection, so it isn't highlighted.
+  // sections — never part of a quotable selection.
   function inSkippedRegion(node) {
     var el = node.parentNode;
     while (el && el !== container) {
@@ -254,8 +227,6 @@
     return false;
   }
 
-  // The text-node slices a range covers, clipped to its end points: one
-  // {node, start, end} per intersected text node (skipped regions excluded).
   function collectRangeTextSlices(range) {
     var slices = [];
     var common = range.commonAncestorContainer;
@@ -282,10 +253,7 @@
     return slices;
   }
 
-  // Paint the provisional highlight + marker over `range`: each text-node slice
-  // wrapped in its own <mark> (surroundContents needs a single-node range), then
-  // the marker just after the last slice — the quotation's end, where the saved
-  // marker will land. CSS reveals the marker only when markers are shown.
+  // One <mark> per slice: surroundContents needs a single-node range.
   function showSelectionDraft(range) {
     clearSelectionDraft();
     if (!range) return;
@@ -302,8 +270,6 @@
     }
   }
 
-  // Remove the provisional highlight + marker (Cancel / Escape, or after a save
-  // — where `setData` would also have swept the sentinel).
   function clearSelectionDraft() {
     var safe = cssEsc(DRAFT_LABEL);
     var marker = container.querySelector(
@@ -339,18 +305,14 @@
     return c;
   }
 
-  // The message's machine-readable time: the <time> in its attribution line.
-  // Scoped to that line, which only the renderer writes — a message body is
-  // Markdown and may itself hold a raw <time>.
+  // Scoped to the attribution line: a message body is Markdown and may hold a
+  // raw <time> of its own.
   function timeElementOf(el) {
     return el.querySelector(".mud-comment-attribution time[datetime]");
   }
 
-  // Relative within a day ("Just now", "11 hours ago"); a locale-ordered short
-  // date ("Jun 16" / "16 Jun") beyond. `iso` is a <time datetime> value — a
-  // floating local date-time, which JS reads in the reader's own zone, matching
-  // the bare wall clock the source stores. Falls back to the element's visible
-  // text (the absolute stamp) if that won't parse.
+  // `iso` is a floating local date-time, which JS reads in the reader's own
+  // zone, matching the bare wall clock the source stores.
   function formatTime(iso, text) {
     var t = iso ? Date.parse(iso) : NaN;
     if (isNaN(t)) return text || "";
@@ -369,7 +331,7 @@
     return h === 1 ? "1 hour ago" : h + " hours ago";
   }
 
-  // A message's own avatar emoji, or the glyph every attribution carried before
+  // A message's own avatar, or the glyph every attribution carried before
   // avatars existed. Mirrors CommentHTMLRenderer.formatAttribution:
   // data-mud-avatar is present only when the source names one. Takes a missing
   // element, since a comment with no messages still draws a collapsed bar.
@@ -393,8 +355,7 @@
       if (srcTime) {
         var tm = document.createElement("time");
         tm.className = "mud-comment-time";
-        // The stamp rides along on the projected element too, so the relative
-        // label can be recomputed on expand.
+        // The stamp rides along, so the relative label can be recomputed.
         var iso = srcTime.getAttribute("datetime");
         tm.setAttribute("datetime", iso);
         tm.textContent = formatTime(iso, srcTime.textContent);
@@ -407,9 +368,6 @@
     return m;
   }
 
-  // Recompute each message's relative time from its own datetime — the
-  // projected label is a snapshot, so it goes stale until the thread is
-  // reopened.
   function refreshTimes(cap) {
     var times = cap.querySelectorAll(
       ".mud-comment-attribution time[datetime]");
@@ -428,8 +386,7 @@
     cap.className = "mud-capsule";
     cap.setAttribute("data-mud-label", label);
 
-    // Collapsed bar: "👤 Author: first message…" — the opening message's own
-    // avatar, so a thread is recognizable by who started it.
+    // The opening message's avatar, so a thread is known by who started it.
     var bar = document.createElement("div");
     bar.className = "mud-capsule-bar";
     var emoji = document.createElement("span");
@@ -447,7 +404,6 @@
     bar.appendChild(text);
     cap.appendChild(bar);
 
-    // "N replies" label for a collapsed thread.
     if (messages.length > 1) {
       var rep = document.createElement("div");
       rep.className = "mud-capsule-replies";
@@ -456,8 +412,7 @@
       cap.appendChild(rep);
     }
 
-    // Expanded thread (shown only while active). The quotation is not shown
-    // here — it is highlighted in the document instead.
+    // Shown only while active; the quotation is highlighted in the document.
     var thread = document.createElement("div");
     thread.className = "mud-capsule-thread";
     for (var i = 0; i < messages.length; i++) {
@@ -479,10 +434,7 @@
     return col;
   }
 
-  // The "Comments" header pinned at the top of the column: a "Comments" title,
-  // previous / next navigation arrows, and a running count badge. Created once
-  // per column; the arrows and `count` are refreshed on every project. The
-  // arrows show whenever there is at least one comment.
+  // Created once per column; the arrows and count refresh on every project.
   function ensureHeader(col, count) {
     var header = col.querySelector("#mud-comments-header");
     if (!header) {
@@ -515,9 +467,9 @@
     return header;
   }
 
-  // A header arrow button. A `mousedown` that stops propagation keeps the
-  // document-level mousedown from deactivating the open comment before the
-  // click lands, so `navigate` can still step relative to it.
+  // The `mousedown` that stops propagation keeps the document-level mousedown
+  // from deactivating the open comment before the click lands, so `navigate`
+  // can still step relative to it.
   function makeNavButton(cls, label, glyph, direction) {
     var btn = document.createElement("button");
     btn.type = "button";
@@ -539,9 +491,8 @@
     activeLabel = null;
   }
 
-  // Populate quotationByLabel from the bottom section and (re)wrap the highlight
-  // marks, independent of the column. With the column closed but the markers
-  // shown, a marker still needs its quotation highlight on hover.
+  // With the column closed but the markers shown, a marker still needs its
+  // quotation highlight on hover.
   function anchorHighlightsOnly() {
     var sec = section();
     quotationByLabel = {};
@@ -555,12 +506,9 @@
     anchorAll();
   }
 
-  // (Re)build every capsule from the section, then lay out.
   function project() {
     if (!enabled()) {
       teardownColumn();
-      // Keep the marks alive for marker hover when the column is closed but the
-      // markers are shown; otherwise drop them.
       if (markersShown()) anchorHighlightsOnly();
       else clearHighlights();
       return;
@@ -600,7 +548,7 @@
     ensureHeader(col, Object.keys(capsules).length);
     anchorAll();
     if (api.hooks.afterProject) api.hooks.afterProject();
-    // Keep a comment expanded across a reproject (e.g. after a reply or edit).
+    // Keep a comment expanded across a reproject (a reply or edit).
     if (wasActive && capsules[wasActive]) {
       activate(wasActive);
     } else {
@@ -610,12 +558,12 @@
 
   // -- Placement pass -------------------------------------------------------
 
-  // What a capsule sits beside in the document: its quotation highlight, or —
-  // for a quote-less comment with no highlight — its hidden inline marker (kept
-  // measurable by the visually-hidden CSS). A label should have one marker; if
-  // the document ever holds more, the first with a layout box wins, so a hidden
-  // duplicate can't capture the anchor. With none laid out the first still
-  // stands: a fold hides the only marker legitimately, and foldOver reads it.
+  // What a capsule sits beside: its quotation highlight, or — for a quote-less
+  // comment — its hidden inline marker, kept measurable by the visually-hidden
+  // CSS. A label should have one marker; if the document holds more, the first
+  // with a layout box wins, so a hidden duplicate can't capture the anchor.
+  // With none laid out the first still stands: a fold hides the only marker
+  // legitimately, and foldOver reads it.
   function anchorFor(label) {
     var mark = container.querySelector(
       'mark.mud-comment-highlight[data-mud-label="' + cssEsc(label) + '"]');
@@ -630,26 +578,19 @@
 
   // -- Folded quotations ----------------------------------------------------
 
-  // The document can hide a comment's anchor. Foldable headings (mud-up.js) are
-  // an app feature and an export doesn't load that file, so this is the one
-  // place the column names them: null whenever the anchor is on screen, and
-  // null everywhere folding doesn't exist, which is what makes every branch
-  // below fall away in an export.
-  //
-  // A fold answers with `{ key, top }` — an opaque string grouping everything
-  // it hid, and the line in the document their stand-in sits on. Read it per
-  // call rather than capturing it, since the two files' load order isn't this
-  // one's to assume.
+  // Foldable headings are an app feature and an export doesn't load mud-up.js,
+  // so this is the one place the column names them: null wherever folding
+  // doesn't exist, which is what makes every branch below fall away in an
+  // export. A fold answers with `{ key, top }`. Read per call rather than
+  // captured, since the two files' load order isn't this one's to assume.
   function foldOver(anchor) {
     var f = window.Mud && window.Mud.folds;
     return f && anchor && anchor.offsetParent === null
       ? f.hiding(anchor) : null;
   }
 
-  // A comment's preferred position, in layout pixels: the top of its anchor —
-  // or, when a fold has hidden the anchor, the stub centered on the line that
-  // fold reports. The placement pass passes the fold it has already looked up;
-  // omit it and this looks it up itself.
+  // The placement pass passes the fold it has already looked up; omit it and
+  // this looks it up itself.
   function preferredPosition(label, fold) {
     var anchor = anchorFor(label);
     if (!anchor) return 0;
@@ -657,9 +598,6 @@
     return Math.max(0, fold ? fold.top - STUB_H / 2 : layoutTop(anchor));
   }
 
-  // What a stub says on hover: how many comments it stands for, or — standing
-  // for just one — the "Author: first message" its collapsed bar would show if
-  // it were tall enough to show anything.
   function stubTitle(cap, count) {
     if (count > 1) return count + " comments";
     var who = textOf(cap.querySelector(".mud-bar-author"));
@@ -667,8 +605,7 @@
     return who ? who + " " + what : what;
   }
 
-  // Let the active capsule take its natural height, pin it there (so the height
-  // transition has a pixel target to animate to), and return that height.
+  // Pinned, so the height transition has a pixel target to animate to.
   function sizeActive(cap) {
     cap.style.height = "auto";
     var h = cap.offsetHeight;
@@ -676,11 +613,9 @@
     return h;
   }
 
-  // Lay the items out top to bottom: each sits at its preferred position, or is
-  // pushed down to clear the row above plus the minimum gap. Sort by preferred
-  // position, breaking ties by build order. Idempotent — re-running from the
-  // current heights always recomputes absolute tops, so a row pushed down by a
-  // now-shorter neighbor slides back up on the next pass.
+  // Each item sits at its preferred position, or is pushed down to clear the
+  // row above. Idempotent: re-running recomputes absolute tops, so a row pushed
+  // down by a now-shorter neighbor slides back up on the next pass.
   function solve(items, startTop) {
     items.sort(function (a, b) {
       return a.preferred - b.preferred || a.order - b.order;
@@ -698,13 +633,11 @@
     var items = [];
     var order = 0;
 
-    // A comment whose anchor has been hidden — a folded heading took its
-    // quotation off screen — has nothing on screen to sit beside. One stub
-    // stands in for the whole group instead: a sliver on the line the fold
-    // reports, saying that there is something hidden here and opening it on a
-    // click. So resolve each comment's fold once, up front, and group by it —
-    // the first comment of a group carries its stub, and the others leave the
-    // column until the fold opens.
+    // A comment whose anchor a fold took off screen has nothing to sit beside.
+    // One stub stands in for the whole group: a sliver on the line the fold
+    // reports, which opens it on a click. So resolve each comment's fold once,
+    // up front, and group by it — the first comment of a group carries the
+    // stub, and the others leave the column until the fold opens.
     var labels = Object.keys(capsules);
     var folds = Object.create(null);    // label -> { key, top } | null
     var carrier = Object.create(null);  // fold key -> label carrying the stub
@@ -718,8 +651,7 @@
     });
 
     // Hiding the open comment's anchor would leave an expanded thread beside a
-    // folded heading. (Rare: the arrow click lands outside the capsule, so the
-    // document mousedown has usually closed it already.)
+    // folded heading.
     if (activeLabel && folds[activeLabel]) clearActive();
 
     labels.forEach(function (label) {
@@ -728,14 +660,13 @@
       var fold = folds[label];
       var stub = !!fold && carrier[fold.key] === label;
       var anchor = anchorFor(label);
-      // Off screen and not carrying a stub: either another comment's stub
-      // already stands for this one, or its anchor is hidden for some reason of
-      // its own — and layoutTop would report 0 and pile the capsule at the top
-      // of the column. Either way it leaves until it is back on screen; the
-      // ResizeObserver below runs this pass when that happens.
+      // Off screen and not carrying a stub: another comment's stub stands for
+      // this one, or its anchor is hidden for some reason of its own — and
+      // layoutTop would report 0 and pile the capsule at the top of the column.
+      // The ResizeObserver below runs this pass when it is back on screen.
       if (!stub && anchor && anchor.offsetParent === null) {
-        // Clear the stub state before leaving: this capsule may have carried
-        // one on the last pass, and the return skips the reset below.
+        // This capsule may have carried a stub on the last pass, and the return
+        // skips the reset below.
         cap.classList.remove("is-stub");
         cap.title = "";
         cap.style.display = "none";
@@ -786,17 +717,15 @@
     });
   }
 
-  // Reproject only when column visibility actually flips. A redundant call (same
-  // value) must not rebuild the column, or it would wipe an open inline compose
-  // box. Called by mud.js on every `is-comments-column` `setClass`, and by the
-  // marker-click reveal below.
+  // Reproject only when column visibility actually flips: a redundant call must
+  // not rebuild the column, or it would wipe an open compose box.
   function syncVisible() {
     var on = enabled();
     if (on === lastVisible) return;
     lastVisible = on;
     // Closing the column cancels an in-progress new comment: let the write side
-    // tear down the compose box and its provisional draft (highlight + marker)
-    // before `project()` removes the column out from under it.
+    // tear its compose box and draft down before `project()` removes the column
+    // out from under it.
     if (!on && api.hooks.onHide) api.hooks.onHide();
     project();
   }
@@ -813,9 +742,8 @@
     cap.addEventListener("click", function (e) {
       if (cap.classList.contains("is-active")) return;
       e.stopPropagation();
-      // A stub stands for a comment whose quotation is hidden; `activate`
-      // reveals it. The scroll is this handler's, since the quotation may be
-      // well below the line the stub sat on.
+      // `activate` reveals a stub's hidden quotation; the scroll is this
+      // handler's, since it may be well below the line the stub sat on.
       var wasStub = cap.classList.contains("is-stub");
       activate(label);
       if (wasStub) scrollToComment(label);
@@ -826,11 +754,10 @@
     if (activeLabel && activeLabel !== label) deactivate();
     var cap = capsules[label];
     if (!cap) return;
-    // Opening a comment reveals it, wherever the request came from — a capsule
-    // click, the header's ‹ › arrows, or the app after a marker click. Neither
-    // the thread nor its quotation highlight can be read while a fold has the
-    // quotation off screen, so open the fold first and the callers below don't
-    // have to repeat it.
+    // Neither the thread nor its highlight can be read while a fold has the
+    // quotation off screen, so open the fold here and the callers — a capsule
+    // click, the header arrows, the app after a marker click — needn't repeat
+    // it.
     var anchor = anchorFor(label);
     if (foldOver(anchor)) window.Mud.folds.reveal(anchor);
     activeLabel = label;
@@ -868,17 +795,14 @@
 
   // -- Previous / next navigation -------------------------------------------
 
-  // Comment labels in document order, which on screen is the order the capsules
-  // read down the column. Compared by where their anchors sit in the DOM rather
-  // than by measured position, because a folded section's comments all measure
-  // at the heading that folded them and would otherwise tie.
+  // Compared by DOM position rather than measured position: a folded section's
+  // comments all measure at the heading that folded them and would tie.
   function orderedLabels() {
     return Object.keys(capsules).sort(function (a, b) {
       var ea = anchorFor(a), eb = anchorFor(b);
-      // A comment with no anchor has no place in document order, so put those
-      // at the end. Ranking them by measured position instead would put two
-      // different orderings in one comparator, which leaves the whole sort
-      // undefined rather than just those few.
+      // An anchor-less comment has no place in document order, so it goes at
+      // the end. Ranking those by measured position instead would put two
+      // orderings in one comparator, leaving the whole sort undefined.
       if (!ea || !eb) return (ea ? 0 : 1) - (eb ? 0 : 1);
       var rel = ea.compareDocumentPosition(eb);
       if (rel & Node.DOCUMENT_POSITION_FOLLOWING) return -1;
@@ -892,16 +816,13 @@
     if (anchor) anchor.scrollIntoView({ block: "center", behavior: "smooth" });
   }
 
-  // Scroll the bottom Comments section into view, or with a label the comment
-  // itself. The app calls this when the window can't be made wide enough for
-  // the column: below the Compact tier mud-narrow.css hides the column and
-  // reveals this section in its place, so "show comments" still lands the
-  // reader on the comments.
+  // The app calls this when the window can't be made wide enough for the
+  // column: below the Compact tier mud-narrow.css hides the column and reveals
+  // this section in its place.
   //
   // The section is revealed by the same class the column is, so switch it on
   // here rather than waiting for the app's class sync — otherwise the scroll
-  // measures an element that is still `display: none` and goes nowhere. The
-  // app persists the toggle on its side, as it does for `openToComment`.
+  // measures an element that is still `display: none` and goes nowhere.
   function scrollToSection(label) {
     var sec = section();
     if (!sec) return;
@@ -910,9 +831,7 @@
     (item || sec).scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
-  // Step to the previous (-1) or next (+1) comment, wrapping around the ends.
-  // The step is relative to the open comment; with none open, +1 lands on the
-  // first comment and -1 on the last, like the Find bar.
+  // With none open, +1 lands on the first and -1 on the last, like Find.
   function navigate(direction) {
     var order = orderedLabels();
     if (!order.length) return;
@@ -926,10 +845,6 @@
 
   // -- Inline marker interactions (when shown) ------------------------------
 
-  // With "Show comment markers" on, the inline 💬 chips are visible and
-  // interactive. Handlers are delegated off the container, so the same ones
-  // cover markers from the initial render and from live edits. Hovering previews
-  // the quotation highlight; clicking opens the column to the comment.
   function markerLabelFor(target) {
     if (!target || !target.closest) return null;
     var m = target.closest(".mud-comment-marker");
@@ -954,13 +869,10 @@
     revealComment(label);
   });
 
-  // A marker click asks for the column, and the column needs a window wide
-  // enough to hold it — so in the app the decision belongs to Swift, which
-  // widens the window (or asks about the sidebar) and calls back into
-  // `openToComment`, persisting the per-window toggle on the way. A read-only
-  // export has no app to ask and no window to widen, so it decides for itself:
-  // the column if this viewport can show one, the bottom Comments section
-  // otherwise — which is what mud-narrow.css puts in the column's place.
+  // The column needs a window wide enough to hold it, so in the app the
+  // decision belongs to Swift, which widens the window (or asks about the
+  // sidebar) and calls back into `openToComment`. A read-only export has no app
+  // to ask and no window to widen, so it decides for itself.
   function revealComment(label) {
     var handlers = window.webkit && window.webkit.messageHandlers;
     if (handlers && handlers.mudRevealColumn) {
@@ -971,17 +883,14 @@
     else scrollToSection(label);
   }
 
-  // Whether this viewport is wide enough to show a column at all — read off the
-  // column's own width rather than restating the breakpoint, since below the
-  // Compact tier of mud-narrow.css it is `display: none`. Only the export path
-  // asks: in the app the window has room by the time `openToComment` is called,
-  // and the page's own view of the new width can lag the resize.
+  // Read off the column's own width rather than restating the breakpoint, since
+  // below the Compact tier it is `display: none`. Only the export path asks: in
+  // the app the window has room by the time `openToComment` is called, and the
+  // page's own view of the new width can lag the resize.
   function columnFits() {
     return !!ensureColumn().offsetWidth;
   }
 
-  // Open the column, then expand and scroll to the comment. With the column
-  // already open, this just activates and scrolls.
   function openToComment(label) {
     document.documentElement.classList.add("is-comments-column");
     syncVisible();        // builds the column on an off→on flip
@@ -993,8 +902,7 @@
 
   // Called by mud.js when the `show-comment-markers` class toggles. With the
   // column open the highlights are already anchored and marker visibility is
-  // pure CSS, so there is nothing to do; with it closed, (re)anchor or clear the
-  // highlights so the now-shown markers can light their quotation on hover.
+  // pure CSS, so there is nothing to do.
   function setMarkersShown() {
     if (enabled()) return;
     project();   // routes to anchorHighlightsOnly() / clearHighlights()
@@ -1008,11 +916,10 @@
   }
   window.addEventListener("resize", scheduleLayout);
 
-  // The column's inner content width, clamped to its bounds. The single place
-  // the width is set: the app pushes a persisted value on load and the drag
-  // handle (write side) calls it live; both go through the same clamp. Setting
-  // the CSS variable rewraps capsule text, so reflow follows. Returns the value
-  // actually applied, which the caller persists.
+  // The single place the column's width is set: the app pushes a persisted
+  // value on load and the drag handle (write side) calls it live, both through
+  // the same clamp. Setting the variable rewraps capsule text, so reflow
+  // follows. Returns the value applied, which the caller persists.
   var MIN_WIDTH = 200, MAX_WIDTH = 400;
 
   function setColumnWidth(px) {
@@ -1046,10 +953,8 @@
     return a;
   }
 
-  // The occurrence-th logical block whose marker-free text matches, in document
-  // order — the shared walk the write side counted against. Returns a logical
-  // block {element, childStart, childEnd, text}, so a tight-list segment
-  // resolves to its own inline run and not the whole `<li>`.
+  // The shared walk the write side counted against, so a tight-list segment
+  // resolves to its own inline run rather than the whole `<li>`.
   function findBlockByOccurrence(blockText, occurrence) {
     var target = normalizeWS(blockText).trim(), count = 0, result = null;
     anchor.eachLogicalBlock(container, function (lb) {
@@ -1062,11 +967,8 @@
     return result;
   }
 
-  // A logical block's characters with a parallel char → (textNode, offset) map,
-  // over its child range only. Skips the same marker elements as markerFreeText
-  // (comment markers and footnote references) and any skipped subtree, so the
-  // char index the write side computed over its marker-free segment text lands
-  // on the right node here.
+  // Skips the same elements as markerFreeText, so the char index the write side
+  // computed over its marker-free segment text lands on the right node.
   function blockTextMap(lb) {
     var text = "", map = [];
     function w(n) {
@@ -1156,10 +1058,8 @@
     container.normalize();
   }
 
-  // Replace the hidden section's items with the freshly rendered `<li>`s (the
-  // single source the capsules project from), creating or removing the section
-  // as the comment count crosses zero. A created one goes where the renderer
-  // puts it: after the article, not inside it.
+  // A section created here goes where the renderer puts it: after the article,
+  // not inside it.
   function rebuildSection(list) {
     var sec = section();
     if (!list.length) {
@@ -1217,8 +1117,8 @@
     constants: { GAP: GAP, INACTIVE_H: INACTIVE_H, COMPOSE_H: COMPOSE_H },
     layoutTop: layoutTop,
     preferredPosition: preferredPosition,
-    // Two-phase quotation matcher (verbatim, then truncated). The write side
-    // reuses it to confirm a candidate truncation re-anchors to the full text.
+    // Two-phase quotation matcher. The write side reuses it to confirm a
+    // candidate truncation re-anchors to the full text.
     matchQuotationStart: matchQuotationStart,
     // Live update from the app: rebuild section + markers + reproject.
     setData: setData,
@@ -1238,9 +1138,9 @@
       ownedNodes: null,       // nodes project() must not remove
       onHide: null            // column closing: cancel an in-progress compose
     },
-    // Filled in by the write side (mud-comments-edit.js); Swift calls this
-    // through the bridge. Null until that file loads, so this literal lists the
-    // whole Swift-callable surface in one place.
+    // Filled in by the write side; Swift calls this through the bridge. Null
+    // until that file loads, so this literal lists the whole Swift-callable
+    // surface in one place.
     resolveSubmission: null   // the outcome of the submission in flight
   };
   window.Mud.comments = api;

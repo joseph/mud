@@ -37,8 +37,7 @@
   position: relative;
 }
 
-/* JS-positioned overlay: one per change group. Sits above content
-   and blends via mix-blend-mode so text remains readable. */
+/* One per change group, positioned by JS. Blended, so text stays readable. */
 .mud-overlay {
   position: absolute;
   left: 0;
@@ -208,9 +207,8 @@
   background: var(--change-del-word);
 }
 
-/* When a mixed group is revealed (red + green side by side), hide
-   inline <del> context words in the insertion block — the full
-   deletion is visible in its own block. */
+/* A revealed mixed group shows the full deletion in its own block, so the
+   insertion block's inline <del> context words would be a second copy. */
 .mud-change-ins.mud-change-revealed del {
   display: none;
 }

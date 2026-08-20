@@ -1,45 +1,16 @@
 // Mud - Comment anchoring primitives (shared by the read and write sides).
 //
-// The leaf-block and marker-text rules that map a rendered-DOM position to a
-// block of source text. Both comment scripts and CommentAnchor.swift compute
-// the same block text so a comment's marker lands byte-exactly; keeping the JS
-// rules in one place stops the two scripts from drifting apart.
+// Maps a rendered-DOM position to a block of source text. CommentAnchor.swift
+// computes the same block text, so a comment's marker lands byte-exactly;
+// `CommentAnchorParityTests.logicalBlocks` pins the Swift mirror of
+// `eachLogicalBlock`. Keep the two in sync.
 //
-// HTMLTemplate concatenates this file ahead of mud-comments.js (the read side),
-// so it is present wherever the read side is — the app and every HTML export.
-// The write side (mud-comments-edit.js), injected separately in the app, runs
-// after and sees `Mud.commentAnchor` too.
-//
-// A **logical block** is the DOM-side unit that maps one-to-one to a cmark leaf
-// block (paragraph, heading, table cell). It is either:
-//
-//   - an *innermost leaf element* — `<p>`, `<h1>`–`<h6>`, `<td>`, `<th>`, or a
-//     `<li>` with no nested leaf blocks; the whole element is one block; or
-//   - a *segment* — one maximal run of inline children directly inside a
-//     leaf-block element that *also* contains nested leaf blocks. In Mud's own
-//     output this only happens in a tight `<li>`, where each bare run of inline
-//     content is one cmark paragraph. (A change-annotated tight paragraph is
-//     wrapped in an inline `<span>`, which stays inside its segment.)
-//
-// Swift needs no matching change: a segment's text equals the text of the cmark
-// paragraph it renders, which CommentAnchor already matches, and Swift's
-// occurrence walk already counts every matching paragraph — those inside tight
-// list items included — in document order. This file makes the JS compute the
-// same things: `eachLogicalBlock` enumerates blocks in document order,
-// `segmentAt` maps a selection end to its block, and `occurrenceOf` counts by
-// logical-block identity (element + child range).
-//
-// `anchorableEnd` runs before all of those: WebKit ends a selection dragged
-// past a line at a boundary in the block *below* it, so the end is first walked
-// back to the last text the selection really covers.
-//
-// The skip rules match CommentAnchor.swift: comment markers, footnote
-// references, and inline deletions contribute no text (`isMarkerElement`); the
-// bottom `.comments` / `.footnotes` sections, code blocks (`<pre>`), Mermaid
-// diagrams, raw-HTML blocks (`.mud-html-block`), and change-tracking deletion
-// overlays (`.mud-change-del`) are skipped entirely — none has a source byte
-// the anchor could match. `CommentAnchorParityTests.logicalBlocks` is the
-// pinned Swift mirror of `eachLogicalBlock`; keep the two in sync.
+// A **logical block** maps one-to-one to a cmark leaf block. It is either an
+// *innermost leaf element* (`<p>`, `<h1>`–`<h6>`, `<td>`, `<th>`, or an `<li>`
+// with no nested leaf blocks), or a *segment* — one maximal run of inline
+// children directly inside a leaf-block element that also contains nested leaf
+// blocks. In Mud's output a segment only arises in a tight `<li>`, where each
+// bare run of inline content is one cmark paragraph.
 
 (function () {
   "use strict";
@@ -53,25 +24,13 @@
 
   function normalizeWS(s) { return s.replace(/\s+/g, " "); }
 
-  // The elements whose text is not part of a block's anchor text: the comment
-  // markers (💬), authorial footnote references (the superscript number), and
-  // the words a tracked change removed. Skipping the footnote reference is the
-  // one behavior change of extracting this shared file: the read side used to
-  // skip only the comment marker, so exact marker placement missed in a block
-  // that also held a footnote reference and fell back to a quotation search
-  // (Phase 3e).
-  //
-  // A `<del>` is in exactly a marker's position: present in the rendered DOM,
-  // absent from the source. `WordSpanEmitter` writes one into a changed block
-  // for each removed word run when Settings → Changes → Inline deletions is on,
-  // and counting those words toward the block's text describes a block the file
-  // does not contain — no cmark leaf matches and every comment on the block
-  // fails to anchor. Naming it here rather than in `isSkippedSubtree` is
-  // deliberate: a deletion sits mid-paragraph, so it must not break an inline
-  // segment, and a selection ending inside one must still be commentable (it
-  // walks back to the last surviving text). Authored `~~strikethrough~~`
-  // renders as `<s>`, so a `<del>` in Mud's Up output is always change tracking
-  // and never text the document supplied.
+  // Elements present in the DOM but absent from the source, so their text is no
+  // part of a block's anchor text: comment markers, footnote references, and
+  // the `<del>` runs `WordSpanEmitter` writes for a tracked change's removed
+  // words. Authored `~~strikethrough~~` renders as `<s>`, so a `<del>` in Up
+  // output is always change tracking. Named here rather than in
+  // `isSkippedSubtree` because a deletion sits mid-paragraph: it must not break
+  // an inline segment, and a selection ending inside one must still anchor.
   function isMarkerElement(node) {
     if (node.nodeType !== Node.ELEMENT_NODE) return false;
     if (node.tagName === "DEL") return true;
@@ -80,19 +39,13 @@
        node.classList.contains("footnote-ref"));
   }
 
-  // A subtree with no source byte to anchor a comment to, skipped wholesale
-  // when enumerating logical blocks and computing their text: code blocks, a
-  // Mermaid diagram's rendered SVG, a raw-HTML block passed through verbatim,
-  // a change-tracking deletion overlay (text that is not in the current
-  // source), and rendered math (a `<math>` element or a `temml-error` span —
-  // the rendered MathML text bears no relation to the TeX source, so a
-  // quotation anchored there could never match). CommentAnchor.swift never
-  // matches any of these.
+  // A subtree with no source byte to anchor to, skipped wholesale. Rendered
+  // MathML bears no relation to the TeX source, so a quotation anchored in it
+  // could never match. CommentAnchor.swift matches none of these either.
   function isSkippedSubtree(node) {
     if (node.nodeType !== Node.ELEMENT_NODE) return false;
-    // localName for math, not tagName: a MathML element is foreign-namespace,
-    // so its tagName stays lowercase "math" (tagName is uppercased only for
-    // HTML elements) and comparing against "MATH" would never match.
+    // localName for math: a MathML element is foreign-namespace, so its
+    // tagName stays lowercase and comparing against "MATH" would never match.
     if (node.tagName === "PRE" || node.localName === "math") return true;
     var cl = node.classList;
     return !!cl && (cl.contains("mermaid") || cl.contains("mud-html-block") ||
@@ -102,7 +55,6 @@
 
   // Whether `node` sits anywhere inside a skipped subtree — the ancestor walk
   // the write side uses to reject a selection the anchor rules would refuse.
-  // Keeping it here means the skip list lives in exactly one place.
   function inSkippedSubtree(node, root) {
     var el = node.nodeType === Node.ELEMENT_NODE ? node : node.parentNode;
     while (el && el !== root) {
@@ -112,14 +64,12 @@
     return false;
   }
 
-  // The bottom sections, never the selection's source.
   function isBottomSection(node) {
     return node.nodeType === Node.ELEMENT_NODE && node.classList &&
       (node.classList.contains("comments") ||
        node.classList.contains("footnotes"));
   }
 
-  // The nearest enclosing leaf block of a node, up to (not including) root.
   function leafBlock(node, root) {
     var el = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
     while (el && el !== root) {
@@ -129,7 +79,6 @@
     return null;
   }
 
-  // A leaf block with no leaf-block descendant: the innermost text container.
   function isInnermostLeaf(el) {
     return el.nodeType === Node.ELEMENT_NODE && LEAF_BLOCK_TAGS[el.tagName] &&
       !el.querySelector(LEAF_BLOCK_SELECTOR);
@@ -145,8 +94,7 @@
       node.querySelector(LEAF_BLOCK_SELECTOR) != null;
   }
 
-  // A block's text with the marker glyphs and footnote references removed, so
-  // two blocks that differ only in their markers compare equal.
+  // Markers removed, so two blocks differing only in them compare equal.
   function markerFreeText(el) {
     var text = "";
     (function walk(n) {
@@ -158,8 +106,7 @@
     return text;
   }
 
-  // The marker-free text of `element`'s children in the half-open child range
-  // [start, end) — a logical block's own text.
+  // A logical block's own text: the half-open child range [start, end).
   function rangeText(element, start, end) {
     var text = "";
     var kids = element.childNodes;
@@ -167,11 +114,10 @@
     return text;
   }
 
-  // Enumerate every logical block under `root` in document order, calling
-  // `fn({element, childStart, childEnd, text})` for each. An innermost leaf is
-  // one block spanning all its children; a leaf block that also holds nested
-  // leaf blocks yields one block per non-empty inline segment and descends into
-  // the nested blocks in place, so the document order is preserved.
+  // Every logical block under `root` in document order, as
+  // `fn({element, childStart, childEnd, text})`. An innermost leaf is one block
+  // spanning all its children; a leaf block that also holds nested leaf blocks
+  // yields one block per non-empty inline segment and descends in place.
   function eachLogicalBlock(root, fn) {
     // `inLeaf` is true while iterating the children of a leaf-block element:
     // its inline runs are segments. In a plain container (a list, a table, the
@@ -195,7 +141,6 @@
         }
         runStart = -1;
         if (!child) break;
-        // Descend into the block child (unless skipped or a bottom section).
         if (isSkippedSubtree(child) || isBottomSection(child)) continue;
         if (LEAF_BLOCK_TAGS[child.tagName]) {
           if (isInnermostLeaf(child)) {
@@ -214,7 +159,6 @@
     })(root, false);
   }
 
-  // The node before `n` in a backward document-order walk. Stops at `root`.
   function previousInDocument(n, root) {
     if (n === root) return null;
     var prev = n.previousSibling;
@@ -223,8 +167,7 @@
     return prev;
   }
 
-  // Whether a text node sits inside a marker (💬, a footnote number): no part
-  // of any block's anchor text, but the block around it still anchors.
+  // No part of any block's anchor text, though the block around it anchors.
   function inMarker(node, root) {
     for (var el = node.parentNode; el && el !== root; el = el.parentNode) {
       if (isMarkerElement(el)) return true;
@@ -271,10 +214,8 @@
     return null;
   }
 
-  // The logical block a selection end sits in: the nearest-ancestor leaf block,
-  // narrowed to the segment whose child range contains `node` when that block
-  // also holds nested leaf blocks. Returns {element, childStart, childEnd, text}
-  // or null.
+  // The nearest-ancestor leaf block, narrowed to the segment holding `node`
+  // when that block also holds nested leaf blocks.
   function segmentAt(node, root) {
     var block = leafBlock(node, root);
     if (!block) return null;
@@ -312,9 +253,9 @@
 
   // How many earlier logical blocks under `root` share `block`'s marker-free
   // text: the occurrence index that disambiguates identical blocks. Counting by
-  // logical-block identity (element + child range) stops at the target block —
-  // a plain element-identity check couldn't, because a tight `<li>` with a
-  // nested list is never an innermost leaf and its segment shares the element.
+  // logical-block identity stops at the target block — element identity
+  // couldn't, since a tight `<li>` with a nested list shares its element with
+  // its own segment.
   function occurrenceOf(block, blockText, root) {
     var target = normalizeWS(blockText).trim();
     var count = 0, found = false;

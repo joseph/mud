@@ -1,11 +1,8 @@
-/* All `@media print` overrides live here and this stylesheet is included last,
-   so these rules win over the on-screen defaults set in mud-up.css,
-   mud-down.css, and mud-comments.css. */
+/* Every `@media print` override, in the stylesheet included last, so these win
+   over the on-screen defaults.
 
-/* The physical page margin. The browser's default is roughly an inch; shrink
-   it so the document fills more of the sheet. Top-level rather than nested in
-   `@media print` — `@page` only applies to paged output anyway, and some
-   WebKit versions ignore it inside `@media`. */
+   `@page` is top-level rather than nested: it only applies to paged output
+   anyway, and some WebKit versions ignore it inside `@media`. */
 @page {
   margin: 1.8cm;
 }
@@ -20,23 +17,16 @@
     padding: 0;
   }
 
-  /* On screen the content padding reserves room for the floating bars and sits
-     inside the window; on paper there are no bars and the printer adds its own
-     page margin, so trim the box to a thin frame. That includes the trailing
-     clearance (mud-up.css), which on paper would be 6em of blank before the
-     Comments footer, or at the end of the run. */
+  /* The printer adds its own page margin, and there are no floating bars to
+     clear — the trailing clearance would be 6em of blank at the end. */
   .up-mode-output {
     padding: 0;
   }
 
-  /* Every printed text consumer of the faint --blockquote-color: blockquotes,
-     footnote bodies, comment quotations, the code-block language label, and
-     frontmatter. Pull each most of the way to the body text color so it clears
-     a minimum contrast, while keeping a little of the theme's tint. Mixing
-     toward --text-color (rather than clamping lightness) stays correct under
-     dark lighting, where both vars are the light-on-dark palette. (The
-     comments column, copy button, and compose box use the var too, but none of
-     them print.) */
+  /* Every printed consumer of the faint --blockquote-color, pulled most of the
+     way to the body text color for contrast while keeping some of the theme's
+     tint. Mixing toward --text-color rather than clamping lightness stays
+     correct under dark lighting. */
   blockquote,
   .footnotes,
   .mud-comment-quote,
@@ -45,9 +35,8 @@
     color: color-mix(in srgb, var(--blockquote-color), var(--text-color) 60%);
   }
 
-  /* The same treatment for the faint --syntax-comment color: code comments
-     (Up mode) and the comment-toned markdown tokens of the raw source (Down
-     mode). These are every consumer of the variable. */
+  /* The same for --syntax-comment: code comments (Up) and the comment-toned
+     markdown tokens of the raw source (Down). Every consumer of it. */
   .hljs-comment,
   .hljs-quote,
   .md-code-fence,
@@ -56,44 +45,36 @@
     color: color-mix(in srgb, var(--syntax-comment), var(--text-color) 60%);
   }
 
-  /* Up mode: footnotes. In `.popover` mode the section is hidden on screen
-     (footnotes show in a native popover) but reappears for Print / Save-PDF. */
+  /* Hidden on screen in `.popover` mode, where footnotes show in a popover. */
   .footnotes.is-print-only { display: block; }
 
 
-  /* Up mode: the fold arrows are an on-screen control, so a printed heading
-     shows none. A folded section prints in full without anything here to undo:
-     the rule that hides it is inside `@media screen` (mud-up.css). */
+  /* A folded section prints in full with nothing here to undo: the rule that
+     hides it is inside `@media screen`. Only the control goes. */
   .mud-fold-arrow { display: none; }
 
 
-  /* Up mode: a diagram that wouldn't parse. On screen the parser's message is
-     behind the INVALID badge; nothing on paper can be clicked, so it prints
-     under the block. The badge prints with it, as a marker rather than a
-     control. */
+  /* Nothing on paper can be clicked, so the parser's message prints under the
+     block rather than behind the badge. */
   .mermaid.is-error > .mud-diagram-error { display: block; }
 
 
-  /* Up mode: comments. The bottom Comments section is hidden on screen in
-     favor of the column, but prints in place of the column. Being the
-     article's sibling rather than its child, the footer carries its own page
-     box (mud-comments.css) — so it needs the same trim the article gets above,
-     keeping only the gap under its rule. */
+  /* The bottom section prints in place of the column. Being the article's
+     sibling it carries its own page box, so it needs the same trim, keeping
+     only the gap under its rule. */
   .comments.is-print-only { display: block; }
 
   footer.comments { padding: 1rem 0 0; }
 
-  /* The comments column is an on-screen layout only; print shows the bottom
-     Comments section instead (above). */
+  /* On-screen only; the bottom section above stands in for it. */
   #mud-comments-column { display: none; }
 
 
   /* Down mode: don't clip code blocks. */
   .dc-scroll { overflow-x: visible; }
 
-  /* Up mode: on screen a wide content table is its own horizontal scroll box
-     (display: block, in mud-up.css); paper can't scroll, so restore normal
-     table layout and let cells wrap within the page width. */
+  /* Paper can't scroll, so a wide table goes back to normal layout and its
+     cells wrap within the page width. */
   :is(.up-mode-output, footer.comments) table:not(.mud-frontmatter-table) {
     display: table;
     width: 100%;

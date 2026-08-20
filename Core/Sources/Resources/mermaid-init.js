@@ -1,35 +1,23 @@
 // Mermaid diagram renderer for Up mode.
 // Injected as a WKUserScript after mermaid.min.js.
 //
-// The palette is the page's own: every color comes from the --diagram-*
-// custom properties in mud.css, which each theme derives from its own
-// variables. Mermaid computes the rest of its palette from the few colors it
-// is given, so it needs resolved values — hence getComputedStyle rather than
-// var() references. Those values are baked into the SVG, so a lighting change
-// has to re-render; see the media listener at the bottom.
-//
-// The look is rough outlines, a translucent glaze with pigment pooled at its
-// edge, and labels in whichever face --diagram-font names. Mermaid draws the
-// outlines (look: handDrawn); the glaze and the pooling are the wash pass
-// below.
+// The palette comes from the --diagram-* custom properties in mud.css. Mermaid
+// computes the rest of its palette from the few colors it is given, so it needs
+// resolved values — hence getComputedStyle rather than var() references. Those
+// values are baked into the SVG, so a lighting change has to re-render; see the
+// media listener at the bottom.
 
 (function () {
   if (!document.querySelector(".up-mode-output")) return;
 
   // Nodes and clusters take the glaze. A pie slice, a journey section and a
-  // timeline block don't: their fill is the datum, and washing them out would
-  // misreport it.
+  // timeline block don't: their fill is the datum.
   var WASHABLE_GROUP = "g.node, g.cluster";
   var WASHABLE_SHAPE = "path, rect, polygon, circle, ellipse";
 
-  // An xy chart's bars are one series, so the same glaze over every one of
-  // them takes nothing away — and it is what makes the chart read as part of a
-  // drawn document rather than as a panel pasted into one.
-  //
-  // A Gantt's bars are deliberately not here. Its three task states have to be
-  // told apart at a glance, and a glaze costs most of the difference between
-  // them; they are drawn solid instead, in colors already named at the
-  // strength they should be seen at.
+  // An xy chart's bars are one series, so a uniform glaze takes nothing away. A
+  // Gantt's are deliberately absent: its three task states have to be told
+  // apart, and a glaze costs most of the difference between them.
   var WASHABLE_BAR = "g.plot rect";
 
   var containers = [];
@@ -43,11 +31,10 @@
     }
     var bg = normalizeColor(v("--diagram-bg", "#F5F0E4"));
 
-    // Every other color is composited onto the ground first. A theme is free
-    // to write a translucent one — Austere's --code-bg is a green at 3.5%
-    // alpha — and Mermaid's color math wants opaque values: it picks some
-    // label colors by inverting a fill, and inverting near-nothing gives
-    // near-nothing, which is a label you can't read.
+    // Composite onto the ground first. A theme may write a translucent color
+    // (Austere's --code-bg is a green at 3.5% alpha) and Mermaid's color math
+    // wants opaque values: it picks some label colors by inverting a fill, and
+    // inverting near-nothing gives a label you can't read.
     function over(name, fallback) {
       return flatten(v(name, fallback), bg);
     }
@@ -62,11 +49,9 @@
     };
   }
 
-  // The label font, named by the stylesheets rather than by this file: the
-  // page's own sans under the Simplicity look (mud-diagram.css), Caveat under
-  // Handwritten (mud-diagram-font.css, the only one that ships a font). Mermaid
-  // is given the name because it measures each label's box with it — a font
-  // applied in CSS alone would be laid out in boxes sized for another one.
+  // Mermaid is given the font name because it measures each label's box with
+  // it — a font applied in CSS alone would be laid out in boxes sized for
+  // another one.
   function labelFont() {
     var css = getComputedStyle(document.documentElement);
     return (
@@ -74,9 +59,9 @@
     );
   }
 
-  // Setting a color on an inline style normalizes it to rgb() or rgba(), so
-  // two spellings of the same color compare equal, and a color named in any
-  // CSS syntax can be taken apart. An invalid value leaves the property empty.
+  // Setting a color on an inline style normalizes it to rgb() or rgba(), so two
+  // spellings of the same color compare equal. An invalid value leaves the
+  // property empty.
   var probe = document.createElement("span");
 
   function normalizeColor(value) {
@@ -90,7 +75,6 @@
     return parts && parts.length >= 3 ? parts.map(Number) : null;
   }
 
-  // The color as it actually looks over `ground`, with any alpha resolved.
   function flatten(value, ground) {
     var c = channels(value);
     if (!c) return value;
@@ -104,11 +88,10 @@
     return "rgb(" + mixed.join(", ") + ")";
   }
 
-  // Mermaid takes an xy chart's plot colors as one comma-separated string, so
-  // a color spelled with commas inside it — hsl(20, 45%, 43%) — is torn into
-  // three entries that name no color at all, and the chart falls back to SVG's
-  // own defaults: black bars, and a line with no stroke. Every color this file
-  // builds is hex for that reason.
+  // Every color this file builds is hex: Mermaid takes an xy chart's plot
+  // colors as one comma-separated string, so an hsl(20, 45%, 43%) in it is torn
+  // into three entries naming no color, and the chart falls back to SVG's own
+  // defaults — black bars and a line with no stroke.
   function hslHex(h, s, l) {
     var c = (1 - Math.abs(2 * l - 1)) * s;
     var x = c * (1 - Math.abs(((h / 60) % 2) - 1));
@@ -156,8 +139,8 @@
     return { h: h, s: d / (1 - Math.abs(2 * l - 1)), l: l };
   }
 
-  // Whether the page is dark, asked of the palette rather than of a media
-  // query: a theme decides its own ground, and this has to follow the theme.
+  // Asked of the palette rather than of a media query: a theme decides its own
+  // ground, and this has to follow the theme.
   function isDarkGround(colors) {
     var ground = toHSL(colors.bg);
     var ink = toHSL(colors.fg);
@@ -167,9 +150,8 @@
   // Mermaid derives every categorical color — pie slices, journey and timeline
   // sections, git branches, chart plots — from its primary, secondary and
   // tertiary colors. Ours are three near-neighbors out of one theme, so a pie
-  // chart comes out as four shades of the same thing. Build a set instead: one
-  // hue circle, walked in twelve steps from the accent's own hue, at a fixed
-  // saturation and a lightness the caller picks for where the color is going.
+  // chart would come out as four shades of the same thing. Build a set instead:
+  // one hue circle walked in twelve steps from the accent's hue.
   function ramp(accent, count, lightness) {
     var base = toHSL(accent) || { h: 20, s: 0.4, l: 0.45 };
     // A grey accent gives the rotation nothing to work with, and a loud one
@@ -179,8 +161,7 @@
 
     for (var i = 0; i < count; i++) {
       // 5 and 12 share no factor, so stepping by five visits all twelve hues
-      // while landing consecutive entries 150° apart — adjacent slices of a
-      // pie read as different colors, not as neighbors on the wheel.
+      // while landing consecutive entries 150° apart.
       var h = (base.h + ((i * 5) % 12) * 30) % 360;
       // Alternate a little either side, so same-hue neighbors still separate.
       colors.push(hslHex(h, s, lightness + (i % 2 ? 0.05 : -0.05)));
@@ -192,33 +173,23 @@
     var onDark = isDarkGround(colors);
     var font = labelFont();
 
-    // Two sets, because the two jobs want opposite things. A pie slice, a
-    // timeline section and a branch label all have text sitting on top of
-    // them, and that text is --diagram-fg — so those colors are pitched away
-    // from the ink and toward the ground: pale on a light page, deep on a
-    // dark one. A chart's bars and lines carry no text and have to stand out
-    // *from* the ground instead, so they take a mid tone either way.
+    // Two sets: a pie slice, timeline section and branch label carry text in
+    // --diagram-fg, so those colors are pitched toward the ground. A chart's
+    // bars and lines carry no text and take a mid tone to stand out from it.
     var sections = ramp(colors.accent, 12, onDark ? 0.34 : 0.82);
     var plots = ramp(colors.accent, 12, onDark ? 0.62 : 0.48);
 
-    // The Gantt bars take no glaze, so each of these is the color as it will
-    // be seen rather than one the wash is about to lift. Every bar carries a
-    // label in the page's own ink, which is why none of the fills is a color
-    // at full strength: they are pitched toward the ground the way a pie slice
-    // is, and it is the borders that carry the weight.
+    // Gantt bars take no glaze, so each of these is the color as it will be
+    // seen rather than one the wash is about to lift.
     var accent = toHSL(colors.accent) || { h: 20, s: 0.4, l: 0.45 };
     var bars = {
-      // A completed task is the accent drained of its saturation — a warm grey
-      // in Earthy and Riot, a cool one in Austere and Blues, rather than a
-      // neutral belonging to no page. Its border sits a dozen points from the
-      // fill, and away from the ground rather than darker: on a dark page a
-      // border darker than its own bar is a border you can't see.
+      // A done task's border sits away from the ground rather than darker: on a
+      // dark page a border darker than its own bar can't be seen.
       doneFill: hslHex(accent.h, 0.12, onDark ? 0.26 : 0.9),
       doneBorder: hslHex(accent.h, 0.15, onDark ? 0.38 : 0.78),
       activeFill: hslHex(accent.h, Math.min(Math.max(accent.s, 0.35), 0.6), onDark ? 0.34 : 0.8),
-      // A critical task keeps the hue the convention gives it. Its fill is
-      // pitched to the ground like the others, so the border is thrown the
-      // other way — a pale pink on its own doesn't read as a warning.
+      // A critical task's fill is pitched to the ground like the others, so the
+      // border is thrown the other way: a pale pink alone reads as no warning.
       critFill: hslHex(6, 0.55, onDark ? 0.3 : 0.86),
       critBorder: hslHex(6, 0.6, onDark ? 0.6 : 0.45),
     };
@@ -240,14 +211,12 @@
       startOnLoad: false,
       securityLevel: "strict",
       theme: "base",
-      // Mermaid's own failure graphic is a bomb icon reading "Syntax error in
-      // text", which names neither the line nor the problem. Off, so a failed
-      // render leaves the container alone and `showError` can put the block
-      // back with the parser's actual complaint under it.
+      // Mermaid's failure graphic names neither the line nor the problem. Off,
+      // so `showError` can put the block back with the parser's own complaint.
       suppressErrorRendering: true,
       look: "handDrawn",
-      // Fixed, because Mud re-renders on every content change: an unseeded
-      // wobble would redraw itself differently on each keystroke.
+      // Fixed: Mud re-renders on every content change, and an unseeded wobble
+      // would redraw itself differently on each keystroke.
       handDrawnSeed: 1,
       fontFamily: font,
       themeVariables: Object.assign(seriesVariables, {
@@ -271,9 +240,8 @@
         pieTitleTextColor: colors.fg,
         pieSectionTextColor: colors.fg,
         pieLegendTextColor: colors.fg,
-        // A git graph's commit label is set at 10px and turned 45°, which a
-        // handwriting face can't carry, and Mermaid colors it by inverting the
-        // node fill. Name the colors, and give both labels a readable size.
+        // A git graph's commit label is set at 10px, turned 45°, and colored by
+        // inverting the node fill. Name the colors and give it a readable size.
         commitLabelColor: colors.fg,
         commitLabelBackground: colors.bg,
         commitLabelFontSize: "13px",
@@ -281,19 +249,14 @@
         tagLabelBackground: colors.surface,
         tagLabelBorder: colors.border,
         tagLabelFontSize: "12px",
-        // A Gantt chart is drawn from a set of variables of its own, and
-        // Mermaid defaults most of them to literal colors no theme can reach:
-        // white alternating bands, a grey done bar, a red today line, a navy
-        // vertical marker. Name every one. The three task states run from the
-        // ground outward — a done task is the accent drained of its saturation
-        // and sits nearest the page, a plain one sits on the node surface, and
-        // the active one is the only bar drawn in the accent itself.
-        // Mermaid cycles four section styles: the first and third take these
-        // two, the second and fourth take the alternate — so the bands come
-        // out alternating rather than three the same. The bands that are meant
-        // to read as the page are left unpainted rather than filled in
-        // --diagram-bg, because the body's ground is a gradient and a solid
-        // patch of its top color would show against the rest of it.
+        // A Gantt reads a set of variables of its own, and Mermaid defaults
+        // most of them to literal colors no theme can reach (white bands, a
+        // grey done bar, a red today line, a navy marker). Name every one.
+        // Mermaid cycles four section styles, the first and third taking these
+        // two — so the bands alternate rather than running three the same. The
+        // bands meant to read as the page are left unpainted rather than filled
+        // in --diagram-bg, because the body's ground is a gradient and a solid
+        // patch of its top color would show against the rest.
         sectionBkgColor: "transparent",
         sectionBkgColor2: "transparent",
         altSectionBkgColor: colors.surface,
@@ -310,24 +273,21 @@
         taskTextClickableColor: colors.accent,
         doneTaskBkgColor: bars.doneFill,
         doneTaskBorderColor: bars.doneBorder,
-        // Mermaid's own default here is lighten(primaryColor, 23), which on
-        // any of our surfaces saturates at pure white, bordered in the plain
-        // task's fill — the running task came out the least visible bar. The
-        // accent goes on the border, where it can be at full strength without
-        // taking the label down with it.
+        // Mermaid's default is lighten(primaryColor, 23), which on any of our
+        // surfaces saturates at white — the running task came out the least
+        // visible bar. The accent goes on the border instead, where it can be
+        // at full strength without taking the label down with it.
         activeTaskBkgColor: bars.activeFill,
         activeTaskBorderColor: colors.accent,
         critBkgColor: bars.critFill,
         critBorderColor: bars.critBorder,
-        // An xy chart reads none of the variables above. Worse, the config it
-        // does read is built from Mermaid's *default* theme deep-merged with
-        // this object, so it never sees the base theme the rest of the page is
-        // drawn from: anything left unnamed comes out white-on-#131300 in all
-        // four themes and both lightings. Name every color it uses.
+        // An xy chart reads none of the variables above, and the config it does
+        // read is built from Mermaid's *default* theme deep-merged with this
+        // object, never the base theme the rest of the page uses: anything left
+        // unnamed comes out white-on-#131300. Name every color it uses.
         xyChart: {
-          // The page already has a ground, and the chart paints this as a rect
-          // covering the whole plot — an opaque one shows as a panel with its
-          // own edge where the body's gradient runs.
+          // The chart paints this as a rect covering the whole plot; an opaque
+          // one shows as a panel with its own edge over the body's gradient.
           backgroundColor: "transparent",
           titleColor: colors.fg,
           xAxisTitleColor: colors.fg,
@@ -354,12 +314,11 @@
 
   // -- The wash -----------------------------------------------------------
 
-  // Every filled shape in a node or cluster takes the glaze except the solid
-  // marks drawn in ink: a state diagram's start and end dots are filled in the
-  // text or border color, and a 0.3 glaze would all but erase them. Stated as
-  // an exclusion on purpose — Mermaid derives some body fills from the colors
-  // it was given rather than using them as-is, and a shape it tinted should
-  // still be glazed.
+  // Everything filled in a node or cluster is glazed except the solid marks
+  // drawn in ink: a state diagram's start and end dots are filled in the text
+  // or border color, and a 0.3 glaze would all but erase them. An exclusion
+  // rather than a list, since Mermaid tints some fills from the given colors
+  // rather than using them as-is, and a tinted shape should still be glazed.
   function washable(colors) {
     var ink = [normalizeColor(colors.fg), normalizeColor(colors.border)];
     return function (fill) {
@@ -388,11 +347,9 @@
     washableShapes(svg).forEach(function (shape) {
       if (shape.dataset.mudWash) return;
 
-      // Only a shape that names its own fill is glazed. Reading the computed
-      // style instead would reach the families Mermaid fills from a class —
-      // a mindmap above all, whose every shape is filled by a `.section-N`
-      // rule and which draws its edges up to 17px wide underneath them. Those
-      // want an opaque fill covering the line, not a wash letting it through.
+      // The attribute, not the computed style: computed would reach the shapes
+      // Mermaid fills from a class — a mindmap above all, whose edges run up to
+      // 17px wide under fills that have to stay opaque to cover them.
       var fill = shape.getAttribute("fill");
       if (!isWashable(fill)) return;
       shape.dataset.mudWash = "fill";
@@ -401,10 +358,9 @@
       edge.removeAttribute("id");
       edge.removeAttribute("fill-opacity");
       edge.dataset.mudWash = "edge";
-      // Set inline rather than as attributes, and keep the clone's classes:
-      // Mermaid scopes its own fill and stroke rules under the diagram's id,
-      // which outranks both, but the classes are also what carry a milestone's
-      // 45° rotation — a rim drawn square around a diamond is worse than none.
+      // Inline rather than as attributes, keeping the clone's classes: Mermaid
+      // scopes its fill and stroke rules under the diagram's id, which outranks
+      // both, and the classes carry a milestone's 45° rotation.
       edge.style.fill = "none";
       edge.style.stroke = fill;
       shape.parentNode.insertBefore(edge, shape.nextSibling);
@@ -413,30 +369,26 @@
 
   // -- Rendering ----------------------------------------------------------
 
-  // Replaces each mermaid code block with the container Mermaid renders into,
-  // keeping the source on the container so a re-render has something to read,
-  // and the block itself so a diagram that won't parse can be shown as the
-  // reader wrote it.
+  // The source stays on the container for a re-render, and the block itself for
+  // a diagram that won't parse.
   function collect() {
     document.querySelectorAll("code.language-mermaid").forEach(function (code) {
       var pre = code.parentElement;
       if (!pre || pre.tagName !== "PRE") return;
 
-      // Skip deleted mermaid blocks (change tracking).
       if (pre.classList.contains("mud-change-del")) return;
 
       var container = document.createElement("div");
       container.className = "mermaid";
       container.textContent = code.textContent;
       container.dataset.mudSource = code.textContent;
-      // The <pre> as the document rendered it — highlighted, with its header
-      // and copy button. Held rather than rebuilt, so the block an error puts
-      // back is exactly the one turning diagrams off would show.
+      // The <pre> as the document rendered it, held rather than rebuilt, so the
+      // block an error puts back is the one turning diagrams off would show.
       container.mudSourceBlock = pre;
 
-      // Change-tracking attributes *move* rather than copy: the <pre> goes
-      // back on screen when the diagram won't parse, and two elements
-      // carrying one change id would draw that change twice.
+      // Change-tracking attributes *move* rather than copy: the <pre> goes back
+      // on screen when the diagram won't parse, and two elements carrying one
+      // change id would draw that change twice.
       if (pre.dataset.changeId) {
         container.dataset.changeId = pre.dataset.changeId;
         container.dataset.groupId = pre.dataset.groupId;
@@ -459,15 +411,8 @@
     });
   }
 
-  // A diagram Mermaid couldn't draw. Its own graphic is a bomb icon and the
-  // words "Syntax error in text", which names neither the line nor the
-  // problem — so it is turned off (suppressErrorRendering) and this stands in:
-  // the block as the reader wrote it, an INVALID badge in its corner, and the
-  // parser's complaint behind that badge.
-  //
-  // The complaint runs to three or four lines, most of it a list of expected
-  // tokens, so it is not left sitting in the document pushing the following
-  // text down. It goes in the block below, hidden, and the badge shows it.
+  // The complaint runs to three or four lines, mostly expected tokens, so it
+  // goes in the block below hidden rather than pushing the document down.
   function showError(container, error) {
     container.textContent = "";
     container.classList.add("is-error");
@@ -483,10 +428,7 @@
     container.appendChild(message);
   }
 
-  // The badge in the block's corner. Clicking it asks the app for a popover
-  // over the message; where there is no app to ask — an export, Open In
-  // Browser, Quick Look — it shows the hidden block below the code instead,
-  // and clicking again puts it away.
+  // With no app to ask, it shows the hidden block below the code instead.
   function badge(container) {
     var button = document.createElement("button");
     button.type = "button";
@@ -502,31 +444,25 @@
     return button;
   }
 
-  // Hands the message to the app's popover, anchored at the badge. The message
-  // element is passed rather than its text, and `outerHTML` read off it, so
+  // The element is passed rather than its text, and `outerHTML` read off it, so
   // what crosses the bridge is what `textContent` already escaped — Mermaid's
-  // string is never built into HTML. Returns false where `Mud.popover` isn't
-  // there at all (an export carries mermaid-init.js without mud.js) or where
-  // it is and finds no message handler.
+  // string is never built into HTML. False where there is no app to ask.
   function showPopover(button, message) {
     var popover = window.Mud && window.Mud.popover;
     if (!popover) return false;
     return popover.show(button.getBoundingClientRect(), message.outerHTML);
   }
 
-  // What Mermaid rejects with is its own wrapper, which carries `message` for
-  // a parse error and a thrown Error alike. A parse error's text runs to
-  // several lines and draws a caret under the offending column, which is why
-  // the message is set as text and left to the stylesheet to letter.
+  // Mermaid rejects with its own wrapper, which carries `message` for a parse
+  // error and a thrown Error alike. A parse error's text runs to several lines
+  // and draws a caret under the offending column, so it is set as text.
   function messageOf(error) {
     if (!error) return "The diagram could not be drawn.";
     return error.message || error.str || String(error);
   }
 
   // Back to an undrawn container: Mermaid renders a node once and marks it
-  // `data-processed`, and an error block has to come off with that mark. The
-  // badge goes with the block it sits in, and `showError` builds a fresh one
-  // if the diagram fails again.
+  // `data-processed`, and an error block has to come off with that mark.
   function reset(container) {
     container.removeAttribute("data-processed");
     container.classList.remove("is-error", "is-showing-error");
@@ -542,14 +478,12 @@
     initialize(colors);
     var isWashable = washable(colors);
 
-    // One run per container, so a diagram that won't parse is contained to its
-    // own block: handing Mermaid the whole list makes one rejection the result
-    // of the whole pass, and every diagram that did render loses its wash.
-    //
-    // Chained rather than started together, because Mermaid ids its temporary
-    // render element with `Date.now()` unless `deterministicIds` is set. Two
-    // runs alive in the same millisecond would be handed the same id and draw
-    // over each other.
+    // One run per container, so a rejection is contained to its own block:
+    // handing Mermaid the whole list makes one failure the result of the whole
+    // pass, and every diagram that did render loses its wash. Chained rather
+    // than started together, because Mermaid ids its temporary render element
+    // with `Date.now()` unless `deterministicIds` is set — two runs alive in
+    // the same millisecond get the same id and draw over each other.
     containers.reduce(function (chain, container) {
       return chain.then(function () {
         return mermaid
@@ -569,9 +503,8 @@
   render();
 
   // A theme change reloads the document, so diagrams pick up a new theme on
-  // their own. A lighting change doesn't: it flips the window's appearance,
-  // the CSS variables follow, and the diagram keeps the colors baked into its
-  // SVG. So put each diagram back to its source and draw it again.
+  // their own. A lighting change doesn't: the CSS variables follow the window's
+  // appearance, but the diagram keeps the colors baked into its SVG.
   var scheme = window.matchMedia("(prefers-color-scheme: dark)");
   if (scheme.addEventListener) {
     scheme.addEventListener("change", function () {

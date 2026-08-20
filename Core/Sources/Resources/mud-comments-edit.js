@@ -1,12 +1,10 @@
 // Mud - Comments column (write side, Up mode). App only.
 //
-// Adds the editing affordances to the read-side column: starting a new comment
-// on the current selection (driven from the toolbar, Edit menu, shortcut, or
-// context menu), the compose box (new / reply / edit), and the reply / edit /
-// delete controls on an active capsule. Each edit is posted to Swift through the
-// `mudCommentSubmit` handler; the native side writes the file and reprojects the
-// column. Bundled in the app only — exports load just mud-comments.js and so are
-// read-only.
+// The editing affordances over the read-side column: starting a new comment on
+// the current selection, the compose box (new / reply / edit), and the reply /
+// edit / delete controls on an active capsule. Each edit is posted to Swift
+// through `mudCommentSubmit`; the native side writes the file and reprojects.
+// Exports load just mud-comments.js and so are read-only.
 
 (function () {
   "use strict";
@@ -33,8 +31,7 @@
     return geo.zoom();
   }
 
-  // The selection's top, in layout pixels — the compose form's preferred
-  // position, matching the space the read-side placement pass works in.
+  // In layout pixels, the space the read-side placement pass works in.
   function rangePosition(range) {
     return Math.max(0, geo.layoutTopFromRect(range.getBoundingClientRect()));
   }
@@ -43,9 +40,9 @@
     if (handlers.mudComposing) handlers.mudComposing.postMessage(!!on);
   }
 
-  // Tell the toolbar "Comment" button whether a commentable selection exists.
-  // Reported regardless of whether the column is showing, so the button can
-  // reveal the column on demand. De-duplicated so a drag posts only on change.
+  // Whether a commentable selection exists. Reported regardless of whether the
+  // column is showing, so the button can reveal it on demand. De-duplicated so
+  // a drag posts only on change.
   var lastReportedSelection = null;
   function reportSelection(has) {
     if (has === lastReportedSelection) return;
@@ -53,22 +50,16 @@
     if (handlers.mudSelection) handlers.mudSelection.postMessage(has);
   }
 
-  // Post a submission and remember its resolver. The native side writes the
-  // file and calls `resolveSubmission` with the outcome: a compose submission
-  // stays "in flight" (its box disabled) until then, so a failed write keeps
-  // the box and its text rather than closing on an optimistic assumption of
-  // success. A delete has no box to hold — it undoes its puff instead.
+  // A compose submission stays in flight — its box disabled — until Swift calls
+  // `resolveSubmission`, so a failed write keeps the box and its text rather
+  // than closing on an optimistic assumption of success.
   function submit(payload, onResolve) {
     pendingResolve = onResolve || null;
     handlers.mudCommentSubmit.postMessage(payload);
   }
 
-  // Called from Swift (via WebView) with the outcome of whichever submission is
-  // in flight. For a compose box, true closes it and false leaves it open for
-  // another try, marked as failed; for a delete, false restores the message the
-  // puff has already taken away. Only the outcome crosses: why a save failed is
-  // the info bar's to say, so the page needs nothing but the fact that this
-  // attempt didn't land.
+  // The outcome of whichever submission is in flight. Only the outcome crosses:
+  // why a save failed is the info bar's to say.
   col.resolveSubmission = function (success) {
     var resolve = pendingResolve;
     pendingResolve = null;
@@ -77,8 +68,7 @@
 
   // -- Locator (selection end → source byte) --------------------------------
 
-  // The selection-end, leaf-block, segment, and marker-text primitives are
-  // shared with the read side; see mud-comment-anchor.js.
+  // Shared with the read side; see mud-comment-anchor.js.
   var anchor = window.Mud.commentAnchor;
   var normalizeWS = anchor.normalizeWS;
   var isMarkerElement = anchor.isMarkerElement;
@@ -89,12 +79,10 @@
   var KEEP_WORDS = 6;       // words kept at each end to start
   var WIDEN_STEP = 4;       // words added to each end when a candidate is ambiguous
 
-  // Shorten a long quotation to "head … tail", but only when the shortened form
-  // re-anchors to exactly the original text. The read-side matcher, run against
-  // the full quotation, must recover the whole of it (start index 0); if a kept
-  // part recurs in the elided middle it won't, so widen the kept ends and retry.
-  // If no candidate is both unambiguous and shorter, keep the full quotation.
-  // See Doc/Plans/2026-05-footnote-comments.md, "Quotation truncation".
+  // Shorten to "head … tail", but only when the shortened form re-anchors to
+  // exactly the original text: the read-side matcher must recover the whole of
+  // it (start index 0). A kept part recurring in the elided middle fails that,
+  // so widen the kept ends and retry; failing everything, keep it whole.
   function truncateQuotation(quote) {
     if (quote.length <= TRUNCATE_OVER) return quote;
     if (!col.matchQuotationStart) return quote;
@@ -111,16 +99,12 @@
     return quote;
   }
 
-  // `end` comes from `Mud.commentAnchor.anchorableEnd`: always a text node in
-  // the block being commented on, never a boundary in the block below it.
   function endLocator(end) {
     var endNode = end.node;
     var endOffset = end.offset;
     // The logical block the selection ends in: the whole leaf block, or — in a
-    // tight `<li>` that also holds a nested list — just the inline segment the
-    // end sits in, so `blockText` is the one cmark paragraph and not the item's
-    // concatenated text (issue #5). The text and offset are walked over the
-    // segment's child range only.
+    // tight `<li>` holding a nested list — just the inline segment, so
+    // `blockText` is the one cmark paragraph and not the item's whole text.
     var seg = anchor.segmentAt(endNode, container);
     if (!seg) return null;
 
@@ -152,38 +136,32 @@
     };
   }
 
-  // A selection is commentable when it is non-empty, lives in the body, covers
-  // no code block, Mermaid diagram, or math, and resolves to a source byte.
   function commentableDraft() {
     var sel = window.getSelection();
     if (!sel || sel.isCollapsed || sel.rangeCount === 0) return null;
     var range = sel.getRangeAt(0);
     if (!container.contains(range.commonAncestorContainer)) return null;
     // Where the selection really ends: WebKit leaves a dragged end at a
-    // boundary in the block below, and every question here — which block, is it
-    // anchorable, which byte — would then answer about that one.
+    // boundary in the block below, and every question here would then answer
+    // about that block instead.
     var end = anchor.anchorableEnd(
       range.endContainer, range.endOffset, container);
-    // Nothing anchorable behind it, or the selection covers a skipped subtree
-    // (code block, math, Mermaid, raw HTML, deletion overlay) — none of which
-    // has a source byte. That list lives in `commentAnchor.isSkippedSubtree`.
+    // Nothing anchorable behind it, or the selection covers a skipped subtree —
+    // none of which has a source byte.
     if (!end || end.crossedSkipped) return null;
     var quotation = normalizeWS(sel.toString()).trim();
     if (!quotation) return null;
-    // No leaf block behind the end means no block text: the locator refuses it.
     var locator = endLocator(end);
     if (!locator) return null;
-    // Position is deliberately not measured here: it must be read after the
-    // column opens and the document reflows (see addFromSelection).
+    // Position is measured in addFromSelection, after the column opens and the
+    // document reflows.
     return { quotation: quotation, locator: locator };
   }
 
   // -- Selection reporting --------------------------------------------------
 
-  // The column has no Add Comment button of its own; a comment is started from
-  // the toolbar, the Edit menu, the keyboard shortcut, or the context menu. We
-  // still watch the selection so those affordances can enable themselves when it
-  // is commentable.
+  // The column has no Add Comment button of its own, so the selection is
+  // watched for the toolbar, menu, shortcut and context-menu affordances.
   function onSelectionChange() {
     if (composeNew) return; // composing — ignore selection churn
     reportSelection(!!commentableDraft());
@@ -216,22 +194,17 @@
 
     function trimmed() { return ta.value.trim(); }
 
-    // Done on an empty box closes it like Cancel instead of submitting: there
-    // is no comment to make, and an empty body would only ask the file to store
-    // a message with no text in it. Done is never disabled for being empty —
-    // pressing it always does something, it just has nothing to save. For an
-    // edit that means the original message is restored, not emptied; deleting a
-    // message is its own control.
+    // Done on an empty box closes it like Cancel rather than storing an empty
+    // message. For an edit that restores the original; deleting is its own
+    // control.
     function finish() {
       var body = trimmed();
       if (!body) { onCancel(); return; }
       onDone(body);
     }
 
-    // While a submission is in flight, lock the box (its text stays put); a
-    // failure unlocks it for another try. Exposed on the element so the submit
-    // callbacks below can drive it. Being in flight is now the only thing that
-    // disables Done, so the whole lock lives here.
+    // While a submission is in flight the box is locked and its text stays put;
+    // a failure unlocks it for another try.
     var busy = false;
     box.setBusy = function (on) {
       busy = !!on;
@@ -239,19 +212,15 @@
       cancel.disabled = busy;
       done.disabled = busy;
     };
-    // Mark a submission that didn't land. The box says only that much — the
-    // info bar carries the reason — so this sets the one class the danger
-    // colors key on (see mud-comments-edit.css) and nothing else. No text or
-    // geometry changes, so the capsules below need no relayout.
+    // A submission that didn't land. The info bar carries the reason, so this
+    // is one class and no geometry change — the capsules need no relayout.
     box.setFailed = function (on) {
       box.classList.toggle("is-failed", !!on);
     };
     box.focusTextarea = function () { ta.focus(); };
 
-    // Grow the textarea to fit its text (CSS clamps it to min/max). The box
-    // shrink-wraps, so relayout reflows the capsules below: for a new compose
-    // that's the measured offsetHeight; for an inline reply/edit it's the
-    // active capsule re-measured.
+    // Grow to fit the text (CSS clamps it). The box shrink-wraps, so relayout
+    // reflows the capsules below.
     function autoGrow() {
       ta.style.height = "auto";
       ta.style.height = ta.scrollHeight + "px";
@@ -264,9 +233,8 @@
     ta.addEventListener("keydown", function (e) {
       if (e.key === "Escape") { e.preventDefault(); onCancel(); return; }
       if (e.key !== "Enter") return;
-      // ⌘/⌃-Return always saves. With the "comment-return-saves" preference on,
-      // a plain Return saves too and Shift-Return drops to a newline; with it
-      // off, a plain Return is an ordinary newline.
+      // ⌘/⌃-Return always saves. With "comment-return-saves" on, a plain Return
+      // saves too and Shift-Return is a newline.
       var returnSaves =
         document.documentElement.classList.contains("comment-return-saves");
       var save = e.metaKey || e.ctrlKey || (returnSaves && !e.shiftKey);
@@ -280,8 +248,7 @@
       if (!done.disabled) finish();
     });
     setComposing(true);
-    // Focus and size after insertion settles (scrollHeight needs the element in
-    // the DOM with styles applied; pre-filled edit text sizes the box to fit).
+    // scrollHeight needs the element in the DOM with styles applied.
     requestAnimationFrame(function () {
       ta.focus();
       autoGrow();
@@ -302,8 +269,7 @@
       submit({ action: "add", body: body, locator: pending.locator,
                quotation: pending.quotation }, function (success) {
         if (success) { closeNewCompose(); return; }
-        // The save failed (the info bar explains why). Keep the box and its
-        // text; unlock for another try, or Cancel to abandon it.
+        // Keep the box and its text; unlock for another try.
         composeNew.setBusy(false);
         composeNew.setFailed(true);
         composeNew.focusTextarea();
@@ -313,9 +279,8 @@
     });
     col.column().appendChild(composeNew);
     col.layout();
-    // We're composing now: disable the Add Comment affordances. Focusing the
-    // textarea clears the document selection, but `onSelectionChange` ignores
-    // selection churn while composing, so report it explicitly.
+    // Focusing the textarea clears the selection, but `onSelectionChange`
+    // ignores selection churn while composing, so report it explicitly.
     reportSelection(false);
   }
 
@@ -328,33 +293,27 @@
     draft = null;
     col.clearSelectionDraft();
     col.relayout();
-    // Re-evaluate now that compose is closed (the selection is usually gone).
     reportSelection(!!commentableDraft());
   }
 
-  // The "Add Comment" action (toolbar, Edit menu, shortcut, context menu).
-  // Capture the selection, reveal the column (native has already persisted the
-  // toggle), and open compose — so it works even when the column was hidden.
+  // The "Add Comment" action: capture the selection, reveal the column (native
+  // has already persisted the toggle), and open compose — so it works even when
+  // the column was hidden.
   function addFromSelection() {
     if (composeNew) return;
     draft = commentableDraft();
     if (!draft) return;
-    // Shorten a long quotation now that we're committing to a comment (the
-    // marker placement uses the locator, so this only affects the stored text).
+    // Marker placement uses the locator, so this only affects the stored text.
     draft.quotation = truncateQuotation(draft.quotation);
-    // Grab the live selection range before the compose box takes focus and
-    // collapses it; we paint our own highlight + marker over it so the quoted
-    // span stays visible (yellow, and the 💬 marker when markers are shown)
-    // while the comment is written.
+    // Grab the range before the compose box takes focus and collapses it, so
+    // the quoted span stays visible while the comment is written.
     var sel = window.getSelection();
     var range = sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : null;
     document.documentElement.classList.add("is-comments-column");
     col.setVisible();
-    // Measure the selection only now: opening the column reserves the gutter and
-    // reflows the document, so the highlight — and the compose form that lines up
-    // with it — sits at a different top than while the column was closed. The
-    // getBoundingClientRect in rangePosition forces the pending layout, so this
-    // reads the post-reflow position.
+    // Measure only now: opening the column reserves the gutter and reflows the
+    // document. The getBoundingClientRect in rangePosition forces the pending
+    // layout, so this reads the post-reflow position.
     draft.position = range ? rangePosition(range) : 0;
     col.showSelectionDraft(range);
     openNewCompose();
@@ -362,9 +321,6 @@
 
   // -- Active capsule: reply / edit / delete --------------------------------
 
-  // Comment-bubble-with-pencil and trash-can icons; see
-  // Doc/Plans/2026-06-comments-column-assets/. Filled shapes drawn in
-  // currentColor so they pick up the button's color.
   var EDIT_SVG = '<svg viewBox="0 0 64 64" fill="currentColor">' +
     '<path d="M44.6366724,10.536394 L40.5521114,14.6885203 L11.6698684,14.6885203 C6.50868426,14.6885203 4.09335492,17.3246527 4.09335492,22.3643506 L4.09335492,42.1353442 C4.09335492,47.1751303 6.50868426,49.8371983 11.6698684,49.8371983 L14.7716759,49.8371983 C16.1700016,49.8371983 16.678489,50.3797274 16.678489,51.7756002 L16.678489,59.2704405 L24.8144021,51.0519341 C25.7805802,50.0439181 26.5179418,49.8371983 27.9162964,49.8371983 L44.3913673,49.8371983 C49.5271531,49.8371983 51.9423089,47.1751303 51.9423089,42.1353442 L51.9423089,22.3643506 C51.9423089,22.0630338 51.9336306,21.7703034 51.915117,21.4873943 L55.4477416,17.8964107 C55.8417339,19.2143887 56.0358374,20.7104751 56.0358374,22.3643506 L56.0358374,42.1612209 C56.0358374,49.7336914 51.9677651,53.998058 44.3913673,53.998058 L28.0942005,53.998058 L19.2973521,61.9325085 C17.7717454,63.3280873 16.9073343,64 15.636087,64 C13.8818086,64 12.8648339,62.7076341 12.8648339,60.7177728 L12.8648339,53.998058 L11.6444411,53.998058 C4.09335492,53.998058 0,49.7595681 0,42.1612209 L0,22.3643506 C0,14.7660622 4.09335492,10.527543 11.6444411,10.527543 L44.3913673,10.527543 C44.4755463,10.527543 44.559436,10.527543 44.6366724,10.536394 Z"/>' +
     '<path d="M31.9586233,33.2966785 L37.1453214,30.9448372 L59.5189959,8.20151954 L55.9594688,4.60912448 L33.6112505,27.3523833 L31.1451824,32.4436288 C30.9415329,32.882945 31.4755343,33.5033983 31.9586233,33.2966785 Z M61.4256065,6.26317646 L63.3070502,4.29901547 C64.2223158,3.3686002 64.2223158,2.07638128 63.3579625,1.19766066 L62.7478819,0.577383813 C61.9341517,-0.249642176 60.6376218,-0.172100219 59.7984354,0.706620408 L57.8663687,2.61911617 L61.4256065,6.26317646 Z" fill-rule="nonzero"/></svg>';
@@ -376,8 +332,8 @@
     var thread = cap.querySelector(".mud-capsule-thread");
     if (!thread) return;
 
-    // Edit / delete icons go bottom-right inside the last message's box — they
-    // act on the last message, the only one that can be edited or deleted.
+    // Inside the last message's box: the only one that can be edited or
+    // deleted.
     var messages = thread.querySelectorAll(".mud-comment-message");
     var last = messages[messages.length - 1];
     if (last && !last.querySelector(".mud-message-actions")) {
@@ -431,9 +387,8 @@
     if (msgActions) msgActions.parentNode.removeChild(msgActions);
     var inline = cap.querySelector(".mud-compose");
     if (inline) inline.parentNode.removeChild(inline);
-    // A mid-edit teardown (clicking away, or switching capsules) bypasses the
-    // compose box's own teardownInline, which is what restores the message the
-    // edit hid. Un-hide it here so it isn't left invisible on the next activate.
+    // A mid-edit teardown bypasses the compose box's own teardownInline, which
+    // is what restores the message the edit hid.
     var msgs = cap.querySelectorAll(".mud-capsule-thread .mud-comment-message");
     for (var i = 0; i < msgs.length; i++) {
       if (msgs[i].style.display === "none") msgs[i].style.display = "";
@@ -441,10 +396,9 @@
     setComposing(false);
   }
 
-  // The last message's raw Markdown body, read from the hidden section (for
-  // Edit). MudCore stashes the original source on the message div as
-  // data-mud-body; the rendered .mud-comment-body would be lossy (it has the
-  // markdown syntax stripped), so the textarea must use the raw attribute.
+  // The last message's raw Markdown body, which MudCore stashes as
+  // data-mud-body. The rendered .mud-comment-body is lossy, so an Edit textarea
+  // has to use the attribute.
   function lastMessageText(label) {
     var sec = col.section();
     if (!sec) return "";
@@ -457,9 +411,8 @@
   }
 
   // Reply / edit: a compose form on its own row below the thread. The capsule
-  // grows; the read-side placement pass re-measures it on layout. While
-  // composing, hide the Reply row and the last message's edit/delete icons (a
-  // reply means that message is no longer the last one).
+  // grows and the placement pass re-measures it. The Reply row and the last
+  // message's icons hide while composing.
   function openInlineCompose(cap, label, action, initial) {
     var thread = cap.querySelector(".mud-capsule-thread");
     if (!thread) return;
@@ -468,8 +421,7 @@
     var msgActions = cap.querySelector(".mud-message-actions");
     if (msgActions) msgActions.style.display = "none";
 
-    // Edit replaces the last message in place: hide its box so the compose form
-    // stands in for it. (Reply leaves every message showing.)
+    // Edit replaces the last message in place; reply leaves them all showing.
     var editedMsg = null;
     if (action === "edit") {
       var msgs = thread.querySelectorAll(".mud-comment-message");
@@ -481,7 +433,6 @@
       box.setFailed(false);
       box.setBusy(true);
       submit({ action: action, label: label, body: body }, function (success) {
-        // Native reprojects on the write echo; just restore controls meanwhile.
         if (success) { teardownInline(); return; }
         box.setBusy(false);
         box.setFailed(true);
@@ -505,7 +456,6 @@
     col.layout();
   }
 
-  // Messages in the `label` thread, from the hidden section.
   function messageCount(label) {
     var sec = col.section();
     if (!sec) return 0;
@@ -514,9 +464,8 @@
     return li ? li.querySelectorAll(".mud-comment-message").length : 0;
   }
 
-  // Delete the last message in a puff. In a multi-message thread only that
-  // message box puffs and the capsule reprojects with one fewer message; the
-  // last remaining message puffs the whole comment away with it.
+  // Delete the last message in a puff. In a multi-message thread only that box
+  // puffs; the last remaining message takes the whole comment with it.
   function removeComment(cap, label) {
     var multi = messageCount(label) > 1;
     var target = cap;
@@ -529,11 +478,9 @@
     function go() {
       if (fired) return;
       fired = true;
-      // The puff plays first, so the comment is off screen before the file has
-      // agreed to lose it. A refused delete has to put it back: the bottom
-      // section still holds it, and refresh() rebuilds the capsules from there.
-      // A successful one needs nothing — the write echoes through the watcher
-      // and reprojects.
+      // The puff plays before the file has agreed to lose the comment, so a
+      // refused delete puts it back: the bottom section still holds it, and
+      // refresh() rebuilds the capsules from there.
       submit({ action: "delete", label: label }, function (success) {
         if (!success) col.refresh();
       });
@@ -550,7 +497,6 @@
   col.hooks.undecorateActive = undecorateActive;
   col.hooks.extraItems = function () {
     if (composeNew) {
-      // The box auto-grows with its text; measure it so capsules below reflow.
       // COMPOSE_H is the fallback before the box has been laid out.
       var h = composeNew.offsetHeight || COMPOSE_H;
       return [{ el: composeNew, preferred: composePosition, height: h }];
@@ -560,19 +506,16 @@
   col.hooks.ownedNodes = function () {
     return composeNew ? [composeNew] : [];
   };
-  // Closing the column while writing a new comment cancels it — same teardown as
-  // Cancel, so the compose box and its provisional draft marker don't survive.
+  // Closing the column while writing a new comment cancels it.
   col.hooks.onHide = function () {
     if (composeNew) closeNewCompose();
   };
 
   // -- Column resize handle -------------------------------------------------
 
-  // A full-height strip sitting on the gutter's inner edge (the divider between
-  // the document and the column). Dragging it left widens the column and right
-  // narrows it; the read side clamps to 200–400px. On release the applied width
-  // is posted to Swift, which persists it (see WebView's `mudColumnWidth`). CSS
-  // shows the strip only in column mode; here in the app it always exists.
+  // A full-height strip on the gutter's inner edge. Dragging it left widens the
+  // column; the read side clamps to 200–400px. On release the applied width is
+  // posted to Swift, which persists it. CSS shows the strip only in column mode.
   function currentWidth() {
     var v = getComputedStyle(document.documentElement)
       .getPropertyValue("--comment-column-width");
@@ -586,8 +529,8 @@
 
   var dragStartX = 0, dragStartWidth = 0, dragWidth = 0;
 
-  // Keep the document-level mousedown from deactivating an open comment when the
-  // grab lands on the handle (same guard the header arrows use).
+  // Keep the document-level mousedown from deactivating an open comment when
+  // the grab lands on the handle.
   resizer.addEventListener("mousedown", function (e) { e.stopPropagation(); });
 
   resizer.addEventListener("pointerdown", function (e) {
@@ -600,8 +543,8 @@
 
   resizer.addEventListener("pointermove", function (e) {
     if (!resizer.hasPointerCapture(e.pointerId)) return;
-    // Dragging left (a smaller clientX) widens the column. The delta is in
-    // zoomed screen pixels; divide by the zoom to match the layout-pixel width.
+    // Dragging left widens the column. The delta is in zoomed screen pixels, so
+    // divide by the zoom to match the layout-pixel width.
     dragWidth = col.setColumnWidth(
       dragStartWidth + (dragStartX - e.clientX) / zoom());
   });

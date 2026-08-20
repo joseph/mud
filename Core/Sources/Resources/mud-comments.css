@@ -1,15 +1,10 @@
 /* -- Comments (read side) ------------------------------------------------- */
 
-/* The read-side comment styles: the inline markers, the quotation highlights,
-   the bottom Comments section, and the projected Comments column (capsules,
-   header, threads). Bundled into every Up document, exports included, so a
-   read-only export still shows highlights and an expandable column. The
-   write-side styles — the compose box and the add / reply / edit / delete
-   controls — live in mud-comments-edit.css and load in the app only. This
-   mirrors the mud-comments.js / mud-comments-edit.js split. */
+/* The read side: inline markers, quotation highlights, the bottom Comments
+   section, and the projected column. Bundled into every Up document, exports
+   included. The write side is mud-comments-edit.css, app only. */
 
-/* The inline `💬` marker: a small grayish chip carrying the middot-ellipsis,
-   in place of a numbered superscript so comments consume no footnote number. */
+/* A chip rather than a superscript: comments consume no footnote number. */
 .mud-comment-marker {
   display: inline-block;
   font-size: 0.7em;
@@ -28,9 +23,8 @@
   text-decoration: none;
 }
 
-/* The quoted range, wrapped per text-node slice by mud-comments.js. Transparent
-   until the matching marker is hovered (`.is-active`), so two highlights never
-   show at once. */
+/* Wrapped per text-node slice by mud-comments.js. Transparent until its marker
+   is hovered, so two highlights never show at once. */
 .mud-comment-highlight {
   background-color: transparent;
   color: inherit;
@@ -48,20 +42,12 @@
   }
 }
 
-/* The bottom Comments section (every export; `is-print-only` in the live app).
-   It renders as a `<footer>` outside the article, as its next sibling, so it
-   carries the Up-mode page box itself rather than inheriting it: the same
-   centering and readable-column width, and the side inset and trailing
-   clearance mud-up.css hands the article through --up-page-inset and
-   --up-page-clearance. Both boxes carry that clearance — the article's marks
-   the end of the document, the footer's clears the floating bars. No
-   background of its own, so the comments sit on the body's --body-bg, half a
-   shade off the article: commentary beside the page rather than more page. Its
-   rule spans that whole box, as a page-level divider should, rather than the
-   article's text width.
+/* A `<footer>` outside the article, so it can't inherit the article's page box
+   and carries a matching one instead (--up-page-inset / --up-page-clearance,
+   published by mud-up.css). No background of its own, so it sits on --body-bg.
 
    The bare `.comments` rules that follow are shared with the comment-thread
-   popover document, which wraps the same markup in a plain div. */
+   popover, which wraps the same markup in a plain div. */
 footer.comments {
   box-sizing: border-box;
   overflow-x: hidden;
@@ -131,44 +117,34 @@ footer.comments .mud-comment-time:after {
   color: var(--blockquote-color);
 }
 
-/* On screen the column stands in for the bottom section; print shows the
-   section instead (see mud-print.css). */
+/* Print shows the section instead; see mud-print.css. */
 .comments.is-print-only { display: none; }
 
 
 /* -- Comments column ------------------------------------------------------ */
 
-/* The quotation highlight color and its dark twin. Two names rather than one
-   redeclared under `prefers-color-scheme`, because the dark one is read only
-   from inside that query — by the `.is-active` rule above and by the draft
-   highlight in mud-comments-edit.css, which is always loaded after this sheet.
-   A theme may override either: it is loaded last of all. */
+/* Two names rather than one redeclared under `prefers-color-scheme`: the dark
+   one is read from inside that query by the `.is-active` rule above and by the
+   draft highlight in mud-comments-edit.css. */
 :root {
   --comment-highlight: #fde047;
   --comment-highlight-dark: rgba(253, 224, 71, 0.4);
 
-  /* The column's inner content width (the capsule / header / compose width),
-     200–400px. The app's drag handle rewrites it live; everywhere else it holds
-     this default. The gutter adds the fixed 12px margin on each side. */
+  /* The column's inner content width, 200–400px; the app's drag handle
+     rewrites it live. The gutter adds the fixed 12px margin on each side. */
   --comment-column-width: 300px;
   --comment-column-gutter: calc(var(--comment-column-width) + 24px);
 }
 
-/* Column mode: the inline quote markers are an export/print affordance only —
-   on screen the highlight and the column capsule stand in for them. We hide the
-   marker visually rather than with `display: none`, so it stays in the
-   accessibility tree (screen readers still announce the comment) and in the
-   layout (the column reads its position to place a quote-less comment's
-   capsule). Scoped to `@media screen` so print keeps the visible chip. The
-   "Show comment markers" preference (`show-comment-markers`) opts out, letting
-   the marker fall back to its visible base styling.
+/* Hidden visually rather than with `display: none`, so the marker stays in the
+   accessibility tree and in the layout — the column reads its position to place
+   a quote-less comment's capsule.
 
-   The `min-width` guard pairs with the 700px Compact tier in mud-narrow.css:
-   below it the column stands down and the markers are the only thing left
-   pointing at a comment, so they must be visible. Guarding here rather than
-   undoing there keeps this rule the single source of the marker's geometry.
-   (The .02px offset closes the sub-pixel gap a fractional viewport width —
-   browser zoom on an exported document — would otherwise fall into.) */
+   The `min-width` guard pairs with the 700px Compact tier in mud-narrow.css,
+   below which the markers are the only thing left pointing at a comment.
+   Guarding here rather than undoing there keeps this rule the single source of
+   the marker's geometry. (The .02px closes the sub-pixel gap a fractional
+   viewport width would fall into.) */
 @media screen and (min-width: 700.02px) {
   .comments-column:not(.show-comment-markers) .mud-comment-marker {
     position: absolute;
@@ -184,19 +160,13 @@ footer.comments .mud-comment-time:after {
   }
 }
 
-/* The comments column and its gutter are an on-screen layout only. Print hides
-   the column (below) and shows the bottom Comments section instead, so the
-   document must fill the page with no reserved gutter — hence the whole block is
-   scoped to `@media screen`. (Reserving the gutter in print left a blank strip
-   down the right of every page.)
-
-   The `min-width` guard pairs with the 700px Compact tier in mud-narrow.css:
-   below it the column plus its margins would leave the document nothing, so
-   the gutter is never reserved and the bottom Comments section takes over. */
+/* Screen only: print shows the bottom section, so reserving the gutter would
+   leave a blank strip down the right of every page. The `min-width` guard pairs
+   with the Compact tier in mud-narrow.css, below which the column plus its
+   margins would leave the document nothing. */
 @media screen and (min-width: 700.02px) {
-  /* With the column toggled on, reserve the right gutter. The body is the
-     scroll and positioning container; capsules are absolutely placed within it,
-     so the column scrolls with the document. */
+  /* The body is the scroll and positioning container; capsules are absolutely
+     placed within it, so the column scrolls with the document. */
   html.comments-column.is-comments-column body {
     position: relative;
     padding-right: var(--comment-column-gutter);
@@ -207,15 +177,14 @@ footer.comments .mud-comment-time:after {
     top: 0;
     right: 0;
     width: var(--comment-column-gutter);
-    /* Empty gutter passes clicks through to the document; capsules re-enable. */
+    /* The empty gutter passes clicks through; capsules re-enable. */
     pointer-events: none;
     font-size: 0.8rem;
   }
 
-  /* Readable Column: keep the document centered while there is room for the
-     gutter to its right, nudging it left then (once the window is narrower than
-     the readable width plus the gutter) shrinking it, and ride the column off
-     the document's right edge instead of the window's. */
+  /* Readable Column: keep the document centered while the gutter has room
+     beside it, and ride the column off the document's right edge rather than
+     the window's. */
   html.comments-column.is-comments-column.is-readable-column body {
     padding-right: 0;
   }
@@ -230,18 +199,14 @@ footer.comments .mud-comment-time:after {
     left: min((100% + 800px) / 2, 100% - var(--comment-column-gutter));
   }
 
-  /* The fixed header rides off the window's right edge by default; in Readable
-     Column it must follow the column instead, so its left edge lines up with the
-     capsules (the column's left, plus the 12px margin). */
+  /* The fixed header follows the column, so its left edge lines up with the
+     capsules. */
   html.comments-column.is-comments-column.is-readable-column #mud-comments-header {
     right: auto;
     left: calc(min((100% + 800px) / 2, 100% - var(--comment-column-gutter)) + 12px);
   }
 }
 
-/* The column header: a "Comments" title, previous / next navigation arrows,
-   and a count badge over a faint rule, aligned with the document's top content
-   padding. The placement pass reserves its band so no capsule sits under it. */
 #mud-comments-header {
   position: fixed;
   top: 0;
@@ -267,7 +232,6 @@ footer.comments .mud-comment-time:after {
   font-size: 80%;
 }
 
-/* Title on the left; arrows and count grouped on the right. */
 .mud-comments-nav {
   flex: 0 0 auto;
   display: flex;
@@ -276,8 +240,6 @@ footer.comments .mud-comment-time:after {
   color: var(--heading-color);
 }
 
-/* Previous / next arrows: bare chevron glyphs in the heading color, shown
-   whenever there is at least one comment. */
 .mud-comments-prev,
 .mud-comments-next {
   appearance: none;
@@ -316,12 +278,10 @@ footer.comments .mud-comment-time:after {
 
 /* -- A comment capsule ---------------------------------------------------- */
 
-/* The placement pass in mud-comments.js sets each capsule's `top` inline (in
-   layout pixels); the transition animates moves and resizes.
+/* The placement pass sets each capsule's `top` inline, in layout pixels.
 
-   Inactive, the capsule is itself one box: the collapsed "💬 Author: …" bar.
-   Active, it drops its own border and background and becomes a plain stack of
-   rows — each message its own box, plus a controls row — set 15px apart. */
+   Inactive, the capsule is one box: the collapsed bar. Active, it drops its own
+   border and background and becomes a stack of rows, 15px apart. */
 .mud-capsule {
   position: absolute;
   right: 12px;
@@ -349,8 +309,6 @@ footer.comments .mud-comment-time:after {
   cursor: default;
 }
 
-/* Collapsed: a single 45px line — "👤 Author: message…", ellipsized, opening
-   with the first message's avatar. */
 .mud-capsule-bar {
   display: flex;
   align-items: center;
@@ -368,7 +326,6 @@ footer.comments .mud-comment-time:after {
   color: var(--blockquote-color);
 }
 
-/* The "N replies" label cuts into the bottom border of a collapsed thread. */
 .mud-capsule-replies {
   position: absolute;
   right: 18px;
@@ -382,7 +339,6 @@ footer.comments .mud-comment-time:after {
   border-radius: 6px;
 }
 
-/* Expanded thread (only while active): a column of rows, 15px apart. */
 .mud-capsule-thread { display: none; }
 .mud-capsule.is-active .mud-capsule-bar { display: none; }
 .mud-capsule.is-active .mud-capsule-replies { display: none; }
@@ -392,8 +348,6 @@ footer.comments .mud-comment-time:after {
   gap: 15px;
 }
 
-/* Each message is its own bordered box. The first (the original comment) is
-   shaded to mark the active thread; replies below it stay white. */
 .mud-capsule-thread .mud-comment-message {
   padding: 0.9em 14px;
   border-radius: 23px;
@@ -413,8 +367,8 @@ footer.comments .mud-comment-time:after {
   font-weight: 600;
   margin-bottom: 0.2em;
 }
-/* The author takes the leftover width and ellipsizes; the time keeps its full
-   width beside it so a long name truncates rather than wrapping. */
+/* The author ellipsizes; the time keeps its width, so a long name truncates
+   rather than wrapping. */
 .mud-capsule-thread .mud-comment-author {
   flex: 0 1 auto;
   min-width: 0;
@@ -435,20 +389,16 @@ footer.comments .mud-comment-time:after {
   margin: 0.5em 0;
 }
 
-/* Items just inserted fade/scale in rather than snapping. */
 .mud-capsule.is-entering { opacity: 0; transform: scale(0.96); }
 
 
 /* -- A folded section's stub ---------------------------------------------- */
 
-/* Foldable headings (an app feature, mud-up.js) can take a quotation off
-   screen while its comment stays in the column. Rather than dropping the
-   capsule, mud-comments.js squashes it to a 5px sliver level with the bottom of
-   the heading — one per folded section, however many comments it holds, carried
-   by the first of them. It keeps the capsule's own border, background and
-   radius, so it reads as a comment pressed shut; clicking it opens the section
-   and the comment together. STUB_H in that file is this height, and
-   CommentResourcesTests keeps the two in step. */
+/* A fold can take a quotation off screen while its comment stays in the
+   column. The capsule is squashed to a sliver level with the bottom of the
+   heading — one per folded section, carried by the first comment in it — and
+   keeps its own border and radius, so it reads as a comment pressed shut.
+   STUB_H in mud-comments.js is this height; CommentResourcesTests pins them. */
 .mud-capsule.is-stub {
   height: 5px;
   min-height: 0;
@@ -456,8 +406,8 @@ footer.comments .mud-comment-time:after {
   overflow: hidden;
 }
 
-/* At 5px the bar would show as a clipped sliver of its first line, so nothing
-   inside is drawn at all; the capsule's `title` carries the text instead. */
+/* At 5px the bar would be a clipped sliver of its first line, so nothing is
+   drawn and the capsule's `title` carries the text. */
 .mud-capsule.is-stub > * {
   display: none;
 }

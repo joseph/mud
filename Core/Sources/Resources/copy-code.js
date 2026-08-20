@@ -7,7 +7,7 @@
   function codeText(pre) {
     var code = pre.querySelector('code');
     if (!code) return '';
-    // For diffed code blocks, copy only the new code (skip deleted lines).
+    // A diffed block copies only the new code.
     if (pre.classList.contains('mud-code-diff')) {
       var lines = code.querySelectorAll('.cl:not(.cl-del)');
       return Array.prototype.map.call(lines, function(el) {

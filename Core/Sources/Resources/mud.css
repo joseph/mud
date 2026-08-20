@@ -32,8 +32,7 @@ article {
 
 
 /* -- Alert color variables ------------------------------------------------ */
-/* Shared between Up and Down mode. A theme may override any of these: it is
-   loaded last of all, and both write plain :root. */
+/* A theme may override any of these: it is loaded last of all. */
 
 :root {
   --alert-note-border: #0969da;
@@ -87,24 +86,19 @@ article {
 
 
 /* -- Diagram variables ---------------------------------------------------- */
-/* Consumed by mermaid-init.js, which resolves them and hands them to Mermaid
-   as theme variables (Mermaid computes the rest of its palette from them, so
-   it needs real values, not var() references). Every variable read here has
-   its own dark override in the theme files, so this block needs no
-   prefers-color-scheme twin: one mapping covers four themes times two
-   lightings.
+/* Resolved by mermaid-init.js and handed to Mermaid as theme variables.
+   Everything read here has its own dark override in the theme files, so this
+   block needs no prefers-color-scheme twin.
 
-   A theme normally changes a diagram's colors by changing the variables named
-   on the right. Naming one on the left works too, and breaks that derivation
-   for that theme alone: the theme is loaded last of all.
+   A theme changes a diagram's colors by changing the variables on the right;
+   naming one on the left works too and breaks that derivation for that theme.
 
-   --border-color is deliberately not the source for --diagram-border: it is
-   the page's hairline rule color, too faint to outline a node with. */
+   --border-color is deliberately not the source for --diagram-border: it is the
+   page's hairline rule color, too faint to outline a node with. */
 
 :root {
   /* The ground a diagram is drawn on: Mermaid works out label contrast from
-     it, and it is what a label's backing plate and a message label's halo
-     are painted in so they disappear against the page. */
+     it, and the backing plates and halos are painted in it. */
   --diagram-bg: var(--bg-color, #F5F0E4);
   --diagram-fg: var(--text-color, #221E16);
   --diagram-surface: var(--code-bg, #EAD9B9);

@@ -1,14 +1,10 @@
 /*
- * Math (MathML) styles. Included in a document only when it contains math.
+ * Math (MathML) styles. Included only in a document holding math.
  *
- * The bulk of this file is adapted from Temml-Local.css (Temml v0.13.3,
- * MIT, © Ron Kok — https://temml.org). It supplies the per-engine spacing and
- * accent corrections MathML Core still needs across WebKit, Firefox, and
- * Chromium. The `@font-face` for Temml.woff2 (used only for script capitals
- * and prime glyphs) is dropped so an exported document stays self-contained;
- * those glyphs fall back to the system math font.
- *
- * Mud additions (display-block layout) are at the top.
+ * Below the divider this is adapted from Temml-Local.css (Temml v0.13.3, MIT,
+ * © Ron Kok — https://temml.org): the per-engine spacing and accent corrections
+ * MathML Core still needs. The `@font-face` for Temml.woff2 is dropped so an
+ * export stays self-contained; those glyphs fall back to the system math font.
  */
 
 /* Display math: a `$$…$$` or ```math block, centered, scrollable when wide. */
@@ -19,11 +15,8 @@
   overflow-y: hidden;
 }
 
-/* Invalid TeX: Temml emits a `<span class="temml-error">` carrying the source
- * and a parse message, hard-coded to a harsh red with `white-space:pre-line`.
- * Reframe it as a contained, themed error chip — the `color` override needs
- * `!important` to beat Temml's inline style. In a display block it centers
- * with the block; inline it sits in the text run. */
+/* Temml emits invalid TeX as a `<span class="temml-error">`, hard-coded to a
+ * harsh red by an inline style — which is what the `!important` beats. */
 .temml-error {
   color: var(--alert-caution-title) !important;
   display: inline-block;

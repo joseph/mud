@@ -14,8 +14,7 @@
   var _expandedGroups = {}; // groupID → true when expanded
   var _groupTypes = {};     // groupID → "ins" | "del" | "mix"
 
-  // Sub-overlays: temporary red/green overlays created when a mixed
-  // (blue) group is expanded. Each entry: { overlay, els, groupId }.
+  // Created when a mixed (blue) group expands.
   var _subOverlays = [];
   // Group IDs whose original overlay is suppressed (replaced by sub-overlays).
   var _suppressedGroups = {};
@@ -24,7 +23,6 @@
     var container = document.querySelector(".up-mode-output");
     if (!container) return;
 
-    // Remove any existing overlays.
     var old = container.querySelectorAll(".mud-overlay");
     for (var i = 0; i < old.length; i++) old[i].remove();
     _overlays = {};
@@ -33,10 +31,8 @@
     _subOverlays = [];
     _suppressedGroups = {};
 
-    // Discover groups from data-group-id attributes. The group's type
-    // (ins | del | mix) is computed in Swift and carried on each member
-    // as data-group-type, so members hidden from the DOM (e.g. a
-    // suppressed deletion) still count toward the type.
+    // The group's type is computed in Swift and carried on every member, so a
+    // member hidden from the DOM still counts toward it.
     var els = container.querySelectorAll("[data-group-id]");
     var groups = {};  // groupID → { index, type }
     for (var j = 0; j < els.length; j++) {
@@ -52,7 +48,6 @@
       }
     }
 
-    // Create one overlay per group.
     for (var gid in groups) {
       var g = groups[gid];
       var type = g.type || "ins";
@@ -64,14 +59,12 @@
       div.dataset.groupId = gid;
       div.dataset.groupIndex = g.index;
 
-      // Add expando button to every group.
       var btn = document.createElement("button");
       btn.className = "mud-expando";
       btn.textContent = g.index;
       div.appendChild(btn);
 
-      if (type === "ins") {
-        // Ins-only groups are always expanded; button is non-interactive.
+      if (type === "ins") {   // always expanded; the button is inert
         btn.classList.add("mud-expando-expanded");
         btn.disabled = true;
         btn.setAttribute("aria-expanded", "true");
@@ -82,8 +75,7 @@
         })(gid));
       }
 
-      // Del-only and mix groups start collapsed unless auto-expand is on.
-      if (type === "del" || type === "mix") {
+      if (type === "del" || type === "mix") {   // start collapsed
         if (!document.documentElement.classList.contains("is-auto-expand-changes")) {
           if (type === "del") {
             div.classList.add("mud-overlay-collapsed");
@@ -95,7 +87,6 @@
       _overlays[gid] = div;
     }
 
-    // Auto-expand collapsible groups when the preference is set.
     if (document.documentElement.classList.contains("is-auto-expand-changes")) {
       for (var gid in _overlays) {
         if (_groupTypes[gid] === "del" || _groupTypes[gid] === "mix") {
@@ -107,8 +98,6 @@
     positionOverlays();
   }
 
-  /// Position an overlay element to span from the first to last
-  /// visible element in `els`, relative to `container`.
   function positionOverlay(overlay, els, containerRect, scrollTop) {
     var visible = [];
     for (var i = 0; i < els.length; i++) {
@@ -126,8 +115,7 @@
     overlay.style.height = ((lastRect.bottom - firstRect.top) / geo.zoom()) + "px";
   }
 
-  /// Position a collapsed del-only overlay at the gap where its
-  /// hidden deletions would appear.
+  // A collapsed del-only overlay sits at the gap its hidden deletions left.
   function positionCollapsedOverlay(overlay, gid, container, containerRect, scrollTop) {
     var els = container.querySelectorAll(
       "[data-group-id='" + gid + "']:not(.mud-overlay)"
@@ -136,7 +124,6 @@
       overlay.style.display = "none";
       return;
     }
-    // Walk backwards from the first del element to find a visible sibling.
     var first = els[0];
     var prev = first.previousElementSibling;
     while (prev && prev.offsetParent === null) {
@@ -147,8 +134,7 @@
       var prevRect = prev.getBoundingClientRect();
       top = geo.viewportToLayout(prevRect.bottom, containerRect, scrollTop);
     } else {
-      // No previous visible sibling — find the next visible sibling instead
-      // and position at its top edge.
+      // No previous visible sibling: use the next one's top edge.
       var next = els[els.length - 1].nextElementSibling;
       while (next && next.offsetParent === null) {
         next = next.nextElementSibling;
@@ -157,7 +143,7 @@
         var nextRect = next.getBoundingClientRect();
         top = geo.viewportToLayout(nextRect.top, containerRect, scrollTop);
       } else {
-        // No visible siblings at all — use the parent's top edge.
+        // No visible siblings at all.
         var parentRect = first.parentElement.getBoundingClientRect();
         top = geo.viewportToLayout(parentRect.top, containerRect, scrollTop);
       }
@@ -192,9 +178,8 @@
       positionOverlay(sub.overlay, sub.els, containerRect, scrollTop);
     }
 
-    // Make consecutive sub-overlays for the same group continuous:
-    // extend each overlay's bottom to meet the next overlay's top.
-    // Mark non-last overlays as "cont" and last overlays as "tail".
+    // Consecutive sub-overlays of one group are made continuous: each bottom
+    // is extended to meet the next one's top.
     for (var i = 0; i < _subOverlays.length; i++) {
       var cur = _subOverlays[i];
       var next = _subOverlays[i + 1];
@@ -212,7 +197,6 @@
     }
   }
 
-  // Build overlays on load; reposition on resize.
   buildOverlays();
   var _upContainer = document.querySelector(".up-mode-output");
   if (_upContainer) {
@@ -228,7 +212,6 @@
     var container = document.querySelector(".up-mode-output");
     var type = _groupTypes[gid];
 
-    // Mark all elements in group as revealed.
     var els = container.querySelectorAll(
       "[data-group-id='" + gid + "']:not(.mud-overlay)"
     );
@@ -240,11 +223,10 @@
       overlay.classList.remove("mud-overlay-collapsed");
       overlay.classList.add("mud-change-revealed");
     } else if (type === "mix") {
-      // Hide blue overlay and create red/green sub-overlays.
       overlay.style.display = "none";
       _suppressedGroups[gid] = true;
 
-      // Split group elements into consecutive runs by type.
+      // Split into consecutive runs by type, one sub-overlay each.
       var runs = [];
       var cur = null;
       for (var k = 0; k < els.length; k++) {
@@ -258,7 +240,6 @@
         }
       }
 
-      // Create a sub-overlay for each run, starting invisible.
       var firstSub = null;
       for (var r = 0; r < runs.length; r++) {
         var run = runs[r];
@@ -277,14 +258,12 @@
         if (!firstSub) firstSub = div;
       }
 
-      // Move button to first sub-overlay.
       var btn = overlay.querySelector(".mud-expando");
       if (btn && firstSub) {
         firstSub.appendChild(btn);
       }
     }
 
-    // Mark button as expanded.
     var btn = overlay.querySelector(".mud-expando")
            || (container && container.querySelector(
                 ".mud-overlay[data-group-id='" + gid + "'] .mud-expando"));
@@ -295,8 +274,7 @@
 
     positionOverlays();
 
-    // Fade in sub-overlays on next frame.
-    if (type === "mix") {
+    if (type === "mix") {   // fade the sub-overlays in on the next frame
       requestAnimationFrame(function () {
         for (var i = 0; i < _subOverlays.length; i++) {
           if (_subOverlays[i].groupId === gid) {
@@ -314,7 +292,6 @@
     var container = document.querySelector(".up-mode-output");
     var type = _groupTypes[gid];
 
-    // Remove revealed class from all elements in group.
     var els = container.querySelectorAll(
       "[data-group-id='" + gid + "']:not(.mud-overlay)"
     );
@@ -326,7 +303,7 @@
       overlay.classList.add("mud-overlay-collapsed");
       overlay.classList.remove("mud-change-revealed");
     } else if (type === "mix") {
-      // Move button back from sub-overlay, then remove sub-overlays.
+      // The button comes back off the sub-overlay before they are removed.
       var remaining = [];
       for (var i = 0; i < _subOverlays.length; i++) {
         if (_subOverlays[i].groupId === gid) {
@@ -342,7 +319,6 @@
       overlay.style.display = "";
     }
 
-    // Unmark button.
     var btn = overlay.querySelector(".mud-expando");
     if (btn) {
       btn.classList.remove("mud-expando-expanded");
@@ -374,13 +350,12 @@
       '[data-change-id="' + ids[0] + '"]'
     );
     if (!first) return;
-    // A change inside a folded section (foldable headings) opens it first —
-    // otherwise the block below reads its missing layout box as a collapsed
-    // deletion group and scrolls to the expando instead.
+    // A folded change opens first: otherwise the block below reads its missing
+    // layout box as a collapsed deletion group and scrolls to the expando.
     if (window.Mud.folds) window.Mud.folds.reveal(first);
     var gid = first.dataset.groupId;
 
-    // For collapsed del-only groups, scroll to the overlay button.
+    // A collapsed del-only group scrolls to its overlay button.
     if (first.offsetParent === null && gid && _overlays[gid]) {
       var btn = _overlays[gid].querySelector(".mud-expando");
       if (btn) {
@@ -390,10 +365,9 @@
       first.scrollIntoView({ behavior: "smooth", block: "center" });
     }
 
-    // Ripple the expando button for the group.
+    // Ripple the group's expando button, clearing any leftover active state.
     if (!gid) return;
 
-    // Clear any leftover active state from a previous navigation.
     var stale = document.querySelectorAll(".mud-expando.mud-change-active");
     for (var s = 0; s < stale.length; s++) {
       stale[s].classList.remove("mud-change-active");
@@ -435,9 +409,7 @@
     }
   }
 
-  // Guard the namespace so this file doesn't depend on mud.js having already
-  // defined it (mud.js is injected first, but the merge keeps order from being
-  // a silent contract).
+  // Guarded, so injection order is not a silent contract.
   window.Mud = window.Mud || {};
   window.Mud.scrollToChange = scrollToChange;
   window.Mud.collapseAllChanges = collapseAllChanges;

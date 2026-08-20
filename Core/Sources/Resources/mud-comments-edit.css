@@ -1,12 +1,9 @@
 /* -- Comments (write side) ------------------------------------------------ */
 
-/* The write-side comment styles: the compose box and the add / reply / cancel /
-   done / edit / delete controls, plus the delete puff animation. The app embeds
-   these via RenderOptions.commentsEditable; exports omit them, since an exported
-   column is read-only. The read-side styles live in mud-comments.css. This
-   mirrors the mud-comments.js / mud-comments-edit.js split. */
+/* The compose box, the reply / edit / delete controls, and the delete puff.
+   Embedded only when RenderOptions.commentsEditable is set, so an export — whose
+   column is read-only — omits them. The read side is mud-comments.css. */
 
-/* Accent color (macOS) for the primary "Done" button. */
 :root {
   --mud-accent: #0a66ff;
 }
@@ -14,11 +11,9 @@
   :root { --mud-accent: AccentColor; }
 }
 
-/* Danger color for a compose box whose submission didn't land, and the text that
-   sits on top of it. The same pair mud.css uses for `--alert-caution-*`, so a
-   refused box is the red the rest of the document already means trouble with.
-   The contrast color flips because the dark tone is much lighter: white on it
-   measures 3.4:1, black 6.3:1, the other way around from the light tone. */
+/* The `--alert-caution-*` pair, so a refused box is the red the document
+   already means trouble with. The contrast color flips because the dark tone is
+   much lighter: white on it measures 3.4:1, black 6.3:1. */
 :root {
   --mud-danger: #d1242f;
   --mud-danger-fg: #fff;
@@ -30,12 +25,9 @@
   }
 }
 
-/* The provisional highlight over the text being commented on, shown while a new
-   comment is composed. Unlike a saved quotation highlight (transparent until its
-   marker is hovered), this stays painted yellow the whole time the compose box
-   is open, so the user can see exactly what they selected after the native text
-   selection collapses into the textarea. Mirrors `.mud-comment-highlight.is-active`
-   in mud-comments.css. */
+/* Unlike a saved quotation highlight, this stays painted the whole time the
+   compose box is open, so the selection is still visible after the native one
+   collapses into the textarea. */
 .mud-comment-highlight.mud-comment-draft {
   background-color: var(--comment-highlight, #fde047);
 }
@@ -45,9 +37,8 @@
   }
 }
 
-/* The compose box is positioned in the column like a capsule (the placement
-   pass sets its `top`); inline reply / edit forms override this to sit in the
-   thread flow instead (see .mud-compose-inline). */
+/* Positioned in the column like a capsule; .mud-compose-inline overrides this
+   for a reply or edit, which sits in the thread flow. */
 .mud-compose {
   position: absolute;
   right: 12px;
@@ -58,14 +49,12 @@
               height 0.18s ease,
               opacity 0.18s ease,
               transform 0.18s ease;
-  /* No fixed height: the box shrink-wraps the textarea, which auto-grows with
-     its text (see autoGrow in mud-comments-edit.js). The layout solver reads the
-     measured offsetHeight; COMPOSE_H in mud-comments.js is only the fallback. */
+  /* No fixed height: the box shrink-wraps the auto-growing textarea, and the
+     layout solver reads the measured offsetHeight. */
   display: flex;
   flex-direction: column;
 }
 
-/* Edit / delete icons, bottom-right inside the last message box. */
 .mud-message-actions {
   display: flex;
   justify-content: flex-end;
@@ -110,8 +99,6 @@
   cursor: pointer;
 }
 
-/* Outlined controls carry the higher-contrast border; the primary one is
-   filled with the accent color and has no border. */
 .mud-capsule-actions .mud-reply,
 .mud-compose .mud-cancel {
   border: 1px solid var(--blockquote-color);
@@ -131,8 +118,7 @@
 .mud-compose textarea {
   box-sizing: border-box;
   resize: none;
-  /* Auto-grows from min-height to max-height as the user types; beyond the cap
-     it scrolls. JS sets the in-between height; CSS clamps the ends. */
+  /* JS sets the in-between height; CSS clamps the ends. */
   min-height: 100px;
   max-height: 400px;
   overflow-y: auto;
@@ -151,11 +137,9 @@
   margin-top: 15px;
 }
 
-/* A submission that didn't land. Why is the info bar's to say, so the box shows
-   only the state — but it shows it across the whole form rather than on one
-   control, so the box reads as refused instead of as a button that looks odd.
-   The textarea's caret follows its `color`, so it turns red too. Set by
-   `setFailed` in mud-comments-edit.js; nothing else marks the state. */
+/* A submission that didn't land. Across the whole form rather than one
+   control, so the box reads as refused rather than as an odd-looking button.
+   The textarea's caret follows its `color`, so it turns red too. */
 .mud-compose.is-failed textarea {
   border-color: var(--mud-danger);
   color: var(--mud-danger);
@@ -171,8 +155,8 @@
   color: var(--mud-danger-fg);
 }
 
-/* Inline compose (reply / edit) is a full-width row in the active thread, so the
-   placement pass measures it as part of the capsule's height. */
+/* A full-width row in the active thread, so the placement pass measures it as
+   part of the capsule's height. */
 .mud-compose.mud-compose-inline {
   position: static;
   right: auto;
@@ -182,16 +166,11 @@
 
 /* -- Column resize handle ------------------------------------------------- */
 
-/* A full-height grab strip centered on the gutter's inner edge — the divider
-   between the document and the column. Invisible but for the resize cursor;
-   shown only in column mode (the read side reserves the gutter under the same
-   classes). mud-comments-edit.js wires the drag. */
 .mud-column-resizer { display: none; }
 
-/* The `min-width` guard matches the read side's gutter block in
-   mud-comments.css and the 700px Compact tier in mud-narrow.css: with the
-   column stood down there is no divider to grab, and an unguarded strip would
-   sit at a gutter edge that no longer exists. */
+/* The `min-width` guard matches the read side's gutter block: with the column
+   stood down, an unguarded strip would sit at a gutter edge that isn't
+   there. */
 @media screen and (min-width: 700.02px) {
   html.comments-column.is-comments-column .mud-column-resizer {
     display: block;
@@ -206,8 +185,8 @@
     pointer-events: auto;
   }
 
-  /* In Readable Column the divider sits at the column's left edge (off the
-     document's right edge), not the window's, so follow the column there. */
+  /* In Readable Column the divider is at the column's left edge, not the
+     window's. */
   html.comments-column.is-comments-column.is-readable-column .mud-column-resizer {
     right: auto;
     left: min((100% + 800px) / 2, 100% - var(--comment-column-gutter));
@@ -215,15 +194,11 @@
   }
 }
 
-/* While dragging: keep the resize cursor everywhere and suppress text selection,
-   and drop the capsule move/resize transitions so the column tracks the pointer
-   without lag. */
+/* Dragging drops the capsule transitions, so the column tracks the pointer. */
 html.is-resizing-comment-column { cursor: col-resize; user-select: none; }
 html.is-resizing-comment-column .mud-capsule,
 html.is-resizing-comment-column .mud-compose { transition: none; }
 
-/* Delete: a brief scale-blur-fade puff — the whole capsule for the last
-   remaining message, or just one message box within a longer thread. */
 .mud-capsule.is-removing,
 .mud-capsule-thread .mud-comment-message.is-removing {
   pointer-events: none;

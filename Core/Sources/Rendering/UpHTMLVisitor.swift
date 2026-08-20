@@ -806,8 +806,9 @@ struct UpHTMLVisitor: CMarkWalker {
     /// Emits the content of a GFM alert, stripping the `[!TYPE]` tag
     /// from the first paragraph. Walks the first paragraph's inline
     /// children directly: skips the tag text node (emitting any
-    /// trailing content on the same line), skips a following soft break,
-    /// then visits remaining inlines and subsequent block children.
+    /// trailing content on the same line), drops the soft break that
+    /// ended a tag line with nothing else on it, then visits remaining
+    /// inlines and subsequent block children.
     private mutating func emitGFMAlertContent(
         _ blockQuote: CMarkNode, category: AlertCategory
     ) {
@@ -841,8 +842,13 @@ struct UpHTMLVisitor: CMarkWalker {
                 result += "<p>"
                 result += HTMLEscaping.escape(after)
             }
-            // Skip the soft break that separates the tag line from content.
-            if index < inlines.count && inlines[index].kind == .softBreak {
+            // The soft break ending the tag line. When the tag was alone on
+            // that line, the line goes with it and so does the break. When
+            // content followed the tag, the break still separates two
+            // rendered lines, so it is left for the loop below to visit —
+            // dropping it ran the two lines' words together.
+            if !opened, index < inlines.count,
+               inlines[index].kind == .softBreak {
                 index += 1
             }
         }

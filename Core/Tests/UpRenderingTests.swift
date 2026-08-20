@@ -87,6 +87,40 @@ struct UpRenderingTests {
         #expect(css.contains("td[align=\"right\"]"))
     }
 
+    // MARK: - GFM alerts
+
+    // GitHub wants the `[!TYPE]` tag alone on its line; Mud also renders
+    // content that follows it on the same line, as body text.
+
+    @Test func contentAfterTheTagKeepsItsLineBreak() {
+        let markdown = """
+            > [!TIP] Same-line content after the tag.
+            > A second line in the first paragraph.
+
+            """
+        let body = UpHTMLVisitor.renderBody(markdown, options: .init())
+        // The soft break between the two lines is the paragraph's own, not
+        // the one that ended the tag line, so it still renders. Dropping it
+        // ran "tag.A second" together.
+        #expect(
+            body.contains(
+                "<p>Same-line content after the tag.\n"
+                    + "A second line in the first paragraph.</p>"))
+    }
+
+    @Test func aTagAloneOnItsLineLosesItsBreak() {
+        let markdown = """
+            > [!NOTE]
+            > The body starts on the second line.
+
+            """
+        let body = UpHTMLVisitor.renderBody(markdown, options: .init())
+        // Nothing rendered from the tag line, so the break that ended it
+        // would open the body with a stray newline.
+        #expect(
+            body.contains("<p>The body starts on the second line.</p>"))
+    }
+
     // MARK: - Diffed rendering
 
     /// The cmark pipeline's diffed body render: the raw waypoint goes
